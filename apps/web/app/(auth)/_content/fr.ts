@@ -6,6 +6,15 @@
 
 export const STEP_TOTAL = 5
 
+export const onboardingHeader = {
+  backToHome: "Retour à l'accueil",
+  backToProfile: "Retour à la sélection du profil",
+  backToSignUp: "Modifier l'email",
+  backToVerify: "Retour à la vérification",
+  backToIdentity: "Retour à l'identité",
+  backToEnter: "Re-saisir le PIN",
+} as const
+
 export const profile = {
   meta: { title: "Choisir mon profil", description: "Sélectionnez votre profil pour démarrer la création de votre compte IDN." },
   step: 1,
@@ -143,16 +152,20 @@ export const identity = {
 export const pin = {
   meta: { title: "Créer mon PIN", description: "Créez votre PIN à 6 chiffres pour l'accès rapide à votre compte IDN." },
   step: 5,
-  title: "Votre PIN à 6 chiffres",
-  sub: "Une couche de sécurité rapide qui complète votre mot de passe.",
-  intro:
-    "Votre PIN à 6 chiffres permet une connexion rapide depuis votre téléphone et confirme les actions sensibles (autoriser une nouvelle application, valider une démarche). Il complète votre mot de passe — il ne le remplace pas.",
-  pinLabel: "Saisissez votre PIN",
-  confirmLabel: "Confirmez votre PIN",
+  enterTitle: "Créer votre PIN",
+  enterSub: "Un code à 6 chiffres pour les actions sensibles : signature, validation, accès rapide.",
+  confirmTitle: "Confirmer votre PIN",
+  confirmSub: "Saisissez à nouveau le même code pour confirmer.",
   hint: "Évitez les suites évidentes (123456, 000000) et votre date de naissance. Vous pourrez le modifier dans Mon profil → Sécurité.",
-  primary: "Confirmer",
+  primary: "Continuer",
+  primaryConfirm: "Confirmer",
   back: "← Retour",
   successToast: "Compte créé avec succès. Bienvenue sur IDN.",
+  numpadAria: "Pavé numérique",
+  backspaceAria: "Effacer le dernier chiffre",
+  digitAria: (n: number) => `Chiffre ${n}`,
+  dotsAria: (filled: number, total: number) =>
+    `PIN saisi : ${filled} chiffre${filled > 1 ? "s" : ""} sur ${total}`,
   validation: {
     sixDigits: "Le PIN doit contenir exactement 6 chiffres.",
     weakSequence:

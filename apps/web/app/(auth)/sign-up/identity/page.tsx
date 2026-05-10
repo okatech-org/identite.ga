@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useMutation } from "convex/react"
@@ -21,7 +20,7 @@ import {
   SelectValue,
 } from "@repo/ui/components/select"
 
-import { identity, STEP_TOTAL } from "../../_content/fr"
+import { identity, onboardingHeader, STEP_TOTAL } from "../../_content/fr"
 import { WizardShell } from "../../_components/wizard-shell"
 
 const TODAY_ISO = new Date().toISOString().slice(0, 10)
@@ -77,8 +76,21 @@ export default function IdentityPage() {
       total={STEP_TOTAL}
       title={identity.title}
       sub={identity.sub}
+      backHref="/sign-up/verify"
+      backLabel={onboardingHeader.backToVerify}
+      footer={
+        <Button
+          type="submit"
+          form="identity-form"
+          size="lg"
+          disabled={isSubmitting}
+          className="w-full"
+        >
+          {isSubmitting ? "…" : identity.primary}
+        </Button>
+      }
     >
-      <form onSubmit={onSubmit} noValidate className="space-y-4">
+      <form id="identity-form" onSubmit={onSubmit} noValidate className="space-y-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="id-firstName">{identity.fields.firstName.label}</Label>
@@ -245,14 +257,6 @@ export default function IdentityPage() {
           )}
         </div>
 
-        <div className="flex flex-col gap-2.5 pt-3 sm:flex-row">
-          <Button asChild variant="ghost" size="lg">
-            <Link href="/sign-up/verify">{identity.back}</Link>
-          </Button>
-          <Button type="submit" size="lg" disabled={isSubmitting} className="flex-1">
-            {isSubmitting ? "…" : identity.primary}
-          </Button>
-        </div>
       </form>
     </WizardShell>
   )

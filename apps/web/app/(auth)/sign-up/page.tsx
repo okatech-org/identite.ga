@@ -14,7 +14,7 @@ import { Label } from "@repo/ui/components/label"
 
 import { authClient } from "@/lib/auth-client"
 
-import { signUp, STEP_TOTAL } from "../_content/fr"
+import { onboardingHeader, signUp, STEP_TOTAL } from "../_content/fr"
 import {
   getOnboardingProfile,
   setOnboardingEmail,
@@ -92,12 +92,25 @@ export default function SignUpPage() {
       total={STEP_TOTAL}
       title={signUp.title}
       sub={signUp.sub}
+      backHref="/sign-up/profile"
+      backLabel={onboardingHeader.backToProfile}
+      footer={
+        <Button
+          type="submit"
+          form="signup-form"
+          size="lg"
+          disabled={isSubmitting}
+          className="w-full"
+        >
+          {isSubmitting ? "…" : signUp.primary}
+        </Button>
+      }
     >
       <p className="mb-5 rounded-md bg-idn-blue-soft p-3.5 text-[12px] leading-relaxed text-foreground/80 dark:bg-[#10243A]">
         {signUp.intro}
       </p>
 
-      <form onSubmit={onSubmit} noValidate className="space-y-5">
+      <form id="signup-form" onSubmit={onSubmit} noValidate className="space-y-5">
         <div className="space-y-1.5">
           <Label htmlFor="signup-email">{signUp.emailLabel}</Label>
           <Input
@@ -198,12 +211,6 @@ export default function SignUpPage() {
               {errors.acceptTerms.message}
             </p>
           )}
-        </div>
-
-        <div className="flex flex-col gap-2.5 pt-2 sm:flex-row">
-          <Button type="submit" size="lg" disabled={isSubmitting} className="flex-1">
-            {isSubmitting ? "…" : signUp.primary}
-          </Button>
         </div>
 
         <p className="text-center text-xs text-muted-foreground">

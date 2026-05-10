@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { UserIcon } from "lucide-react"
 
@@ -9,7 +8,7 @@ import { Button } from "@repo/ui/components/button"
 import { LoABadge } from "@repo/ui/components/loa-badge"
 import { cn } from "@repo/ui/lib/utils"
 
-import { profile, STEP_TOTAL } from "../../_content/fr"
+import { onboardingHeader, profile, STEP_TOTAL } from "../../_content/fr"
 import {
   getOnboardingProfile,
   setOnboardingProfile,
@@ -37,21 +36,18 @@ export default function ProfileSelectionPage() {
       total={STEP_TOTAL}
       title={profile.title}
       sub={profile.sub}
+      backHref="/"
+      backLabel={onboardingHeader.backToHome}
       footer={
-        <>
-          <Button asChild variant="ghost" size="lg">
-            <Link href="/">{profile.back}</Link>
-          </Button>
-          <Button
-            type="button"
-            size="lg"
-            disabled={!selected}
-            onClick={onSubmit}
-            className="flex-1"
-          >
-            {profile.primary}
-          </Button>
-        </>
+        <Button
+          type="button"
+          size="lg"
+          disabled={!selected}
+          onClick={onSubmit}
+          className="w-full"
+        >
+          {profile.primary}
+        </Button>
       }
     >
       <ul className="flex flex-col gap-2.5" role="radiogroup" aria-label={profile.title}>

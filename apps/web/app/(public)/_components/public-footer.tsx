@@ -2,12 +2,13 @@ import Link from "next/link"
 
 import { IdnFlagBars } from "@repo/ui/components/idn-flag-bars"
 import { ThemeToggle } from "@repo/ui/components/theme-toggle"
+import { cn } from "@repo/ui/lib/utils"
 
 import { footer } from "../_content/fr"
 
-export function PublicFooter() {
+export function PublicFooter({ className }: { className?: string }) {
   return (
-    <footer className="border-t border-border bg-card">
+    <footer className={cn("border-t border-border bg-card", className)}>
       <div className="mx-auto flex max-w-[1180px] flex-col gap-4 px-4 py-5 md:flex-row md:items-center md:gap-6 md:px-7 md:py-4">
         <div className="flex items-center gap-3">
           <IdnFlagBars width={24} height={3} />

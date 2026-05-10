@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useMutation } from "convex/react"
 import { toast } from "sonner"
@@ -11,7 +10,7 @@ import { Button } from "@repo/ui/components/button"
 
 import { authClient } from "@/lib/auth-client"
 
-import { verify, STEP_TOTAL } from "../../_content/fr"
+import { onboardingHeader, verify, STEP_TOTAL } from "../../_content/fr"
 import { OtpInput } from "../../_components/otp-input"
 import { WizardShell } from "../../_components/wizard-shell"
 import {
@@ -113,9 +112,17 @@ export default function VerifyOtpPage() {
       sub={
         email ? `${verify.subPrefix}${email}.` : `${verify.subPrefix}votre adresse.`
       }
+      backHref="/sign-up"
+      backLabel={onboardingHeader.backToSignUp}
       footer={
-        <Button asChild variant="ghost" size="lg" className="flex-1">
-          <Link href="/sign-up">{verify.back}</Link>
+        <Button
+          type="button"
+          size="lg"
+          disabled={code.length !== 6 || isVerifying}
+          onClick={() => void handleVerify(code)}
+          className="w-full"
+        >
+          {isVerifying ? "…" : verify.primary}
         </Button>
       }
     >

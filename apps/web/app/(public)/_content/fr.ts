@@ -10,14 +10,26 @@ export const navTabs = [
   { href: "/admins", label: "Administrations" },
   { href: "/help", label: "Aide" },
   { href: "/status", label: "État" },
-] as const
+] as const;
 
 export const navActions = {
   signIn: "Se connecter",
   signUp: "Créer un compte",
   republic: "RÉPUBLIQUE GABONAISE",
   brand: "Identité Numérique",
-} as const
+} as const;
+
+export const mobileNav = {
+  menuLabel: "Ouvrir le menu",
+  menuTitle: "Menu",
+  menuDescription: "Navigation et actions du compte IDN.",
+  closeLabel: "Fermer le menu",
+  themeLabel: "Apparence",
+} as const;
+
+export const mobileFooter = {
+  copyright: "© République Gabonaise",
+} as const;
 
 export const footer = {
   copyright:
@@ -29,7 +41,7 @@ export const footer = {
     { href: "/contact", label: "Contact" },
   ],
   skipToMain: "Aller au contenu principal",
-} as const
+} as const;
 
 export const welcome = {
   meta: {
@@ -43,7 +55,7 @@ export const welcome = {
     line2: "pour tous les services",
     line3: "de l'État.",
   },
-  sub: "Authentifiez-vous une fois sur IDN, accédez à l'ensemble des services administratifs gabonais — consulats, ministères, e-Visa, bourses, santé.",
+  sub: "Authentifiez-vous une fois, accédez à l'ensemble des services administratifs gabonais en toute sécurité.",
   ctaPrimary: "Créer un compte IDN",
   ctaSecondary: "Se connecter",
   loa: {
@@ -66,7 +78,7 @@ export const welcome = {
       },
     ] as const,
   },
-} as const
+} as const;
 
 export const about = {
   meta: {
@@ -113,7 +125,7 @@ export const about = {
     eyebrow: "GOUVERNANCE",
     body: "IDN est opéré par l'Agence Nationale des Infrastructures Numériques (ANINF) sous la tutelle du Ministère de l'Économie Numérique. Le code source des composants critiques est audité chaque année par la Cour des Comptes et un cabinet indépendant.",
   },
-} as const
+} as const;
 
 export const administrations = {
   meta: {
@@ -152,7 +164,7 @@ export const administrations = {
     primary: "Portail développeur",
     secondary: "Documentation",
   },
-} as const
+} as const;
 
 export const help = {
   meta: {
@@ -196,7 +208,7 @@ export const help = {
     sub: "1407 — gratuit depuis le Gabon · 24/7 · français, fang, myènè, punu, nzébi",
     cta: "Formulaire",
   },
-} as const
+} as const;
 
 export const legal = {
   meta: {
@@ -235,7 +247,7 @@ export const legal = {
       body: "IDN utilise uniquement des cookies de session strictement nécessaires. Aucun traceur publicitaire ou analytique tiers.",
     },
   ],
-} as const
+} as const;
 
 export const status = {
   meta: {
@@ -249,7 +261,7 @@ export const status = {
     sub: "Vue temps réel · mise à jour il y a 23 secondes",
   },
   incidentsLabel: "INCIDENTS RÉCENTS",
-} as const
+} as const;
 
 export const contact = {
   meta: {
@@ -279,9 +291,9 @@ export const contact = {
     },
     {
       title: "Email",
-      description: "support@idn.ga\nRéponse sous 48h ouvrées",
+      description: "support@identite.ga\nRéponse sous 48h ouvrées",
       cta: "Écrire",
-      href: "mailto:support@idn.ga",
+      href: "mailto:support@identite.ga",
     },
   ],
   form: {
@@ -313,7 +325,7 @@ export const contact = {
       messageMin: "Le message doit contenir au moins 10 caractères.",
     },
   },
-} as const
+} as const;
 
 export const services = {
   meta: {
@@ -332,4 +344,4 @@ export const services = {
     { value: "2", label: "Niveau 2" },
     { value: "3", label: "Niveau 3" },
   ] as const,
-} as const
+} as const;

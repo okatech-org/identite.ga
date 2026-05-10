@@ -1,18 +1,15 @@
 "use client"
 
 import * as React from "react"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useMutation, useQuery } from "convex/react"
-import { ShieldCheckIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { api } from "@repo/backend/convex/_generated/api"
 import { Button } from "@repo/ui/components/button"
-import { Label } from "@repo/ui/components/label"
 
-import { pin, STEP_TOTAL } from "../../_content/fr"
-import { OtpInput } from "../../_components/otp-input"
+import { onboardingHeader, pin, STEP_TOTAL } from "../../_content/fr"
+import { PinPad } from "../../_components/pin-pad"
 import { WizardShell } from "../../_components/wizard-shell"
 import { clearOnboardingState } from "../../_hooks/use-onboarding-state"
 
@@ -39,7 +36,6 @@ function isWeakPin(value: string): boolean {
 
 function pinMatchesDob(pin: string, dob?: string): boolean {
   if (!dob || pin.length !== 6) return false
-  // dob ISO YYYY-MM-DD → DDMMYY ou MMDDYY ou YYYYMM ou YYMMDD
   const [y, m, d] = dob.split("-")
   if (!y || !m || !d) return false
   const candidates = [
@@ -51,11 +47,14 @@ function pinMatchesDob(pin: string, dob?: string): boolean {
   return candidates.includes(pin)
 }
 
+type Phase = "enter" | "confirm"
+
 export default function PinCreationPage() {
   const router = useRouter()
   const createPin = useMutation(api.onboarding.createPin)
   const me = useQuery(api.profile.getCurrentUser)
 
+  const [phase, setPhase] = React.useState<Phase>("enter")
   const [first, setFirst] = React.useState("")
   const [second, setSecond] = React.useState("")
   const [error, setError] = React.useState<string | null>(null)
@@ -63,22 +62,23 @@ export default function PinCreationPage() {
 
   const dob = me?.profile?.pivot?.dateOfBirth
 
-  const onSubmit = async () => {
+  const handleEnterComplete = (entered: string) => {
     setError(null)
-    if (first.length !== 6 || second.length !== 6) {
-      setError(pin.validation.sixDigits)
-      return
-    }
-    if (first !== second) {
-      setError(pin.validation.mismatch)
-      return
-    }
-    if (isWeakPin(first)) {
+    if (isWeakPin(entered)) {
       setError(pin.validation.weakSequence)
       return
     }
-    if (pinMatchesDob(first, dob)) {
+    if (pinMatchesDob(entered, dob)) {
       setError(pin.validation.matchesDob)
+      return
+    }
+    setPhase("confirm")
+  }
+
+  const submit = async (confirmation: string) => {
+    setError(null)
+    if (first !== confirmation) {
+      setError(pin.validation.mismatch)
       return
     }
     setSubmitting(true)
@@ -93,59 +93,69 @@ export default function PinCreationPage() {
     }
   }
 
+  const isEnter = phase === "enter"
+  const value = isEnter ? first : second
+  const onChange = (v: string) => {
+    setError(null)
+    if (isEnter) setFirst(v)
+    else setSecond(v)
+  }
+  const onComplete = isEnter ? handleEnterComplete : submit
+  const onPrimary = () => {
+    if (isEnter) handleEnterComplete(first)
+    else void submit(second)
+  }
+  const backToEnter = () => {
+    setPhase("enter")
+    setSecond("")
+    setError(null)
+  }
+
   return (
     <WizardShell
       step={pin.step}
       total={STEP_TOTAL}
-      title={pin.title}
-      sub={pin.sub}
+      title={isEnter ? pin.enterTitle : pin.confirmTitle}
+      sub={isEnter ? pin.enterSub : pin.confirmSub}
+      backHref={isEnter ? "/sign-up/identity" : undefined}
+      onBack={isEnter ? undefined : backToEnter}
+      backLabel={
+        isEnter ? onboardingHeader.backToIdentity : onboardingHeader.backToEnter
+      }
+      footer={
+        <Button
+          type="button"
+          size="lg"
+          disabled={submitting || value.length !== 6}
+          onClick={onPrimary}
+          className="w-full"
+        >
+          {submitting ? "…" : isEnter ? pin.primary : pin.primaryConfirm}
+        </Button>
+      }
     >
-      <p className="mb-5 rounded-md bg-idn-blue-soft p-3.5 text-[12px] leading-relaxed text-foreground/80 dark:bg-[#10243A]">
-        {pin.intro}
-      </p>
+      <div className="space-y-6">
+        <PinPad
+          length={6}
+          value={value}
+          onChange={onChange}
+          onComplete={onComplete}
+          hasError={Boolean(error)}
+          ariaLabel={isEnter ? pin.enterTitle : pin.confirmTitle}
+          numpadAriaLabel={pin.numpadAria}
+          backspaceAriaLabel={pin.backspaceAria}
+          digitAriaLabel={pin.digitAria}
+          dotsAriaLabel={pin.dotsAria}
+          autoFocus
+          disabled={submitting}
+          resetKey={phase}
+        />
 
-      <div className="space-y-5">
-        <div className="space-y-2">
-          <Label className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            {pin.pinLabel}
-          </Label>
-          <OtpInput
-            value={first}
-            onChange={(v) => {
-              setError(null)
-              setFirst(v)
-            }}
-            length={6}
-            variant="pin"
-            autoFocus
-            ariaLabel={pin.pinLabel}
-            ariaDescribedBy="pin-error"
-            hasError={Boolean(error)}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            {pin.confirmLabel}
-          </Label>
-          <OtpInput
-            value={second}
-            onChange={(v) => {
-              setError(null)
-              setSecond(v)
-            }}
-            length={6}
-            variant="pin"
-            ariaLabel={pin.confirmLabel}
-            ariaDescribedBy="pin-error"
-            hasError={Boolean(error)}
-          />
-        </div>
-
-        <div className="flex items-start gap-3 rounded-md bg-secondary p-3 text-[12px] leading-relaxed text-muted-foreground">
-          <ShieldCheckIcon className="size-4 shrink-0 text-idn-blue" aria-hidden="true" />
-          <span>{pin.hint}</span>
-        </div>
+        {isEnter && (
+          <p className="text-center text-xs leading-relaxed text-muted-foreground">
+            {pin.hint}
+          </p>
+        )}
 
         <div id="pin-error" aria-live="polite" className="min-h-[1rem]">
           {error && (
@@ -153,21 +163,6 @@ export default function PinCreationPage() {
               {error}
             </p>
           )}
-        </div>
-
-        <div className="flex flex-col gap-2.5 pt-1 sm:flex-row">
-          <Button asChild variant="ghost" size="lg">
-            <Link href="/sign-up/identity">{pin.back}</Link>
-          </Button>
-          <Button
-            type="button"
-            size="lg"
-            disabled={submitting || first.length !== 6 || second.length !== 6}
-            onClick={onSubmit}
-            className="flex-1"
-          >
-            {submitting ? "…" : pin.primary}
-          </Button>
         </div>
       </div>
     </WizardShell>

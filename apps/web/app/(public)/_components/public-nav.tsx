@@ -12,14 +12,19 @@ import { navActions, navTabs } from "../_content/fr"
 const SIGN_IN_URL = "/sign-in"
 const SIGN_UP_URL = "/sign-up/profile"
 
-export function PublicNav() {
+export function PublicNav({ className }: { className?: string }) {
   const pathname = usePathname()
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href)
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+    <header
+      className={cn(
+        "sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80",
+        className,
+      )}
+    >
       <div className="mx-auto flex h-15 min-h-[60px] max-w-[1180px] items-center gap-4 px-4 md:gap-7 md:px-7">
         <Link
           href="/"
