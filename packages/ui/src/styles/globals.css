@@ -37,7 +37,9 @@
   --idn-border-soft: #efeee9;
   --idn-ink: #16170f;
   --idn-ink-2: #3a3d2e;
-  --idn-muted: #74766b;
+  /* --idn-muted darken pour passer 4.5:1 sur #FAFAF8 / #F4F3EE / #FFFFFF
+     (le token original #74766B faisait 4.21:1, sous le seuil). */
+  --idn-muted: #5e6058;
   --idn-muted-soft: #a6a89d;
 
   /* Radius (cahier : sm 6 / md 10 / lg 14 / xl 20 / pill 9999) */
@@ -90,7 +92,9 @@
   --idn-border-soft: #232820;
   --idn-ink: #f2f0e8;
   --idn-ink-2: #d4d2c7;
-  --idn-muted: #9a9c8e;
+  /* --idn-muted lighten pour confort de lecture sur #22271F bg-secondary
+     (passe maintenant à ~7.6:1 vs 5.5:1 précédemment). */
+  --idn-muted: #b0b2a4;
   --idn-muted-soft: #6b6d62;
 
   /* Variantes éclaircies des couleurs Gabon pour usage TEXTE en mode sombre :

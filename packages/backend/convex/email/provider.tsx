@@ -1,10 +1,10 @@
-import { Resend } from "@convex-dev/resend"
-import { render } from "@react-email/render"
-import type { GenericMutationCtx } from "convex/server"
+import { Resend } from "@convex-dev/resend";
+import { render } from "@react-email/render";
+import type { GenericMutationCtx } from "convex/server";
 
-import { components } from "../_generated/api"
-import type { DataModel } from "../_generated/dataModel"
-import { OtpEmail, getOtpSubject, type OtpType } from "./templates/otpEmail"
+import { components } from "../_generated/api";
+import type { DataModel } from "../_generated/dataModel";
+import { OtpEmail, getOtpSubject, type OtpType } from "./templates/otpEmail";
 
 /**
  * Couche email IDN — abstraction au-dessus de @convex-dev/resend.
@@ -20,18 +20,18 @@ import { OtpEmail, getOtpSubject, type OtpType } from "./templates/otpEmail"
  * sans toucher aux call-sites — c'est tout l'intérêt d'une abstraction.
  */
 
-const FROM = "IDN <noreply@identite.ga>"
+const FROM = process.env.RESEND_FROM ?? "Identite.ga <updates@identite.ga>";
 
 // `testMode` = true tant que le webhook secret + domaine Resend ne sont pas
 // configurés. Les emails ne sortent pas pour de vrai mais sont quand même
 // loggés en BD pour vérif manuelle pendant le dev.
-const isTestMode = process.env.RESEND_WEBHOOK_SECRET === undefined
+const isTestMode = process.env.RESEND_WEBHOOK_SECRET === undefined;
 
 export const resend = new Resend(components.resend, {
   testMode: isTestMode,
-})
+});
 
-type Ctx = GenericMutationCtx<DataModel>
+type Ctx = GenericMutationCtx<DataModel>;
 
 export async function sendOtpEmail(
   ctx: Ctx,
@@ -40,15 +40,13 @@ export async function sendOtpEmail(
   // Log dev-only : facilite l'E2E sans avoir à ouvrir la boîte mail.
   // (S'affiche dans `bunx convex logs`. À retirer / gater par env var
   // dédiée avant la mise en production.)
-  console.log(
-    `[idn:dev] OTP ${args.type} pour ${args.to} = ${args.code}`,
-  )
+  console.log(`[idn:dev] OTP ${args.type} pour ${args.to} = ${args.code}`);
 
-  const html = await render(<OtpEmail code={args.code} type={args.type} />)
+  const html = await render(<OtpEmail code={args.code} type={args.type} />);
   return await resend.sendEmail(ctx, {
     from: FROM,
     to: args.to,
     subject: getOtpSubject(args.type),
     html,
-  })
+  });
 }

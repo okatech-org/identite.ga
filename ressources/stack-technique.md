@@ -101,17 +101,17 @@ Il est structuré en **trois phases** :
 
 ### 2.1 Gestionnaire de paquets et runtime
 
-| Outil | Rôle | Justification |
-| :--- | :--- | :--- |
-| **Bun 1.3+** | Package manager + runtime + bundler | Vitesse > pnpm/npm, compatible Node, intégré au monorepo |
-| **Node 22 LTS** | Runtime serveur de référence | Cible CI et compat des packages SDK |
+| Outil           | Rôle                                | Justification                                            |
+| :-------------- | :---------------------------------- | :------------------------------------------------------- |
+| **Bun 1.3+**    | Package manager + runtime + bundler | Vitesse > pnpm/npm, compatible Node, intégré au monorepo |
+| **Node 22 LTS** | Runtime serveur de référence        | Cible CI et compat des packages SDK                      |
 
 ### 2.2 Monorepo
 
-| Outil | Rôle |
-| :--- | :--- |
-| **Turborepo 2.x** | Orchestration des tâches (build, lint, test, typecheck) avec cache distribué |
-| **Workspaces Bun** | Liaison locale `@repo/*` et `@idn/*` |
+| Outil              | Rôle                                                                         |
+| :----------------- | :--------------------------------------------------------------------------- |
+| **Turborepo 2.x**  | Orchestration des tâches (build, lint, test, typecheck) avec cache distribué |
+| **Workspaces Bun** | Liaison locale `@repo/*` et `@idn/*`                                         |
 
 Structure :
 
@@ -130,12 +130,12 @@ identite.ga/
 
 ### 2.3 Qualité de code
 
-| Outil | Rôle |
-| :--- | :--- |
-| **TypeScript 5.9+** | Typage strict (`strict: true`) sur tous les packages |
-| **ESLint 9** (flat config) | Linting via `@repo/eslint-config` |
-| **Prettier 3** | Formatage cohérent |
-| **Knip** _(optionnel)_ | Détection de code mort |
+| Outil                      | Rôle                                                 |
+| :------------------------- | :--------------------------------------------------- |
+| **TypeScript 5.9+**        | Typage strict (`strict: true`) sur tous les packages |
+| **ESLint 9** (flat config) | Linting via `@repo/eslint-config`                    |
+| **Prettier 3**             | Formatage cohérent                                   |
+| **Knip** _(optionnel)_     | Détection de code mort                               |
 
 ---
 
@@ -143,26 +143,26 @@ identite.ga/
 
 ### 3.1 Framework
 
-| Outil | Rôle |
-| :--- | :--- |
+| Outil                       | Rôle                                                     |
+| :-------------------------- | :------------------------------------------------------- |
 | **Next.js 16** (App Router) | SSR/SSG, routing, middleware sécurité, server components |
-| **React 19** | UI |
-| **TypeScript** | Typage de tous les composants |
+| **React 19**                | UI                                                       |
+| **TypeScript**              | Typage de tous les composants                            |
 
 ### 3.2 Styling
 
-| Outil | Rôle | Justification |
-| :--- | :--- | :--- |
-| **Tailwind CSS v4** | Styling utility-first | Performance, cohérence avec design tokens, build CSS-natif |
-| **CSS Variables** | Thème clair/sombre | Switch dynamique sans rerender JS |
-| **`packages/ui`** | Composants partagés | Boutons, inputs, cartes, badges (`LoABadge`), etc. dérivés de `idn-tokens.jsx` |
+| Outil               | Rôle                  | Justification                                                                  |
+| :------------------ | :-------------------- | :----------------------------------------------------------------------------- |
+| **Tailwind CSS v4** | Styling utility-first | Performance, cohérence avec design tokens, build CSS-natif                     |
+| **CSS Variables**   | Thème clair/sombre    | Switch dynamique sans rerender JS                                              |
+| **`packages/ui`**   | Composants partagés   | Boutons, inputs, cartes, badges (`LoABadge`), etc. dérivés de `idn-tokens.jsx` |
 
 ### 3.3 Polices et typographie
 
-| Police | Usage | Source |
-| :--- | :--- | :--- |
-| **IBM Plex Sans** | Texte UI | Auto-hébergée (subsetted, woff2) — pas de Google Fonts CDN sur `apps/auth` |
-| **IBM Plex Mono** | Identifiants techniques (client_id, secrets, claims) | Auto-hébergée |
+| Police            | Usage                                                | Source                                                                     |
+| :---------------- | :--------------------------------------------------- | :------------------------------------------------------------------------- |
+| **IBM Plex Sans** | Texte UI                                             | Auto-hébergée (subsetted, woff2) — pas de Google Fonts CDN sur `apps/auth` |
+| **IBM Plex Mono** | Identifiants techniques (client_id, secrets, claims) | Auto-hébergée                                                              |
 
 ### 3.4 Composants et primitives
 
@@ -172,20 +172,20 @@ identite.ga/
 
 ### 3.5 Accessibilité
 
-| Outil | Rôle |
-| :--- | :--- |
-| **eslint-plugin-jsx-a11y** | Détection statique des problèmes a11y |
-| **axe-core** (en CI) | Tests automatisés sur les pages critiques |
-| **Playwright + axe** | Tests e2e d'accessibilité |
+| Outil                      | Rôle                                      |
+| :------------------------- | :---------------------------------------- |
+| **eslint-plugin-jsx-a11y** | Détection statique des problèmes a11y     |
+| **axe-core** (en CI)       | Tests automatisés sur les pages critiques |
+| **Playwright + axe**       | Tests e2e d'accessibilité                 |
 
 Conformité visée : **WCAG 2.1 AA / RGAA 4.1.2**.
 
 ### 3.6 Internationalisation
 
-| Outil | Rôle |
-| :--- | :--- |
-| **next-intl** | i18n native pour Next.js App Router |
-| Catalogues `fr.json`, `en.json` | Strings externalisées |
+| Outil                           | Rôle                                |
+| :------------------------------ | :---------------------------------- |
+| **next-intl**                   | i18n native pour Next.js App Router |
+| Catalogues `fr.json`, `en.json` | Strings externalisées               |
 
 ---
 
@@ -197,22 +197,22 @@ Conformité visée : **WCAG 2.1 AA / RGAA 4.1.2**.
 
 ### 4.2 Plugins Better Auth activés
 
-| Plugin | Rôle |
-| :--- | :--- |
-| **`emailAndPassword`** | Login/signup email + mot de passe (scrypt) |
-| **`emailOtp`** | OTP 6 chiffres pour vérification email, reset password, changement d'email |
-| **`twoFactor`** | TOTP (Google Authenticator) — obligatoire pour `admin` et `identity_controller`, optionnel sinon |
-| **`oidcProvider`** | Serveur OIDC : endpoints `/authorize`, `/token`, `/userinfo`, écran de consentement |
-| **`jwt`** | Émission ID tokens **RS256** + JWKS public + rotation de clés |
-| **`admin`** | Rôles, permissions, gestion administrative |
-| **`organization`** _(optionnel)_ | Si on veut grouper les développeurs en équipes |
-| **`bearer`** | Auth API par bearer token (portail dev) |
-| **`crossDomain`** _(côté `apps/web`)_ | Lecture de session cross-subdomain (`Domain=.idn.ga`) |
+| Plugin                                | Rôle                                                                                             |
+| :------------------------------------ | :----------------------------------------------------------------------------------------------- |
+| **`emailAndPassword`**                | Login/signup email + mot de passe (scrypt)                                                       |
+| **`emailOtp`**                        | OTP 6 chiffres pour vérification email, reset password, changement d'email                       |
+| **`twoFactor`**                       | TOTP (Google Authenticator) — obligatoire pour `admin` et `identity_controller`, optionnel sinon |
+| **`oidcProvider`**                    | Serveur OIDC : endpoints `/authorize`, `/token`, `/userinfo`, écran de consentement              |
+| **`jwt`**                             | Émission ID tokens **RS256** + JWKS public + rotation de clés                                    |
+| **`admin`**                           | Rôles, permissions, gestion administrative                                                       |
+| **`organization`** _(optionnel)_      | Si on veut grouper les développeurs en équipes                                                   |
+| **`bearer`**                          | Auth API par bearer token (portail dev)                                                          |
+| **`crossDomain`** _(côté `apps/web`)_ | Lecture de session cross-subdomain (`Domain=.idn.ga`)                                            |
 
 ### 4.3 Adapter de persistance
 
-| Adapter | Rôle |
-| :--- | :--- |
+| Adapter                       | Rôle                                                                                                                                                                   |
+| :---------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **`@convex-dev/better-auth`** | **Composant officiel maintenu par Convex.** Stocke users, sessions, OAuth apps, consents dans Convex via le pattern de composant local (cf. doc Better Auth × Convex). |
 
 #### Setup en composant local (recommandé par Better Auth)
@@ -241,10 +241,7 @@ import { createAuthClient } from "better-auth/react";
 
 export const authClient = createAuthClient({
   baseURL: "https://connexion.idn.ga",
-  plugins: [
-    crossDomainClient({ cookieDomain: ".idn.ga" }),
-    twoFactorClient(),
-  ],
+  plugins: [crossDomainClient({ cookieDomain: ".idn.ga" }), twoFactorClient()],
 });
 ```
 
@@ -262,7 +259,7 @@ betterAuth({
     requireEmailVerification: true,
     minPasswordLength: 12,
     passwordValidator: zxcvbnMinScore(3),
-    breachedPasswordCheck: true,  // HIBP k-anonymity
+    breachedPasswordCheck: true, // HIBP k-anonymity
   },
 
   rateLimit: {
@@ -277,7 +274,7 @@ betterAuth({
     oidcProvider({
       loginPage: "/connexion",
       consentPage: "/consentement",
-      useJWTPlugin: true,        // RS256 obligatoire
+      useJWTPlugin: true, // RS256 obligatoire
       requirePKCE: true,
     }),
     jwt({ jwks: { alg: "RS256" } }),
@@ -304,28 +301,28 @@ betterAuth({
 
 ### 5.2 Modèles principaux gérés par Convex
 
-| Domaine | Tables / collections |
-| :--- | :--- |
-| Identité | `user`, `account`, `session` (gérés par Better Auth component) |
-| Profil étendu | `userProfile` (loa, profileType, pivot étendu, pinHash) |
-| OIDC | `oauthApplication`, `oauthAccessToken`, `oauthConsent`, `oidcToken` (Better Auth) |
-| KYC | `kycRequest`, `kycDocument`, `kycReview` |
-| RBAC | `role` (Better Auth admin plugin) |
-| Audit | `auditLog` |
-| Notifications | `notification`, `notificationPreference` |
-| Paramètres | `userPreference` |
+| Domaine       | Tables / collections                                                              |
+| :------------ | :-------------------------------------------------------------------------------- |
+| Identité      | `user`, `account`, `session` (gérés par Better Auth component)                    |
+| Profil étendu | `userProfile` (loa, profileType, pivot étendu, pinHash)                           |
+| OIDC          | `oauthApplication`, `oauthAccessToken`, `oauthConsent`, `oidcToken` (Better Auth) |
+| KYC           | `kycRequest`, `kycDocument`, `kycReview`                                          |
+| RBAC          | `role` (Better Auth admin plugin)                                                 |
+| Audit         | `auditLog`                                                                        |
+| Notifications | `notification`, `notificationPreference`                                          |
+| Paramètres    | `userPreference`                                                                  |
 
 ### 5.3 Composants Convex utilisés
 
 L'écosystème de **composants Convex officiels** couvre la plupart des besoins infrastructure d'un IdP. On en utilise quatre :
 
-| Composant | Usage IDN |
-| :--- | :--- |
-| **`@convex-dev/better-auth`** | Persistance Better Auth (users, sessions, OAuth apps, consents, OIDC tokens) |
-| **`@convex-dev/resend`** | Envoi d'emails fiable (file durable, idempotency, batching, webhooks) — cf. §6 |
+| Composant                      | Usage IDN                                                                            |
+| :----------------------------- | :----------------------------------------------------------------------------------- |
+| **`@convex-dev/better-auth`**  | Persistance Better Auth (users, sessions, OAuth apps, consents, OIDC tokens)         |
+| **`@convex-dev/resend`**       | Envoi d'emails fiable (file durable, idempotency, batching, webhooks) — cf. §6       |
 | **`@convex-dev/rate-limiter`** | Rate limiting applicatif transactionnel sur tous les endpoints sensibles — cf. §11.1 |
-| **`@convex-dev/aggregate`** | Agrégations efficaces (count/sum/max) en O(log N) pour le dashboard admin — cf. §5.6 |
-| **`@convex-dev/workflow`** | Durable execution pour le pipeline KYC — cf. §7.5 |
+| **`@convex-dev/aggregate`**    | Agrégations efficaces (count/sum/max) en O(log N) pour le dashboard admin — cf. §5.6 |
+| **`@convex-dev/workflow`**     | Durable execution pour le pipeline KYC — cf. §7.5                                    |
 
 Tous ces composants sont **officiellement maintenus par Convex**, transactionnels avec le reste de la base, et survivent à la migration self-hosted (Phase 2).
 
@@ -342,15 +339,15 @@ Tous ces composants sont **officiellement maintenus par Convex**, transactionnel
 
 **Bonne nouvelle** : Convex est distribué en **OSS (Apache 2.0)** depuis fin 2024, avec image Docker officielle et **backend PostgreSQL supporté** en alternative à SQLite. Cela permet une migration souveraine **sans réécriture du backend** :
 
-| Aspect | Phase 1 (Cloud) | Phase 2 (self-hosted) |
-| :--- | :--- | :--- |
-| Hébergement | Convex Cloud (AWS US) | Conteneur Docker sur infra Gabon |
-| Backend de stockage | SQLite-like Convex | **PostgreSQL** managé par nous |
-| Schema, queries, mutations, actions | inchangés | inchangés |
-| Better Auth + adapter | inchangé | inchangé |
-| Storage de fichiers | Convex Storage | Convex Storage (sur volume local ou S3-compatible) |
-| Dashboard d'admin | dashboard.convex.dev | dashboard self-hosted |
-| Crons, search, indexes | OK | OK |
+| Aspect                              | Phase 1 (Cloud)       | Phase 2 (self-hosted)                              |
+| :---------------------------------- | :-------------------- | :------------------------------------------------- |
+| Hébergement                         | Convex Cloud (AWS US) | Conteneur Docker sur infra Gabon                   |
+| Backend de stockage                 | SQLite-like Convex    | **PostgreSQL** managé par nous                     |
+| Schema, queries, mutations, actions | inchangés             | inchangés                                          |
+| Better Auth + adapter               | inchangé              | inchangé                                           |
+| Storage de fichiers                 | Convex Storage        | Convex Storage (sur volume local ou S3-compatible) |
+| Dashboard d'admin                   | dashboard.convex.dev  | dashboard self-hosted                              |
+| Crons, search, indexes              | OK                    | OK                                                 |
 
 **Limites assumées du Convex self-hosted :**
 
@@ -373,9 +370,11 @@ Le dashboard admin (§3.9 du cahier des charges plateforme) affiche des KPIs sur
 
 ```typescript
 // Aggregate par niveau LoA pour le dashboard admin
-const usersByLoA = new TableAggregate<{ Key: number; DataModel: DataModel; TableName: "users" }>(
-  components.aggregate, { sortKey: (doc) => doc.loa }
-);
+const usersByLoA = new TableAggregate<{
+  Key: number;
+  DataModel: DataModel;
+  TableName: "users";
+}>(components.aggregate, { sortKey: (doc) => doc.loa });
 
 // Dans une query du dashboard
 export const dashboardStats = query({
@@ -390,14 +389,14 @@ export const dashboardStats = query({
 
 Usages dans IDN :
 
-| Aggregate | Usage |
-| :--- | :--- |
-| `usersByLoA` | KPI dashboard : répartition des comptes par niveau de garantie |
-| `usersByProfile` | Répartition citoyen/résident/visiteur/dev |
-| `sessionsByDay` | Connexions 24h/7j/30j |
-| `consentsByApp` | Top apps OAuth par nombre d'utilisateurs |
-| `kycRequestsByStatus` | File KYC par statut |
-| `auditByCategory` | Volume d'événements de sécurité par type |
+| Aggregate             | Usage                                                          |
+| :-------------------- | :------------------------------------------------------------- |
+| `usersByLoA`          | KPI dashboard : répartition des comptes par niveau de garantie |
+| `usersByProfile`      | Répartition citoyen/résident/visiteur/dev                      |
+| `sessionsByDay`       | Connexions 24h/7j/30j                                          |
+| `consentsByApp`       | Top apps OAuth par nombre d'utilisateurs                       |
+| `kycRequestsByStatus` | File KYC par statut                                            |
+| `auditByCategory`     | Volume d'événements de sécurité par type                       |
 
 L'**inconvénient connu** : il faut maintenir l'aggregate à chaque insert/delete/update. Le pattern utilisé est de wrapper les mutations critiques dans des helpers ou via des **triggers convex-helpers** pour éviter d'oublier la synchronisation.
 
@@ -407,25 +406,25 @@ L'**inconvénient connu** : il faut maintenir l'aggregate à chaque insert/delet
 
 ### 6.1 Provider email — Phase 1
 
-| Outil | Rôle |
-| :--- | :--- |
-| **Resend** | Provider email principal MVP — bon DX, prix correct, réputation propre |
+| Outil                    | Rôle                                                                         |
+| :----------------------- | :--------------------------------------------------------------------------- |
+| **Resend**               | Provider email principal MVP — bon DX, prix correct, réputation propre       |
 | **`@convex-dev/resend`** | **Composant Convex officiel** qui wrappe Resend dans une couche de fiabilité |
 
 #### Pourquoi le composant Convex Resend plutôt que le SDK Resend direct
 
 Pour un IdP gouvernemental, la fiabilité de l'envoi (OTP, alertes sécurité) est critique. Le composant `@convex-dev/resend` apporte des garanties que le SDK seul n'a pas :
 
-| Capacité | SDK Resend brut | `@convex-dev/resend` |
-| :--- | :--- | :--- |
-| **File d'attente durable** (workpool Convex) | ❌ | ✅ |
-| **Idempotency keys** — exactly-once | ❌ | ✅ |
-| **Batching** automatique via `/emails/batch` | ❌ | ✅ |
-| **Rate limiting** respecté | manuel | ✅ |
-| **Retries** sur erreurs transitoires | manuel | ✅ |
-| **Webhooks** delivery/bounce/open/click intégrés | manuel | ✅ |
-| **Persistance** des événements en base | ❌ | ✅ |
-| **Test mode** (par défaut) | ❌ | ✅ |
+| Capacité                                         | SDK Resend brut | `@convex-dev/resend` |
+| :----------------------------------------------- | :-------------- | :------------------- |
+| **File d'attente durable** (workpool Convex)     | ❌              | ✅                   |
+| **Idempotency keys** — exactly-once              | ❌              | ✅                   |
+| **Batching** automatique via `/emails/batch`     | ❌              | ✅                   |
+| **Rate limiting** respecté                       | manuel          | ✅                   |
+| **Retries** sur erreurs transitoires             | manuel          | ✅                   |
+| **Webhooks** delivery/bounce/open/click intégrés | manuel          | ✅                   |
+| **Persistance** des événements en base           | ❌              | ✅                   |
+| **Test mode** (par défaut)                       | ❌              | ✅                   |
 
 Usage type :
 
@@ -440,7 +439,7 @@ const resend = new Resend(components.resend, {
 
 export async function sendVerificationOTP(ctx, { to, code, locale }) {
   await resend.sendEmail(ctx, {
-    from: "IDN <noreply@identite.ga>",
+    from: process.env.RESEND_FROM,
     to,
     subject: locale === "fr" ? "Votre code de vérification" : "Your verification code",
     react: <OtpEmail code={code} locale={locale} />,
@@ -456,9 +455,21 @@ Une couche d'abstraction `EmailProvider` est implémentée par-dessus le composa
 
 ```typescript
 interface EmailProvider {
-  sendVerificationOTP(to: string, code: string, locale: "fr" | "en"): Promise<EmailRef>;
-  sendPasswordReset(to: string, link: string, locale: "fr" | "en"): Promise<EmailRef>;
-  sendNewDeviceAlert(to: string, deviceInfo: DeviceInfo, locale: "fr" | "en"): Promise<EmailRef>;
+  sendVerificationOTP(
+    to: string,
+    code: string,
+    locale: "fr" | "en",
+  ): Promise<EmailRef>;
+  sendPasswordReset(
+    to: string,
+    link: string,
+    locale: "fr" | "en",
+  ): Promise<EmailRef>;
+  sendNewDeviceAlert(
+    to: string,
+    deviceInfo: DeviceInfo,
+    locale: "fr" | "en",
+  ): Promise<EmailRef>;
   getStatus(ref: EmailRef): Promise<EmailStatus>;
 }
 ```
@@ -480,11 +491,11 @@ Switch via config console admin (§3.9 du cahier des charges plateforme).
 
 ### 6.4 SMS — Phase 2
 
-| Provider | Note |
-| :--- | :--- |
-| **Twilio** | Standard mondial, fallback |
+| Provider             | Note                             |
+| :------------------- | :------------------------------- |
+| **Twilio**           | Standard mondial, fallback       |
 | **Africa's Talking** | Spécialiste Afrique, prix locaux |
-| **Vonage (Nexmo)** | Bon rapport qualité/prix |
+| **Vonage (Nexmo)**   | Bon rapport qualité/prix         |
 
 Même abstraction `SmsProvider`, switch via console admin.
 
@@ -502,11 +513,12 @@ Pipeline de vérification avec **deux options** selon les contraintes de souvera
 
 #### Option A — Service tiers spécialisé Afrique
 
-| Service | Pays | Notes |
-| :--- | :--- | :--- |
+| Service      | Pays  | Notes                                                                                                                                |
+| :----------- | :---- | :----------------------------------------------------------------------------------------------------------------------------------- |
 | **Smile ID** | Kenya | **Recommandé** : modèles entraînés sur visages africains, couvre 50+ pays africains, prix abordable, API simple, conformité PCI/SOC2 |
 
 API utilisée :
+
 - `submit_job` avec photos document + selfie
 - `liveness_check` (anti-spoofing ISO/IEC 30107-3 niveau 2)
 - `document_verification` (OCR + détection de faux)
@@ -515,13 +527,13 @@ API utilisée :
 
 #### Option B — Pipeline interne (préparation Phase 2 souveraine)
 
-| Brique | Outil | Rôle |
-| :--- | :--- | :--- |
-| **OCR document** | **PaddleOCR** (Apache 2.0) | Extraction texte recto/verso, multilingue (FR + EN) |
-| **MRZ passport** | **mrz** (Python lib) | Lecture zone lisible machine ICAO 9303 |
-| **Face detection + embedding** | **InsightFace** (modèle `buffalo_l`) | Détection visage + embedding pour comparaison |
-| **Face match** | InsightFace cosine similarity | Score ≥ 0.6 = match |
-| **Liveness** | **Silent-Face-Anti-Spoofing** (MiniVision) | Anti-spoofing OSS — Phase 2 mais non-certifié iBeta, à évaluer |
+| Brique                          | Outil                                                                             | Rôle                                                             |
+| :------------------------------ | :-------------------------------------------------------------------------------- | :--------------------------------------------------------------- |
+| **OCR document**                | **PaddleOCR** (Apache 2.0)                                                        | Extraction texte recto/verso, multilingue (FR + EN)              |
+| **MRZ passport**                | **mrz** (Python lib)                                                              | Lecture zone lisible machine ICAO 9303                           |
+| **Face detection + embedding**  | **InsightFace** (modèle `buffalo_l`)                                              | Détection visage + embedding pour comparaison                    |
+| **Face match**                  | InsightFace cosine similarity                                                     | Score ≥ 0.6 = match                                              |
+| **Liveness**                    | **Silent-Face-Anti-Spoofing** (MiniVision)                                        | Anti-spoofing OSS — Phase 2 mais non-certifié iBeta, à évaluer   |
 | **Détection de faux documents** | **Regula Document Reader SDK** (on-prem, propriétaire mais déployable localement) | Hologrammes, UV, micro-textes — partie où l'OSS n'est pas mature |
 
 Le pipeline interne est encapsulé dans un **service KYC dédié** (Hono ou Fastify, déployé en conteneur) appelé via Convex action.
@@ -545,19 +557,32 @@ Le KYC L2 est un parcours multi-étapes asynchrone qui peut prendre **de quelque
 import { workflow } from "./setup";
 
 export const kycLevel2 = workflow.define({
-  args: { userId: v.id("users"), documentId: v.id("documents"), selfieId: v.id("documents") },
+  args: {
+    userId: v.id("users"),
+    documentId: v.id("documents"),
+    selfieId: v.id("documents"),
+  },
   handler: async (step, { userId, documentId, selfieId }) => {
     // 1. OCR + lecture MRZ (action externe)
-    const ocr = await step.runAction(internal.kyc.runOcr, { documentId },
-      { retry: { maxAttempts: 3, initialBackoffMs: 1000 } });
+    const ocr = await step.runAction(
+      internal.kyc.runOcr,
+      { documentId },
+      { retry: { maxAttempts: 3, initialBackoffMs: 1000 } },
+    );
 
     // 2. Liveness check + face match
-    const biometric = await step.runAction(internal.kyc.runBiometric,
+    const biometric = await step.runAction(
+      internal.kyc.runBiometric,
       { documentId, selfieId },
-      { retry: { maxAttempts: 3 } });
+      { retry: { maxAttempts: 3 } },
+    );
 
     // 3. Décision automatique
-    if (ocr.confidence > 0.95 && biometric.match > 0.6 && biometric.liveness === "real") {
+    if (
+      ocr.confidence > 0.95 &&
+      biometric.match > 0.6 &&
+      biometric.liveness === "real"
+    ) {
       await step.runMutation(internal.kyc.approveAuto, { userId });
       await step.runMutation(internal.kyc.upgradeLoA, { userId, level: 2 });
       await step.runAction(internal.emails.sendKycApproved, { userId });
@@ -566,14 +591,18 @@ export const kycLevel2 = workflow.define({
 
     // 4. Sinon, mise en file pour revue manuelle (sleep jusqu'à décision)
     await step.runMutation(internal.kyc.enqueueForReview, { userId });
-    const decision = await step.awaitEvent(`kyc-decision-${userId}`,
-      { timeoutMs: 7 * 24 * 60 * 60 * 1000 }); // 7 jours max
+    const decision = await step.awaitEvent(`kyc-decision-${userId}`, {
+      timeoutMs: 7 * 24 * 60 * 60 * 1000,
+    }); // 7 jours max
 
     if (decision.approved) {
       await step.runMutation(internal.kyc.upgradeLoA, { userId, level: 2 });
       await step.runAction(internal.emails.sendKycApproved, { userId });
     } else {
-      await step.runAction(internal.emails.sendKycRejected, { userId, reason: decision.reason });
+      await step.runAction(internal.emails.sendKycRejected, {
+        userId,
+        reason: decision.reason,
+      });
     }
     return { status: decision.approved ? "approved" : "rejected", auto: false };
   },
@@ -601,13 +630,13 @@ Autres workflows IDN candidats à terme :
 
 ### 8.1 Algorithmes
 
-| Usage | Algorithme |
-| :--- | :--- |
-| Signature ID tokens OIDC | **RS256** (RSA-SHA256, clé 2048 bits minimum, 4096 recommandé) |
-| Hash mots de passe | **scrypt** (Better Auth par défaut) ou **argon2id** (Phase 2) |
-| Hash PIN | **PBKDF2-SHA256** avec sel par utilisateur, 600k itérations |
-| Stockage tokens longs | **AES-256-GCM** au repos |
-| Hash sensibles (email pour audit) | **SHA-256** avec sel global |
+| Usage                             | Algorithme                                                     |
+| :-------------------------------- | :------------------------------------------------------------- |
+| Signature ID tokens OIDC          | **RS256** (RSA-SHA256, clé 2048 bits minimum, 4096 recommandé) |
+| Hash mots de passe                | **scrypt** (Better Auth par défaut) ou **argon2id** (Phase 2)  |
+| Hash PIN                          | **PBKDF2-SHA256** avec sel par utilisateur, 600k itérations    |
+| Stockage tokens longs             | **AES-256-GCM** au repos                                       |
+| Hash sensibles (email pour audit) | **SHA-256** avec sel global                                    |
 
 ### 8.2 JWKS (JSON Web Key Set)
 
@@ -621,20 +650,20 @@ Autres workflows IDN candidats à terme :
 
 #### Phase 1
 
-| Secret | Stockage |
-| :--- | :--- |
-| Clé privée RS256 | Convex env vars (chiffrées) |
-| Better Auth secret | Convex env vars |
-| API keys (Resend, Smile ID) | Convex env vars |
-| Cookies signing secret | Convex env vars |
+| Secret                      | Stockage                    |
+| :-------------------------- | :-------------------------- |
+| Clé privée RS256            | Convex env vars (chiffrées) |
+| Better Auth secret          | Convex env vars             |
+| API keys (Resend, Smile ID) | Convex env vars             |
+| Cookies signing secret      | Convex env vars             |
 
 #### Phase 2
 
-| Secret | Stockage |
-| :--- | :--- |
+| Secret           | Stockage                                                 |
+| :--------------- | :------------------------------------------------------- |
 | Clé privée RS256 | **HSM** (YubiHSM 2 ou Nitrokey HSM) ou **Vault Transit** |
-| Tous secrets | **OpenBao** (fork OSS de HashiCorp Vault) |
-| Rotation | Cronjob Vault + redéploiement automatique |
+| Tous secrets     | **OpenBao** (fork OSS de HashiCorp Vault)                |
+| Rotation         | Cronjob Vault + redéploiement automatique                |
 
 ### 8.4 PKI
 
@@ -647,29 +676,29 @@ Autres workflows IDN candidats à terme :
 
 ### 9.1 Phase 1 — Convex Storage
 
-| Type de fichier | Notes |
-| :--- | :--- |
-| Photo de profil | URL signée, taille max 2 Mo, formats JPEG/PNG/WebP |
-| Documents KYC | **Chiffrés au repos**, accès restreint (utilisateur + contrôleurs assignés), URL signée éphémère 5 min |
-| Attestations PDF | Générées à la volée, signées RS256, téléchargeables par l'utilisateur |
-| Logos d'apps OAuth | Public, taille max 500 Ko |
+| Type de fichier    | Notes                                                                                                  |
+| :----------------- | :----------------------------------------------------------------------------------------------------- |
+| Photo de profil    | URL signée, taille max 2 Mo, formats JPEG/PNG/WebP                                                     |
+| Documents KYC      | **Chiffrés au repos**, accès restreint (utilisateur + contrôleurs assignés), URL signée éphémère 5 min |
+| Attestations PDF   | Générées à la volée, signées RS256, téléchargeables par l'utilisateur                                  |
+| Logos d'apps OAuth | Public, taille max 500 Ko                                                                              |
 
 ### 9.2 Phase 2 — Stockage souverain
 
-| Outil | Usage |
-| :--- | :--- |
-| **MinIO** (Apache 2.0) | S3-compatible, auto-hébergé sur infra gabonaise |
-| **Garage** _(alternatif)_ | Storage distribué OSS, plus léger que MinIO |
+| Outil                                                            | Usage                                           |
+| :--------------------------------------------------------------- | :---------------------------------------------- |
+| **MinIO** (Apache 2.0)                                           | S3-compatible, auto-hébergé sur infra gabonaise |
+| **Garage** _(alternatif)_                                        | Storage distribué OSS, plus léger que MinIO     |
 | **PostgreSQL Large Objects** _(pour les attestations critiques)_ | Backup transactionnel avec le reste des données |
 
 Chiffrement côté client avant upload, clés gérées par OpenBao.
 
 ### 9.3 Génération de PDF (attestations, justificatifs)
 
-| Outil | Rôle |
-| :--- | :--- |
-| **`@react-pdf/renderer`** | Composition PDF en React |
-| **PAdES** _(Phase 5)_ | Signature électronique avancée pour valeur légale |
+| Outil                     | Rôle                                              |
+| :------------------------ | :------------------------------------------------ |
+| **`@react-pdf/renderer`** | Composition PDF en React                          |
+| **PAdES** _(Phase 5)_     | Signature électronique avancée pour valeur légale |
 
 ---
 
@@ -677,12 +706,12 @@ Chiffrement côté client avant upload, clés gérées par OpenBao.
 
 ### 10.1 Phase 1
 
-| Domaine | Outil |
-| :--- | :--- |
-| Logs applicatifs | Convex logs + **Better Stack** (Logtail) |
-| Métriques | Convex dashboard |
-| Erreurs frontend | **Sentry** (auto-hébergé optionnel en Phase 2) |
-| Uptime monitoring | **Better Stack** ou **UptimeRobot** |
+| Domaine              | Outil                                               |
+| :------------------- | :-------------------------------------------------- |
+| Logs applicatifs     | Convex logs + **Better Stack** (Logtail)            |
+| Métriques            | Convex dashboard                                    |
+| Erreurs frontend     | **Sentry** (auto-hébergé optionnel en Phase 2)      |
+| Uptime monitoring    | **Better Stack** ou **UptimeRobot**                 |
 | Real User Monitoring | **Vercel Speed Insights** ou **Sentry Performance** |
 
 ### 10.2 Audit log
@@ -694,32 +723,32 @@ Chiffrement côté client avant upload, clés gérées par OpenBao.
 
 ### 10.3 Événements journalisés
 
-| Événement | Détail |
-| :--- | :--- |
-| `auth.signin.success` / `.failed` / `.lockout` | + IP, UA, device fingerprint |
-| `auth.signup.completed` | + profile_type |
-| `auth.email.verified` | |
-| `auth.otp.sent` / `.verified` / `.expired` | |
-| `auth.mfa.enabled` / `.verified` / `.failed` | |
-| `auth.password.changed` / `.reset` | |
-| `auth.session.revoked` | + raison |
-| `oauth.app.created` / `.updated` / `.disabled` | |
-| `oauth.consent.granted` / `.revoked` | |
-| `oauth.token.issued` / `.revoked` | |
-| `kyc.request.submitted` / `.in_review` / `.approved` / `.rejected` | |
-| `admin.user.viewed` / `.disabled` / `.role_changed` | |
-| `controller.identity.verified` | |
+| Événement                                                          | Détail                       |
+| :----------------------------------------------------------------- | :--------------------------- |
+| `auth.signin.success` / `.failed` / `.lockout`                     | + IP, UA, device fingerprint |
+| `auth.signup.completed`                                            | + profile_type               |
+| `auth.email.verified`                                              |                              |
+| `auth.otp.sent` / `.verified` / `.expired`                         |                              |
+| `auth.mfa.enabled` / `.verified` / `.failed`                       |                              |
+| `auth.password.changed` / `.reset`                                 |                              |
+| `auth.session.revoked`                                             | + raison                     |
+| `oauth.app.created` / `.updated` / `.disabled`                     |                              |
+| `oauth.consent.granted` / `.revoked`                               |                              |
+| `oauth.token.issued` / `.revoked`                                  |                              |
+| `kyc.request.submitted` / `.in_review` / `.approved` / `.rejected` |                              |
+| `admin.user.viewed` / `.disabled` / `.role_changed`                |                              |
+| `controller.identity.verified`                                     |                              |
 
 ### 10.4 Phase 2 — Stack observabilité souveraine
 
-| Outil | Rôle |
-| :--- | :--- |
-| **Grafana** | Dashboards |
-| **Prometheus** | Métriques |
-| **Loki** | Logs |
-| **Tempo** | Tracing distribué |
-| **OpenTelemetry** | Instrumentation standard |
-| **Wazuh** | SIEM |
+| Outil                   | Rôle                             |
+| :---------------------- | :------------------------------- |
+| **Grafana**             | Dashboards                       |
+| **Prometheus**          | Métriques                        |
+| **Loki**                | Logs                             |
+| **Tempo**               | Tracing distribué                |
+| **OpenTelemetry**       | Instrumentation standard         |
+| **Wazuh**               | SIEM                             |
 | **Falco** _(optionnel)_ | Détection runtime sur Kubernetes |
 
 ---
@@ -731,6 +760,7 @@ Chiffrement côté client avant upload, clés gérées par OpenBao.
 Pour tous les endpoints sensibles, le rate limiting est implémenté **dans l'application** via le composant Convex officiel, en complément du WAF en bordure.
 
 Pourquoi pas seulement le WAF :
+
 - Le rate limit Convex est **transactionnel** : il rollback si la mutation échoue, donc on ne consomme pas de quota par erreur
 - **Per-user / per-IP / global** scoping fin
 - **Token bucket** (bursty) ou **fixed window** selon l'endpoint
@@ -743,53 +773,63 @@ import { RateLimiter, MINUTE, HOUR, SECOND } from "@convex-dev/rate-limiter";
 import { components } from "./_generated/api";
 
 export const rateLimiter = new RateLimiter(components.rateLimiter, {
-  signIn:        { kind: "token bucket", rate: 10, period: MINUTE, capacity: 10 },
-  signUp:        { kind: "fixed window", rate: 5, period: HOUR },
-  otpSend:       { kind: "fixed window", rate: 3, period: HOUR },
-  otpVerify:     { kind: "token bucket", rate: 10, period: HOUR, capacity: 10 },
+  signIn: { kind: "token bucket", rate: 10, period: MINUTE, capacity: 10 },
+  signUp: { kind: "fixed window", rate: 5, period: HOUR },
+  otpSend: { kind: "fixed window", rate: 3, period: HOUR },
+  otpVerify: { kind: "token bucket", rate: 10, period: HOUR, capacity: 10 },
   passwordReset: { kind: "fixed window", rate: 3, period: HOUR },
-  oauthToken:    { kind: "token bucket", rate: 60, period: MINUTE, capacity: 60, shards: 4 },
-  kycSubmit:     { kind: "fixed window", rate: 3, period: HOUR },
+  oauthToken: {
+    kind: "token bucket",
+    rate: 60,
+    period: MINUTE,
+    capacity: 60,
+    shards: 4,
+  },
+  kycSubmit: { kind: "fixed window", rate: 3, period: HOUR },
 });
 
 // Usage dans une mutation
 const status = await rateLimiter.limit(ctx, "signIn", { key: ipAddress });
-if (!status.ok) throw new ConvexError({ code: "RATE_LIMITED", retryAfter: status.retryAfter });
+if (!status.ok)
+  throw new ConvexError({
+    code: "RATE_LIMITED",
+    retryAfter: status.retryAfter,
+  });
 ```
 
 Limites configurées (cohérentes avec §6.6 du cahier des charges plateforme) :
 
-| Limite | Algorithme | Valeur | Scope |
-| :--- | :--- | :--- | :--- |
-| `signIn` | token bucket | 10 / min | par IP |
-| `signUp` | fixed window | 5 / heure | par IP |
-| `otpSend` | fixed window | 3 / heure | par utilisateur |
-| `otpVerify` | token bucket | 10 / heure | par utilisateur |
-| `passwordReset` | fixed window | 3 / heure | par email |
-| `oauthToken` | token bucket sharded ×4 | 60 / min | par client OAuth |
-| `kycSubmit` | fixed window | 3 / heure | par utilisateur |
+| Limite          | Algorithme              | Valeur     | Scope            |
+| :-------------- | :---------------------- | :--------- | :--------------- |
+| `signIn`        | token bucket            | 10 / min   | par IP           |
+| `signUp`        | fixed window            | 5 / heure  | par IP           |
+| `otpSend`       | fixed window            | 3 / heure  | par utilisateur  |
+| `otpVerify`     | token bucket            | 10 / heure | par utilisateur  |
+| `passwordReset` | fixed window            | 3 / heure  | par email        |
+| `oauthToken`    | token bucket sharded ×4 | 60 / min   | par client OAuth |
+| `kycSubmit`     | fixed window            | 3 / heure  | par utilisateur  |
 
 **Reset après succès** : sur connexion réussie, on appelle `rateLimiter.reset(ctx, "signIn", { key: ip })` pour libérer immédiatement les tentatives consommées.
 
 ### 11.2 WAF et anti-DDoS
 
-| Phase | Outil |
-| :--- | :--- |
-| 1 | **Cloudflare** (free tier ou Pro) en front, à confirmer côté souveraineté |
-| 2 | **OpenResty + ModSecurity** + **CrowdSec** auto-hébergés |
+| Phase | Outil                                                                     |
+| :---- | :------------------------------------------------------------------------ |
+| 1     | **Cloudflare** (free tier ou Pro) en front, à confirmer côté souveraineté |
+| 2     | **OpenResty + ModSecurity** + **CrowdSec** auto-hébergés                  |
 
 ### 11.3 CAPTCHA
 
-| Outil | Usage |
-| :--- | :--- |
-| **Cloudflare Turnstile** | Phase 1 — sur signup, password reset, OTP request en cas de seuil |
-| **hCaptcha self-hosted** _(alternative Phase 2)_ | Souverain |
+| Outil                                            | Usage                                                             |
+| :----------------------------------------------- | :---------------------------------------------------------------- |
+| **Cloudflare Turnstile**                         | Phase 1 — sur signup, password reset, OTP request en cas de seuil |
+| **hCaptcha self-hosted** _(alternative Phase 2)_ | Souverain                                                         |
 
 ### 11.4 Vérification des mots de passe
 
-| Outil | Rôle |
-| :--- | :--- |
-| **zxcvbn-ts** | Force du mot de passe côté client + serveur |
+| Outil                      | Rôle                                                         |
+| :------------------------- | :----------------------------------------------------------- |
+| **zxcvbn-ts**              | Force du mot de passe côté client + serveur                  |
 | **HIBP API** (k-anonymity) | Détection de breached passwords sans envoyer le mot de passe |
 
 ### 11.5 Headers de sécurité
@@ -818,12 +858,12 @@ Configurés dans Next.js middleware par app :
 
 ### 11.6 Scan de dépendances
 
-| Outil | Rôle |
-| :--- | :--- |
-| **Dependabot** | Mises à jour automatiques |
-| **Socket.dev** | Détection de packages npm malveillants |
-| **`bun audit`** | Vulnérabilités connues |
-| **CodeQL** _(GitHub Advanced Security)_ ou **Semgrep** | Scan SAST |
+| Outil                                                  | Rôle                                   |
+| :----------------------------------------------------- | :------------------------------------- |
+| **Dependabot**                                         | Mises à jour automatiques              |
+| **Socket.dev**                                         | Détection de packages npm malveillants |
+| **`bun audit`**                                        | Vulnérabilités connues                 |
+| **CodeQL** _(GitHub Advanced Security)_ ou **Semgrep** | Scan SAST                              |
 
 ### 11.7 Pentests et bug bounty
 
@@ -837,30 +877,30 @@ Configurés dans Next.js middleware par app :
 
 ### 12.1 CI
 
-| Outil | Rôle |
-| :--- | :--- |
-| **GitHub Actions** | Pipelines build, test, lint, audit |
-| Matrice | Node 22, Bun latest |
-| Étapes | install → typecheck → lint → test → build → audit deps → size-limit (SDK) |
+| Outil              | Rôle                                                                      |
+| :----------------- | :------------------------------------------------------------------------ |
+| **GitHub Actions** | Pipelines build, test, lint, audit                                        |
+| Matrice            | Node 22, Bun latest                                                       |
+| Étapes             | install → typecheck → lint → test → build → audit deps → size-limit (SDK) |
 
 ### 12.2 Déploiement Phase 1
 
-| App | Hébergement |
-| :--- | :--- |
+| App                                  | Hébergement                                                   |
+| :----------------------------------- | :------------------------------------------------------------ |
 | `apps/web`, `apps/auth`, `apps/docs` | **Vercel** (région Paris ou Frankfurt pour proximité Afrique) |
-| Convex | Convex Cloud |
-| Resend | Resend Cloud |
+| Convex                               | Convex Cloud                                                  |
+| Resend                               | Resend Cloud                                                  |
 
 ### 12.3 Déploiement Phase 2 (souveraineté pragmatique)
 
-| Composant | Cible |
-| :--- | :--- |
-| Apps Next.js + Convex self-hosted | **Conteneurs Docker** orchestrés par **Docker Compose** ou **k3s** |
-| Reverse proxy | **Caddy** ou **Traefik** |
-| PostgreSQL (backend Convex) | Patroni + etcd (HA active/passive suffit pour la phase) |
-| Backups | **pgbackrest** + snapshots Convex storage + stockage chiffré offsite |
-| Hébergeur cible | **Raxio Gabon** (Libreville), **ANINF**, ou autre datacenter souverain |
-| DR / multi-zone | Au minimum 2 zones avec basculement automatique |
+| Composant                         | Cible                                                                  |
+| :-------------------------------- | :--------------------------------------------------------------------- |
+| Apps Next.js + Convex self-hosted | **Conteneurs Docker** orchestrés par **Docker Compose** ou **k3s**     |
+| Reverse proxy                     | **Caddy** ou **Traefik**                                               |
+| PostgreSQL (backend Convex)       | Patroni + etcd (HA active/passive suffit pour la phase)                |
+| Backups                           | **pgbackrest** + snapshots Convex storage + stockage chiffré offsite   |
+| Hébergeur cible                   | **Raxio Gabon** (Libreville), **ANINF**, ou autre datacenter souverain |
+| DR / multi-zone                   | Au minimum 2 zones avec basculement automatique                        |
 
 ### 12.4 Déploiement Phase 3 (souveraineté maximale, conditionnel)
 
@@ -868,12 +908,12 @@ Cf. §13.2 pour la composition. Kubernetes complet, PostgreSQL HA Patroni, Ory K
 
 ### 12.5 Environnements
 
-| Env | Usage |
-| :--- | :--- |
-| `dev` (local) | Bun + Convex dev + Mailcatcher |
-| `staging` | Vercel preview + Convex preview deployments + Smile ID sandbox |
-| `production` | Vercel + Convex prod + Smile ID prod |
-| `production-souverain` _(Phase 2)_ | Convex self-hosted + PostgreSQL + KYC interne sur infra Gabon |
+| Env                                    | Usage                                                            |
+| :------------------------------------- | :--------------------------------------------------------------- |
+| `dev` (local)                          | Bun + Convex dev + Mailcatcher                                   |
+| `staging`                              | Vercel preview + Convex preview deployments + Smile ID sandbox   |
+| `production`                           | Vercel + Convex prod + Smile ID prod                             |
+| `production-souverain` _(Phase 2)_     | Convex self-hosted + PostgreSQL + KYC interne sur infra Gabon    |
 | `production-souverain-max` _(Phase 3)_ | Ory + PostgreSQL HA + KYC interne — déclenché conditionnellement |
 
 ---
@@ -927,23 +967,23 @@ Cf. §13.2 pour la composition. Kubernetes complet, PostgreSQL HA Patroni, Ory K
 
 #### Composants Phase 2
 
-| Composant | Outil | Licence |
-| :--- | :--- | :--- |
-| Auth engine | **Better Auth** (inchangé) | MIT |
-| Backend données | **Convex self-hosted** | Apache 2.0 |
-| Database | **PostgreSQL 16+** (backend Convex + queries directes) | PostgreSQL License |
-| Cache | Convex built-in + Redis si nécessaire | — |
-| Audit log | PostgreSQL + **pgAudit** | PostgreSQL License |
-| Secrets | **OpenBao** | MPL 2.0 |
-| HSM | **YubiHSM 2** ou Nitrokey HSM | matériel |
-| Stockage objets | **MinIO** | AGPL / commercial |
-| Service KYC | Service Hono custom (PaddleOCR + InsightFace + Regula on-prem) | mixte |
-| Container orchestration | **Docker Compose** (suffit) ou **k3s** | Apache 2.0 |
-| Reverse proxy | **Caddy** ou **Traefik** | Apache 2.0 |
-| WAF | **OpenResty + ModSecurity** | Apache 2.0 |
-| Anti-bot | **CrowdSec** | MIT |
-| Observabilité | **Grafana / Prometheus / Loki / Tempo** | AGPL / Apache 2.0 |
-| SIEM | **Wazuh** | GPLv2 |
+| Composant               | Outil                                                          | Licence            |
+| :---------------------- | :------------------------------------------------------------- | :----------------- |
+| Auth engine             | **Better Auth** (inchangé)                                     | MIT                |
+| Backend données         | **Convex self-hosted**                                         | Apache 2.0         |
+| Database                | **PostgreSQL 16+** (backend Convex + queries directes)         | PostgreSQL License |
+| Cache                   | Convex built-in + Redis si nécessaire                          | —                  |
+| Audit log               | PostgreSQL + **pgAudit**                                       | PostgreSQL License |
+| Secrets                 | **OpenBao**                                                    | MPL 2.0            |
+| HSM                     | **YubiHSM 2** ou Nitrokey HSM                                  | matériel           |
+| Stockage objets         | **MinIO**                                                      | AGPL / commercial  |
+| Service KYC             | Service Hono custom (PaddleOCR + InsightFace + Regula on-prem) | mixte              |
+| Container orchestration | **Docker Compose** (suffit) ou **k3s**                         | Apache 2.0         |
+| Reverse proxy           | **Caddy** ou **Traefik**                                       | Apache 2.0         |
+| WAF                     | **OpenResty + ModSecurity**                                    | Apache 2.0         |
+| Anti-bot                | **CrowdSec**                                                   | MIT                |
+| Observabilité           | **Grafana / Prometheus / Loki / Tempo**                        | AGPL / Apache 2.0  |
+| SIEM                    | **Wazuh**                                                      | GPLv2              |
 
 #### Migration Phase 1 → Phase 2
 
@@ -1020,22 +1060,22 @@ C'est la migration **simple** : on bouge l'hébergement, pas le code.
 
 #### Composants Phase 3
 
-| Composant | Outil | Licence |
-| :--- | :--- | :--- |
-| OIDC issuer | **Ory Hydra** | Apache 2.0 |
-| Identity engine | **Ory Kratos** | Apache 2.0 |
-| Base de données | **PostgreSQL 16+** (HA) | PostgreSQL License |
-| Cache / queues | **Redis / Valkey** | BSD / Apache 2.0 |
-| Audit log | PostgreSQL + **pgAudit** + WORM extension | PostgreSQL License |
-| Secrets | **OpenBao** | MPL 2.0 |
-| HSM | **YubiHSM 2** | matériel |
-| Stockage objets | **MinIO** | AGPL / commercial |
-| Orchestration | **Kubernetes** (k3s) | Apache 2.0 |
-| Reverse proxy | **Caddy** ou **Traefik** | Apache 2.0 |
-| WAF | **OpenResty + ModSecurity** | Apache 2.0 |
-| Anti-bot | **CrowdSec** | MIT |
-| Observabilité | **Grafana / Prometheus / Loki / Tempo** | AGPL / Apache 2.0 |
-| SIEM | **Wazuh** | GPLv2 |
+| Composant       | Outil                                     | Licence            |
+| :-------------- | :---------------------------------------- | :----------------- |
+| OIDC issuer     | **Ory Hydra**                             | Apache 2.0         |
+| Identity engine | **Ory Kratos**                            | Apache 2.0         |
+| Base de données | **PostgreSQL 16+** (HA)                   | PostgreSQL License |
+| Cache / queues  | **Redis / Valkey**                        | BSD / Apache 2.0   |
+| Audit log       | PostgreSQL + **pgAudit** + WORM extension | PostgreSQL License |
+| Secrets         | **OpenBao**                               | MPL 2.0            |
+| HSM             | **YubiHSM 2**                             | matériel           |
+| Stockage objets | **MinIO**                                 | AGPL / commercial  |
+| Orchestration   | **Kubernetes** (k3s)                      | Apache 2.0         |
+| Reverse proxy   | **Caddy** ou **Traefik**                  | Apache 2.0         |
+| WAF             | **OpenResty + ModSecurity**               | Apache 2.0         |
+| Anti-bot        | **CrowdSec**                              | MIT                |
+| Observabilité   | **Grafana / Prometheus / Loki / Tempo**   | AGPL / Apache 2.0  |
+| SIEM            | **Wazuh**                                 | GPLv2              |
 
 #### Migration Phase 2 → Phase 3
 
@@ -1101,35 +1141,35 @@ Si la Phase 3 est déclenchée :
 
 ## 15. Tableau récapitulatif
 
-| Domaine | Phase 1 (MVP Cloud) | Phase 2 (souveraineté pragmatique) | Phase 3 (souveraineté maximale) |
-| :--- | :--- | :--- | :--- |
-| **Build** | Bun + Turborepo + TypeScript | inchangé | inchangé |
-| **Frontend** | Next.js 16 + React 19 + Tailwind v4 | inchangé | inchangé |
-| **UI** | Tokens IDN + Radix Primitives + Motion | inchangé | inchangé |
-| **SDK** | `@idn/*` packages | inchangés | inchangés |
-| **Auth engine** | Better Auth 1.4+ | **Better Auth (inchangé)** | Ory Kratos + Ory Hydra |
-| **OIDC** | Better Auth `oidcProvider` (RS256) | inchangé | Ory Hydra (RS256) |
-| **DB engine** | Convex Cloud + composants officiels (better-auth, resend, rate-limiter, aggregate, workflow) | **Convex self-hosted** + mêmes composants | PostgreSQL 16 natif |
-| **DB backend** | Convex (managé) | PostgreSQL via Convex | PostgreSQL HA (Patroni + etcd) |
-| **Email** | `@convex-dev/resend` (file, idempotency, webhooks) | inchangé | Resend / SES / SMTP local via abstraction |
-| **SMS** | — | Twilio / Africa's Talking | idem |
-| **KYC** | Smile ID | Service interne (PaddleOCR + InsightFace + Regula on-prem) | idem |
-| **Storage** | Convex Storage | Convex Storage self-hosted | MinIO direct |
-| **Secrets** | Convex env vars | OpenBao + HSM YubiHSM 2 | idem |
-| **Rate limiting** | `@convex-dev/rate-limiter` (transactionnel) | inchangé | Postgres + plugin natif Ory |
-| **Agrégations dashboard** | `@convex-dev/aggregate` (B-tree O(log N)) | inchangé | Vues matérialisées Postgres |
-| **Workflows durables** | `@convex-dev/workflow` | inchangé | Temporal ou similaire |
-| **Cache** | Convex (built-in) | Convex + Redis si nécessaire | Redis / Valkey |
-| **Observabilité** | Better Stack + Sentry | Grafana + Prometheus + Loki + Tempo | idem |
-| **SIEM** | Better Stack alerts | Wazuh | idem |
-| **WAF** | Cloudflare | OpenResty + ModSecurity + CrowdSec | idem |
-| **CAPTCHA** | Cloudflare Turnstile | hCaptcha self-hosted | idem |
-| **CI** | GitHub Actions | GitHub Actions | GitHub ou Forgejo Actions self-hosted |
-| **Déploiement apps** | Vercel | Docker Compose ou k3s | Kubernetes (k3s ou full) |
-| **Hébergement** | Vercel + Convex Cloud (US/EU) | Datacenter Gabon (Raxio / ANINF) | idem |
-| **Backup** | Convex backup | pgbackrest + offsite chiffré | idem |
-| **Effort de migration depuis phase précédente** | — | **Léger** : changement d'env vars + export/import data | **Moyen** : réécriture couche auth dans `apps/auth`, frontend inchangé |
-| **Capacité MAU recommandée** | illimitée (managé) | jusqu'à ~500k MAU | au-delà |
+| Domaine                                         | Phase 1 (MVP Cloud)                                                                          | Phase 2 (souveraineté pragmatique)                         | Phase 3 (souveraineté maximale)                                        |
+| :---------------------------------------------- | :------------------------------------------------------------------------------------------- | :--------------------------------------------------------- | :--------------------------------------------------------------------- |
+| **Build**                                       | Bun + Turborepo + TypeScript                                                                 | inchangé                                                   | inchangé                                                               |
+| **Frontend**                                    | Next.js 16 + React 19 + Tailwind v4                                                          | inchangé                                                   | inchangé                                                               |
+| **UI**                                          | Tokens IDN + Radix Primitives + Motion                                                       | inchangé                                                   | inchangé                                                               |
+| **SDK**                                         | `@idn/*` packages                                                                            | inchangés                                                  | inchangés                                                              |
+| **Auth engine**                                 | Better Auth 1.4+                                                                             | **Better Auth (inchangé)**                                 | Ory Kratos + Ory Hydra                                                 |
+| **OIDC**                                        | Better Auth `oidcProvider` (RS256)                                                           | inchangé                                                   | Ory Hydra (RS256)                                                      |
+| **DB engine**                                   | Convex Cloud + composants officiels (better-auth, resend, rate-limiter, aggregate, workflow) | **Convex self-hosted** + mêmes composants                  | PostgreSQL 16 natif                                                    |
+| **DB backend**                                  | Convex (managé)                                                                              | PostgreSQL via Convex                                      | PostgreSQL HA (Patroni + etcd)                                         |
+| **Email**                                       | `@convex-dev/resend` (file, idempotency, webhooks)                                           | inchangé                                                   | Resend / SES / SMTP local via abstraction                              |
+| **SMS**                                         | —                                                                                            | Twilio / Africa's Talking                                  | idem                                                                   |
+| **KYC**                                         | Smile ID                                                                                     | Service interne (PaddleOCR + InsightFace + Regula on-prem) | idem                                                                   |
+| **Storage**                                     | Convex Storage                                                                               | Convex Storage self-hosted                                 | MinIO direct                                                           |
+| **Secrets**                                     | Convex env vars                                                                              | OpenBao + HSM YubiHSM 2                                    | idem                                                                   |
+| **Rate limiting**                               | `@convex-dev/rate-limiter` (transactionnel)                                                  | inchangé                                                   | Postgres + plugin natif Ory                                            |
+| **Agrégations dashboard**                       | `@convex-dev/aggregate` (B-tree O(log N))                                                    | inchangé                                                   | Vues matérialisées Postgres                                            |
+| **Workflows durables**                          | `@convex-dev/workflow`                                                                       | inchangé                                                   | Temporal ou similaire                                                  |
+| **Cache**                                       | Convex (built-in)                                                                            | Convex + Redis si nécessaire                               | Redis / Valkey                                                         |
+| **Observabilité**                               | Better Stack + Sentry                                                                        | Grafana + Prometheus + Loki + Tempo                        | idem                                                                   |
+| **SIEM**                                        | Better Stack alerts                                                                          | Wazuh                                                      | idem                                                                   |
+| **WAF**                                         | Cloudflare                                                                                   | OpenResty + ModSecurity + CrowdSec                         | idem                                                                   |
+| **CAPTCHA**                                     | Cloudflare Turnstile                                                                         | hCaptcha self-hosted                                       | idem                                                                   |
+| **CI**                                          | GitHub Actions                                                                               | GitHub Actions                                             | GitHub ou Forgejo Actions self-hosted                                  |
+| **Déploiement apps**                            | Vercel                                                                                       | Docker Compose ou k3s                                      | Kubernetes (k3s ou full)                                               |
+| **Hébergement**                                 | Vercel + Convex Cloud (US/EU)                                                                | Datacenter Gabon (Raxio / ANINF)                           | idem                                                                   |
+| **Backup**                                      | Convex backup                                                                                | pgbackrest + offsite chiffré                               | idem                                                                   |
+| **Effort de migration depuis phase précédente** | —                                                                                            | **Léger** : changement d'env vars + export/import data     | **Moyen** : réécriture couche auth dans `apps/auth`, frontend inchangé |
+| **Capacité MAU recommandée**                    | illimitée (managé)                                                                           | jusqu'à ~500k MAU                                          | au-delà                                                                |
 
 ---
 
@@ -1137,22 +1177,22 @@ Si la Phase 3 est déclenchée :
 
 ### A. Versions cibles à la mise en production MVP
 
-| Outil | Version |
-| :--- | :--- |
-| Node | 22 LTS |
-| Bun | 1.3+ |
-| Next.js | 16.x |
-| React | 19.x |
-| TypeScript | 5.9+ |
-| Tailwind | 4.x |
-| Better Auth | 1.4+ |
-| Convex | 1.27+ |
-| `@convex-dev/better-auth` | 0.10+ (composant officiel Convex) |
-| `@convex-dev/resend` | dernière stable |
-| `@convex-dev/rate-limiter` | dernière stable |
-| `@convex-dev/aggregate` | dernière stable |
-| `@convex-dev/workflow` | dernière stable |
-| Turborepo | 2.9+ |
+| Outil                      | Version                           |
+| :------------------------- | :-------------------------------- |
+| Node                       | 22 LTS                            |
+| Bun                        | 1.3+                              |
+| Next.js                    | 16.x                              |
+| React                      | 19.x                              |
+| TypeScript                 | 5.9+                              |
+| Tailwind                   | 4.x                               |
+| Better Auth                | 1.4+                              |
+| Convex                     | 1.27+                             |
+| `@convex-dev/better-auth`  | 0.10+ (composant officiel Convex) |
+| `@convex-dev/resend`       | dernière stable                   |
+| `@convex-dev/rate-limiter` | dernière stable                   |
+| `@convex-dev/aggregate`    | dernière stable                   |
+| `@convex-dev/workflow`     | dernière stable                   |
+| Turborepo                  | 2.9+                              |
 
 ### B. Liens utiles
 
