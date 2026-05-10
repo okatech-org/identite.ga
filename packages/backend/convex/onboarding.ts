@@ -3,6 +3,7 @@ import { ConvexError, v } from "convex/values"
 import { internal } from "./_generated/api"
 import { mutation } from "./_generated/server"
 import { requireAuth, requireVerifiedAuth } from "./lib/auth"
+import { generateIdnId } from "./lib/idnId"
 import { PROFILE_TYPES } from "./schema"
 
 /**
@@ -43,10 +44,15 @@ export const selectProfile = mutation({
       return { profileId: existing._id }
     }
 
+    // Identifiant public IDN (`GA-XXXX-XXXX`) — généré une seule fois à la
+    // création du profil, puis stable à vie.
+    const idnId = await generateIdnId(ctx)
+
     const profileId = await ctx.db.insert("userProfile", {
       userId: user.userId,
       profileType: args.profileType,
       loa: 1, // email vérifié = niveau 1
+      idnId,
       createdAt: now,
       updatedAt: now,
     })
@@ -78,7 +84,7 @@ export const selectProfile = mutation({
       action: "account_created",
       targetType: "user",
       targetId: user.userId,
-      metadata: { profileType: args.profileType },
+      metadata: { profileType: args.profileType, idnId },
     })
 
     return { profileId }

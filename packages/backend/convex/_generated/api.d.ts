@@ -28,6 +28,7 @@ import type * as kyc_actions from "../kyc/actions.js";
 import type * as kyc_mutations from "../kyc/mutations.js";
 import type * as kyc_workflow from "../kyc/workflow.js";
 import type * as lib_auth from "../lib/auth.js";
+import type * as lib_idnId from "../lib/idnId.js";
 import type * as lib_password from "../lib/password.js";
 import type * as notifications from "../notifications.js";
 import type * as oauthConsents from "../oauthConsents.js";
@@ -65,6 +66,7 @@ declare const fullApi: ApiFromModules<{
   "kyc/mutations": typeof kyc_mutations;
   "kyc/workflow": typeof kyc_workflow;
   "lib/auth": typeof lib_auth;
+  "lib/idnId": typeof lib_idnId;
   "lib/password": typeof lib_password;
   notifications: typeof notifications;
   oauthConsents: typeof oauthConsents;

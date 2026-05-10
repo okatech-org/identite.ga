@@ -5,6 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useQuery } from "convex/react"
 import {
+  BellIcon,
   HomeIcon,
   KeyRoundIcon,
   LogOutIcon,
@@ -33,40 +34,39 @@ import { cn } from "@repo/ui/lib/utils"
 
 import { authClient } from "@/lib/auth-client"
 
-import { mobileNav, navActions, navTabs } from "../_content/fr"
-
-const SIGN_IN_URL = "/sign-in"
-const SIGN_UP_URL = "/sign-up/profile"
+import { dashboard, userMenu } from "../_content/fr"
 
 const CONNECTED_LINKS = [
-  { href: "/dashboard", label: "Tableau de bord", icon: HomeIcon },
-  { href: "/profile", label: "Mon profil", icon: UserIcon },
-  { href: "/consents", label: "Mes consentements", icon: ShieldCheckIcon },
-  { href: "/settings", label: "Paramètres", icon: KeyRoundIcon },
+  { href: "/dashboard", label: userMenu.dashboard, icon: HomeIcon },
+  { href: "/profile", label: userMenu.profile, icon: UserIcon },
+  { href: "/consents", label: userMenu.consents, icon: ShieldCheckIcon },
+  { href: "/settings", label: userMenu.settings, icon: KeyRoundIcon },
 ] as const
 
-export function MobilePublicNav({ className }: { className?: string }) {
+export function CitizenMobileHeader({ className }: { className?: string }) {
   const pathname = usePathname()
   const me = useQuery(api.profile.getCurrentUser)
   const [open, setOpen] = React.useState(false)
 
-  const isActive = (href: string) =>
-    href === "/" ? pathname === "/" : pathname.startsWith(href)
-
   React.useEffect(() => {
     setOpen(false)
   }, [pathname])
-
-  const handleSignOut = async () => {
-    await authClient.signOut()
-    window.location.href = "/"
-  }
 
   const firstName = me?.profile?.pivot?.firstName
   const lastName = me?.profile?.pivot?.lastName
   const photoUrl = me?.profile?.photoUrl ?? null
   const fullName =
     firstName && lastName ? `${firstName} ${lastName}` : me?.email
+
+  const isActive = (href: string) =>
+    href === "/dashboard"
+      ? pathname === "/dashboard"
+      : pathname.startsWith(href)
+
+  const handleSignOut = async () => {
+    await authClient.signOut()
+    window.location.href = "/"
+  }
 
   return (
     <header
@@ -75,17 +75,35 @@ export function MobilePublicNav({ className }: { className?: string }) {
         className,
       )}
     >
-      <div className="flex h-13 items-center justify-between gap-3 px-4">
+      <div className="flex items-center gap-3 px-5 py-3">
         <Link
-          href="/"
-          className="flex items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
-          aria-label={`${navActions.brand} — Accueil`}
+          href="/dashboard"
+          aria-label="Identité Numérique — Tableau de bord"
+          className="rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
         >
-          <IdnMark size={22} />
-          <span className="text-[14px] font-semibold text-foreground">
-            {navActions.brand}
-          </span>
+          <IdnMark size={28} />
         </Link>
+        <div className="min-w-0 flex-1">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            IDN — IDENTITÉ NUMÉRIQUE
+          </p>
+          {fullName && (
+            <p className="truncate text-sm font-semibold text-foreground">
+              {fullName}
+            </p>
+          )}
+        </div>
+        <button
+          type="button"
+          aria-label={dashboard.bellAria}
+          className="relative flex size-9 items-center justify-center rounded-full bg-secondary text-muted-foreground transition-colors hover:bg-secondary/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+        >
+          <BellIcon className="size-4" aria-hidden="true" />
+          <span
+            aria-hidden="true"
+            className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-idn-green ring-[1.5px] ring-card"
+          />
+        </button>
 
         <Drawer open={open} onOpenChange={setOpen}>
           <DrawerTrigger asChild>
@@ -93,7 +111,7 @@ export function MobilePublicNav({ className }: { className?: string }) {
               type="button"
               variant="ghost"
               size="icon-sm"
-              aria-label={mobileNav.menuLabel}
+              aria-label="Ouvrir le menu"
             >
               <MenuIcon aria-hidden="true" />
             </Button>
@@ -101,9 +119,9 @@ export function MobilePublicNav({ className }: { className?: string }) {
           <DrawerContent>
             <DrawerHeader className="flex flex-row items-center justify-between border-b border-border">
               <div>
-                <DrawerTitle>{mobileNav.menuTitle}</DrawerTitle>
+                <DrawerTitle>Menu</DrawerTitle>
                 <DrawerDescription className="sr-only">
-                  {mobileNav.menuDescription}
+                  Navigation et compte IDN.
                 </DrawerDescription>
               </div>
               <DrawerClose asChild>
@@ -111,7 +129,7 @@ export function MobilePublicNav({ className }: { className?: string }) {
                   type="button"
                   variant="ghost"
                   size="icon-sm"
-                  aria-label={mobileNav.closeLabel}
+                  aria-label="Fermer le menu"
                 >
                   <XIcon aria-hidden="true" />
                 </Button>
@@ -139,88 +157,46 @@ export function MobilePublicNav({ className }: { className?: string }) {
 
             <nav
               className="flex flex-col gap-1 p-3"
-              aria-label="Navigation principale (mobile)"
+              aria-label="Mon compte"
             >
-              {navTabs.map((tab) => {
-                const active = isActive(tab.href)
+              {CONNECTED_LINKS.map(({ href, label, icon: Icon }) => {
+                const active = isActive(href)
                 return (
                   <Link
-                    key={tab.href}
-                    href={tab.href}
+                    key={href}
+                    href={href}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "flex items-center rounded-md px-4 py-3 text-[15px] font-medium transition-colors",
+                      "flex items-center gap-3 rounded-md px-4 py-3 text-[15px] font-medium transition-colors",
                       active
                         ? "bg-idn-green-soft font-semibold text-idn-green dark:bg-[#0F2A18] dark:text-idn-green-on-dark"
                         : "text-foreground/90 hover:bg-secondary",
                     )}
                   >
-                    {tab.label}
+                    <Icon className="size-4" aria-hidden="true" />
+                    {label}
                   </Link>
                 )
               })}
             </nav>
 
-            {me && (
-              <nav
-                className="flex flex-col gap-1 border-t border-border p-3"
-                aria-label="Mon compte"
-              >
-                {CONNECTED_LINKS.map(({ href, label, icon: Icon }) => {
-                  const active = isActive(href)
-                  return (
-                    <Link
-                      key={href}
-                      href={href}
-                      aria-current={active ? "page" : undefined}
-                      className={cn(
-                        "flex items-center gap-3 rounded-md px-4 py-3 text-[15px] font-medium transition-colors",
-                        active
-                          ? "bg-idn-green-soft font-semibold text-idn-green dark:bg-[#0F2A18] dark:text-idn-green-on-dark"
-                          : "text-foreground/90 hover:bg-secondary",
-                      )}
-                    >
-                      <Icon className="size-4" aria-hidden="true" />
-                      {label}
-                    </Link>
-                  )
-                })}
-              </nav>
-            )}
-
             <DrawerFooter>
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-muted-foreground">
-                  {mobileNav.themeLabel}
+                  Apparence
                 </span>
                 <ThemeToggle />
               </div>
-              {me ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="lg"
-                  className="w-full"
-                  onClick={handleSignOut}
-                >
-                  <LogOutIcon aria-hidden="true" />
-                  Se déconnecter
-                </Button>
-              ) : (
-                <>
-                  <Button
-                    asChild
-                    variant="outline"
-                    size="lg"
-                    className="w-full"
-                  >
-                    <Link href={SIGN_IN_URL}>{navActions.signIn}</Link>
-                  </Button>
-                  <Button asChild size="lg" className="w-full">
-                    <Link href={SIGN_UP_URL}>{navActions.signUp}</Link>
-                  </Button>
-                </>
-              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                className="w-full"
+                onClick={handleSignOut}
+              >
+                <LogOutIcon aria-hidden="true" />
+                {userMenu.signOut}
+              </Button>
             </DrawerFooter>
           </DrawerContent>
         </Drawer>

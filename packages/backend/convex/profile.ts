@@ -7,7 +7,7 @@ import { internal } from "./_generated/api"
 /**
  * Profil citoyen (§3.3 — Mon compte).
  *
- * - getCurrentUser : agrège user Better Auth + userProfile + userPreference
+ * - getCurrentUser : agrège user Better Auth + userProfile + dernière KYC approved
  * - updatePivot     : modifie identité pivot (audit log)
  * - generateUploadUrl : storage pour photo de profil (signed URL Convex)
  * - setProfilePhoto : pose la ref photo après upload
@@ -25,6 +25,7 @@ export const getCurrentUser = query({
         v.object({
           loa: v.number(),
           profileType: v.string(),
+          idnId: v.optional(v.string()),
           pivot: v.optional(
             v.object({
               firstName: v.string(),
@@ -36,6 +37,10 @@ export const getCurrentUser = query({
             }),
           ),
           photoStorageRef: v.optional(v.id("_storage")),
+          photoUrl: v.union(v.string(), v.null()),
+          pinConfigured: v.boolean(),
+          verifiedAt: v.union(v.number(), v.null()),
+          verifiedDocumentTypes: v.array(v.string()),
         }),
         v.null(),
       ),
@@ -51,19 +56,52 @@ export const getCurrentUser = query({
       .withIndex("by_userId", (q) => q.eq("userId", auth.userId))
       .unique()
 
+    if (!profile) {
+      return {
+        userId: auth.userId,
+        email: auth.email,
+        emailVerified: auth.emailVerified,
+        roles: auth.roles,
+        profile: null,
+      }
+    }
+
+    // Photo profil : URL signée si ref présente
+    const photoUrl = profile.photoStorageRef
+      ? await ctx.storage.getUrl(profile.photoStorageRef)
+      : null
+
+    // Dernière KYC approuvée (pour verifiedAt + documents)
+    const approvedKycs = await ctx.db
+      .query("kycRequest")
+      .withIndex("by_userId_status", (q) =>
+        q.eq("userId", auth.userId).eq("status", "approved"),
+      )
+      .order("desc")
+      .collect()
+
+    const latestApproved = approvedKycs[0]
+    const verifiedAt = latestApproved?.reviewedAt ?? null
+    const verifiedDocumentTypes = Array.from(
+      new Set(approvedKycs.map((k) => k.documentType)),
+    )
+
     return {
       userId: auth.userId,
       email: auth.email,
       emailVerified: auth.emailVerified,
       roles: auth.roles,
-      profile: profile
-        ? {
-            loa: profile.loa,
-            profileType: profile.profileType,
-            pivot: profile.pivot,
-            photoStorageRef: profile.photoStorageRef,
-          }
-        : null,
+      profile: {
+        loa: profile.loa,
+        profileType: profile.profileType,
+        idnId: profile.idnId,
+        pivot: profile.pivot,
+        photoStorageRef: profile.photoStorageRef,
+        photoUrl,
+        pinConfigured: Boolean(profile.pinHash),
+        verifiedAt,
+        verifiedDocumentTypes,
+      },
     }
   },
 })

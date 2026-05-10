@@ -131,6 +131,13 @@ export default defineSchema({
     profileType: v.union(...PROFILE_TYPES.map((t) => v.literal(t))),
     loa: v.union(v.literal(1), v.literal(2), v.literal(3)),
 
+    /**
+     * Identifiant public stable de l'utilisateur (format `GA-XXXX-XXXX`).
+     * Généré au signup (`onboarding.selectProfile`), unique global.
+     * Optional pour les users créés avant l'introduction du champ.
+     */
+    idnId: v.optional(v.string()),
+
     // Identité pivot (§3.2) — optionnelle au signup, complétée à l'étape pivot
     pivot: v.optional(
       v.object({
@@ -156,6 +163,7 @@ export default defineSchema({
     deletedAt: v.optional(v.number()), // soft delete RGPD
   })
     .index("by_userId", ["userId"])
+    .index("by_idnId", ["idnId"])
     .index("by_loa", ["loa"])
     .index("by_profileType", ["profileType"])
     .index("by_deletedAt", ["deletedAt"]),

@@ -2,10 +2,14 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useQuery } from "convex/react"
 
+import { api } from "@repo/backend/convex/_generated/api"
 import { Button } from "@repo/ui/components/button"
 import { IdnMark } from "@repo/ui/components/idn-mark"
 import { cn } from "@repo/ui/lib/utils"
+
+import { UserMenu } from "@/app/_components/user-menu"
 
 import { navActions, navTabs } from "../_content/fr"
 
@@ -14,6 +18,7 @@ const SIGN_UP_URL = "/sign-up/profile"
 
 export function PublicNav({ className }: { className?: string }) {
   const pathname = usePathname()
+  const me = useQuery(api.profile.getCurrentUser)
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href)
@@ -65,12 +70,29 @@ export function PublicNav({ className }: { className?: string }) {
         </nav>
 
         <div className="flex flex-1 items-center justify-end gap-2">
-          <Button asChild variant="outline" size="sm" className="hidden sm:inline-flex">
-            <Link href={SIGN_IN_URL}>{navActions.signIn}</Link>
-          </Button>
-          <Button asChild size="sm">
-            <Link href={SIGN_UP_URL}>{navActions.signUp}</Link>
-          </Button>
+          {me === undefined ? (
+            // Loading : placeholder discret pour éviter le flash CTA → user menu
+            <div
+              aria-hidden="true"
+              className="size-9 animate-pulse rounded-[10px] bg-secondary"
+            />
+          ) : me === null ? (
+            <>
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="hidden sm:inline-flex"
+              >
+                <Link href={SIGN_IN_URL}>{navActions.signIn}</Link>
+              </Button>
+              <Button asChild size="sm">
+                <Link href={SIGN_UP_URL}>{navActions.signUp}</Link>
+              </Button>
+            </>
+          ) : (
+            <UserMenu user={me} />
+          )}
         </div>
       </div>
 
