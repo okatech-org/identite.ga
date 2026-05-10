@@ -4,8 +4,9 @@ import * as React from "react"
 import { useQuery } from "convex/react"
 import { ShieldCheckIcon } from "lucide-react"
 
+import Link from "next/link"
+
 import { api } from "@repo/backend/convex/_generated/api"
-import { Avatar } from "@repo/ui/components/avatar"
 import { Button } from "@repo/ui/components/button"
 import { LoABadge, type LoALevel } from "@repo/ui/components/loa-badge"
 
@@ -17,6 +18,7 @@ import {
   PROFILE_TYPE_LABELS,
 } from "../_content/fr"
 import { InfoRow } from "../_components/info-row"
+import { PhotoUploader } from "../_components/photo-uploader"
 
 export default function ProfilePage() {
   const me = useQuery(api.profile.getCurrentUser)
@@ -68,10 +70,10 @@ export default function ProfilePage() {
       {/* DESKTOP (≥ md) — match CWProfile */}
       <section className="mx-auto hidden w-full md:px-4 lg:px-20 py-8 md:block">
         <div className="flex items-center gap-5">
-          <Avatar
+          <PhotoUploader
             firstName={firstName}
             lastName={lastName}
-            src={photoUrl}
+            currentPhotoUrl={photoUrl}
             size={72}
           />
           <div className="min-w-0 flex-1">
@@ -85,14 +87,8 @@ export default function ProfilePage() {
               <LoABadge level={loa} />
             </div>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled
-            title={profile.editDisabledTooltip}
-          >
-            {profile.edit}
+          <Button asChild variant="outline" size="sm">
+            <Link href="/profile/edit">{profile.edit}</Link>
           </Button>
         </div>
 
@@ -189,10 +185,10 @@ export default function ProfilePage() {
       {/* MOBILE (< md) — match MProfile */}
       <section className="mx-auto flex w-full max-w-[480px] flex-1 flex-col gap-5 px-5 py-4 md:hidden">
         <div className="flex items-center gap-3.5 rounded-2xl border border-border bg-card p-4">
-          <Avatar
+          <PhotoUploader
             firstName={firstName}
             lastName={lastName}
-            src={photoUrl}
+            currentPhotoUrl={photoUrl}
             size={60}
           />
           <div className="min-w-0 flex-1">
@@ -206,6 +202,9 @@ export default function ProfilePage() {
               <LoABadge level={loa} compact />
             </div>
           </div>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/profile/edit">{profile.edit}</Link>
+          </Button>
         </div>
 
         <section aria-labelledby="pivot-mobile">
@@ -268,19 +267,14 @@ export default function ProfilePage() {
         </section>
 
         {showUpgrade && (
-          <Button
-            type="button"
-            variant="outline"
-            size="lg"
-            disabled
-            title={profile.editDisabledTooltip}
-            className="h-12 w-full"
-          >
-            <ShieldCheckIcon
-              className="text-idn-green dark:text-idn-green-on-dark"
-              aria-hidden="true"
-            />
-            {profile.upgradeCta(loa + 1)}
+          <Button asChild variant="outline" size="lg" className="h-12 w-full">
+            <Link href="/kyc">
+              <ShieldCheckIcon
+                className="text-idn-green dark:text-idn-green-on-dark"
+                aria-hidden="true"
+              />
+              {profile.upgradeCta(loa + 1)}
+            </Link>
           </Button>
         )}
       </section>

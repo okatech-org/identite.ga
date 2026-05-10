@@ -3,7 +3,7 @@ import { ConvexError, v } from "convex/values"
 import { internal } from "./_generated/api"
 import { mutation, query } from "./_generated/server"
 import { workflow } from "./kyc/workflow"
-import { requireVerifiedAuth } from "./lib/auth"
+import { getCurrentAuthUser, requireVerifiedAuth } from "./lib/auth"
 import { rateLimiter } from "./rateLimiter"
 import { KYC_DOCUMENT_TYPES } from "./schema"
 
@@ -160,7 +160,10 @@ export const getMyLatest = query({
     v.null(),
   ),
   handler: async (ctx) => {
-    const user = await requireVerifiedAuth(ctx)
+    // Lecture gracieuse pour éviter UNAUTHENTICATED / EMAIL_NOT_VERIFIED
+    // au mount des pages /profile et /kyc.
+    const user = await getCurrentAuthUser(ctx)
+    if (!user) return null
     const docs = await ctx.db
       .query("kycRequest")
       .withIndex("by_userId", (q) => q.eq("userId", user.userId))

@@ -251,6 +251,18 @@ export const profile = {
   },
   edit: "Modifier",
   editDisabledTooltip: "Bientôt disponible",
+  editPhoto: {
+    aria: "Modifier la photo de profil",
+    selectFile: "Choisir une image",
+    cropTitle: "Recadrer la photo",
+    cropHelp: "Centrez votre visage dans le cadre.",
+    cancel: "Annuler",
+    save: "Enregistrer",
+    successToast: "Photo mise à jour.",
+    errorToast: "Impossible de mettre à jour la photo.",
+    invalidType: "Format non supporté. Choisissez une image (JPEG, PNG, WebP).",
+    tooLarge: "Image trop volumineuse (max 5 Mo).",
+  },
   pivot: {
     eyebrow: "IDENTITÉ PIVOT",
     rows: {
@@ -290,6 +302,294 @@ export const profile = {
     },
   },
   upgradeCta: (nextLevel: number) => `Passer au Niveau ${nextLevel}`,
+} as const
+
+export const kyc = {
+  meta: {
+    title: "Vérifier mon identité",
+    description: "Démarrez la vérification de niveau 2 (LoA 2).",
+  },
+  intro: {
+    eyebrow: "VÉRIFICATION D'IDENTITÉ · NIVEAU 2",
+    title: "Passons au Niveau 2",
+    sub: "3 étapes, environ 5 minutes. Documents officiels requis.",
+    steps: [
+      {
+        title: "1. Pièce d'identité",
+        body: "Photographiez votre CNI gabonaise, passeport ou carte de séjour (recto/verso).",
+      },
+      {
+        title: "2. Selfie",
+        body: "Prenez un selfie pour confirmer que c'est bien vous (vérification biométrique).",
+      },
+      {
+        title: "3. Soumission",
+        body: "Validation automatique en quelques minutes. Revue manuelle si besoin (24h ouvrées).",
+      },
+    ],
+    cta: "Commencer",
+    chooseDocLabel: "Type de document",
+    docOptions: [
+      { value: "cni_gabon" as const, label: "CNI gabonaise" },
+      { value: "passport" as const, label: "Passeport" },
+      { value: "residence_card" as const, label: "Carte de séjour" },
+      { value: "birth_certificate" as const, label: "Acte de naissance" },
+    ],
+  },
+  document: {
+    title: "Photographiez votre document",
+    sub: "Posez le document à plat sur une surface contrastée. Cadrez bien les bords.",
+    front: "Recto",
+    back: "Verso (optionnel)",
+    addPhoto: "Ajouter une photo",
+    replacePhoto: "Remplacer",
+    next: "Continuer",
+    uploadError: "Impossible de téléverser l'image.",
+    requiredFront: "Recto requis.",
+  },
+  selfie: {
+    title: "Prenez un selfie",
+    sub: "Regardez l'objectif et placez votre visage dans le cadre. Éclairez bien votre visage.",
+    capture: "Prendre la photo",
+    retake: "Reprendre",
+    submit: "Envoyer ma demande",
+    cameraError: "Impossible d'accéder à la caméra. Vérifiez les permissions.",
+    submitError: "Impossible d'envoyer la demande.",
+  },
+  status: {
+    title: "Statut de votre demande",
+    pending: {
+      title: "En attente d'envoi",
+      sub: "Complétez les étapes pour soumettre votre demande.",
+    },
+    submitted: {
+      title: "Demande envoyée",
+      sub: "Votre dossier passe en revue automatique. Vous recevrez une notification dans quelques minutes.",
+    },
+    under_review: {
+      title: "En cours d'examen",
+      sub: "Un contrôleur examine votre demande. Délai indicatif : 24h ouvrées.",
+    },
+    approved: {
+      title: "Niveau 2 accordé",
+      sub: "Félicitations ! Votre identité est désormais vérifiée. Plus de services accessibles.",
+    },
+    rejected: {
+      title: "Demande refusée",
+      sub: "Votre demande n'a pas pu être validée. Voir le motif et réessayez.",
+    },
+    expired: {
+      title: "Demande expirée",
+      sub: "Veuillez recommencer.",
+    },
+    backToProfile: "Retour au profil",
+    restart: "Recommencer",
+    submitNow: "Soumettre maintenant",
+  },
+} as const
+
+export const settings = {
+  meta: {
+    title: "Paramètres",
+    description: "Sécurité, notifications, préférences et données personnelles.",
+  },
+  title: "Paramètres",
+  tabs: {
+    security: "Sécurité",
+    sessions: "Sessions",
+    notifications: "Notifications",
+    preferences: "Préférences",
+    documents: "Documents",
+    activity: "Activité",
+    privacy: "Confidentialité",
+  },
+  security: {
+    title: "Sécurité",
+    sub: "Mot de passe, PIN, authentification à deux facteurs.",
+    password: {
+      title: "Mot de passe",
+      sub: "Modifié il y a longtemps. Choisissez-en un nouveau pour renforcer votre compte.",
+      cta: "Modifier",
+      modalTitle: "Modifier le mot de passe",
+      currentLabel: "Mot de passe actuel",
+      newLabel: "Nouveau mot de passe",
+      newHint: "Minimum 12 caractères. Mélangez lettres, chiffres et symboles.",
+      submit: "Modifier",
+      cancel: "Annuler",
+      successToast: "Mot de passe modifié.",
+    },
+    pin: {
+      title: "Code PIN à 6 chiffres",
+      subConfigured: "Configuré. Utilisé pour signer les actions sensibles.",
+      subNotConfigured: "Non configuré. Définissez un PIN pour les actions sensibles.",
+      cta: "Modifier",
+      ctaDefine: "Définir",
+      modalTitle: "Modifier le PIN",
+      newLabel: "Nouveau PIN",
+      newHint: "6 chiffres. Évitez les suites évidentes (123456, 000000) et votre date de naissance.",
+      submit: "Modifier",
+      cancel: "Annuler",
+      successToast: "PIN modifié.",
+    },
+    twoFactor: {
+      title: "Authentification à deux facteurs",
+      sub: "Ajoute une étape de vérification (TOTP) à chaque connexion.",
+      ctaDisabled: "Configurer",
+      tooltip: "Bientôt disponible",
+    },
+  },
+  sessions: {
+    title: "Appareils & sessions",
+    sub: "Voyez où vous êtes connecté·e. Révoquez les sessions non reconnues.",
+    countSingle: "1 session active",
+    countMany: (n: number) => `${n} sessions actives`,
+    countEmpty: "Aucune session active",
+    current: "Session courante",
+    revokeAllOthers: "Tout déconnecter sauf actuelle",
+    revokeAllSuccess: "Sessions déconnectées.",
+    deviceFallback: "Appareil inconnu",
+    revoke: "Déconnecter",
+    revokeSuccessToast: "Session déconnectée.",
+    confirmAllOthersTitle: "Déconnecter toutes les autres sessions ?",
+    confirmAllOthersBody:
+      "Tous les autres appareils connectés à votre compte seront immédiatement déconnectés.",
+  },
+  notifications: {
+    title: "Notifications",
+    sub: "Choisissez les événements qui vous notifient et les canaux utilisés.",
+    saveSuccessToast: "Préférences enregistrées.",
+    categories: {
+      security: { label: "Sécurité", help: "Connexions, changements de mot de passe / PIN, alertes." },
+      kyc: { label: "Vérification d'identité", help: "État du KYC, montée de niveau de garantie." },
+      consent: { label: "Consentements", help: "Accès accordé ou révoqué à une application." },
+      comms: { label: "Communications", help: "Nouvelles fonctionnalités, infos institutionnelles." },
+    },
+    channels: { email: "Email", inApp: "In-app" },
+  },
+  preferences: {
+    title: "Préférences",
+    sub: "Langue d'interface, thème, accessibilité.",
+    language: {
+      label: "Langue",
+      options: [
+        { value: "fr", label: "Français" },
+        { value: "en", label: "English" },
+      ],
+    },
+    theme: {
+      label: "Thème",
+      options: [
+        { value: "light", label: "Clair" },
+        { value: "dark", label: "Sombre" },
+        { value: "auto", label: "Automatique" },
+      ],
+    },
+    saveSuccessToast: "Préférences enregistrées.",
+  },
+  documents: {
+    title: "Mes documents",
+    sub: "Pièces fournies à IDN — stockées chiffrées, utilisées uniquement pour vérifications.",
+    empty: "Aucun document enregistré.",
+    types: {
+      profilePhoto: "Photo de profil",
+      kycDocFront: "Document d'identité (recto)",
+      kycDocBack: "Document d'identité (verso)",
+      selfie: "Selfie de vérification",
+      attestation: "Attestation IDN",
+    } as Record<string, string>,
+  },
+  activity: {
+    title: "Historique d'activité",
+    sub: "Tous les événements liés à votre compte. Conservés 5 ans (audit légal).",
+    empty: "Aucune activité enregistrée.",
+    filters: {
+      all: "Tous",
+      auth: "Connexions",
+      consent: "Consentements",
+      kyc: "Vérifications",
+      security: "Sécurité",
+    },
+  },
+  privacy: {
+    title: "Données & confidentialité",
+    sub: "Visualisez, exportez ou supprimez les données de votre compte.",
+    export: {
+      title: "Télécharger une copie",
+      sub: "Recevez par email un export ZIP de toutes vos données IDN. Disponible 24h.",
+      cta: "Demander",
+      successToast: "Export demandé. Vous recevrez un email avec le lien.",
+    },
+    deletion: {
+      title: "Supprimer mon compte",
+      sub: "Action irréversible après 30 jours. Anonymisation des logs d'audit conservée 5 ans (loi).",
+      cta: "Supprimer",
+      modalTitle: "Confirmer la suppression du compte",
+      modalBody:
+        "Cette action est irréversible après 30 jours. Pour confirmer, saisissez votre adresse email.",
+      confirmLabel: "Adresse email",
+      submit: "Supprimer mon compte",
+      cancel: "Annuler",
+      successToast: "Demande de suppression enregistrée.",
+    },
+  },
+} as const
+
+export const profileEdit = {
+  meta: {
+    title: "Modifier mon profil",
+    description: "Mettez à jour votre identité pivot IDN.",
+  },
+  title: "Modifier mon profil",
+  sub: "Mettez à jour vos informations d'identité pivot. Une modification importante peut nécessiter une nouvelle vérification d'identité.",
+  back: "Retour",
+  fields: {
+    firstName: { label: "Prénom", placeholder: "Prénom" },
+    lastName: { label: "Nom", placeholder: "Nom" },
+    dateOfBirth: { label: "Date de naissance" },
+    gender: {
+      label: "Genre",
+      options: [
+        { value: "F" as const, label: "Féminin" },
+        { value: "M" as const, label: "Masculin" },
+        { value: "O" as const, label: "Autre" },
+        { value: "N" as const, label: "Préfère ne pas dire" },
+      ],
+    },
+    birthPlace: { label: "Lieu de naissance", placeholder: "Lieu de naissance" },
+    nationality: {
+      label: "Nationalité",
+      options: [
+        { value: "GA", label: "Gabonaise" },
+        { value: "CG", label: "Congolaise (Brazzaville)" },
+        { value: "CD", label: "Congolaise (RDC)" },
+        { value: "CM", label: "Camerounaise" },
+        { value: "GQ", label: "Équato-guinéenne" },
+        { value: "ST", label: "Santoméenne" },
+        { value: "FR", label: "Française" },
+        { value: "SN", label: "Sénégalaise" },
+        { value: "CI", label: "Ivoirienne" },
+        { value: "ML", label: "Malienne" },
+        { value: "BJ", label: "Béninoise" },
+        { value: "TG", label: "Togolaise" },
+        { value: "BF", label: "Burkinabé" },
+        { value: "NG", label: "Nigériane" },
+        { value: "MA", label: "Marocaine" },
+        { value: "CN", label: "Chinoise" },
+        { value: "US", label: "Américaine" },
+        { value: "GB", label: "Britannique" },
+        { value: "JP", label: "Japonaise" },
+      ],
+    },
+  },
+  primary: "Enregistrer",
+  cancel: "Annuler",
+  successToast: "Profil mis à jour.",
+  errorToast: "Impossible de mettre à jour le profil.",
+  validation: {
+    required: "Champ requis.",
+    dateInvalid: "Date invalide.",
+    dateFuture: "La date de naissance doit être dans le passé.",
+  },
 } as const
 
 export const consents = {

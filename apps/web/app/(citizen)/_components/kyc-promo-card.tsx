@@ -1,6 +1,4 @@
-"use client"
-
-import * as React from "react"
+import Link from "next/link"
 import { ChevronRightIcon, ShieldCheckIcon } from "lucide-react"
 
 import { Button } from "@repo/ui/components/button"
@@ -11,14 +9,14 @@ import { kycPromo } from "../_content/fr"
 type KycPromoCardProps = {
   currentLoa: 1 | 2
   variant?: "desktop" | "mobile"
-  onStart?: () => void
+  href?: string
   className?: string
 }
 
 export function KycPromoCard({
   currentLoa,
   variant = "desktop",
-  onStart,
+  href = "/kyc",
   className,
 }: KycPromoCardProps) {
   const nextLevel = currentLoa + 1
@@ -32,22 +30,13 @@ export function KycPromoCard({
         <ShieldCheckIcon className="size-5" />
       </div>
       <div className="flex-1">
-        <p className="text-sm font-semibold text-foreground">
-          {kycPromo.title}
-        </p>
+        <p className="text-sm font-semibold text-foreground">{kycPromo.title}</p>
         <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
           {kycPromo.sub(nextLevel)}
         </p>
         {variant === "desktop" && (
-          <Button
-            type="button"
-            size="sm"
-            onClick={onStart}
-            disabled={!onStart}
-            className="mt-3"
-            title={onStart ? undefined : kycPromo.comingSoonTooltip}
-          >
-            {kycPromo.cta}
+          <Button asChild size="sm" className="mt-3">
+            <Link href={href}>{kycPromo.cta}</Link>
           </Button>
         )}
       </div>
@@ -66,18 +55,17 @@ export function KycPromoCard({
     className,
   )
 
-  if (variant === "mobile" && onStart) {
+  if (variant === "mobile") {
     return (
-      <button
-        type="button"
-        onClick={onStart}
+      <Link
+        href={href}
         className={cn(
           classes,
           "w-full text-left transition-colors hover:bg-idn-yellow-soft/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:hover:bg-[#262C18]",
         )}
       >
         {inner}
-      </button>
+      </Link>
     )
   }
 

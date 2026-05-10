@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as account from "../account.js";
 import type * as activity from "../activity.js";
 import type * as admin_auditLogs from "../admin/auditLogs.js";
 import type * as admin_dashboard from "../admin/dashboard.js";
@@ -20,6 +21,7 @@ import type * as auth from "../auth.js";
 import type * as contact from "../contact.js";
 import type * as controller_queue from "../controller/queue.js";
 import type * as developer_apps from "../developer/apps.js";
+import type * as documents from "../documents.js";
 import type * as email_provider from "../email/provider.js";
 import type * as email_templates_otpEmail from "../email/templates/otpEmail.js";
 import type * as http from "../http.js";
@@ -46,6 +48,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  account: typeof account;
   activity: typeof activity;
   "admin/auditLogs": typeof admin_auditLogs;
   "admin/dashboard": typeof admin_dashboard;
@@ -58,6 +61,7 @@ declare const fullApi: ApiFromModules<{
   contact: typeof contact;
   "controller/queue": typeof controller_queue;
   "developer/apps": typeof developer_apps;
+  documents: typeof documents;
   "email/provider": typeof email_provider;
   "email/templates/otpEmail": typeof email_templates_otpEmail;
   http: typeof http;
