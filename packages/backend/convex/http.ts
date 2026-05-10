@@ -1,3 +1,7 @@
+import {
+  oauthProviderAuthServerMetadata,
+  oauthProviderOpenIdConfigMetadata,
+} from "@better-auth/oauth-provider"
 import { httpRouter } from "convex/server"
 
 import { httpAction } from "./_generated/server"
@@ -9,6 +13,44 @@ const http = httpRouter()
 // Routes Better Auth — /api/auth/* (sign-in/sign-up/sign-out, OTP, OIDC,
 // JWKS, userinfo, etc.). Le composant les enregistre toutes en une fois.
 authComponent.registerRoutes(http, createAuth)
+
+// Métadonnées OAuth Authorization Server (RFC 8414) et OpenID Connect
+// Discovery (OpenID Connect Discovery 1.0).
+//
+// Le plugin @better-auth/oauth-provider expose ces handlers exportables ;
+// sans ces routes, on a un warning à chaque requête /api/auth/* :
+//   "[Better Auth]: Please ensure '/.well-known/oauth-authorization-server/api/auth' exists"
+//
+// Convention RFC 8414 §3.1 : pour un issuer dont le basePath n'est pas
+// la racine, le metadata se trouve à `/.well-known/oauth-authorization-server{basePath}`
+// (et idem pour openid-configuration). Notre basePath est `/api/auth`.
+// `betterAuth/minimal` ne typage pas les méthodes ajoutées dynamiquement
+// par les plugins (getOAuthServerConfig / getOpenIdConfig viennent du plugin
+// oauthProvider). On caste pour les helpers metadata qui les requièrent.
+type AuthWithOAuthApi = {
+  api: {
+    getOAuthServerConfig: (...args: unknown[]) => unknown
+    getOpenIdConfig: (...args: unknown[]) => unknown
+  }
+}
+
+http.route({
+  path: "/.well-known/oauth-authorization-server/api/auth",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const auth = createAuth(ctx) as unknown as AuthWithOAuthApi
+    return await oauthProviderAuthServerMetadata(auth)(req)
+  }),
+})
+
+http.route({
+  path: "/.well-known/openid-configuration/api/auth",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const auth = createAuth(ctx) as unknown as AuthWithOAuthApi
+    return await oauthProviderOpenIdConfigMetadata(auth)(req)
+  }),
+})
 
 // Webhook Resend — Resend POST ici les événements (sent / delivered / bounce
 // / complaint / opened / clicked) avec une signature HMAC. Le composant

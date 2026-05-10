@@ -88,6 +88,14 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
         loginPage: "/connexion",
         consentPage: "/consentement",
         requirePKCE: true,
+        // Les endpoints metadata sont montés à la racine convex.site
+        // dans http.ts (RFC 8414 + OIDC Discovery). Le plugin n'a pas
+        // moyen de tester leur présence à runtime, on lui dit qu'on a fait
+        // le nécessaire.
+        silenceWarnings: {
+          oauthAuthServerConfig: true,
+          openidConfig: true,
+        },
       }),
 
       // Émission ID tokens RS256 + JWKS publique (§6.1)
