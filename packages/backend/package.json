@@ -2,15 +2,25 @@
   "name": "@repo/backend",
   "version": "0.0.0",
   "private": true,
+  "exports": {
+    "./convex/_generated/api": "./convex/_generated/api.js",
+    "./convex/_generated/dataModel": "./convex/_generated/dataModel.d.ts",
+    "./convex/schema": "./convex/schema.ts"
+  },
   "scripts": {
     "dev": "convex dev",
     "setup": "convex dev --until-success",
     "check-types": "tsc --noEmit -p convex"
   },
   "dependencies": {
-    "convex": "^1.35.1"
+    "convex": "^1.38.0",
+    "react": "^19",
+    "react-dom": "^19"
   },
   "devDependencies": {
+    "@types/node": "^25.6.2",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
     "typescript": "5.9.2"
   }
 }

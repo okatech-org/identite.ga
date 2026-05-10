@@ -2,10 +2,12 @@
 
 import * as React from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useMutation } from "convex/react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
 
+import { api } from "@repo/backend/convex/_generated/api"
 import { Button } from "@repo/ui/components/button"
 import { Input } from "@repo/ui/components/input"
 import { Label } from "@repo/ui/components/label"
@@ -27,6 +29,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>
 
 export function ContactForm() {
+  const submitContact = useMutation(api.contact.submitContactRequest)
   const {
     register,
     handleSubmit,
@@ -47,13 +50,29 @@ export function ContactForm() {
 
   const selectedCategory = watch("category")
 
-  const onSubmit = handleSubmit(async () => {
-    // TODO(idn): brancher la mutation Convex contactRequests:submit dans la prochaine itération.
-    await new Promise((resolve) => setTimeout(resolve, 600))
-    toast.success(FORM.successTitle, {
-      description: FORM.successDescription,
-    })
-    reset()
+  const onSubmit = handleSubmit(async (values) => {
+    try {
+      await submitContact({
+        category: values.category as
+          | "citoyen"
+          | "administration"
+          | "presse"
+          | "securite",
+        name: values.name,
+        email: values.email,
+        subject: values.subject,
+        message: values.message,
+      })
+      toast.success(FORM.successTitle, { description: FORM.successDescription })
+      reset()
+    } catch (err) {
+      toast.error(FORM.errorTitle, {
+        description:
+          err instanceof Error && err.message
+            ? err.message
+            : FORM.errorDescription,
+      })
+    }
   })
 
   return (

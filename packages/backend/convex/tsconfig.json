@@ -4,13 +4,15 @@
     "strict": true,
     "target": "ESNext",
     "lib": ["ES2021", "dom"],
+    "jsx": "react-jsx",
     "forceConsistentCasingInFileNames": true,
     "allowSyntheticDefaultImports": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "isolatedModules": true,
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+    "types": ["node"]
   },
   "include": ["./**/*"],
   "exclude": ["./_generated"]
