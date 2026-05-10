@@ -93,6 +93,16 @@
   --idn-muted: #9a9c8e;
   --idn-muted-soft: #6b6d62;
 
+  /* Variantes éclaircies des couleurs Gabon pour usage TEXTE en mode sombre :
+     - vert #5BC57F sur fond #0F2A18 → ~7.4:1 (RGAA OK)
+     - bleu #6BA4E0 sur fond #10243A → ~6.8:1 (RGAA OK)
+     Les couleurs Gabon "primaires" (--idn-green / --idn-blue) ne sont
+     pas modifiées : elles servent pour les fonds, les icônes décoratives
+     et les boutons (où le contraste est avec du texte blanc, pas avec
+     le fond teinté). Cf. ADR-0009 §contraste. */
+  --idn-green-on-dark: #5bc57f;
+  --idn-blue-on-dark: #6ba4e0;
+
   /* Couleurs Gabon inchangées (cf. cahier §7.2) */
 
   --background: var(--idn-bg);
@@ -159,6 +169,12 @@
   --color-loa-1: var(--idn-loa-1);
   --color-loa-2: var(--idn-loa-2);
   --color-loa-3: var(--idn-loa-3);
+
+  /* Variantes texte mode sombre — non définies en mode clair, fallback
+     volontaire vers l'utilitaire shadcn neutral. Côté usage : appliquer
+     conditionnellement avec `dark:text-idn-green-on-dark`. */
+  --color-idn-green-on-dark: var(--idn-green-on-dark, var(--idn-green));
+  --color-idn-blue-on-dark: var(--idn-blue-on-dark, var(--idn-blue));
 
   /* Shadcn semantic */
   --color-background: var(--background);

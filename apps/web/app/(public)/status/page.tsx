@@ -26,7 +26,7 @@ const dotClass: Record<ServiceStatus, string> = {
 }
 
 const labelClass: Record<ServiceStatus, string> = {
-  operational: "text-idn-green",
+  operational: "text-idn-green dark:text-idn-green-on-dark",
   degraded: "text-idn-yellow",
   outage: "text-destructive",
 }

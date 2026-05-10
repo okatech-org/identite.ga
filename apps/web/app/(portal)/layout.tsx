@@ -19,6 +19,12 @@ export default async function PortalLayout({
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground focus:shadow-lg"
+      >
+        Aller au contenu principal
+      </a>
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex h-15 min-h-[60px] max-w-[1180px] items-center gap-4 px-4 md:gap-7 md:px-7">
           <Link
@@ -42,19 +48,23 @@ export default async function PortalLayout({
             <Link
               href="/dashboard"
               aria-current="page"
-              className="rounded-md bg-idn-green-soft px-3.5 py-2 text-[13px] font-semibold text-idn-green dark:bg-[#0F2A18]"
+              className="rounded-md bg-idn-green-soft px-3.5 py-2 text-[13px] font-semibold text-idn-green focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card dark:bg-[#0F2A18] dark:text-idn-green-on-dark"
             >
               Accueil
             </Link>
             <span
+              role="link"
               aria-disabled="true"
+              tabIndex={-1}
               title="Bientôt disponible"
               className="cursor-not-allowed rounded-md px-3.5 py-2 text-[13px] font-medium text-muted-foreground/60"
             >
               Mon profil
             </span>
             <span
+              role="link"
               aria-disabled="true"
+              tabIndex={-1}
               title="Bientôt disponible"
               className="cursor-not-allowed rounded-md px-3.5 py-2 text-[13px] font-medium text-muted-foreground/60"
             >
@@ -67,7 +77,7 @@ export default async function PortalLayout({
             <button
               type="button"
               aria-label="Notifications"
-              className="flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              className="flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
             >
               <BellIcon className="size-4" aria-hidden="true" />
             </button>
@@ -75,7 +85,9 @@ export default async function PortalLayout({
         </div>
       </header>
 
-      <main className="flex-1">{children}</main>
+      <main id="main" className="flex-1">
+        {children}
+      </main>
     </div>
   )
 }

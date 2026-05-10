@@ -4,6 +4,10 @@ import { cn } from "@repo/ui/lib/utils"
 
 type LoALevel = 1 | 2 | 3
 
+// Choix de couleurs vérifiés au contraste RGAA 4.5:1 (cf. ADR-0009 §3.2) :
+// - L1 : muted/foreground (light) ; muted clair (dark)
+// - L2 : bleu primaire sur bleu soft (light) ; bleu éclairci sur tint (dark)
+// - L3 : vert primaire sur vert soft (light) ; vert éclairci sur tint (dark)
 const META: Record<LoALevel, { label: string; sub: string; classes: string }> = {
   1: {
     label: "Niveau 1",
@@ -14,13 +18,14 @@ const META: Record<LoALevel, { label: string; sub: string; classes: string }> = 
   2: {
     label: "Niveau 2",
     sub: "Substantiel",
-    classes: "bg-idn-blue-soft text-idn-blue dark:bg-[#10243A] dark:text-idn-blue",
+    classes:
+      "bg-idn-blue-soft text-idn-blue dark:bg-[#10243A] dark:text-idn-blue-on-dark",
   },
   3: {
     label: "Niveau 3",
     sub: "Élevé",
     classes:
-      "bg-idn-green-soft text-idn-green dark:bg-[#0F2A18] dark:text-idn-green",
+      "bg-idn-green-soft text-idn-green dark:bg-[#0F2A18] dark:text-idn-green-on-dark",
   },
 }
 

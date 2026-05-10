@@ -96,6 +96,8 @@ export default function ResetPasswordPage() {
               }}
               autoFocus
               ariaLabel={resetPassword.otpLabel}
+              ariaDescribedBy="rp-error"
+              hasError={Boolean(error)}
             />
           </div>
 
@@ -105,6 +107,9 @@ export default function ResetPasswordPage() {
               id="rp-password"
               type="password"
               autoComplete="new-password"
+              required
+              aria-required="true"
+              aria-describedby="rp-password-strength"
               value={password}
               onChange={(e) => {
                 setError(null)
@@ -112,6 +117,7 @@ export default function ResetPasswordPage() {
               }}
             />
             <PasswordStrength
+              id="rp-password-strength"
               password={password}
               userInputs={email ? [email] : []}
             />
@@ -123,6 +129,8 @@ export default function ResetPasswordPage() {
               id="rp-confirm"
               type="password"
               autoComplete="new-password"
+              required
+              aria-required="true"
               value={confirm}
               onChange={(e) => {
                 setError(null)
@@ -131,7 +139,13 @@ export default function ResetPasswordPage() {
             />
           </div>
 
-          {error && <p className="text-xs text-destructive">{error}</p>}
+          <div id="rp-error" aria-live="polite" className="min-h-[1rem]">
+            {error && (
+              <p role="alert" className="text-xs text-destructive">
+                {error}
+              </p>
+            )}
+          </div>
 
           <Button
             type="submit"

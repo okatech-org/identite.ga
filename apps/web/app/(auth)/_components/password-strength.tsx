@@ -41,6 +41,7 @@ type Result = {
 }
 
 type PasswordStrengthProps = {
+  id?: string
   password: string
   userInputs?: string[]
   className?: string
@@ -56,6 +57,7 @@ type PasswordStrengthProps = {
  * Better Auth / haveIBeenPwned plugin côté serveur).
  */
 export function PasswordStrength({
+  id,
   password,
   userInputs = [],
   minLength = 12,
@@ -93,13 +95,14 @@ export function PasswordStrength({
   const color = COLORS[fill]
 
   return (
-    <div className={cn("space-y-1.5", className)}>
+    <div id={id} className={cn("space-y-1.5", className)}>
       <div
         role="progressbar"
         aria-valuenow={fill}
         aria-valuemin={0}
         aria-valuemax={4}
         aria-label="Force du mot de passe"
+        aria-live="polite"
         className="flex gap-1"
       >
         {Array.from({ length: 4 }).map((_, i) => (

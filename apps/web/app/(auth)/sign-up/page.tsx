@@ -105,11 +105,20 @@ export default function SignUpPage() {
             type="email"
             autoComplete="email"
             placeholder={signUp.emailPlaceholder}
+            required
+            aria-required="true"
             aria-invalid={Boolean(errors.email)}
+            aria-describedby={errors.email ? "signup-email-error" : undefined}
             {...register("email")}
           />
           {errors.email && (
-            <p className="text-xs text-destructive">{errors.email.message}</p>
+            <p
+              id="signup-email-error"
+              role="alert"
+              className="text-xs text-destructive"
+            >
+              {errors.email.message}
+            </p>
           )}
         </div>
 
@@ -119,50 +128,77 @@ export default function SignUpPage() {
             id="signup-password"
             type="password"
             autoComplete="new-password"
+            required
+            aria-required="true"
             aria-invalid={Boolean(errors.password)}
+            aria-describedby={
+              errors.password
+                ? "signup-password-error signup-password-strength"
+                : "signup-password-hint signup-password-strength"
+            }
             {...register("password")}
           />
           {!errors.password && (
-            <p className="text-xs text-muted-foreground">
+            <p
+              id="signup-password-hint"
+              className="text-xs text-muted-foreground"
+            >
               {signUp.passwordHint}
             </p>
           )}
           <PasswordStrength
+            id="signup-password-strength"
             password={password ?? ""}
             userInputs={email ? [email] : []}
             className="pt-1"
           />
           {errors.password && (
-            <p className="text-xs text-destructive">
+            <p
+              id="signup-password-error"
+              role="alert"
+              className="text-xs text-destructive"
+            >
               {errors.password.message}
             </p>
           )}
         </div>
 
-        <label className="flex cursor-pointer items-start gap-3 text-xs leading-relaxed text-foreground/80">
-          <input
-            type="checkbox"
-            className="mt-0.5 size-4 accent-idn-green"
-            aria-invalid={Boolean(errors.acceptTerms)}
-            {...register("acceptTerms")}
-          />
-          <span>
-            {signUp.termsPrefix}
-            <Link
-              href="/legal"
-              target="_blank"
-              className="font-semibold text-idn-green underline-offset-2 hover:underline"
+        <div className="space-y-1.5">
+          <label className="flex cursor-pointer items-start gap-3 text-xs leading-relaxed text-foreground/80">
+            <input
+              type="checkbox"
+              className="mt-0.5 size-4 accent-idn-green"
+              aria-required="true"
+              aria-invalid={Boolean(errors.acceptTerms)}
+              aria-describedby={
+                errors.acceptTerms ? "signup-terms-error" : undefined
+              }
+              {...register("acceptTerms")}
+            />
+            <span>
+              {signUp.termsPrefix}
+              <Link
+                href="/legal"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-idn-green underline-offset-2 hover:underline"
+                aria-label={`${signUp.termsLink} (s'ouvre dans un nouvel onglet)`}
+              >
+                {signUp.termsLink}
+              </Link>
+              .
+            </span>
+          </label>
+          {errors.acceptTerms && (
+            <p
+              id="signup-terms-error"
+              role="alert"
+              className="text-xs text-destructive"
             >
-              {signUp.termsLink}
-            </Link>
-            .
-          </span>
-        </label>
-        {errors.acceptTerms && (
-          <p className="text-xs text-destructive">
-            {errors.acceptTerms.message}
-          </p>
-        )}
+              {errors.acceptTerms.message}
+            </p>
+          )}
+        </div>
 
         <div className="flex flex-col gap-2.5 pt-2 sm:flex-row">
           <Button type="submit" size="lg" disabled={isSubmitting} className="flex-1">

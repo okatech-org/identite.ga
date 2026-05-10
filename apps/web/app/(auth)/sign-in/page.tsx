@@ -131,11 +131,20 @@ export default function SignInPage() {
                 id="signin-email"
                 type="email"
                 autoComplete="email"
+                required
+                aria-required="true"
                 aria-invalid={Boolean(errors.email)}
+                aria-describedby={
+                  errors.email ? "signin-email-error" : undefined
+                }
                 {...register("email")}
               />
               {errors.email && (
-                <p className="text-xs text-destructive">
+                <p
+                  id="signin-email-error"
+                  role="alert"
+                  className="text-xs text-destructive"
+                >
                   {errors.email.message}
                 </p>
               )}
@@ -155,11 +164,20 @@ export default function SignInPage() {
                 id="signin-password"
                 type="password"
                 autoComplete="current-password"
+                required
+                aria-required="true"
                 aria-invalid={Boolean(errors.password)}
+                aria-describedby={
+                  errors.password ? "signin-password-error" : undefined
+                }
                 {...register("password")}
               />
               {errors.password && (
-                <p className="text-xs text-destructive">
+                <p
+                  id="signin-password-error"
+                  role="alert"
+                  className="text-xs text-destructive"
+                >
                   {errors.password.message}
                 </p>
               )}

@@ -21,7 +21,7 @@ export default function LegalPage() {
         <ol className="max-w-[760px] space-y-6">
           {legal.sections.map((section, idx) => (
             <li key={section.title} className="border-t border-border pt-6">
-              <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-idn-green">
+              <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-idn-green dark:text-idn-green-on-dark">
                 § {idx + 1}
               </p>
               <h2 className="mt-1.5 text-[17px] font-semibold text-foreground">

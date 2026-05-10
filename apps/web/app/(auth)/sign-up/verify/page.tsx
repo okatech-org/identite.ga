@@ -129,17 +129,20 @@ export default function VerifyOtpPage() {
           length={6}
           autoFocus
           ariaLabel="Code de vérification"
+          ariaDescribedBy="verify-status"
           hasError={Boolean(error)}
           disabled={isVerifying}
         />
 
-        {error ? (
-          <p className="text-center text-xs text-destructive">{error}</p>
-        ) : (
-          <p className="text-center text-xs text-muted-foreground">
-            {verify.expiresIn}
-          </p>
-        )}
+        <div id="verify-status" className="text-center text-xs">
+          {error ? (
+            <p role="alert" className="text-destructive">
+              {error}
+            </p>
+          ) : (
+            <p className="text-muted-foreground">{verify.expiresIn}</p>
+          )}
+        </div>
 
         <div className="flex justify-center">
           <button

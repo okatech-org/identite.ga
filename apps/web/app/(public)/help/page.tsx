@@ -47,7 +47,7 @@ export default function HelpPage() {
           aria-label="Centre d'appel IDN"
         >
           <ShieldCheckIcon
-            className="size-6 shrink-0 text-idn-blue"
+            className="size-6 shrink-0 text-idn-blue dark:text-idn-blue-on-dark"
             aria-hidden="true"
           />
           <div className="flex-1">

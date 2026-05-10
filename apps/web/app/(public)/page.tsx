@@ -36,7 +36,9 @@ export default function HomePage() {
             <br />
             {welcome.title.line2}
             <br />
-            <span className="text-idn-green">{welcome.title.line3}</span>
+            <span className="text-idn-green dark:text-idn-green-on-dark">
+              {welcome.title.line3}
+            </span>
           </h1>
 
           <p className="mt-4 max-w-[460px] text-sm leading-relaxed text-muted-foreground sm:mt-5 sm:text-base">

@@ -119,6 +119,7 @@ export default function PinCreationPage() {
             variant="pin"
             autoFocus
             ariaLabel={pin.pinLabel}
+            ariaDescribedBy="pin-error"
             hasError={Boolean(error)}
           />
         </div>
@@ -136,6 +137,7 @@ export default function PinCreationPage() {
             length={6}
             variant="pin"
             ariaLabel={pin.confirmLabel}
+            ariaDescribedBy="pin-error"
             hasError={Boolean(error)}
           />
         </div>
@@ -145,7 +147,13 @@ export default function PinCreationPage() {
           <span>{pin.hint}</span>
         </div>
 
-        {error && <p className="text-center text-xs text-destructive">{error}</p>}
+        <div id="pin-error" aria-live="polite" className="min-h-[1rem]">
+          {error && (
+            <p role="alert" className="text-center text-xs text-destructive">
+              {error}
+            </p>
+          )}
+        </div>
 
         <div className="flex flex-col gap-2.5 pt-1 sm:flex-row">
           <Button asChild variant="ghost" size="lg">

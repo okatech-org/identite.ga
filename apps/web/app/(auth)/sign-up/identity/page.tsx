@@ -86,11 +86,20 @@ export default function IdentityPage() {
               id="id-firstName"
               autoComplete="given-name"
               placeholder={identity.fields.firstName.placeholder}
+              required
+              aria-required="true"
               aria-invalid={Boolean(errors.firstName)}
+              aria-describedby={
+                errors.firstName ? "id-firstName-error" : undefined
+              }
               {...register("firstName")}
             />
             {errors.firstName && (
-              <p className="text-xs text-destructive">
+              <p
+                id="id-firstName-error"
+                role="alert"
+                className="text-xs text-destructive"
+              >
                 {errors.firstName.message}
               </p>
             )}
@@ -101,11 +110,20 @@ export default function IdentityPage() {
               id="id-lastName"
               autoComplete="family-name"
               placeholder={identity.fields.lastName.placeholder}
+              required
+              aria-required="true"
               aria-invalid={Boolean(errors.lastName)}
+              aria-describedby={
+                errors.lastName ? "id-lastName-error" : undefined
+              }
               {...register("lastName")}
             />
             {errors.lastName && (
-              <p className="text-xs text-destructive">
+              <p
+                id="id-lastName-error"
+                role="alert"
+                className="text-xs text-destructive"
+              >
                 {errors.lastName.message}
               </p>
             )}
@@ -119,11 +137,18 @@ export default function IdentityPage() {
             type="date"
             autoComplete="bday"
             max={TODAY_ISO}
+            required
+            aria-required="true"
             aria-invalid={Boolean(errors.dateOfBirth)}
+            aria-describedby={errors.dateOfBirth ? "id-dob-error" : undefined}
             {...register("dateOfBirth")}
           />
           {errors.dateOfBirth && (
-            <p className="text-xs text-destructive">
+            <p
+              id="id-dob-error"
+              role="alert"
+              className="text-xs text-destructive"
+            >
               {errors.dateOfBirth.message}
             </p>
           )}
@@ -151,7 +176,11 @@ export default function IdentityPage() {
               )}
             />
             {errors.gender && (
-              <p className="text-xs text-destructive">
+              <p
+                id="id-gender-error"
+                role="alert"
+                className="text-xs text-destructive"
+              >
                 {errors.gender.message}
               </p>
             )}
@@ -180,7 +209,11 @@ export default function IdentityPage() {
               )}
             />
             {errors.nationality && (
-              <p className="text-xs text-destructive">
+              <p
+                id="id-nationality-error"
+                role="alert"
+                className="text-xs text-destructive"
+              >
                 {errors.nationality.message}
               </p>
             )}
@@ -193,11 +226,20 @@ export default function IdentityPage() {
             id="id-birthPlace"
             autoComplete="address-level2"
             placeholder={identity.fields.birthPlace.placeholder}
+            required
+            aria-required="true"
             aria-invalid={Boolean(errors.birthPlace)}
+            aria-describedby={
+              errors.birthPlace ? "id-birthPlace-error" : undefined
+            }
             {...register("birthPlace")}
           />
           {errors.birthPlace && (
-            <p className="text-xs text-destructive">
+            <p
+              id="id-birthPlace-error"
+              role="alert"
+              className="text-xs text-destructive"
+            >
               {errors.birthPlace.message}
             </p>
           )}

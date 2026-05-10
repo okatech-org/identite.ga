@@ -71,11 +71,20 @@ export default function ForgotPasswordPage() {
               id="fp-email"
               type="email"
               autoComplete="email"
+              required
+              aria-required="true"
               aria-invalid={Boolean(errors.email)}
+              aria-describedby={errors.email ? "fp-email-error" : undefined}
               {...register("email")}
             />
             {errors.email && (
-              <p className="text-xs text-destructive">{errors.email.message}</p>
+              <p
+                id="fp-email-error"
+                role="alert"
+                className="text-xs text-destructive"
+              >
+                {errors.email.message}
+              </p>
             )}
           </div>
 

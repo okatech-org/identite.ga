@@ -11,6 +11,7 @@ type OtpInputProps = {
   autoFocus?: boolean
   disabled?: boolean
   ariaLabel?: string
+  ariaDescribedBy?: string
   /** "default" pour OTP visible, "pin" pour masquage type password. */
   variant?: "default" | "pin"
   hasError?: boolean
@@ -31,6 +32,7 @@ export function OtpInput({
   autoFocus = false,
   disabled = false,
   ariaLabel,
+  ariaDescribedBy,
   variant = "default",
   hasError = false,
   className,
@@ -61,6 +63,8 @@ export function OtpInput({
     <div
       role="group"
       aria-label={ariaLabel}
+      aria-describedby={ariaDescribedBy}
+      aria-invalid={hasError || undefined}
       className={cn(
         "flex justify-between gap-2",
         disabled && "opacity-60",

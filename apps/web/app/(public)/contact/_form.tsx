@@ -129,7 +129,7 @@ export function ContactForm() {
             {...register("name")}
           />
           {errors.name && (
-            <p id="contact-name-error" className="text-xs text-destructive">
+            <p id="contact-name-error" role="alert" className="text-xs text-destructive">
               {errors.name.message}
             </p>
           )}
@@ -145,7 +145,7 @@ export function ContactForm() {
             {...register("email")}
           />
           {errors.email && (
-            <p id="contact-email-error" className="text-xs text-destructive">
+            <p id="contact-email-error" role="alert" className="text-xs text-destructive">
               {errors.email.message}
             </p>
           )}
@@ -163,7 +163,7 @@ export function ContactForm() {
           {...register("subject")}
         />
         {errors.subject && (
-          <p id="contact-subject-error" className="text-xs text-destructive">
+          <p id="contact-subject-error" role="alert" className="text-xs text-destructive">
             {errors.subject.message}
           </p>
         )}
@@ -181,7 +181,7 @@ export function ContactForm() {
           {...register("message")}
         />
         {errors.message && (
-          <p id="contact-message-error" className="text-xs text-destructive">
+          <p id="contact-message-error" role="alert" className="text-xs text-destructive">
             {errors.message.message}
           </p>
         )}

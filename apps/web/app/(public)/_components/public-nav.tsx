@@ -49,7 +49,7 @@ export function PublicNav() {
                 className={cn(
                   "rounded-md px-3.5 py-2 text-[13px] font-medium transition-colors",
                   active
-                    ? "bg-idn-green-soft font-semibold text-idn-green dark:bg-[#0F2A18]"
+                    ? "bg-idn-green-soft font-semibold text-idn-green dark:bg-[#0F2A18] dark:text-idn-green-on-dark"
                     : "text-foreground/80 hover:bg-secondary hover:text-foreground",
                 )}
               >
@@ -83,7 +83,7 @@ export function PublicNav() {
               className={cn(
                 "shrink-0 rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
                 active
-                  ? "bg-idn-green-soft font-semibold text-idn-green dark:bg-[#0F2A18]"
+                  ? "bg-idn-green-soft font-semibold text-idn-green dark:bg-[#0F2A18] dark:text-idn-green-on-dark"
                   : "text-foreground/80 hover:bg-secondary",
               )}
             >
