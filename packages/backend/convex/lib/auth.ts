@@ -24,7 +24,17 @@ export type AuthUser = {
 }
 
 async function loadAuth(ctx: AuthCtx): Promise<AuthUser | null> {
-  const user = await authComponent.getAuthUser(ctx)
+  // `authComponent.getAuthUser(ctx)` jette `Unauthenticated` quand le client
+  // n'a pas envoyé de JWT valide (ex: session expirée, JWT pas encore récupéré
+  // par ConvexBetterAuthProvider lors d'un premier render). On l'attrape
+  // pour distinguer "pas connecté" (null) de "vraie erreur" — `requireAuth`
+  // s'occupera de jeter `UNAUTHENTICATED` proprement si besoin.
+  let user
+  try {
+    user = await authComponent.getAuthUser(ctx)
+  } catch {
+    return null
+  }
   if (!user) return null
   const userId = user._id ?? user.userId ?? ""
   const roleRows = await ctx.db

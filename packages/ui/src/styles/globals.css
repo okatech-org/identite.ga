@@ -222,8 +222,36 @@
     -webkit-text-size-adjust: 100%;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Réserve la gouttière de la scrollbar : empêche le décalage horizontal
+       entre pages courtes (sans scrollbar) et longues (avec scrollbar). */
+    scrollbar-gutter: stable;
+    /* Firefox + standards modernes */
+    scrollbar-width: thin;
+    scrollbar-color: var(--idn-muted-soft) transparent;
   }
   body {
     @apply bg-background text-foreground font-sans;
+  }
+
+  /* Scrollbar WebKit (Chrome, Safari, Edge) — alignée sur la charte IDN.
+     Fine, neutre, légèrement transparente, sans flèches. */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--idn-muted-soft);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--idn-muted);
+  }
+  ::-webkit-scrollbar-corner {
+    background: transparent;
   }
 }
