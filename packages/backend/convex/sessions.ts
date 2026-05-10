@@ -1,6 +1,6 @@
 import { ConvexError, v } from "convex/values"
 
-import { internal } from "./_generated/api"
+import { components, internal } from "./_generated/api"
 import { mutation, query } from "./_generated/server"
 import { authComponent, createAuth } from "./auth"
 import { getCurrentAuthUser, requireAuth } from "./lib/auth"
@@ -17,7 +17,7 @@ import { getCurrentAuthUser, requireAuth } from "./lib/auth"
  */
 
 type SessionDoc = {
-  id: string
+  _id: string
   token: string
   userId: string
   ipAddress?: string | null
@@ -81,30 +81,38 @@ export const listMine = query({
     const auth0 = await getCurrentAuthUser(ctx)
     if (!auth0) return []
 
-    let result: { auth: ReturnType<typeof createAuth>; headers: Headers }
+    // On appelle l'adapter Better Auth directement avec un seul filtre
+    // `userId` plutôt que `auth.api.listSessions` (qui ajoute un filtre
+    // `expiresAt > now` et déclenche un warning d'index compound). L'index
+    // `by_userId` du composant suffit ici — on filtre les sessions expirées
+    // côté serveur après lecture.
+    let raw: { page: SessionDoc[]; isDone: boolean; continueCursor?: string }
     try {
-      result = await authComponent.getAuth(createAuth, ctx)
+      raw = (await ctx.runQuery(components.betterAuth.adapter.findMany, {
+        model: "session",
+        where: [{ field: "userId", value: auth0.userId, operator: "eq" }],
+        paginationOpts: { numItems: 200, cursor: null },
+      })) as { page: SessionDoc[]; isDone: boolean; continueCursor?: string }
     } catch {
       return []
     }
-    const { auth, headers } = result
 
-    let sessions: SessionDoc[] = []
+    // Détection session courante via le bearer token (côté client → header)
     let currentToken: string | null = null
     try {
-      const list = (await auth.api.listSessions({ headers })) as SessionDoc[]
-      sessions = list ?? []
-      // Identifie la session courante via le bearer token contenu dans headers
+      const { headers } = await authComponent.getAuth(createAuth, ctx)
       const authHeader = headers.get("authorization") ?? ""
       const match = authHeader.match(/^Bearer\s+(.+)$/i)
       currentToken = match?.[1] ?? null
     } catch {
-      return []
+      currentToken = null
     }
 
-    return sessions
+    const now = Date.now()
+    return raw.page
+      .filter((s) => tsOf(s.expiresAt) > now)
       .map((s) => ({
-        id: s.id,
+        id: s._id,
         device: describeUserAgent(s.userAgent ?? null),
         ipAddress: s.ipAddress ?? null,
         userAgent: s.userAgent ?? null,
@@ -127,8 +135,13 @@ export const revoke = mutation({
     const user = await requireAuth(ctx)
     const { auth, headers } = await authComponent.getAuth(createAuth, ctx)
 
-    const sessions = (await auth.api.listSessions({ headers })) as SessionDoc[]
-    const target = sessions?.find((s) => s.id === args.sessionId)
+    const raw = (await ctx.runQuery(components.betterAuth.adapter.findMany, {
+      model: "session",
+      where: [{ field: "userId", value: user.userId, operator: "eq" }],
+      paginationOpts: { numItems: 200, cursor: null },
+    })) as { page: SessionDoc[] }
+
+    const target = raw.page.find((s) => s._id === args.sessionId)
     if (!target) {
       throw new ConvexError({
         code: "SESSION_NOT_FOUND",

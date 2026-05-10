@@ -1,6 +1,6 @@
 import { ConvexError, v } from "convex/values"
 
-import { internal } from "./_generated/api"
+import { components, internal } from "./_generated/api"
 import { mutation, query } from "./_generated/server"
 import { authComponent, createAuth } from "./auth"
 import { getCurrentAuthUser, requireAuth } from "./lib/auth"
@@ -17,7 +17,7 @@ import { getCurrentAuthUser, requireAuth } from "./lib/auth"
  */
 
 type ConsentDoc = {
-  id: string
+  _id: string
   userId: string
   clientId: string
   scopes?: string[] | string | null
@@ -65,48 +65,51 @@ export const listMine = query({
     const user = await getCurrentAuthUser(ctx)
     if (!user) return []
 
-    let result: { auth: ReturnType<typeof createAuth>; headers: Headers }
+    // Adapter direct (index `userId`) plutôt que `auth.api.getOAuthConsents`
+    // pour éviter les warnings d'index compound.
+    let raw: { page: ConsentDoc[]; isDone: boolean; continueCursor?: string }
     try {
-      result = await authComponent.getAuth(createAuth, ctx)
-    } catch {
-      return []
-    }
-    const { auth, headers } = result
-
-    let consents: ConsentDoc[] = []
-    try {
-      const list = (await auth.api.getOAuthConsents({
-        headers,
-      })) as unknown as ConsentDoc[] | null
-      consents = list ?? []
+      raw = (await ctx.runQuery(components.betterAuth.adapter.findMany, {
+        model: "oauthConsent",
+        where: [{ field: "userId", value: user.userId, operator: "eq" }],
+        paginationOpts: { numItems: 200, cursor: null },
+      })) as { page: ConsentDoc[]; isDone: boolean; continueCursor?: string }
     } catch {
       return []
     }
 
-    // Filtre stricte par user (sécurité défense en profondeur — Better Auth filtre
-    // déjà par session) et par consentement effectivement accordé.
-    const own = consents.filter(
-      (c) => c.userId === user.userId && c.consentGiven !== false,
-    )
+    // Filtre par consentement effectivement accordé.
+    const own = raw.page.filter((c) => c.consentGiven !== false)
 
-    // Enrichissement app par app (clientId → nom/icône). Best-effort : si
-    // l'app n'est pas trouvée, on retombe sur le clientId comme nom.
+    let auth: ReturnType<typeof createAuth> | null = null
+    let headers: Headers | null = null
+    try {
+      const got = await authComponent.getAuth(createAuth, ctx)
+      auth = got.auth
+      headers = got.headers
+    } catch {
+      // pas grave — on perd juste l'enrichissement nom/icône
+    }
+
+    // Enrichissement app par app (clientId → nom/icône). Best-effort.
     const enriched = await Promise.all(
       own.map(async (c) => {
         let appName = c.clientId
         let appIcon: string | null = null
-        try {
-          const client = (await auth.api.getOAuthClientPublic({
-            query: { client_id: c.clientId },
-            headers,
-          })) as OAuthClientDoc | null
-          if (client?.name) appName = client.name
-          if (client?.icon) appIcon = client.icon
-        } catch {
-          // ignore — app inconnue ou désactivée
+        if (auth && headers) {
+          try {
+            const client = (await auth.api.getOAuthClientPublic({
+              query: { client_id: c.clientId },
+              headers,
+            })) as OAuthClientDoc | null
+            if (client?.name) appName = client.name
+            if (client?.icon) appIcon = client.icon
+          } catch {
+            // ignore — app inconnue ou désactivée
+          }
         }
         return {
-          id: c.id,
+          id: c._id,
           clientId: c.clientId,
           appName,
           appIcon,
@@ -129,10 +132,12 @@ export const revoke = mutation({
 
     // Récupère le détail pour défense en profondeur (vérif ownership) +
     // métadonnées audit (clientId, scopes)
-    const consents = (await auth.api.getOAuthConsents({
-      headers,
-    })) as unknown as ConsentDoc[] | null
-    const target = consents?.find((c) => c.id === args.consentId)
+    const raw = (await ctx.runQuery(components.betterAuth.adapter.findMany, {
+      model: "oauthConsent",
+      where: [{ field: "userId", value: user.userId, operator: "eq" }],
+      paginationOpts: { numItems: 200, cursor: null },
+    })) as { page: ConsentDoc[] }
+    const target = raw.page.find((c) => c._id === args.consentId)
     if (!target) {
       throw new ConvexError({
         code: "CONSENT_NOT_FOUND",
