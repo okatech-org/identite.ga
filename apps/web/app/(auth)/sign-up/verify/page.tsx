@@ -120,7 +120,7 @@ export default function VerifyOtpPage() {
           size="lg"
           disabled={code.length !== 6 || isVerifying}
           onClick={() => void handleVerify(code)}
-          className="w-full"
+          className="h-14 w-full text-base"
         >
           {isVerifying ? "…" : verify.primary}
         </Button>

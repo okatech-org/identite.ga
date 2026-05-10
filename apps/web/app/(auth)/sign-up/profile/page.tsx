@@ -32,10 +32,10 @@ export default function ProfileSelectionPage() {
 
   return (
     <WizardShell
-      step={profile.step}
-      total={STEP_TOTAL}
       title={profile.title}
       sub={profile.sub}
+      step={profile.step}
+      total={STEP_TOTAL}
       backHref="/"
       backLabel={onboardingHeader.backToHome}
       footer={
@@ -44,7 +44,7 @@ export default function ProfileSelectionPage() {
           size="lg"
           disabled={!selected}
           onClick={onSubmit}
-          className="w-full"
+          className="h-14 w-full text-base"
         >
           {profile.primary}
         </Button>
@@ -61,7 +61,7 @@ export default function ProfileSelectionPage() {
                 aria-checked={isSelected}
                 onClick={() => setSelected(opt.value)}
                 className={cn(
-                  "flex w-full items-center gap-3.5 rounded-xl border p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                  "flex w-full items-center gap-3.5 rounded-md border p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                   isSelected
                     ? "border-idn-green bg-idn-green-soft dark:bg-[#0F2A18]"
                     : "border-border bg-card hover:border-idn-green/40",
@@ -69,7 +69,7 @@ export default function ProfileSelectionPage() {
               >
                 <div
                   className={cn(
-                    "flex size-10 shrink-0 items-center justify-center rounded-[10px] transition-colors",
+                    "flex size-10 shrink-0 items-center justify-center rounded-md transition-colors",
                     isSelected
                       ? "bg-idn-green text-white"
                       : "bg-secondary text-muted-foreground",

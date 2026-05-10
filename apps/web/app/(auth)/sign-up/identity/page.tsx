@@ -84,7 +84,7 @@ export default function IdentityPage() {
           form="identity-form"
           size="lg"
           disabled={isSubmitting}
-          className="w-full"
+          className="h-14 w-full text-base"
         >
           {isSubmitting ? "…" : identity.primary}
         </Button>
@@ -104,6 +104,7 @@ export default function IdentityPage() {
               aria-describedby={
                 errors.firstName ? "id-firstName-error" : undefined
               }
+              className="h-12 text-base"
               {...register("firstName")}
             />
             {errors.firstName && (
@@ -128,6 +129,7 @@ export default function IdentityPage() {
               aria-describedby={
                 errors.lastName ? "id-lastName-error" : undefined
               }
+              className="h-12 text-base"
               {...register("lastName")}
             />
             {errors.lastName && (
@@ -153,6 +155,7 @@ export default function IdentityPage() {
             aria-required="true"
             aria-invalid={Boolean(errors.dateOfBirth)}
             aria-describedby={errors.dateOfBirth ? "id-dob-error" : undefined}
+            className="h-12 text-base"
             {...register("dateOfBirth")}
           />
           {errors.dateOfBirth && (
@@ -166,7 +169,7 @@ export default function IdentityPage() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <Label htmlFor="id-gender">{identity.fields.gender.label}</Label>
             <Controller
@@ -174,7 +177,7 @@ export default function IdentityPage() {
               name="gender"
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="id-gender" className="w-full">
+                  <SelectTrigger id="id-gender" className="!h-12 w-full !text-base">
                     <SelectValue placeholder="—" />
                   </SelectTrigger>
                   <SelectContent>
@@ -207,7 +210,7 @@ export default function IdentityPage() {
               name="nationality"
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="id-nationality" className="w-full">
+                  <SelectTrigger id="id-nationality" className="!h-12 w-full !text-base">
                     <SelectValue placeholder="—" />
                   </SelectTrigger>
                   <SelectContent>
@@ -244,6 +247,7 @@ export default function IdentityPage() {
             aria-describedby={
               errors.birthPlace ? "id-birthPlace-error" : undefined
             }
+            className="h-12 text-base"
             {...register("birthPlace")}
           />
           {errors.birthPlace && (

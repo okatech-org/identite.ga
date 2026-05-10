@@ -53,17 +53,15 @@ export const profile = {
 export const signUp = {
   meta: { title: "Créer un compte", description: "Créez votre compte IDN avec un email et un mot de passe sécurisé." },
   step: 2,
-  title: "Vos identifiants",
-  sub: "Email et mot de passe — la base de votre compte IDN.",
-  intro:
-    "Votre mot de passe sécurise l'accès web à votre compte. Vous créerez ensuite un PIN à 6 chiffres pour l'accès rapide depuis votre mobile.",
+  title: "Créer un compte",
+  sub: "Étape 2 sur 5 — vos identifiants de connexion.",
   emailLabel: "Adresse email",
   emailPlaceholder: "vous@example.ga",
   passwordLabel: "Mot de passe",
   passwordHint: "Minimum 12 caractères. Mélangez lettres, chiffres et symboles.",
   termsPrefix: "J'accepte les ",
   termsLink: "conditions d'utilisation et la politique de confidentialité",
-  primary: "Continuer",
+  primary: "Recevoir le code de vérification",
   errorEmailTaken: "Cet email est déjà utilisé.",
   errorPasswordCompromised:
     "Ce mot de passe figure dans une fuite de données publique. Choisissez-en un autre.",
@@ -99,8 +97,8 @@ export const verify = {
 export const identity = {
   meta: { title: "Mon identité", description: "Saisissez votre identité pivot." },
   step: 4,
-  title: "Votre identité",
-  sub: "Ces informations constituent votre identité pivot. Elles serviront pour l'ensemble de vos démarches.",
+  title: "Vos informations",
+  sub: "Identité pivot — telles qu'elles figurent sur vos documents officiels.",
   fields: {
     firstName: { label: "Prénom", placeholder: "Aïssatou" },
     lastName: { label: "Nom", placeholder: "Mboumba" },
@@ -156,8 +154,7 @@ export const pin = {
   enterSub: "Un code à 6 chiffres pour les actions sensibles : signature, validation, accès rapide.",
   confirmTitle: "Confirmer votre PIN",
   confirmSub: "Saisissez à nouveau le même code pour confirmer.",
-  hint: "Évitez les suites évidentes (123456, 000000) et votre date de naissance. Vous pourrez le modifier dans Mon profil → Sécurité.",
-  primary: "Continuer",
+  primary: "Confirmer",
   primaryConfirm: "Confirmer",
   back: "← Retour",
   successToast: "Compte créé avec succès. Bienvenue sur IDN.",

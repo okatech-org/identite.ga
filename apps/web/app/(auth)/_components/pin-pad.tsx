@@ -89,7 +89,7 @@ export function PinPad({
       role="group"
       aria-label={ariaLabel}
       className={cn(
-        "flex flex-col gap-7",
+        "flex flex-1 flex-col gap-7",
         disabled && "pointer-events-none opacity-60",
       )}
     >
@@ -136,7 +136,7 @@ export function PinPad({
       <div
         role="group"
         aria-label={numpadAriaLabel}
-        className="mx-auto grid w-full max-w-[280px] grid-cols-3 gap-3"
+        className="mt-auto grid w-full grid-cols-3 gap-3"
       >
         {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
           <button
@@ -145,7 +145,7 @@ export function PinPad({
             onClick={() => append(String(n))}
             disabled={disabled}
             aria-label={digitAriaLabel(n)}
-            className="flex h-14 items-center justify-center rounded-xl bg-secondary text-2xl font-semibold text-foreground transition-colors hover:bg-secondary/80 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50"
+            className="flex h-16 cursor-pointer items-center justify-center rounded-xl border border-border bg-card text-2xl font-semibold text-foreground transition-colors hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
           >
             {n}
           </button>
@@ -156,18 +156,24 @@ export function PinPad({
           onClick={() => append("0")}
           disabled={disabled}
           aria-label={digitAriaLabel(0)}
-          className="flex h-14 items-center justify-center rounded-xl bg-secondary text-2xl font-semibold text-foreground transition-colors hover:bg-secondary/80 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50"
+          className="flex h-16 cursor-pointer items-center justify-center rounded-xl border border-border bg-card text-2xl font-semibold text-foreground transition-colors hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
         >
           0
         </button>
         <button
           type="button"
           onClick={remove}
-          disabled={disabled || value.length === 0}
+          disabled={disabled}
           aria-label={backspaceAriaLabel}
-          className="flex h-14 items-center justify-center rounded-xl text-foreground transition-colors hover:bg-secondary active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50"
+          className="flex h-16 cursor-pointer items-center justify-center rounded-xl border border-border bg-card text-foreground transition-colors hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <DeleteIcon className="size-6" aria-hidden="true" />
+          <DeleteIcon
+            className={cn(
+              "size-7 transition-opacity",
+              value.length === 0 && "opacity-40",
+            )}
+            aria-hidden="true"
+          />
         </button>
       </div>
     </div>

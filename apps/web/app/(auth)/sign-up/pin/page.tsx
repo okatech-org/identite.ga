@@ -128,13 +128,13 @@ export default function PinCreationPage() {
           size="lg"
           disabled={submitting || value.length !== 6}
           onClick={onPrimary}
-          className="w-full"
+          className="h-14 w-full text-base"
         >
           {submitting ? "…" : isEnter ? pin.primary : pin.primaryConfirm}
         </Button>
       }
     >
-      <div className="space-y-6">
+      <div className="flex flex-1 flex-col">
         <PinPad
           length={6}
           value={value}
@@ -151,13 +151,7 @@ export default function PinCreationPage() {
           resetKey={phase}
         />
 
-        {isEnter && (
-          <p className="text-center text-xs leading-relaxed text-muted-foreground">
-            {pin.hint}
-          </p>
-        )}
-
-        <div id="pin-error" aria-live="polite" className="min-h-[1rem]">
+        <div id="pin-error" aria-live="polite" className="mt-3 min-h-[1rem]">
           {error && (
             <p role="alert" className="text-center text-xs text-destructive">
               {error}

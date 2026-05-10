@@ -1,11 +1,14 @@
+import { PublicFooter } from "../(public)/_components/public-footer"
+import { PublicNav } from "../(public)/_components/public-nav"
 import { footer } from "../(public)/_content/fr"
 
 /**
  * Layout des pages d'auth (sign-up tunnel, sign-in, forgot/reset password).
  *
- * Plein écran sans PublicNav/PublicFooter — chaque écran rend son propre
- * header (OnboardingHeader avec ← + progress) via WizardShell. Cohérent
- * avec les maquettes mobile (full-screen flow).
+ * - Mobile (< md) : plein écran, chaque page rend son OnboardingHeader
+ *   sticky + sticky CTA bottom via WizardShell.
+ * - Desktop (≥ md) : PublicNav + PublicFooter (mêmes que les pages
+ *   publiques) wrap le contenu, l'OnboardingHeader n'est pas rendu.
  */
 export default function AuthLayout({
   children,
@@ -20,9 +23,11 @@ export default function AuthLayout({
       >
         {footer.skipToMain}
       </a>
+      <PublicNav className="hidden md:block" />
       <main id="main" className="flex flex-1 flex-col">
         {children}
       </main>
+      <PublicFooter className="hidden md:block" />
     </div>
   )
 }

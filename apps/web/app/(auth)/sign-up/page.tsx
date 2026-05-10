@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
+import { LockIcon, MailIcon } from "lucide-react"
 import { toast } from "sonner"
 import { z } from "zod"
 
@@ -19,7 +20,6 @@ import {
   getOnboardingProfile,
   setOnboardingEmail,
 } from "../_hooks/use-onboarding-state"
-import { PasswordStrength } from "../_components/password-strength"
 import { WizardShell } from "../_components/wizard-shell"
 
 const schema = z.object({
@@ -35,7 +35,6 @@ type FormValues = z.infer<typeof schema>
 export default function SignUpPage() {
   const router = useRouter()
 
-  // Si profil non choisi, retour à l'étape 1.
   React.useEffect(() => {
     if (!getOnboardingProfile()) {
       router.replace("/sign-up/profile")
@@ -45,16 +44,12 @@ export default function SignUpPage() {
   const {
     register,
     handleSubmit,
-    watch,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { email: "", password: "", acceptTerms: false },
     mode: "onTouched",
   })
-
-  const email = watch("email")
-  const password = watch("password")
 
   const onSubmit = handleSubmit(async (values) => {
     try {
@@ -64,7 +59,6 @@ export default function SignUpPage() {
         name: values.email,
       })
 
-      // Better Auth retourne `{ data, error }` côté React
       if (result?.error) {
         const code = result.error.code as string | undefined
         const message =
@@ -100,30 +94,33 @@ export default function SignUpPage() {
           form="signup-form"
           size="lg"
           disabled={isSubmitting}
-          className="w-full"
+          className="h-14 w-full text-base"
         >
           {isSubmitting ? "…" : signUp.primary}
         </Button>
       }
     >
-      <p className="mb-5 rounded-md bg-idn-blue-soft p-3.5 text-[12px] leading-relaxed text-foreground/80 dark:bg-[#10243A]">
-        {signUp.intro}
-      </p>
-
       <form id="signup-form" onSubmit={onSubmit} noValidate className="space-y-5">
         <div className="space-y-1.5">
           <Label htmlFor="signup-email">{signUp.emailLabel}</Label>
-          <Input
-            id="signup-email"
-            type="email"
-            autoComplete="email"
-            placeholder={signUp.emailPlaceholder}
-            required
-            aria-required="true"
-            aria-invalid={Boolean(errors.email)}
-            aria-describedby={errors.email ? "signup-email-error" : undefined}
-            {...register("email")}
-          />
+          <div className="relative">
+            <MailIcon
+              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <Input
+              id="signup-email"
+              type="email"
+              autoComplete="email"
+              placeholder={signUp.emailPlaceholder}
+              required
+              aria-required="true"
+              aria-invalid={Boolean(errors.email)}
+              aria-describedby={errors.email ? "signup-email-error" : undefined}
+              className="h-12 pl-10 text-base"
+              {...register("email")}
+            />
+          </div>
           {errors.email && (
             <p
               id="signup-email-error"
@@ -137,41 +134,39 @@ export default function SignUpPage() {
 
         <div className="space-y-1.5">
           <Label htmlFor="signup-password">{signUp.passwordLabel}</Label>
-          <Input
-            id="signup-password"
-            type="password"
-            autoComplete="new-password"
-            required
-            aria-required="true"
-            aria-invalid={Boolean(errors.password)}
-            aria-describedby={
-              errors.password
-                ? "signup-password-error signup-password-strength"
-                : "signup-password-hint signup-password-strength"
-            }
-            {...register("password")}
-          />
-          {!errors.password && (
-            <p
-              id="signup-password-hint"
-              className="text-xs text-muted-foreground"
-            >
-              {signUp.passwordHint}
-            </p>
-          )}
-          <PasswordStrength
-            id="signup-password-strength"
-            password={password ?? ""}
-            userInputs={email ? [email] : []}
-            className="pt-1"
-          />
-          {errors.password && (
+          <div className="relative">
+            <LockIcon
+              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <Input
+              id="signup-password"
+              type="password"
+              autoComplete="new-password"
+              required
+              aria-required="true"
+              aria-invalid={Boolean(errors.password)}
+              aria-describedby={
+                errors.password ? "signup-password-error" : "signup-password-hint"
+              }
+              className="h-12 pl-10 text-base"
+              {...register("password")}
+            />
+          </div>
+          {errors.password ? (
             <p
               id="signup-password-error"
               role="alert"
               className="text-xs text-destructive"
             >
               {errors.password.message}
+            </p>
+          ) : (
+            <p
+              id="signup-password-hint"
+              className="text-xs text-muted-foreground"
+            >
+              {signUp.passwordHint}
             </p>
           )}
         </div>

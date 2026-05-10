@@ -7,19 +7,20 @@ import { ArrowLeftIcon } from "lucide-react"
 
 import { Button } from "@repo/ui/components/button"
 
-import { WizardStepper } from "./wizard-stepper"
-
 type OnboardingHeaderProps = {
-  step: number
-  total: number
+  title: string
   backLabel: string
   backHref?: string
   onBack?: () => void
 }
 
+/**
+ * Header sticky des écrans onboarding — mobile uniquement (md:hidden).
+ * Sur desktop, c'est le PublicNav rendu par (auth)/layout.tsx qui prend
+ * le relais.
+ */
 export function OnboardingHeader({
-  step,
-  total,
+  title,
   backLabel,
   backHref,
   onBack,
@@ -33,8 +34,8 @@ export function OnboardingHeader({
   }
 
   return (
-    <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-      <div className="mx-auto flex h-14 max-w-[480px] items-center gap-2 px-3">
+    <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden">
+      <div className="flex h-14 items-center gap-2 px-3">
         {onBack || !backHref ? (
           <Button
             type="button"
@@ -52,12 +53,10 @@ export function OnboardingHeader({
             </Link>
           </Button>
         )}
-        <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-          Étape {step} <span aria-hidden="true">/</span>
-          <span className="sr-only"> sur </span> {total}
-        </p>
+        <h1 className="truncate text-base font-semibold text-foreground">
+          {title}
+        </h1>
       </div>
-      <WizardStepper current={step} total={total} className="px-3 pb-2" />
     </header>
   )
 }
