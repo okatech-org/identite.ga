@@ -1,0 +1,97 @@
+"use client"
+
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+
+import { Button } from "@repo/ui/components/button"
+import { IdnMark } from "@repo/ui/components/idn-mark"
+import { cn } from "@repo/ui/lib/utils"
+
+import { navActions, navTabs } from "../_content/fr"
+
+const SIGN_IN_URL = "/connexion"
+const SIGN_UP_URL = "/inscription"
+
+export function PublicNav() {
+  const pathname = usePathname()
+
+  const isActive = (href: string) =>
+    href === "/" ? pathname === "/" : pathname.startsWith(href)
+
+  return (
+    <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+      <div className="mx-auto flex h-15 min-h-[60px] max-w-[1180px] items-center gap-7 px-4 md:px-7">
+        <Link
+          href="/"
+          className="flex items-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card rounded-md"
+          aria-label={`${navActions.brand} — Accueil`}
+        >
+          <IdnMark size={26} />
+          <span className="text-sm font-semibold text-foreground">
+            {navActions.brand}
+          </span>
+          <span className="hidden rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold tracking-[0.05em] text-muted-foreground sm:inline">
+            {navActions.republic}
+          </span>
+        </Link>
+
+        <nav
+          className="ml-2 hidden items-center gap-1 lg:flex"
+          aria-label="Navigation principale"
+        >
+          {navTabs.map((tab) => {
+            const active = isActive(tab.href)
+            return (
+              <Link
+                key={tab.href}
+                href={tab.href}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "rounded-md px-3.5 py-2 text-[13px] font-medium transition-colors",
+                  active
+                    ? "bg-idn-green-soft font-semibold text-idn-green dark:bg-[#0F2A18]"
+                    : "text-foreground/80 hover:bg-secondary hover:text-foreground",
+                )}
+              >
+                {tab.label}
+              </Link>
+            )
+          })}
+        </nav>
+
+        <div className="flex flex-1 items-center justify-end gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link href={SIGN_IN_URL}>{navActions.signIn}</Link>
+          </Button>
+          <Button asChild size="sm">
+            <Link href={SIGN_UP_URL}>{navActions.signUp}</Link>
+          </Button>
+        </div>
+      </div>
+
+      <nav
+        className="flex gap-1 overflow-x-auto border-t border-border px-4 py-2 lg:hidden"
+        aria-label="Navigation principale (mobile)"
+      >
+        {navTabs.map((tab) => {
+          const active = isActive(tab.href)
+          return (
+            <Link
+              key={tab.href}
+              href={tab.href}
+              aria-current={active ? "page" : undefined}
+              className={cn(
+                "shrink-0 rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                active
+                  ? "bg-idn-green-soft font-semibold text-idn-green dark:bg-[#0F2A18]"
+                  : "text-foreground/80 hover:bg-secondary",
+              )}
+            >
+              {tab.label}
+            </Link>
+          )
+        })}
+      </nav>
+    </header>
+  )
+}

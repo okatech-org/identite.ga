@@ -1,82 +1,166 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Scan les composants partagés du monorepo. Sans cette directive, Tailwind v4
+   ne génère pas les classes utilisées uniquement dans packages/ui (par ex.
+   bg-primary dans Button, size-7 dans ThemeToggle). */
+@source "../**/*.{ts,tsx}";
+
 @custom-variant dark (&:is(.dark *));
 
+/* ─────────────────────────────────────────────────────────────
+   IDN — Identité Numérique du Gabon
+   Design tokens transposés depuis ressources/interfaces/project/idn-tokens.jsx
+   Couleurs Gabon (vert / jaune / bleu) inchangées entre clair et sombre.
+   ───────────────────────────────────────────────────────────── */
+
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  /* Couleurs Gabon — invariantes */
+  --idn-green: #0e7c3a;
+  --idn-green-dark: #0a5c2c;
+  --idn-green-soft: #e6f2ea;
+  --idn-yellow: #f2c811;
+  --idn-yellow-soft: #fcf4d6;
+  --idn-blue: #2563ac;
+  --idn-blue-soft: #e6eef7;
+
+  /* Niveaux de garantie */
+  --idn-loa-1: #74766b; /* gris muted */
+  --idn-loa-2: #2563ac; /* bleu */
+  --idn-loa-3: #0e7c3a; /* vert */
+
+  /* Neutres clairs */
+  --idn-bg: #fafaf8;
+  --idn-surface: #ffffff;
+  --idn-surface-2: #f4f3ee;
+  --idn-border: #e6e4dd;
+  --idn-border-soft: #efeee9;
+  --idn-ink: #16170f;
+  --idn-ink-2: #3a3d2e;
+  --idn-muted: #74766b;
+  --idn-muted-soft: #a6a89d;
+
+  /* Radius (cahier : sm 6 / md 10 / lg 14 / xl 20 / pill 9999) */
+  --radius: 0.625rem; /* 10px = md */
+
+  /* Shadcn semantic mapping */
+  --background: var(--idn-bg);
+  --foreground: var(--idn-ink);
+  --card: var(--idn-surface);
+  --card-foreground: var(--idn-ink);
+  --popover: var(--idn-surface);
+  --popover-foreground: var(--idn-ink);
+  --primary: var(--idn-green);
+  --primary-foreground: #ffffff;
+  --secondary: var(--idn-surface-2);
+  --secondary-foreground: var(--idn-ink);
+  --muted: var(--idn-surface-2);
+  --muted-foreground: var(--idn-muted);
+  --accent: var(--idn-surface-2);
+  --accent-foreground: var(--idn-ink);
+  --destructive: #b3261e;
+  --border: var(--idn-border);
+  --input: var(--idn-border);
+  --ring: var(--idn-green);
+
+  /* Charts (mappées sur les couleurs Gabon) */
+  --chart-1: var(--idn-green);
+  --chart-2: var(--idn-blue);
+  --chart-3: var(--idn-yellow);
+  --chart-4: var(--idn-green-dark);
+  --chart-5: var(--idn-muted);
+
+  /* Sidebar (utilisé plus tard pour les portails) */
+  --sidebar: var(--idn-surface);
+  --sidebar-foreground: var(--idn-ink);
+  --sidebar-primary: var(--idn-green);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--idn-surface-2);
+  --sidebar-accent-foreground: var(--idn-ink);
+  --sidebar-border: var(--idn-border);
+  --sidebar-ring: var(--idn-green);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* Neutres sombres */
+  --idn-bg: #0e110d;
+  --idn-surface: #181c16;
+  --idn-surface-2: #22271f;
+  --idn-border: #2c3128;
+  --idn-border-soft: #232820;
+  --idn-ink: #f2f0e8;
+  --idn-ink-2: #d4d2c7;
+  --idn-muted: #9a9c8e;
+  --idn-muted-soft: #6b6d62;
+
+  /* Couleurs Gabon inchangées (cf. cahier §7.2) */
+
+  --background: var(--idn-bg);
+  --foreground: var(--idn-ink);
+  --card: var(--idn-surface);
+  --card-foreground: var(--idn-ink);
+  --popover: var(--idn-surface);
+  --popover-foreground: var(--idn-ink);
+  --primary: var(--idn-green);
+  --primary-foreground: #ffffff;
+  --secondary: var(--idn-surface-2);
+  --secondary-foreground: var(--idn-ink);
+  --muted: var(--idn-surface-2);
+  --muted-foreground: var(--idn-muted);
+  --accent: var(--idn-surface-2);
+  --accent-foreground: var(--idn-ink);
+  --destructive: #f2554b;
+  --border: var(--idn-border);
+  --input: var(--idn-border);
+  --ring: var(--idn-green);
+
+  --sidebar: var(--idn-surface);
+  --sidebar-foreground: var(--idn-ink);
+  --sidebar-primary: var(--idn-green);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--idn-surface-2);
+  --sidebar-accent-foreground: var(--idn-ink);
+  --sidebar-border: var(--idn-border);
+  --sidebar-ring: var(--idn-green);
 }
 
 @theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  /* Polices — variables injectées par next/font dans apps/* */
+  --font-sans: var(--font-plex-sans), "IBM Plex Sans", -apple-system,
+    BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), "IBM Plex Mono", ui-monospace, "SF Mono",
+    Menlo, monospace;
+
+  /* Radius (cahier : sm 6 / md 10 / lg 14 / xl 20) */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+
+  /* Couleurs IDN exposées comme utilitaires Tailwind */
+  --color-idn-green: var(--idn-green);
+  --color-idn-green-dark: var(--idn-green-dark);
+  --color-idn-green-soft: var(--idn-green-soft);
+  --color-idn-yellow: var(--idn-yellow);
+  --color-idn-yellow-soft: var(--idn-yellow-soft);
+  --color-idn-blue: var(--idn-blue);
+  --color-idn-blue-soft: var(--idn-blue-soft);
+
+  --color-idn-bg: var(--idn-bg);
+  --color-idn-surface: var(--idn-surface);
+  --color-idn-surface-2: var(--idn-surface-2);
+  --color-idn-border: var(--idn-border);
+  --color-idn-border-soft: var(--idn-border-soft);
+  --color-idn-ink: var(--idn-ink);
+  --color-idn-ink-2: var(--idn-ink-2);
+  --color-idn-muted: var(--idn-muted);
+  --color-idn-muted-soft: var(--idn-muted-soft);
+
+  --color-loa-1: var(--idn-loa-1);
+  --color-loa-2: var(--idn-loa-2);
+  --color-loa-3: var(--idn-loa-3);
+
+  /* Shadcn semantic */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -114,7 +198,12 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
   }
 }
