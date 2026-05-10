@@ -1,162 +1,680 @@
 <!doctype html>
 <html lang="fr">
-<head>
-<meta charset="utf-8"/>
-<title>IDN — Identité Numérique du Gabon</title>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-<style>
-  html, body { margin: 0; padding: 0; font-family: "IBM Plex Sans", system-ui, sans-serif; }
-  body { background: #f0eee9; }
-  body.idn-dark { background: #0a0d0a; }
-  * { box-sizing: border-box; }
-</style>
-</head>
-<body>
-<div id="root"></div>
+  <head>
+    <meta charset="utf-8" />
+    <title>IDN — Identité Numérique du Gabon</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: "IBM Plex Sans", system-ui, sans-serif;
+      }
+      body {
+        background: #f0eee9;
+      }
+      body.idn-dark {
+        background: #0a0d0a;
+      }
+      * {
+        box-sizing: border-box;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
 
-<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+    <script
+      src="https://unpkg.com/react@18.3.1/umd/react.development.js"
+      integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js"
+      integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"
+      integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y"
+      crossorigin="anonymous"
+    ></script>
 
-<script type="text/babel" src="design-canvas.jsx"></script>
-<script type="text/babel" src="tweaks-panel.jsx"></script>
-<script type="text/babel" src="idn-tokens.jsx"></script>
-<script type="text/babel" src="idn-mobile.jsx"></script>
-<script type="text/babel" src="idn-desktop.jsx"></script>
-<script type="text/babel" src="idn-citizen-web.jsx"></script>
-<script type="text/babel" src="idn-citizen-extras.jsx"></script>
+    <script type="text/babel" src="design-canvas.jsx"></script>
+    <script type="text/babel" src="tweaks-panel.jsx"></script>
+    <script type="text/babel" src="idn-tokens.jsx"></script>
+    <script type="text/babel" src="idn-mobile.jsx"></script>
+    <script type="text/babel" src="idn-desktop.jsx"></script>
+    <script type="text/babel" src="idn-citizen-web.jsx"></script>
+    <script type="text/babel" src="idn-citizen-extras.jsx"></script>
 
-<script type="text/babel">
-function App() {
-  const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
-    "dark": false
-  }/*EDITMODE-END*/;
-  const [tweaks, setTweak] = window.useTweaks(TWEAK_DEFAULTS);
-  const t = window.idnTheme(tweaks.dark);
+    <script type="text/babel">
+      function App() {
+        const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/ {
+          dark: false,
+        }; /*EDITMODE-END*/
+        const [tweaks, setTweak] = window.useTweaks(TWEAK_DEFAULTS);
+        const t = window.idnTheme(tweaks.dark);
 
-  React.useEffect(() => {
-    document.body.classList.toggle('idn-dark', tweaks.dark);
-  }, [tweaks.dark]);
+        React.useEffect(() => {
+          document.body.classList.toggle("idn-dark", tweaks.dark);
+        }, [tweaks.dark]);
 
-  return (
-    <>
-      <DesignCanvas>
-        <DCSection id="public" title="Pages publiques (idn.ga)" subtitle="Pages accessibles sans connexion : à propos, annuaire des services, intégration administrations, FAQ, mentions légales, état du service.">
-          <DCArtboard id="pub-about"    label="À propos"          width={1180} height={760}><CitizenPublic t={t} screen="about"/></DCArtboard>
-          <DCArtboard id="pub-services" label="Annuaire services" width={1180} height={760}><CitizenPublic t={t} screen="services"/></DCArtboard>
-          <DCArtboard id="pub-admins"   label="Pour administrations" width={1180} height={760}><CitizenPublic t={t} screen="admins"/></DCArtboard>
-          <DCArtboard id="pub-help"     label="Aide & FAQ"        width={1180} height={760}><CitizenPublic t={t} screen="help"/></DCArtboard>
-          <DCArtboard id="pub-legal"    label="Mentions légales"  width={1180} height={760}><CitizenPublic t={t} screen="legal"/></DCArtboard>
-          <DCArtboard id="pub-status"   label="État du service"   width={1180} height={760}><CitizenPublic t={t} screen="status"/></DCArtboard>
-          <DCArtboard id="pub-contact"  label="Contact"           width={1180} height={760}><CitizenPublic t={t} screen="contact"/></DCArtboard>
-        </DCSection>
+        return (
+          <>
+            <DesignCanvas>
+              <DCSection
+                id="public"
+                title="Pages publiques (identite.ga)"
+                subtitle="Pages accessibles sans connexion : à propos, annuaire des services, intégration administrations, FAQ, mentions légales, état du service."
+              >
+                <DCArtboard
+                  id="pub-about"
+                  label="À propos"
+                  width={1180}
+                  height={760}
+                >
+                  <CitizenPublic t={t} screen="about" />
+                </DCArtboard>
+                <DCArtboard
+                  id="pub-services"
+                  label="Annuaire services"
+                  width={1180}
+                  height={760}
+                >
+                  <CitizenPublic t={t} screen="services" />
+                </DCArtboard>
+                <DCArtboard
+                  id="pub-admins"
+                  label="Pour administrations"
+                  width={1180}
+                  height={760}
+                >
+                  <CitizenPublic t={t} screen="admins" />
+                </DCArtboard>
+                <DCArtboard
+                  id="pub-help"
+                  label="Aide & FAQ"
+                  width={1180}
+                  height={760}
+                >
+                  <CitizenPublic t={t} screen="help" />
+                </DCArtboard>
+                <DCArtboard
+                  id="pub-legal"
+                  label="Mentions légales"
+                  width={1180}
+                  height={760}
+                >
+                  <CitizenPublic t={t} screen="legal" />
+                </DCArtboard>
+                <DCArtboard
+                  id="pub-status"
+                  label="État du service"
+                  width={1180}
+                  height={760}
+                >
+                  <CitizenPublic t={t} screen="status" />
+                </DCArtboard>
+                <DCArtboard
+                  id="pub-contact"
+                  label="Contact"
+                  width={1180}
+                  height={760}
+                >
+                  <CitizenPublic t={t} screen="contact" />
+                </DCArtboard>
+              </DCSection>
 
-        <DCSection id="settings" title="Gestion du compte & paramètres" subtitle="Sécurité, sessions, documents, notifications, historique d'activité, données & confidentialité, langue.">
-          <DCArtboard id="set-security"      label="Sécurité"               width={1180} height={760}><CitizenSettings t={t} screen="security"/></DCArtboard>
-          <DCArtboard id="set-sessions"      label="Appareils & sessions"   width={1180} height={760}><CitizenSettings t={t} screen="sessions"/></DCArtboard>
-          <DCArtboard id="set-documents"     label="Mes documents"          width={1180} height={760}><CitizenSettings t={t} screen="documents"/></DCArtboard>
-          <DCArtboard id="set-notifications" label="Notifications"          width={1180} height={760}><CitizenSettings t={t} screen="notifications"/></DCArtboard>
-          <DCArtboard id="set-activity"      label="Historique d'activité"  width={1180} height={760}><CitizenSettings t={t} screen="activity"/></DCArtboard>
-          <DCArtboard id="set-privacy"       label="Données & confidentialité" width={1180} height={760}><CitizenSettings t={t} screen="privacy"/></DCArtboard>
-          <DCArtboard id="set-preferences"   label="Langue & accessibilité" width={1180} height={760}><CitizenSettings t={t} screen="preferences"/></DCArtboard>
-        </DCSection>
+              <DCSection
+                id="settings"
+                title="Gestion du compte & paramètres"
+                subtitle="Sécurité, sessions, documents, notifications, historique d'activité, données & confidentialité, langue."
+              >
+                <DCArtboard
+                  id="set-security"
+                  label="Sécurité"
+                  width={1180}
+                  height={760}
+                >
+                  <CitizenSettings t={t} screen="security" />
+                </DCArtboard>
+                <DCArtboard
+                  id="set-sessions"
+                  label="Appareils & sessions"
+                  width={1180}
+                  height={760}
+                >
+                  <CitizenSettings t={t} screen="sessions" />
+                </DCArtboard>
+                <DCArtboard
+                  id="set-documents"
+                  label="Mes documents"
+                  width={1180}
+                  height={760}
+                >
+                  <CitizenSettings t={t} screen="documents" />
+                </DCArtboard>
+                <DCArtboard
+                  id="set-notifications"
+                  label="Notifications"
+                  width={1180}
+                  height={760}
+                >
+                  <CitizenSettings t={t} screen="notifications" />
+                </DCArtboard>
+                <DCArtboard
+                  id="set-activity"
+                  label="Historique d'activité"
+                  width={1180}
+                  height={760}
+                >
+                  <CitizenSettings t={t} screen="activity" />
+                </DCArtboard>
+                <DCArtboard
+                  id="set-privacy"
+                  label="Données & confidentialité"
+                  width={1180}
+                  height={760}
+                >
+                  <CitizenSettings t={t} screen="privacy" />
+                </DCArtboard>
+                <DCArtboard
+                  id="set-preferences"
+                  label="Langue & accessibilité"
+                  width={1180}
+                  height={760}
+                >
+                  <CitizenSettings t={t} screen="preferences" />
+                </DCArtboard>
+              </DCSection>
 
-        <DCSection id="mobile-onboarding" title="Citoyen — Onboarding (mobile)" subtitle="Création de compte, vérification email, identité pivot, PIN. Cliquez les CTA pour avancer.">
-          <DCArtboard id="m-welcome"  label="01 · Accueil"           width={360} height={740}><MobilePrototype t={t} initial="welcome"/></DCArtboard>
-          <DCArtboard id="m-profil"   label="02 · Sélection profil"  width={360} height={740}><MobilePrototype t={t} fixedScreen="profil"/></DCArtboard>
-          <DCArtboard id="m-signup"   label="03 · Inscription"       width={360} height={740}><MobilePrototype t={t} fixedScreen="signup"/></DCArtboard>
-          <DCArtboard id="m-otp"      label="04 · Vérification OTP"  width={360} height={740}><MobilePrototype t={t} fixedScreen="otp"/></DCArtboard>
-          <DCArtboard id="m-pivot"    label="05 · Identité pivot"    width={360} height={740}><MobilePrototype t={t} fixedScreen="pivot"/></DCArtboard>
-          <DCArtboard id="m-pin"      label="06 · PIN"               width={360} height={740}><MobilePrototype t={t} fixedScreen="pin"/></DCArtboard>
-        </DCSection>
+              <DCSection
+                id="mobile-onboarding"
+                title="Citoyen — Onboarding (mobile)"
+                subtitle="Création de compte, vérification email, identité pivot, PIN. Cliquez les CTA pour avancer."
+              >
+                <DCArtboard
+                  id="m-welcome"
+                  label="01 · Accueil"
+                  width={360}
+                  height={740}
+                >
+                  <MobilePrototype t={t} initial="welcome" />
+                </DCArtboard>
+                <DCArtboard
+                  id="m-profil"
+                  label="02 · Sélection profil"
+                  width={360}
+                  height={740}
+                >
+                  <MobilePrototype t={t} fixedScreen="profil" />
+                </DCArtboard>
+                <DCArtboard
+                  id="m-signup"
+                  label="03 · Inscription"
+                  width={360}
+                  height={740}
+                >
+                  <MobilePrototype t={t} fixedScreen="signup" />
+                </DCArtboard>
+                <DCArtboard
+                  id="m-otp"
+                  label="04 · Vérification OTP"
+                  width={360}
+                  height={740}
+                >
+                  <MobilePrototype t={t} fixedScreen="otp" />
+                </DCArtboard>
+                <DCArtboard
+                  id="m-pivot"
+                  label="05 · Identité pivot"
+                  width={360}
+                  height={740}
+                >
+                  <MobilePrototype t={t} fixedScreen="pivot" />
+                </DCArtboard>
+                <DCArtboard
+                  id="m-pin"
+                  label="06 · PIN"
+                  width={360}
+                  height={740}
+                >
+                  <MobilePrototype t={t} fixedScreen="pin" />
+                </DCArtboard>
+              </DCSection>
 
-        <DCSection id="mobile-citizen" title="Citoyen — Connecté (mobile)" subtitle="Trois personas : Niveau 3 (citoyen), Niveau 2 (résident), Niveau 1 (visiteur). Cliquez l'avatar pour le profil.">
-          <DCArtboard id="m-home-3" label="Citoyen · Niveau 3"       width={360} height={740}><MobilePrototype t={t} initial="home" user={DEMO_USERS.citoyen}/></DCArtboard>
-          <DCArtboard id="m-home-2" label="Résident · Niveau 2"      width={360} height={740}><MobilePrototype t={t} initial="home" user={DEMO_USERS.resident}/></DCArtboard>
-          <DCArtboard id="m-home-1" label="Visiteur · Niveau 1"      width={360} height={740}><MobilePrototype t={t} initial="home" user={DEMO_USERS.visiteur}/></DCArtboard>
-          <DCArtboard id="m-profile" label="Profil détaillé"          width={360} height={740}><MobilePrototype t={t} fixedScreen="profile" user={DEMO_USERS.citoyen}/></DCArtboard>
-          <DCArtboard id="m-consents" label="Consentements"           width={360} height={740}><MobilePrototype t={t} fixedScreen="consents"/></DCArtboard>
-          <DCArtboard id="m-login"   label="Connexion rapide"         width={360} height={740}><MobilePrototype t={t} fixedScreen="login"/></DCArtboard>
-        </DCSection>
+              <DCSection
+                id="mobile-citizen"
+                title="Citoyen — Connecté (mobile)"
+                subtitle="Trois personas : Niveau 3 (citoyen), Niveau 2 (résident), Niveau 1 (visiteur). Cliquez l'avatar pour le profil."
+              >
+                <DCArtboard
+                  id="m-home-3"
+                  label="Citoyen · Niveau 3"
+                  width={360}
+                  height={740}
+                >
+                  <MobilePrototype
+                    t={t}
+                    initial="home"
+                    user={DEMO_USERS.citoyen}
+                  />
+                </DCArtboard>
+                <DCArtboard
+                  id="m-home-2"
+                  label="Résident · Niveau 2"
+                  width={360}
+                  height={740}
+                >
+                  <MobilePrototype
+                    t={t}
+                    initial="home"
+                    user={DEMO_USERS.resident}
+                  />
+                </DCArtboard>
+                <DCArtboard
+                  id="m-home-1"
+                  label="Visiteur · Niveau 1"
+                  width={360}
+                  height={740}
+                >
+                  <MobilePrototype
+                    t={t}
+                    initial="home"
+                    user={DEMO_USERS.visiteur}
+                  />
+                </DCArtboard>
+                <DCArtboard
+                  id="m-profile"
+                  label="Profil détaillé"
+                  width={360}
+                  height={740}
+                >
+                  <MobilePrototype
+                    t={t}
+                    fixedScreen="profile"
+                    user={DEMO_USERS.citoyen}
+                  />
+                </DCArtboard>
+                <DCArtboard
+                  id="m-consents"
+                  label="Consentements"
+                  width={360}
+                  height={740}
+                >
+                  <MobilePrototype t={t} fixedScreen="consents" />
+                </DCArtboard>
+                <DCArtboard
+                  id="m-login"
+                  label="Connexion rapide"
+                  width={360}
+                  height={740}
+                >
+                  <MobilePrototype t={t} fixedScreen="login" />
+                </DCArtboard>
+              </DCSection>
 
-        <DCSection id="mobile-kyc" title="KYC Niveau 2 — Vérification d'identité (mobile)" subtitle="Document → selfie liveness → statut. Cliquez les CTA pour avancer.">
-          <DCArtboard id="m-kyc-doc"    label="Pièce d'identité"     width={360} height={740}><MobilePrototype t={t} fixedScreen="kyc-doc"/></DCArtboard>
-          <DCArtboard id="m-kyc-selfie" label="Selfie vivant"         width={360} height={740}><MobilePrototype t={t} fixedScreen="kyc-selfie"/></DCArtboard>
-          <DCArtboard id="m-kyc-status" label="Demande envoyée"       width={360} height={740}><MobilePrototype t={t} fixedScreen="kyc-status"/></DCArtboard>
-          <DCArtboard id="m-oidc"       label="Consentement OIDC"     width={360} height={740}><MobilePrototype t={t} fixedScreen="oidc"/></DCArtboard>
-        </DCSection>
+              <DCSection
+                id="mobile-kyc"
+                title="KYC Niveau 2 — Vérification d'identité (mobile)"
+                subtitle="Document → selfie liveness → statut. Cliquez les CTA pour avancer."
+              >
+                <DCArtboard
+                  id="m-kyc-doc"
+                  label="Pièce d'identité"
+                  width={360}
+                  height={740}
+                >
+                  <MobilePrototype t={t} fixedScreen="kyc-doc" />
+                </DCArtboard>
+                <DCArtboard
+                  id="m-kyc-selfie"
+                  label="Selfie vivant"
+                  width={360}
+                  height={740}
+                >
+                  <MobilePrototype t={t} fixedScreen="kyc-selfie" />
+                </DCArtboard>
+                <DCArtboard
+                  id="m-kyc-status"
+                  label="Demande envoyée"
+                  width={360}
+                  height={740}
+                >
+                  <MobilePrototype t={t} fixedScreen="kyc-status" />
+                </DCArtboard>
+                <DCArtboard
+                  id="m-oidc"
+                  label="Consentement OIDC"
+                  width={360}
+                  height={740}
+                >
+                  <MobilePrototype t={t} fixedScreen="oidc" />
+                </DCArtboard>
+              </DCSection>
 
-        <DCSection id="citizen-web-onboarding" title="Citoyen — Onboarding (desktop)" subtitle="Le même parcours que sur mobile, vu depuis idn.ga sur navigateur. Wizard centré, flag républicain en accent.">
-          <DCArtboard id="cw-welcome" label="01 · Page d'accueil"      width={1180} height={760}><CitizenWeb t={t} screen="welcome"/></DCArtboard>
-          <DCArtboard id="cw-profil"  label="02 · Sélection profil"    width={1180} height={760}><CitizenWeb t={t} screen="profil"/></DCArtboard>
-          <DCArtboard id="cw-signup"  label="03 · Email / mot de passe" width={1180} height={760}><CitizenWeb t={t} screen="signup"/></DCArtboard>
-          <DCArtboard id="cw-otp"     label="04 · Vérification email"  width={1180} height={760}><CitizenWeb t={t} screen="otp"/></DCArtboard>
-          <DCArtboard id="cw-pivot"   label="05 · Identité pivot"      width={1180} height={760}><CitizenWeb t={t} screen="pivot"/></DCArtboard>
-          <DCArtboard id="cw-pin"     label="06 · Création du PIN"     width={1180} height={760}><CitizenWeb t={t} screen="pin"/></DCArtboard>
-        </DCSection>
+              <DCSection
+                id="citizen-web-onboarding"
+                title="Citoyen — Onboarding (desktop)"
+                subtitle="Le même parcours que sur mobile, vu depuis identite.ga sur navigateur. Wizard centré, flag républicain en accent."
+              >
+                <DCArtboard
+                  id="cw-welcome"
+                  label="01 · Page d'accueil"
+                  width={1180}
+                  height={760}
+                >
+                  <CitizenWeb t={t} screen="welcome" />
+                </DCArtboard>
+                <DCArtboard
+                  id="cw-profil"
+                  label="02 · Sélection profil"
+                  width={1180}
+                  height={760}
+                >
+                  <CitizenWeb t={t} screen="profil" />
+                </DCArtboard>
+                <DCArtboard
+                  id="cw-signup"
+                  label="03 · Email / mot de passe"
+                  width={1180}
+                  height={760}
+                >
+                  <CitizenWeb t={t} screen="signup" />
+                </DCArtboard>
+                <DCArtboard
+                  id="cw-otp"
+                  label="04 · Vérification email"
+                  width={1180}
+                  height={760}
+                >
+                  <CitizenWeb t={t} screen="otp" />
+                </DCArtboard>
+                <DCArtboard
+                  id="cw-pivot"
+                  label="05 · Identité pivot"
+                  width={1180}
+                  height={760}
+                >
+                  <CitizenWeb t={t} screen="pivot" />
+                </DCArtboard>
+                <DCArtboard
+                  id="cw-pin"
+                  label="06 · Création du PIN"
+                  width={1180}
+                  height={760}
+                >
+                  <CitizenWeb t={t} screen="pin" />
+                </DCArtboard>
+              </DCSection>
 
-        <DCSection id="citizen-web-connected" title="Citoyen — Connecté (desktop)" subtitle="Tableau de bord, profil, consentements, connexion. Personas Niveau 3 / 2 / 1.">
-          <DCArtboard id="cw-home-3"   label="Dashboard · Niveau 3"    width={1180} height={760}><CitizenWeb t={t} screen="home" user={DEMO_USERS.citoyen}/></DCArtboard>
-          <DCArtboard id="cw-home-2"   label="Dashboard · Niveau 2"    width={1180} height={760}><CitizenWeb t={t} screen="home" user={DEMO_USERS.resident}/></DCArtboard>
-          <DCArtboard id="cw-home-1"   label="Dashboard · Niveau 1"    width={1180} height={760}><CitizenWeb t={t} screen="home" user={DEMO_USERS.visiteur}/></DCArtboard>
-          <DCArtboard id="cw-profile"  label="Mon profil"              width={1180} height={760}><CitizenWeb t={t} screen="profile"/></DCArtboard>
-          <DCArtboard id="cw-consents" label="Consentements"           width={1180} height={760}><CitizenWeb t={t} screen="consents"/></DCArtboard>
-          <DCArtboard id="cw-login"    label="Connexion"               width={1180} height={760}><CitizenWeb t={t} screen="login"/></DCArtboard>
-        </DCSection>
+              <DCSection
+                id="citizen-web-connected"
+                title="Citoyen — Connecté (desktop)"
+                subtitle="Tableau de bord, profil, consentements, connexion. Personas Niveau 3 / 2 / 1."
+              >
+                <DCArtboard
+                  id="cw-home-3"
+                  label="Dashboard · Niveau 3"
+                  width={1180}
+                  height={760}
+                >
+                  <CitizenWeb t={t} screen="home" user={DEMO_USERS.citoyen} />
+                </DCArtboard>
+                <DCArtboard
+                  id="cw-home-2"
+                  label="Dashboard · Niveau 2"
+                  width={1180}
+                  height={760}
+                >
+                  <CitizenWeb t={t} screen="home" user={DEMO_USERS.resident} />
+                </DCArtboard>
+                <DCArtboard
+                  id="cw-home-1"
+                  label="Dashboard · Niveau 1"
+                  width={1180}
+                  height={760}
+                >
+                  <CitizenWeb t={t} screen="home" user={DEMO_USERS.visiteur} />
+                </DCArtboard>
+                <DCArtboard
+                  id="cw-profile"
+                  label="Mon profil"
+                  width={1180}
+                  height={760}
+                >
+                  <CitizenWeb t={t} screen="profile" />
+                </DCArtboard>
+                <DCArtboard
+                  id="cw-consents"
+                  label="Consentements"
+                  width={1180}
+                  height={760}
+                >
+                  <CitizenWeb t={t} screen="consents" />
+                </DCArtboard>
+                <DCArtboard
+                  id="cw-login"
+                  label="Connexion"
+                  width={1180}
+                  height={760}
+                >
+                  <CitizenWeb t={t} screen="login" />
+                </DCArtboard>
+              </DCSection>
 
-        <DCSection id="citizen-web-kyc" title="Citoyen — KYC Niveau 2 (desktop)" subtitle="Mise à niveau du LoA depuis le navigateur, avec invitation à continuer sur mobile pour la caméra.">
-          <DCArtboard id="cw-kyc"        label="Démarrer la vérification" width={1180} height={760}><CitizenWeb t={t} screen="kyc"/></DCArtboard>
-          <DCArtboard id="cw-kyc-status" label="Demande envoyée"          width={1180} height={760}><CitizenWeb t={t} screen="kyc-status"/></DCArtboard>
-        </DCSection>
+              <DCSection
+                id="citizen-web-kyc"
+                title="Citoyen — KYC Niveau 2 (desktop)"
+                subtitle="Mise à niveau du LoA depuis le navigateur, avec invitation à continuer sur mobile pour la caméra."
+              >
+                <DCArtboard
+                  id="cw-kyc"
+                  label="Démarrer la vérification"
+                  width={1180}
+                  height={760}
+                >
+                  <CitizenWeb t={t} screen="kyc" />
+                </DCArtboard>
+                <DCArtboard
+                  id="cw-kyc-status"
+                  label="Demande envoyée"
+                  width={1180}
+                  height={760}
+                >
+                  <CitizenWeb t={t} screen="kyc-status" />
+                </DCArtboard>
+              </DCSection>
 
-        <DCSection id="oidc-web" title="Authentification OIDC — web" subtitle="Écran de consentement vu depuis une app tierce sur desktop.">
-          <DCArtboard id="oidc-d" label="Consentement OIDC · web" width={1080} height={700}><OidcDesktop t={t}/></DCArtboard>
-        </DCSection>
+              <DCSection
+                id="oidc-web"
+                title="Authentification OIDC — web"
+                subtitle="Écran de consentement vu depuis une app tierce sur desktop."
+              >
+                <DCArtboard
+                  id="oidc-d"
+                  label="Consentement OIDC · web"
+                  width={1080}
+                  height={700}
+                >
+                  <OidcDesktop t={t} />
+                </DCArtboard>
+              </DCSection>
 
-        <DCSection id="admin" title="Console d'administration" subtitle="Pour les Administrateurs Système. Toutes les pages sont aussi navigables via la barre latérale.">
-          <DCArtboard id="adm-dash"      label="01 · Tableau de bord"     width={1180} height={760}><AdminConsole t={t} initialTab="dashboard"/></DCArtboard>
-          <DCArtboard id="adm-apps"      label="02 · Applications OAuth"  width={1180} height={760}><AdminConsole t={t} initialTab="apps"/></DCArtboard>
-          <DCArtboard id="adm-app-det"   label="03 · Détail d'une app"    width={1180} height={760}><AdminConsole t={t} initialTab="app-detail"/></DCArtboard>
-          <DCArtboard id="adm-users"     label="04 · Comptes IDN"         width={1180} height={760}><AdminConsole t={t} initialTab="users"/></DCArtboard>
-          <DCArtboard id="adm-logs"      label="05 · Logs & audit"        width={1180} height={760}><AdminConsole t={t} initialTab="logs"/></DCArtboard>
-          <DCArtboard id="adm-roles"     label="06 · Rôles & habilitations" width={1180} height={760}><AdminConsole t={t} initialTab="roles"/></DCArtboard>
-          <DCArtboard id="adm-providers" label="07 · Providers email/SMS" width={1180} height={760}><AdminConsole t={t} initialTab="providers"/></DCArtboard>
-        </DCSection>
+              <DCSection
+                id="admin"
+                title="Console d'administration"
+                subtitle="Pour les Administrateurs Système. Toutes les pages sont aussi navigables via la barre latérale."
+              >
+                <DCArtboard
+                  id="adm-dash"
+                  label="01 · Tableau de bord"
+                  width={1180}
+                  height={760}
+                >
+                  <AdminConsole t={t} initialTab="dashboard" />
+                </DCArtboard>
+                <DCArtboard
+                  id="adm-apps"
+                  label="02 · Applications OAuth"
+                  width={1180}
+                  height={760}
+                >
+                  <AdminConsole t={t} initialTab="apps" />
+                </DCArtboard>
+                <DCArtboard
+                  id="adm-app-det"
+                  label="03 · Détail d'une app"
+                  width={1180}
+                  height={760}
+                >
+                  <AdminConsole t={t} initialTab="app-detail" />
+                </DCArtboard>
+                <DCArtboard
+                  id="adm-users"
+                  label="04 · Comptes IDN"
+                  width={1180}
+                  height={760}
+                >
+                  <AdminConsole t={t} initialTab="users" />
+                </DCArtboard>
+                <DCArtboard
+                  id="adm-logs"
+                  label="05 · Logs & audit"
+                  width={1180}
+                  height={760}
+                >
+                  <AdminConsole t={t} initialTab="logs" />
+                </DCArtboard>
+                <DCArtboard
+                  id="adm-roles"
+                  label="06 · Rôles & habilitations"
+                  width={1180}
+                  height={760}
+                >
+                  <AdminConsole t={t} initialTab="roles" />
+                </DCArtboard>
+                <DCArtboard
+                  id="adm-providers"
+                  label="07 · Providers email/SMS"
+                  width={1180}
+                  height={760}
+                >
+                  <AdminConsole t={t} initialTab="providers" />
+                </DCArtboard>
+              </DCSection>
 
-        <DCSection id="controller" title="Espace Contrôleur d'Identité" subtitle="Pour les agents assermentés (police, douanes, administrations).">
-          <DCArtboard id="ctrl-queue"   label="01 · File de demandes KYC" width={1180} height={760}><ControllerConsole t={t} initialTab="queue"/></DCArtboard>
-          <DCArtboard id="ctrl-scan"    label="02 · Scanner identité"    width={1180} height={760}><ControllerConsole t={t} initialTab="scan"/></DCArtboard>
-          <DCArtboard id="ctrl-verify"  label="03 · Vérifier signature"  width={1180} height={760}><ControllerConsole t={t} initialTab="verify"/></DCArtboard>
-          <DCArtboard id="ctrl-history" label="04 · Historique contrôles" width={1180} height={760}><ControllerConsole t={t} initialTab="history"/></DCArtboard>
-        </DCSection>
+              <DCSection
+                id="controller"
+                title="Espace Contrôleur d'Identité"
+                subtitle="Pour les agents assermentés (police, douanes, administrations)."
+              >
+                <DCArtboard
+                  id="ctrl-queue"
+                  label="01 · File de demandes KYC"
+                  width={1180}
+                  height={760}
+                >
+                  <ControllerConsole t={t} initialTab="queue" />
+                </DCArtboard>
+                <DCArtboard
+                  id="ctrl-scan"
+                  label="02 · Scanner identité"
+                  width={1180}
+                  height={760}
+                >
+                  <ControllerConsole t={t} initialTab="scan" />
+                </DCArtboard>
+                <DCArtboard
+                  id="ctrl-verify"
+                  label="03 · Vérifier signature"
+                  width={1180}
+                  height={760}
+                >
+                  <ControllerConsole t={t} initialTab="verify" />
+                </DCArtboard>
+                <DCArtboard
+                  id="ctrl-history"
+                  label="04 · Historique contrôles"
+                  width={1180}
+                  height={760}
+                >
+                  <ControllerConsole t={t} initialTab="history" />
+                </DCArtboard>
+              </DCSection>
 
-        <DCSection id="dev" title="Portail Développeur" subtitle="Pour les intégrateurs tiers consommant @idn/* ou l'OIDC standard.">
-          <DCArtboard id="dev-apps"  label="01 · Mes applications"  width={1180} height={760}><DevPortal t={t} initialTab="apps"/></DCArtboard>
-          <DCArtboard id="dev-keys"  label="02 · Clés & secrets"    width={1180} height={760}><DevPortal t={t} initialTab="keys"/></DCArtboard>
-          <DCArtboard id="dev-docs"  label="03 · Documentation"     width={1180} height={760}><DevPortal t={t} initialTab="docs"/></DCArtboard>
-          <DCArtboard id="dev-usage" label="04 · Quotas & usage"    width={1180} height={760}><DevPortal t={t} initialTab="usage"/></DCArtboard>
-        </DCSection>
-      </DesignCanvas>
+              <DCSection
+                id="dev"
+                title="Portail Développeur"
+                subtitle="Pour les intégrateurs tiers consommant @idn/* ou l'OIDC standard."
+              >
+                <DCArtboard
+                  id="dev-apps"
+                  label="01 · Mes applications"
+                  width={1180}
+                  height={760}
+                >
+                  <DevPortal t={t} initialTab="apps" />
+                </DCArtboard>
+                <DCArtboard
+                  id="dev-keys"
+                  label="02 · Clés & secrets"
+                  width={1180}
+                  height={760}
+                >
+                  <DevPortal t={t} initialTab="keys" />
+                </DCArtboard>
+                <DCArtboard
+                  id="dev-docs"
+                  label="03 · Documentation"
+                  width={1180}
+                  height={760}
+                >
+                  <DevPortal t={t} initialTab="docs" />
+                </DCArtboard>
+                <DCArtboard
+                  id="dev-usage"
+                  label="04 · Quotas & usage"
+                  width={1180}
+                  height={760}
+                >
+                  <DevPortal t={t} initialTab="usage" />
+                </DCArtboard>
+              </DCSection>
+            </DesignCanvas>
 
-      <TweaksPanel title="Tweaks">
-        <TweakSection title="Apparence">
-          <TweakToggle label="Mode sombre" value={tweaks.dark} onChange={(v) => setTweak('dark', v)}
-            description="Inverse les neutres pour le portail citoyen et toutes les consoles. Vert/jaune/bleu inchangés."/>
-        </TweakSection>
-        <TweakSection title="Personas démo" subtitle="Les trois cartes Citoyen — Connecté montrent un Niveau 3 / 2 / 1 ; les écrans de KYC, profil et consentements utilisent le Citoyen Niveau 3.">
-        </TweakSection>
-        <TweakSection title="Navigation" subtitle="• Mobile : cliquez les CTA pour avancer dans les flows. Cliquez l'avatar (en haut à gauche du Home) pour revenir à l'accueil.&#10;• Consoles desktop : cliquez les items de la barre latérale.&#10;• Canvas : maintenez espace pour panner, molette pour zoomer, double-clic sur une carte pour la mettre en plein écran.">
-        </TweakSection>
-      </TweaksPanel>
-    </>
-  );
-}
+            <TweaksPanel title="Tweaks">
+              <TweakSection title="Apparence">
+                <TweakToggle
+                  label="Mode sombre"
+                  value={tweaks.dark}
+                  onChange={(v) => setTweak("dark", v)}
+                  description="Inverse les neutres pour le portail citoyen et toutes les consoles. Vert/jaune/bleu inchangés."
+                />
+              </TweakSection>
+              <TweakSection
+                title="Personas démo"
+                subtitle="Les trois cartes Citoyen — Connecté montrent un Niveau 3 / 2 / 1 ; les écrans de KYC, profil et consentements utilisent le Citoyen Niveau 3."
+              ></TweakSection>
+              <TweakSection
+                title="Navigation"
+                subtitle="• Mobile : cliquez les CTA pour avancer dans les flows. Cliquez l'avatar (en haut à gauche du Home) pour revenir à l'accueil.&#10;• Consoles desktop : cliquez les items de la barre latérale.&#10;• Canvas : maintenez espace pour panner, molette pour zoomer, double-clic sur une carte pour la mettre en plein écran."
+              ></TweakSection>
+            </TweaksPanel>
+          </>
+        );
+      }
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<App/>);
-</script>
-</body>
+      const root = ReactDOM.createRoot(document.getElementById("root"));
+      root.render(<App />);
+    </script>
+  </body>
 </html>

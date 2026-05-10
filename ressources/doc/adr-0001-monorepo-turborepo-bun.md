@@ -6,7 +6,7 @@
 
 ## Contexte
 
-La plateforme IDN doit livrer plusieurs surfaces : site public (`idn.ga`), application d'authentification fédérée (`connexion.idn.ga`), portail développeur, console admin, espace contrôleur, plus une documentation publique du SDK et le SDK lui-même destiné aux applications consommatrices. Le cahier (§5.1) prescrit une décomposition multi-app.
+La plateforme IDN doit livrer plusieurs surfaces : site public (`identite.ga`), application d'authentification fédérée (`connexion.identite.ga`), portail développeur, console admin, espace contrôleur, plus une documentation publique du SDK et le SDK lui-même destiné aux applications consommatrices. Le cahier (§5.1) prescrit une décomposition multi-app.
 
 Plusieurs de ces surfaces partagent : design tokens IDN, composants UI, schéma Convex, types TypeScript, configuration ESLint / TypeScript, fonctions utilitaires.
 
@@ -16,8 +16,8 @@ Adopter un **monorepo Turborepo géré par Bun**, avec deux espaces de travail :
 
 ```
 apps/
-├── web/      Next.js 16 — idn.ga (site public + portail + consoles)
-├── auth/     Next.js 16 — connexion.idn.ga (futur)
+├── web/      Next.js 16 — identite.ga (site public + portail + consoles)
+├── auth/     Next.js 16 — connexion.identite.ga (futur)
 └── docs/     Next.js 16 — documentation publique SDK
 packages/
 ├── ui/                    Composants partagés (shadcn + primitives IDN)
@@ -41,6 +41,7 @@ packages/
 ## Conséquences
 
 **Positives**
+
 - Un seul `bun install` à la racine pour tout le monorepo.
 - Cache Turborepo : `bun run check-types` ré-exécute uniquement les packages modifiés.
 - Versions de dépendances unifiées (React 19, Next 16, Convex 1.38) — moins de drift.
@@ -48,13 +49,15 @@ packages/
 - Apps séparées en runtime → chacune peut avoir sa CSP, son sous-domaine, son analytics.
 
 **Négatives**
+
 - Build CI plus long que polyrepo (mais rattrapé par le cache Turborepo).
 - Bun est un écosystème plus jeune que pnpm — quelques outils tiers ont des incompatibilités occasionnelles (résolues au cas par cas).
 - Onboarding développeur : il faut comprendre `--filter=<workspace>` dès le départ.
 
 **Suivi**
+
 - Migrer vers Turborepo Cloud (cache distant) si le CI dépasse 2 min.
-- Ajouter un workspace `apps/auth` dès qu'on bascule l'auth sur `connexion.idn.ga`.
+- Ajouter un workspace `apps/auth` dès qu'on bascule l'auth sur `connexion.identite.ga`.
 
 ## Références
 

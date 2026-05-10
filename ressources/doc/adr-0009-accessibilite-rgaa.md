@@ -94,26 +94,30 @@ L'inclusion territoriale (cahier §1.4) implique aussi : zones rurales avec conn
 ## Conséquences
 
 **Positives**
+
 - Plateforme utilisable par les citoyens en situation de handicap (visuel, moteur, cognitif), qui sont **aussi des usagers prioritaires** d'un service public d'identité.
 - Conformité légale anticipée — pas de réécriture après audit externe.
 - Bon SEO : les bonnes pratiques RGAA recoupent largement celles que Google valorise (sémantique, structure, alt texts).
 - Code plus maintenable : `<button>` natif vs `<div onClick>`, `<label>` vs placeholder, etc.
 
 **Négatives**
+
 - Discipline supplémentaire à chaque PR : tester clavier + axe DevTools.
 - Quelques composants interactifs (OTP input, password strength meter, wizard stepper) demandent un effort ARIA / focus dédié.
 - Tests utilisateurs avec lecteur d'écran (NVDA / VoiceOver) requis avant release : à prévoir dans la planification.
 
 **Suivi**
+
 - Ajouter une étape **a11y check** au CI (axe-core run automatisé sur les routes principales).
 - Auditer manuellement chaque écran nouveau ou modifié contre la checklist du skill.
 - Inviter une association de personnes en situation de handicap (UNAPH ou équivalent local) à un test utilisateur avant la mise en production.
 - Publier une **déclaration d'accessibilité** (obligatoire pour les services publics) sur `/legal` au moment de la mise en production.
-- Mettre en place un **canal de signalement a11y** (`accessibilite@idn.ga` ou via le formulaire `/contact` catégorie « Sécurité » dérivée).
+- Mettre en place un **canal de signalement a11y** (`accessibilite@identite.ga` ou via le formulaire `/contact` catégorie « Sécurité » dérivée).
 
 ### Audit initial
 
 Cet ADR a été publié avec un audit complet des pages déjà livrées (commits `433f475` à `ccc505c`) :
+
 - Pages publiques (8 routes) : `/`, `/about`, `/services`, `/admins`, `/help`, `/legal`, `/status`, `/contact`.
 - Tunnel d'auth (8 routes) : `/sign-up/profile`, `/sign-up`, `/sign-up/verify`, `/sign-up/identity`, `/sign-up/pin`, `/sign-in`, `/forgot-password`, `/reset-password`.
 - Portail (1 route) : `/dashboard`.

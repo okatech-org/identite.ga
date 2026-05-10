@@ -222,10 +222,7 @@
     -webkit-text-size-adjust: 100%;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    /* Réserve la gouttière de la scrollbar : empêche le décalage horizontal
-       entre pages courtes (sans scrollbar) et longues (avec scrollbar). */
-    scrollbar-gutter: stable;
-    /* Firefox + standards modernes */
+    /* Firefox + standards modernes — scrollbar fine alignée sur la charte. */
     scrollbar-width: thin;
     scrollbar-color: var(--idn-muted-soft) transparent;
   }

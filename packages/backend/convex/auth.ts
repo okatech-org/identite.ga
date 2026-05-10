@@ -1,21 +1,16 @@
-import { createClient, type GenericCtx } from "@convex-dev/better-auth"
-import { convex } from "@convex-dev/better-auth/plugins"
-import { oauthProvider } from "@better-auth/oauth-provider"
-import { betterAuth } from "better-auth/minimal"
-import {
-  emailOTP,
-  haveIBeenPwned,
-  jwt,
-  twoFactor,
-} from "better-auth/plugins"
+import { createClient, type GenericCtx } from "@convex-dev/better-auth";
+import { convex } from "@convex-dev/better-auth/plugins";
+import { oauthProvider } from "@better-auth/oauth-provider";
+import { betterAuth } from "better-auth/minimal";
+import { emailOTP, haveIBeenPwned, jwt, twoFactor } from "better-auth/plugins";
 
-import { components } from "./_generated/api"
-import type { DataModel } from "./_generated/dataModel"
-import { query } from "./_generated/server"
-import authConfig from "./auth.config"
-import { sendOtpEmail } from "./email/provider"
+import { components } from "./_generated/api";
+import type { DataModel } from "./_generated/dataModel";
+import { query } from "./_generated/server";
+import authConfig from "./auth.config";
+import { sendOtpEmail } from "./email/provider";
 
-const SITE_URL = process.env.SITE_URL ?? "http://localhost:3000"
+const SITE_URL = process.env.SITE_URL ?? "http://localhost:3000";
 
 /**
  * Client Better Auth + Convex.
@@ -23,7 +18,7 @@ const SITE_URL = process.env.SITE_URL ?? "http://localhost:3000"
  * account, session, oauthApplication, oauthConsent, jwks, etc.) dans
  * son namespace isolé.
  */
-export const authComponent = createClient<DataModel>(components.betterAuth)
+export const authComponent = createClient<DataModel>(components.betterAuth);
 
 /**
  * Configuration Better Auth — appelée à chaque requête HTTP via http.ts.
@@ -36,8 +31,8 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
     baseURL: SITE_URL,
     database: authComponent.adapter(ctx),
     trustedOrigins: [
-      "https://idn.ga",
-      "https://connexion.idn.ga",
+      "https://identite.ga",
+      "https://connexion.identite.ga",
       "http://localhost:3000",
     ],
     emailAndPassword: {
@@ -68,7 +63,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
             to: email,
             code: otp,
             type,
-          })
+          });
         },
       }),
 
@@ -112,8 +107,8 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
       // Plugin requis par @convex-dev/better-auth pour exposer l'auth à Convex
       convex({ authConfig }),
     ],
-  })
-}
+  });
+};
 
 /**
  * Renvoie le user Better Auth courant (côté Convex query/mutation).
@@ -123,6 +118,6 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
 export const getCurrentUser = query({
   args: {},
   handler: async (ctx) => {
-    return await authComponent.getAuthUser(ctx)
+    return await authComponent.getAuthUser(ctx);
   },
-})
+});

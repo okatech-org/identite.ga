@@ -1,35 +1,35 @@
-export type ServiceStatus = "operational" | "degraded" | "outage"
+export type ServiceStatus = "operational" | "degraded" | "outage";
 
 export type StatusComponent = {
-  name: string
-  statusLabel: string
-  status: ServiceStatus
-  uptime: number
+  name: string;
+  statusLabel: string;
+  status: ServiceStatus;
+  uptime: number;
   /** Indices (0..89) où le service a connu un incident dans les 90 derniers jours. */
-  incidentDays?: number[]
-}
+  incidentDays?: number[];
+};
 
 export const STATUS_COMPONENTS: StatusComponent[] = [
   {
-    name: "Authentification (auth.idn.ga)",
+    name: "Authentification (auth.identite.ga)",
     statusLabel: "Opérationnel",
     status: "operational",
     uptime: 99.99,
   },
   {
-    name: "OIDC / OAuth (oauth.idn.ga)",
+    name: "OIDC / OAuth (oauth.identite.ga)",
     statusLabel: "Opérationnel",
     status: "operational",
     uptime: 99.97,
   },
   {
-    name: "API Identité (api.idn.ga)",
+    name: "API Identité (api.identite.ga)",
     statusLabel: "Opérationnel",
     status: "operational",
     uptime: 99.98,
   },
   {
-    name: "KYC vidéo (kyc.idn.ga)",
+    name: "KYC vidéo (kyc.identite.ga)",
     statusLabel: "Latence dégradée",
     status: "degraded",
     uptime: 99.91,
@@ -48,17 +48,17 @@ export const STATUS_COMPONENTS: StatusComponent[] = [
     uptime: 99.82,
     incidentDays: [17, 51],
   },
-]
+];
 
 export type StatusIncident = {
-  id: string
-  title: string
-  status: "ongoing" | "monitoring" | "resolved"
-  severity: ServiceStatus
+  id: string;
+  title: string;
+  status: "ongoing" | "monitoring" | "resolved";
+  severity: ServiceStatus;
   /** Date / heure ISO. */
-  startedAt: string
-  body: string
-}
+  startedAt: string;
+  body: string;
+};
 
 export const RECENT_INCIDENTS: StatusIncident[] = [
   {
@@ -69,4 +69,4 @@ export const RECENT_INCIDENTS: StatusIncident[] = [
     startedAt: "10 mai 2026 · 14:08 UTC",
     body: "Le service de vérification vidéo connaît une latence supérieure à la normale. Les nouvelles soumissions sont mises en file d'attente. Investigation en cours.",
   },
-]
+];

@@ -47,16 +47,16 @@ Le SDK destiné aux applications consommatrices fait l'objet d'un **cahier des c
 
 Pour des raisons de sécurité, de lisibilité UX et de scalabilité, la plateforme est livrée sous la forme de **deux applications Next.js distinctes** déployées sur des sous-domaines séparés :
 
-| Application | Sous-domaine | Périmètre |
-| :--- | :--- | :--- |
-| **`apps/web`** | `idn.ga` | Site public · Mon compte (portail citoyen) · Console admin · Espace contrôleur · Portail développeur |
-| **`apps/auth`** | `connexion.idn.ga` | Écrans déclenchés par redirection OIDC : connexion, inscription, OTP, sélection de profil, identité pivot, PIN, démarrage KYC, **écran de consentement OAuth** |
+| Application     | Sous-domaine            | Périmètre                                                                                                                                                      |
+| :-------------- | :---------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`apps/web`**  | `identite.ga`           | Site public · Mon compte (portail citoyen) · Console admin · Espace contrôleur · Portail développeur                                                           |
+| **`apps/auth`** | `connexion.identite.ga` | Écrans déclenchés par redirection OIDC : connexion, inscription, OTP, sélection de profil, identité pivot, PIN, démarrage KYC, **écran de consentement OAuth** |
 
 Cette séparation reproduit le pattern utilisé par Google (`accounts.google.com`), Apple (`appleid.apple.com`), Microsoft (`login.microsoftonline.com`) ou FranceConnect (`app.franceconnect.gouv.fr`). Elle garantit :
 
 - **Frontière de sécurité claire** : `apps/auth` est lockée (CSP très stricte, zéro script tiers, zéro analytics, rate limits dédiés)
-- **Lisibilité UX** : le citoyen redirigé depuis une app tierce voit clairement `connexion.idn.ga` dans la barre d'adresse — discrimine l'officiel du phishing
-- **Isolation des cookies** : la session d'auth est `Domain=.idn.ga` ; `idn.ga` (site public) ne porte pas le cookie sensible
+- **Lisibilité UX** : le citoyen redirigé depuis une app tierce voit clairement `connexion.identite.ga` dans la barre d'adresse — discrimine l'officiel du phishing
+- **Isolation des cookies** : la session d'auth est `Domain=.identite.ga` ; `identite.ga` (site public) ne porte pas le cookie sensible
 - **Scalabilité indépendante** : l'auth scale à part pendant les pics
 - **Better Auth backend** : centralisé dans `apps/auth` (source de vérité de l'identité), `apps/web` le consomme via le client cross-domain
 
@@ -73,53 +73,53 @@ Cette séparation reproduit le pattern utilisé par Google (`accounts.google.com
 
 ### 2.1 Les six personas
 
-| Persona | Famille | Niveau cible | Objectif principal |
-| :--- | :--- | :--- | :--- |
-| **Citoyen Gabonais** | Utilisateur final | Niveau 3 | Accéder aux services administratifs, gérer ses documents officiels |
-| **Résident** | Utilisateur final | Niveau 2 | Renouveler sa carte de séjour, accéder aux services dédiés résidents |
-| **Visiteur Temporaire** | Utilisateur final | Niveau 1 | Consulter son e-Visa, informations touristiques |
-| **Administrateur Système** | Opérateur | — | Superviser la plateforme, gérer comptes/apps OAuth/logs |
-| **Contrôleur d'Identité** | Opérateur | — | Vérifier l'authenticité des identités et documents (agent assermenté) |
-| **Développeur** | Intégrateur | — | Enregistrer des applications OAuth et consommer l'API |
+| Persona                    | Famille           | Niveau cible | Objectif principal                                                    |
+| :------------------------- | :---------------- | :----------- | :-------------------------------------------------------------------- |
+| **Citoyen Gabonais**       | Utilisateur final | Niveau 3     | Accéder aux services administratifs, gérer ses documents officiels    |
+| **Résident**               | Utilisateur final | Niveau 2     | Renouveler sa carte de séjour, accéder aux services dédiés résidents  |
+| **Visiteur Temporaire**    | Utilisateur final | Niveau 1     | Consulter son e-Visa, informations touristiques                       |
+| **Administrateur Système** | Opérateur         | —            | Superviser la plateforme, gérer comptes/apps OAuth/logs               |
+| **Contrôleur d'Identité**  | Opérateur         | —            | Vérifier l'authenticité des identités et documents (agent assermenté) |
+| **Développeur**            | Intégrateur       | —            | Enregistrer des applications OAuth et consommer l'API                 |
 
 ### 2.2 Niveaux de garantie (Levels of Assurance — LoA)
 
 Inspirés d'eIDAS. Chaque application cliente peut exiger un niveau minimum via le scope `acr_values`.
 
-| Niveau | Nom | Vérifications | Persona type | Couleur badge |
-| :--- | :--- | :--- | :--- | :--- |
-| **Niveau 1** | Faible | Email vérifié | Visiteur Temporaire | Neutre (gris) |
-| **Niveau 2** | Substantiel | Niveau 1 + KYC document + selfie + liveness + face match | Résident | Bleu |
-| **Niveau 3** | Élevé | Niveau 2 + croisement état civil ou présentiel | Citoyen Gabonais | Vert |
+| Niveau       | Nom         | Vérifications                                            | Persona type        | Couleur badge |
+| :----------- | :---------- | :------------------------------------------------------- | :------------------ | :------------ |
+| **Niveau 1** | Faible      | Email vérifié                                            | Visiteur Temporaire | Neutre (gris) |
+| **Niveau 2** | Substantiel | Niveau 1 + KYC document + selfie + liveness + face match | Résident            | Bleu          |
+| **Niveau 3** | Élevé       | Niveau 2 + croisement état civil ou présentiel           | Citoyen Gabonais    | Vert          |
 
 Le niveau atteint est **persistant** dans le profil et présenté en clair à l'utilisateur via le badge `LoABadge` (cf. design tokens).
 
 ### 2.3 Documents acceptés par profil
 
-| Profil | Documents (Niveau 2/3) |
-| :--- | :--- |
-| Citoyen Gabonais | CNI gabonaise, acte de naissance |
-| Résident | Carte de séjour, passeport étranger |
-| Visiteur Temporaire | Passeport, visa en cours |
+| Profil                      | Documents (Niveau 2/3)              |
+| :-------------------------- | :---------------------------------- |
+| Citoyen Gabonais            | CNI gabonaise, acte de naissance    |
+| Résident                    | Carte de séjour, passeport étranger |
+| Visiteur Temporaire         | Passeport, visa en cours            |
 | Développeur (entité morale) | Registre du commerce, demande d'API |
 
 ---
 
 ## 3. Périmètre fonctionnel
 
-### 3.1 Site public (`idn.ga`, sans authentification)
+### 3.1 Site public (`identite.ga`, sans authentification)
 
 Pages accessibles à tous, indexables, optimisées SEO et performance. Servies par `apps/web`.
 
-| Page | Route | Contenu |
-| :--- | :--- | :--- |
-| **À propos** | `/` ou `/a-propos` | Vision IDN, mission, valeurs, gouvernance, statistiques publiques (nombre de comptes, services connectés) |
-| **Annuaire des services** | `/services` | Liste des applications gouvernementales et tierces utilisant IDN, recherche/filtres par domaine (santé, éducation, fiscal…) |
-| **Pour les administrations** | `/administrations` | Page B2G : comment intégrer IDN dans son service, processus d'enrôlement, contacts, ressources |
-| **Aide & FAQ** | `/aide` | Questions fréquentes par persona (citoyen, résident, visiteur, développeur), recherche, articles |
-| **Mentions légales** | `/mentions-legales` | Éditeur, hébergeur, propriété intellectuelle, conditions d'utilisation, politique de confidentialité, cookies |
-| **État du service** | `/etat` | Disponibilité temps réel des composants (auth, OIDC, KYC, console), historique d'incidents, fenêtres de maintenance |
-| **Contact** | `/contact` | Formulaire (citoyen, administration, presse, sécurité), coordonnées, adresse postale officielle |
+| Page                         | Route               | Contenu                                                                                                                     |
+| :--------------------------- | :------------------ | :-------------------------------------------------------------------------------------------------------------------------- |
+| **À propos**                 | `/` ou `/a-propos`  | Vision IDN, mission, valeurs, gouvernance, statistiques publiques (nombre de comptes, services connectés)                   |
+| **Annuaire des services**    | `/services`         | Liste des applications gouvernementales et tierces utilisant IDN, recherche/filtres par domaine (santé, éducation, fiscal…) |
+| **Pour les administrations** | `/administrations`  | Page B2G : comment intégrer IDN dans son service, processus d'enrôlement, contacts, ressources                              |
+| **Aide & FAQ**               | `/aide`             | Questions fréquentes par persona (citoyen, résident, visiteur, développeur), recherche, articles                            |
+| **Mentions légales**         | `/mentions-legales` | Éditeur, hébergeur, propriété intellectuelle, conditions d'utilisation, politique de confidentialité, cookies               |
+| **État du service**          | `/etat`             | Disponibilité temps réel des composants (auth, OIDC, KYC, console), historique d'incidents, fenêtres de maintenance         |
+| **Contact**                  | `/contact`          | Formulaire (citoyen, administration, presse, sécurité), coordonnées, adresse postale officielle                             |
 
 Toutes ces pages partagent un header public (logo IDN, navigation, lien « Se connecter »/« Mon compte ») et un footer institutionnel.
 
@@ -144,15 +144,15 @@ Routes sous `/portail/*` (ou `/mon-compte/*`) dans `apps/web`. Accessible après
 
 Sous-section du portail citoyen, accessible via une barre latérale dédiée. Routes sous `/portail/parametres/*`.
 
-| Page | Contenu |
-| :--- | :--- |
-| **Sécurité** | Mot de passe (changement, force), MFA (TOTP, WebAuthn — phase 2), PIN (modification), suppression de compte (double confirmation) |
-| **Appareils & sessions** | Liste des sessions actives (navigateur, OS, IP, ville approximative, dernière activité, badge « session actuelle »), révocation par session ou globale |
-| **Mes documents** | Photo de profil, documents KYC uploadés (statuts, dates), téléchargement de mes attestations (PDF signé par IDN) |
-| **Notifications** | Préférences par canal (email, in-app), par type (sécurité, KYC, consentements, communications) |
-| **Historique d'activité** | Journal personnel des événements : connexions, changements de profil, consentements accordés/révoqués, contrôles d'identité subis (transparence). Export CSV/JSON |
-| **Données & confidentialité** | Téléchargement de mes données (export RGPD-équivalent), demande d'effacement, gestion des cookies, audit des partages avec apps tierces |
-| **Langue & accessibilité** | Choix de la langue (fr/en), thème (clair/sombre/auto), préférences d'accessibilité (taille de police, contrastes renforcés, animations réduites) |
+| Page                          | Contenu                                                                                                                                                           |
+| :---------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Sécurité**                  | Mot de passe (changement, force), MFA (TOTP, WebAuthn — phase 2), PIN (modification), suppression de compte (double confirmation)                                 |
+| **Appareils & sessions**      | Liste des sessions actives (navigateur, OS, IP, ville approximative, dernière activité, badge « session actuelle »), révocation par session ou globale            |
+| **Mes documents**             | Photo de profil, documents KYC uploadés (statuts, dates), téléchargement de mes attestations (PDF signé par IDN)                                                  |
+| **Notifications**             | Préférences par canal (email, in-app), par type (sécurité, KYC, consentements, communications)                                                                    |
+| **Historique d'activité**     | Journal personnel des événements : connexions, changements de profil, consentements accordés/révoqués, contrôles d'identité subis (transparence). Export CSV/JSON |
+| **Données & confidentialité** | Téléchargement de mes données (export RGPD-équivalent), demande d'effacement, gestion des cookies, audit des partages avec apps tierces                           |
+| **Langue & accessibilité**    | Choix de la langue (fr/en), thème (clair/sombre/auto), préférences d'accessibilité (taille de police, contrastes renforcés, animations réduites)                  |
 
 ### 3.5 KYC Niveau 2
 
@@ -180,26 +180,26 @@ Sous-section du portail citoyen, accessible via une barre latérale dédiée. Ro
 - **Trusted clients** (skip consent) pour apps first-party
 - Back-channel logout pour les RP qui le supportent
 
-### 3.8 Application d'authentification fédérée (`connexion.idn.ga`)
+### 3.8 Application d'authentification fédérée (`connexion.identite.ga`)
 
 Application Next.js dédiée (`apps/auth`) hébergeant l'ensemble des écrans déclenchés par une **redirection OIDC** depuis une app tierce, ou par un accès direct au login.
 
-| Écran | Route | Déclenchement |
-| :--- | :--- | :--- |
-| **Connexion** | `/` | Redirect OIDC d'une app tierce, ou clic « Se connecter » sur idn.ga |
-| **Sélection de profil** | `/inscription/profil` | Premier pas du signup |
-| **Inscription** | `/inscription` | Email + mot de passe |
-| **Vérification OTP** | `/inscription/otp` | Suite signup, ou changement d'email |
-| **Identité pivot** | `/inscription/identite` | Suite OTP |
-| **Création PIN** | `/inscription/pin` | Suite identité pivot |
-| **Démarrage KYC** | `/kyc/document`, `/kyc/selfie`, `/kyc/statut` | Demande de montée en niveau, déclenchée depuis le portail ou par un RP exigeant un `acr_values` supérieur |
-| **Consentement OAuth** | `/consentement` | Pendant un flow OIDC, après auth réussie, si app non-trusted |
-| **Mot de passe oublié** | `/recuperation` | Lien « mot de passe oublié » |
-| **Réinitialisation** | `/recuperation/nouveau` | Suite email de récupération |
+| Écran                   | Route                                         | Déclenchement                                                                                             |
+| :---------------------- | :-------------------------------------------- | :-------------------------------------------------------------------------------------------------------- |
+| **Connexion**           | `/`                                           | Redirect OIDC d'une app tierce, ou clic « Se connecter » sur identite.ga                                  |
+| **Sélection de profil** | `/inscription/profil`                         | Premier pas du signup                                                                                     |
+| **Inscription**         | `/inscription`                                | Email + mot de passe                                                                                      |
+| **Vérification OTP**    | `/inscription/otp`                            | Suite signup, ou changement d'email                                                                       |
+| **Identité pivot**      | `/inscription/identite`                       | Suite OTP                                                                                                 |
+| **Création PIN**        | `/inscription/pin`                            | Suite identité pivot                                                                                      |
+| **Démarrage KYC**       | `/kyc/document`, `/kyc/selfie`, `/kyc/statut` | Demande de montée en niveau, déclenchée depuis le portail ou par un RP exigeant un `acr_values` supérieur |
+| **Consentement OAuth**  | `/consentement`                               | Pendant un flow OIDC, après auth réussie, si app non-trusted                                              |
+| **Mot de passe oublié** | `/recuperation`                               | Lien « mot de passe oublié »                                                                              |
+| **Réinitialisation**    | `/recuperation/nouveau`                       | Suite email de récupération                                                                               |
 
 Cette app est **lockée** par configuration : CSP très stricte, aucun script tiers, aucun analytics, rate limits dédiés. Elle ne contient que les flows critiques d'authentification.
 
-À l'issue du flow, l'utilisateur est redirigé soit vers l'app cliente (`redirect_uri`), soit vers `idn.ga/portail` (cas d'accès direct).
+À l'issue du flow, l'utilisateur est redirigé soit vers l'app cliente (`redirect_uri`), soit vers `identite.ga/portail` (cas d'accès direct).
 
 ### 3.9 Console d'administration
 
@@ -245,37 +245,37 @@ Les maquettes haute-fidélité sont disponibles dans `ressources/interfaces/proj
 
 #### Pages publiques (`/*`, sans authentification)
 
-| Écran | Route | Source |
-| :--- | :--- | :--- |
-| À propos | `/` | `CitizenPublic screen="about"` |
-| Annuaire des services | `/services` | `CitizenPublic screen="services"` |
-| Pour les administrations | `/administrations` | `CitizenPublic screen="admins"` |
-| Aide & FAQ | `/aide` | `CitizenPublic screen="help"` |
-| Mentions légales | `/mentions-legales` | `CitizenPublic screen="legal"` |
-| État du service | `/etat` | `CitizenPublic screen="status"` |
-| Contact | `/contact` | `CitizenPublic screen="contact"` |
+| Écran                    | Route               | Source                            |
+| :----------------------- | :------------------ | :-------------------------------- |
+| À propos                 | `/`                 | `CitizenPublic screen="about"`    |
+| Annuaire des services    | `/services`         | `CitizenPublic screen="services"` |
+| Pour les administrations | `/administrations`  | `CitizenPublic screen="admins"`   |
+| Aide & FAQ               | `/aide`             | `CitizenPublic screen="help"`     |
+| Mentions légales         | `/mentions-legales` | `CitizenPublic screen="legal"`    |
+| État du service          | `/etat`             | `CitizenPublic screen="status"`   |
+| Contact                  | `/contact`          | `CitizenPublic screen="contact"`  |
 
 #### Mon compte — espace connecté (`/portail/*`)
 
-| Écran | Source |
-| :--- | :--- |
+| Écran                              | Source                                 |
+| :--------------------------------- | :------------------------------------- |
 | Tableau de bord (Niveau 3 / 2 / 1) | `CitizenWeb screen="home"` avec `user` |
-| Mon profil | `CitizenWeb screen="profile"` |
-| Consentements | `CitizenWeb screen="consents"` |
-| Démarrer la vérification KYC | `CitizenWeb screen="kyc"` |
-| Demande KYC envoyée | `CitizenWeb screen="kyc-status"` |
+| Mon profil                         | `CitizenWeb screen="profile"`          |
+| Consentements                      | `CitizenWeb screen="consents"`         |
+| Démarrer la vérification KYC       | `CitizenWeb screen="kyc"`              |
+| Demande KYC envoyée                | `CitizenWeb screen="kyc-status"`       |
 
 #### Mon compte — paramètres (`/portail/parametres/*`)
 
-| Écran | Source |
-| :--- | :--- |
-| Sécurité | `CitizenSettings screen="security"` |
-| Appareils & sessions | `CitizenSettings screen="sessions"` |
-| Mes documents | `CitizenSettings screen="documents"` |
-| Notifications | `CitizenSettings screen="notifications"` |
-| Historique d'activité | `CitizenSettings screen="activity"` |
-| Données & confidentialité | `CitizenSettings screen="privacy"` |
-| Langue & accessibilité | `CitizenSettings screen="preferences"` |
+| Écran                     | Source                                   |
+| :------------------------ | :--------------------------------------- |
+| Sécurité                  | `CitizenSettings screen="security"`      |
+| Appareils & sessions      | `CitizenSettings screen="sessions"`      |
+| Mes documents             | `CitizenSettings screen="documents"`     |
+| Notifications             | `CitizenSettings screen="notifications"` |
+| Historique d'activité     | `CitizenSettings screen="activity"`      |
+| Données & confidentialité | `CitizenSettings screen="privacy"`       |
+| Langue & accessibilité    | `CitizenSettings screen="preferences"`   |
 
 #### Console d'administration (`/admin/*`)
 
@@ -289,24 +289,24 @@ Les maquettes haute-fidélité sont disponibles dans `ressources/interfaces/proj
 
 4 écrans (cf. §3.11) : Mes applications · Clés & secrets · Documentation · Quotas & usage.
 
-### 4.2 `apps/auth` — Authentification fédérée (`connexion.idn.ga`)
+### 4.2 `apps/auth` — Authentification fédérée (`connexion.identite.ga`)
 
 App Next.js dédiée. Tous les écrans sont mobile-first (les redirections OIDC arrivent souvent depuis un mobile).
 
-| Écran | Route | Source mobile | Source desktop |
-| :--- | :--- | :--- | :--- |
-| Accueil / point d'entrée | `/` | `MobilePrototype initial="welcome"` | `CitizenWeb screen="welcome"` |
-| Sélection de profil | `/inscription/profil` | `screen="profil"` | `screen="profil"` |
-| Inscription | `/inscription` | `screen="signup"` | `screen="signup"` |
-| Vérification OTP | `/inscription/otp` | `screen="otp"` | `screen="otp"` |
-| Identité pivot | `/inscription/identite` | `screen="pivot"` | `screen="pivot"` |
-| Création PIN | `/inscription/pin` | `screen="pin"` | `screen="pin"` |
-| Connexion | `/connexion` | `screen="login"` | `screen="login"` |
-| KYC — pièce d'identité | `/kyc/document` | `screen="kyc-doc"` | (invitation continuer mobile) |
-| KYC — selfie vivant | `/kyc/selfie` | `screen="kyc-selfie"` | — |
-| KYC — demande envoyée | `/kyc/statut` | `screen="kyc-status"` | `screen="kyc-status"` |
-| Consentement OAuth | `/consentement` | `screen="oidc"` | `OidcDesktop` |
-| Mot de passe oublié | `/recuperation` | _à designer_ | _à designer_ |
+| Écran                    | Route                   | Source mobile                       | Source desktop                |
+| :----------------------- | :---------------------- | :---------------------------------- | :---------------------------- |
+| Accueil / point d'entrée | `/`                     | `MobilePrototype initial="welcome"` | `CitizenWeb screen="welcome"` |
+| Sélection de profil      | `/inscription/profil`   | `screen="profil"`                   | `screen="profil"`             |
+| Inscription              | `/inscription`          | `screen="signup"`                   | `screen="signup"`             |
+| Vérification OTP         | `/inscription/otp`      | `screen="otp"`                      | `screen="otp"`                |
+| Identité pivot           | `/inscription/identite` | `screen="pivot"`                    | `screen="pivot"`              |
+| Création PIN             | `/inscription/pin`      | `screen="pin"`                      | `screen="pin"`                |
+| Connexion                | `/connexion`            | `screen="login"`                    | `screen="login"`              |
+| KYC — pièce d'identité   | `/kyc/document`         | `screen="kyc-doc"`                  | (invitation continuer mobile) |
+| KYC — selfie vivant      | `/kyc/selfie`           | `screen="kyc-selfie"`               | —                             |
+| KYC — demande envoyée    | `/kyc/statut`           | `screen="kyc-status"`               | `screen="kyc-status"`         |
+| Consentement OAuth       | `/consentement`         | `screen="oidc"`                     | `OidcDesktop`                 |
+| Mot de passe oublié      | `/recuperation`         | _à designer_                        | _à designer_                  |
 
 ### 4.3 Mobile responsive
 
@@ -325,10 +325,10 @@ Pour chaque écran : **chargement** (skeletons), **vide** (illustration + CTA), 
 ```
 identite.ga/
 ├── apps/
-│   ├── web/         Next.js 16 — idn.ga
+│   ├── web/         Next.js 16 — identite.ga
 │   │                Site public · Mon compte · Console admin ·
 │   │                Espace contrôleur · Portail développeur (port 3000)
-│   ├── auth/        Next.js 16 — connexion.idn.ga
+│   ├── auth/        Next.js 16 — connexion.identite.ga
 │   │                Login, signup, OTP, identité pivot, PIN, KYC,
 │   │                consentement OAuth (port 3002)
 │   │                Better Auth backend vit ici
@@ -343,34 +343,34 @@ identite.ga/
     └── cahier-des-charges-sdk.md
 ```
 
-`apps/web` lit la session via le client Better Auth pointant vers `apps/auth` (cookie cross-subdomain `Domain=.idn.ga`).
+`apps/web` lit la session via le client Better Auth pointant vers `apps/auth` (cookie cross-subdomain `Domain=.identite.ga`).
 
 ### 5.2 Stack — Phase 1 (MVP)
 
-| Couche | Choix |
-| :--- | :--- |
-| Build | **Turborepo + Bun** |
-| Frontend | **Next.js 16** (App Router) + **React 19** |
-| UI | Composants `@repo/ui` basés sur les design tokens IDN |
-| Auth backend | **Better Auth 1.4+** avec plugins `oidcProvider`, `jwt`, `emailOtp`, `admin`, `twoFactor` |
-| Backend données | **Convex** (schema, queries, mutations, actions) |
-| Email | **Resend** pour le MVP, abstraction multi-provider |
-| Stockage fichiers | Convex storage pour photos profil, documents KYC chiffrés |
+| Couche            | Choix                                                                                     |
+| :---------------- | :---------------------------------------------------------------------------------------- |
+| Build             | **Turborepo + Bun**                                                                       |
+| Frontend          | **Next.js 16** (App Router) + **React 19**                                                |
+| UI                | Composants `@repo/ui` basés sur les design tokens IDN                                     |
+| Auth backend      | **Better Auth 1.4+** avec plugins `oidcProvider`, `jwt`, `emailOtp`, `admin`, `twoFactor` |
+| Backend données   | **Convex** (schema, queries, mutations, actions)                                          |
+| Email             | **Resend** pour le MVP, abstraction multi-provider                                        |
+| Stockage fichiers | Convex storage pour photos profil, documents KYC chiffrés                                 |
 
 ### 5.3 Stack — Phase 2 (cible souveraine)
 
-| Couche | Choix |
-| :--- | :--- |
-| OIDC issuer | **Ory Hydra** (Go, Apache 2.0, headless) |
-| Identity engine | **Ory Kratos** (signup, login, MFA, profile, sessions) |
-| Base de données | **PostgreSQL 16+** auto-hébergé |
-| Service KYC | Service Node/Python custom — **PaddleOCR** + **InsightFace** + **Regula on-prem** pour détection de faux documents |
-| Secrets / clés | **OpenBao** (fork OSS de Vault) ou **HashiCorp Vault** |
-| HSM | **YubiHSM 2** ou Nitrokey HSM |
-| Audit log | PostgreSQL + **pgAudit** + export WORM |
-| Observabilité | Grafana + Prometheus + Loki + Tempo |
-| SIEM | Wazuh |
-| Hébergement | Datacenters au Gabon (Raxio Gabon, ANINF) |
+| Couche          | Choix                                                                                                              |
+| :-------------- | :----------------------------------------------------------------------------------------------------------------- |
+| OIDC issuer     | **Ory Hydra** (Go, Apache 2.0, headless)                                                                           |
+| Identity engine | **Ory Kratos** (signup, login, MFA, profile, sessions)                                                             |
+| Base de données | **PostgreSQL 16+** auto-hébergé                                                                                    |
+| Service KYC     | Service Node/Python custom — **PaddleOCR** + **InsightFace** + **Regula on-prem** pour détection de faux documents |
+| Secrets / clés  | **OpenBao** (fork OSS de Vault) ou **HashiCorp Vault**                                                             |
+| HSM             | **YubiHSM 2** ou Nitrokey HSM                                                                                      |
+| Audit log       | PostgreSQL + **pgAudit** + export WORM                                                                             |
+| Observabilité   | Grafana + Prometheus + Loki + Tempo                                                                                |
+| SIEM            | Wazuh                                                                                                              |
+| Hébergement     | Datacenters au Gabon (Raxio Gabon, ANINF)                                                                          |
 
 > [!IMPORTANT]
 > La Phase 1 est livrée sur Better Auth + Convex pour itérer rapidement. La Phase 2 bascule sur Ory + PostgreSQL souverain. **Le frontend Next.js et le SDK ne changent pas** pendant cette migration : seul le backend OIDC change, et OIDC est un standard.
@@ -381,9 +381,9 @@ identite.ga/
 App cliente tierce (consulat.ga, e-visa.ga…)
   utilise @idn/better-auth → genericOAuth
    │
-   │  1. redirect OIDC → connexion.idn.ga/api/auth/oauth2/authorize
+   │  1. redirect OIDC → connexion.identite.ga/api/auth/oauth2/authorize
    ▼
-apps/auth (Next.js, connexion.idn.ga)
+apps/auth (Next.js, connexion.identite.ga)
    ├── Better Auth backend (/api/auth/*)
    ├── Pages /connexion, /inscription/*, /consentement, /kyc/*
    └── Convex pour la persistance
@@ -394,16 +394,16 @@ App cliente reçoit le code, échange contre token
 
 ────────────────────────────────────────────────────────
 
-Citoyen sur idn.ga qui veut Mon compte
+Citoyen sur identite.ga qui veut Mon compte
    │
-   │  Clic « Se connecter » → redirect vers connexion.idn.ga
+   │  Clic « Se connecter » → redirect vers connexion.identite.ga
    ▼
 apps/auth — auth ceremony
    │
-   │  Cookie de session posé sur Domain=.idn.ga
-   │  Redirect vers idn.ga/portail
+   │  Cookie de session posé sur Domain=.identite.ga
+   │  Redirect vers identite.ga/portail
    ▼
-apps/web (idn.ga) — lit la session via Better Auth client
+apps/web (identite.ga) — lit la session via Better Auth client
    └── Affiche Mon compte
 ```
 
@@ -426,19 +426,19 @@ Hydra émet le code → app cliente échange contre token
 
 ### 5.6 Modèle de données (extrait Phase 1)
 
-| Table / collection | Champs clés |
-| :--- | :--- |
-| `users` | id, email, emailVerified, profile (citizen/resident/visitor/developer), pivot (nom, prénom, dob, genre, lieu, nationalité), photo, **loa** (1/2/3), pinHash, createdAt |
-| `accounts` | userId, providerId, password (Better Auth) |
-| `sessions` | userId, token, deviceInfo, ip, userAgent, expiresAt, lastActivityAt |
-| `oauthApplication` | clientId, clientSecret (hashé), name, logo, redirectUris[], scopes[], trusted, ownerId, status |
-| `oauthConsent` | userId, clientId, scopes[], grantedAt |
-| `kycRequests` | userId, status, documentType, documentImages (refs), selfieImage (ref), score, reviewerId, reviewedAt, motif |
-| `roles` | userId, role (admin / identity_controller / developer) |
-| `auditLogs` | actorId, action, target, ip, userAgent, metadata, signature, createdAt |
-| `notifications` | userId, channel (email/in-app), category (security/kyc/consent/comms), title, body, readAt, createdAt |
-| `userPreferences` | userId, language, theme, accessibility (fontSize, reducedMotion, highContrast), notificationOpts |
-| `userDocuments` | userId, type (profilePhoto / kycDocFront / kycDocBack / selfie / attestation), storageRef, mimeType, sha256, createdAt, expiresAt |
+| Table / collection | Champs clés                                                                                                                                                            |
+| :----------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `users`            | id, email, emailVerified, profile (citizen/resident/visitor/developer), pivot (nom, prénom, dob, genre, lieu, nationalité), photo, **loa** (1/2/3), pinHash, createdAt |
+| `accounts`         | userId, providerId, password (Better Auth)                                                                                                                             |
+| `sessions`         | userId, token, deviceInfo, ip, userAgent, expiresAt, lastActivityAt                                                                                                    |
+| `oauthApplication` | clientId, clientSecret (hashé), name, logo, redirectUris[], scopes[], trusted, ownerId, status                                                                         |
+| `oauthConsent`     | userId, clientId, scopes[], grantedAt                                                                                                                                  |
+| `kycRequests`      | userId, status, documentType, documentImages (refs), selfieImage (ref), score, reviewerId, reviewedAt, motif                                                           |
+| `roles`            | userId, role (admin / identity_controller / developer)                                                                                                                 |
+| `auditLogs`        | actorId, action, target, ip, userAgent, metadata, signature, createdAt                                                                                                 |
+| `notifications`    | userId, channel (email/in-app), category (security/kyc/consent/comms), title, body, readAt, createdAt                                                                  |
+| `userPreferences`  | userId, language, theme, accessibility (fontSize, reducedMotion, highContrast), notificationOpts                                                                       |
+| `userDocuments`    | userId, type (profilePhoto / kycDocFront / kycDocBack / selfie / attestation), storageRef, mimeType, sha256, createdAt, expiresAt                                      |
 
 ---
 
@@ -482,14 +482,14 @@ Hydra émet le code → app cliente échange contre token
 
 ### 6.6 Rate limiting
 
-| Endpoint | Limite |
-| :--- | :--- |
-| `/api/auth/sign-in` | 10 / IP / minute |
-| `/api/auth/sign-up` | 5 / IP / heure |
-| `/api/auth/email-otp/send` | 3 / utilisateur / heure |
-| `/api/auth/email-otp/verify` | 10 / utilisateur / heure |
-| `/oauth2/token` | 60 / client / minute |
-| Tous endpoints sensibles | rate limit applicatif + WAF |
+| Endpoint                     | Limite                      |
+| :--------------------------- | :-------------------------- |
+| `/api/auth/sign-in`          | 10 / IP / minute            |
+| `/api/auth/sign-up`          | 5 / IP / heure              |
+| `/api/auth/email-otp/send`   | 3 / utilisateur / heure     |
+| `/api/auth/email-otp/verify` | 10 / utilisateur / heure    |
+| `/oauth2/token`              | 60 / client / minute        |
+| Tous endpoints sensibles     | rate limit applicatif + WAF |
 
 CAPTCHA (Turnstile/hCaptcha) sur signup, password reset, OTP request en cas de seuil franchi.
 
@@ -517,17 +517,17 @@ Toute action sensible journalisée avec horodatage, acteur, IP, UA, cible et mé
 
 ### 6.9 Headers et configuration HTTP
 
-| Application | CSP | Scripts tiers | Analytics | X-Frame-Options |
-| :--- | :--- | :--- | :--- | :--- |
-| `apps/web` (idn.ga) | Stricte (pas de `unsafe-inline`/`unsafe-eval`) | Polices Google Fonts uniquement | Analytics interne (auto-hébergé) autorisé | `DENY` |
-| `apps/auth` (connexion.idn.ga) | **Maximale** : self uniquement, pas de polices externes (auto-hébergées), aucun script tiers | **Aucun** | **Aucun** | `DENY` |
+| Application                         | CSP                                                                                          | Scripts tiers                   | Analytics                                 | X-Frame-Options |
+| :---------------------------------- | :------------------------------------------------------------------------------------------- | :------------------------------ | :---------------------------------------- | :-------------- |
+| `apps/web` (identite.ga)            | Stricte (pas de `unsafe-inline`/`unsafe-eval`)                                               | Polices Google Fonts uniquement | Analytics interne (auto-hébergé) autorisé | `DENY`          |
+| `apps/auth` (connexion.identite.ga) | **Maximale** : self uniquement, pas de polices externes (auto-hébergées), aucun script tiers | **Aucun**                       | **Aucun**                                 | `DENY`          |
 
 Communs aux deux apps :
 
 - HSTS `max-age=31536000; includeSubDomains; preload`
 - `Referrer-Policy: strict-origin-when-cross-origin`
 - `Permissions-Policy` minimale (camera/microphone autorisés sur `apps/auth` pour le KYC, refusés sur `apps/web`)
-- Cookie de session : `Domain=.idn.ga`, `Secure`, `HttpOnly`, `SameSite=Lax`, scope partagé entre `apps/web` et `apps/auth`
+- Cookie de session : `Domain=.identite.ga`, `Secure`, `HttpOnly`, `SameSite=Lax`, scope partagé entre `apps/web` et `apps/auth`
 
 ### 6.10 Conformité
 
@@ -545,18 +545,18 @@ Communs aux deux apps :
 
 Définis dans `ressources/interfaces/project/idn-tokens.jsx`, à transposer en CSS variables / Tailwind theme dans `packages/ui`.
 
-| Token | Valeur | Usage |
-| :--- | :--- | :--- |
-| `green` | `#0E7C3A` | Primary, niveau 3, CTA principaux |
-| `greenDk` | `#0A5C2C` | Hover primary |
-| `yellow` | `#F2C811` | Accents institutionnels (drapeau), pas décoratif |
-| `blue` | `#2563AC` | Niveau 2, liens secondaires |
-| Light bg | `#FAFAF8` | Fond clair |
-| Light surface | `#FFFFFF` | Cartes |
-| Light ink | `#16170F` | Texte principal |
-| Dark bg | `#0E110D` | Fond sombre |
-| Dark surface | `#181C16` | Cartes sombre |
-| Dark ink | `#F2F0E8` | Texte sombre |
+| Token         | Valeur    | Usage                                            |
+| :------------ | :-------- | :----------------------------------------------- |
+| `green`       | `#0E7C3A` | Primary, niveau 3, CTA principaux                |
+| `greenDk`     | `#0A5C2C` | Hover primary                                    |
+| `yellow`      | `#F2C811` | Accents institutionnels (drapeau), pas décoratif |
+| `blue`        | `#2563AC` | Niveau 2, liens secondaires                      |
+| Light bg      | `#FAFAF8` | Fond clair                                       |
+| Light surface | `#FFFFFF` | Cartes                                           |
+| Light ink     | `#16170F` | Texte principal                                  |
+| Dark bg       | `#0E110D` | Fond sombre                                      |
+| Dark surface  | `#181C16` | Cartes sombre                                    |
+| Dark ink      | `#F2F0E8` | Texte sombre                                     |
 
 Polices : **IBM Plex Sans** (texte) + **IBM Plex Mono** (code, identifiants, secrets).
 
@@ -600,14 +600,14 @@ Tous les écrans doivent être livrés dans les deux modes. Couleurs Gabon (vert
 
 ## 9. Phases de livraison
 
-| Phase | Périmètre | Stack | Priorité |
-| :--- | :--- | :--- | :--- |
-| **1** | Onboarding L1, OIDC RS256, portail citoyen, console admin de base | Better Auth + Convex | 🔴 MVP |
-| **2** | KYC L2 (Smile ID ou intégration interne basique), espace contrôleur | Better Auth + Convex + service KYC | 🔴 MVP |
-| **3** | Portail développeur self-service, MFA TOTP, audit log complet | Better Auth + Convex | 🟠 Post-MVP |
-| **4** | Migration backend Ory Kratos + Hydra + PostgreSQL souverain | Ory + PG | 🟠 Post-MVP |
-| **5** | KYC L3 (entretien vidéo, registre état civil), HSM, WebAuthn | Stack souveraine | 🟢 Évolution |
-| **6** | App mobile native, Verifiable Credentials W3C, mode hors-ligne contrôleur | iOS + Android | 🟢 Évolution |
+| Phase | Périmètre                                                                 | Stack                              | Priorité     |
+| :---- | :------------------------------------------------------------------------ | :--------------------------------- | :----------- |
+| **1** | Onboarding L1, OIDC RS256, portail citoyen, console admin de base         | Better Auth + Convex               | 🔴 MVP       |
+| **2** | KYC L2 (Smile ID ou intégration interne basique), espace contrôleur       | Better Auth + Convex + service KYC | 🔴 MVP       |
+| **3** | Portail développeur self-service, MFA TOTP, audit log complet             | Better Auth + Convex               | 🟠 Post-MVP  |
+| **4** | Migration backend Ory Kratos + Hydra + PostgreSQL souverain               | Ory + PG                           | 🟠 Post-MVP  |
+| **5** | KYC L3 (entretien vidéo, registre état civil), HSM, WebAuthn              | Stack souveraine                   | 🟢 Évolution |
+| **6** | App mobile native, Verifiable Credentials W3C, mode hors-ligne contrôleur | iOS + Android                      | 🟢 Évolution |
 
 ---
 
@@ -616,15 +616,18 @@ Tous les écrans doivent être livrés dans les deux modes. Couleurs Gabon (vert
 ### 10.1 Fonctionnel
 
 **Site public et navigation**
+
 - [ ] Les 7 pages publiques (à propos, services, administrations, aide, mentions, état, contact) sont en ligne, indexables, performantes
 - [ ] Le formulaire de contact est opérationnel (4 catégories : citoyen, administration, presse, sécurité)
 - [ ] La page « État du service » reflète la disponibilité réelle des composants
 
 **Onboarding et identité**
-- [ ] Un utilisateur peut sélectionner son profil et créer un compte au Niveau 1 avec email vérifié + PIN, depuis `connexion.idn.ga`
-- [ ] Un utilisateur peut se connecter et est redirigé soit vers `idn.ga/portail`, soit vers l'app cliente d'origine
 
-**Mon compte (idn.ga/portail)**
+- [ ] Un utilisateur peut sélectionner son profil et créer un compte au Niveau 1 avec email vérifié + PIN, depuis `connexion.identite.ga`
+- [ ] Un utilisateur peut se connecter et est redirigé soit vers `identite.ga/portail`, soit vers l'app cliente d'origine
+
+**Mon compte (identite.ga/portail)**
+
 - [ ] Tableau de bord avec badge LoA visible
 - [ ] Profil : consultation et édition, changement mot de passe / email avec re-vérification
 - [ ] Consentements : liste et révocation
@@ -637,15 +640,18 @@ Tous les écrans doivent être livrés dans les deux modes. Couleurs Gabon (vert
 - [ ] Paramètres — Langue & accessibilité : changement de langue et de thème persistés
 
 **KYC et niveaux**
+
 - [ ] Un utilisateur peut lancer un KYC Niveau 2 et suivre son statut
 - [ ] Un Contrôleur d'Identité peut traiter une demande KYC en file
 
 **Consoles**
+
 - [ ] Un Administrateur peut lister les comptes, les apps OAuth, les consentements
 - [ ] Un Développeur peut enregistrer une app OAuth et obtenir `client_id` + `client_secret`
 
 **OIDC**
-- [ ] Une app cliente peut s'authentifier via OIDC standard (Authorization Code + PKCE) en passant par `connexion.idn.ga`
+
+- [ ] Une app cliente peut s'authentifier via OIDC standard (Authorization Code + PKCE) en passant par `connexion.identite.ga`
 - [ ] Une app cliente peut exiger un `acr_values` minimum et le voir respecté
 - [ ] Tokens signés en RS256, JWKS public et vérifiable
 - [ ] L'écran de consentement OAuth est conforme (pas de dark pattern)

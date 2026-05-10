@@ -10,7 +10,7 @@ L'application IDN sera **multilingue** à terme : français en langue principale
 
 Le premier jet du site public utilisait des URL françaises pour coller au cahier (`/a-propos`, `/aide`, `/mentions-legales`, `/etat`, `/administrations`). Ces URL deviendraient **invalides ou ambiguës dans une autre langue** : que faire pour `/a-propos` quand on charge la version anglaise ? Renommer chaque route à la volée ? Servir deux URL différentes pour le même contenu ?
 
-Les maquettes elles-mêmes (`idn-citizen-extras.jsx` ligne 5) utilisent des paths anglais : `https://idn.ga/about`, `/services`, `/admins`, `/help`, `/legal`, `/status`, `/contact`. C'est l'usage standard pour une plateforme multilingue.
+Les maquettes elles-mêmes (`idn-citizen-extras.jsx` ligne 5) utilisent des paths anglais : `https://identite.ga/about`, `/services`, `/admins`, `/help`, `/legal`, `/status`, `/contact`. C'est l'usage standard pour une plateforme multilingue.
 
 ## Décision
 
@@ -18,28 +18,28 @@ Les maquettes elles-mêmes (`idn-citizen-extras.jsx` ligne 5) utilisent des path
 
 Renommage rétroactif (commit `ccc505c`) :
 
-| Avant (FR) | Après (EN) |
-| :--- | :--- |
-| `/a-propos` | `/about` |
-| `/services` | `/services` (inchangé) |
-| `/administrations` | `/admins` |
-| `/aide` | `/help` |
-| `/mentions-legales` | `/legal` |
-| `/etat` | `/status` |
-| `/contact` | `/contact` (inchangé) |
+| Avant (FR)          | Après (EN)             |
+| :------------------ | :--------------------- |
+| `/a-propos`         | `/about`               |
+| `/services`         | `/services` (inchangé) |
+| `/administrations`  | `/admins`              |
+| `/aide`             | `/help`                |
+| `/mentions-legales` | `/legal`               |
+| `/etat`             | `/status`              |
+| `/contact`          | `/contact` (inchangé)  |
 
 Routes de l'onboarding et de l'auth (créées directement en anglais) :
 
-| Route | Rôle |
-| :--- | :--- |
-| `/sign-up/profile` | Étape 1 — choix du profil |
-| `/sign-up` | Étape 2 — email + mot de passe |
-| `/sign-up/verify` | Étape 3 — saisie OTP |
-| `/sign-up/identity` | Étape 4 — identité pivot |
-| `/sign-up/pin` | Étape 5 — création PIN |
-| `/sign-in` | Connexion |
-| `/forgot-password` + `/reset-password` | Récupération mot de passe |
-| `/dashboard` | Portail citoyen connecté |
+| Route                                  | Rôle                           |
+| :------------------------------------- | :----------------------------- |
+| `/sign-up/profile`                     | Étape 1 — choix du profil      |
+| `/sign-up`                             | Étape 2 — email + mot de passe |
+| `/sign-up/verify`                      | Étape 3 — saisie OTP           |
+| `/sign-up/identity`                    | Étape 4 — identité pivot       |
+| `/sign-up/pin`                         | Étape 5 — création PIN         |
+| `/sign-in`                             | Connexion                      |
+| `/forgot-password` + `/reset-password` | Récupération mot de passe      |
+| `/dashboard`                           | Portail citoyen connecté       |
 
 Les **textes affichés** restent en français, centralisés dans `app/(public)/_content/fr.ts` et `app/(auth)/_content/fr.ts`. Quand on activera l'anglais (cf. §8), on ajoutera `en.ts` à côté et un router i18n (ex : `next-intl`).
 
@@ -52,16 +52,19 @@ Les **textes affichés** restent en français, centralisés dans `app/(public)/_
 ## Conséquences
 
 **Positives**
+
 - Une URL = un contenu, quelle que soit la langue affichée. Pas de duplication SEO.
 - Quand on activera EN, il suffira d'ajouter `app/(public)/_content/en.ts` + un selector côté client/cookie ; aucun renommage de route.
 - Cohérence avec les maquettes (qui utilisaient déjà ces paths).
 - Convention reconnue par les développeurs de toute provenance.
 
 **Négatives**
+
 - Petit décalage cognitif : on développe en français mais les URL sont en anglais. Mitigé par le fait que c'est la pratique standard.
 - Aucun lien externe n'existait encore en prod, donc **pas de redirects 301 nécessaires** côté Next.js. Si un lien officiel (mail gouvernemental, document imprimé) avait pointé vers `/a-propos`, il aurait fallu un redirect — à vérifier avant le déploiement initial.
 
 **Suivi**
+
 - Quand on active EN, ajouter le dictionnaire `_content/en.ts` et un `LanguageProvider` qui lit la préférence depuis `userPreference.language` (déjà modélisée Convex) ou un cookie / l'URL.
 - Si un partenaire a partagé une ancienne URL FR (peu probable en pré-MVP), ajouter un `redirects()` dans `next.config.js`.
 - Documenter cette convention dans le guide contributeur quand on en aura un.

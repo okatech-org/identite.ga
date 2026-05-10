@@ -53,7 +53,7 @@ Il est structuré en **trois phases** :
                                             │ OIDC RS256 + PKCE
                                             ▼
             ┌───────────────────────────────────────────────────────────┐
-            │  apps/auth — Next.js 16  (connexion.idn.ga)               │
+            │  apps/auth — Next.js 16  (connexion.identite.ga)               │
             │  ┌─────────────────────────────────────────────────────┐  │
             │  │  Better Auth                                        │  │
             │  │  • emailAndPassword  • emailOtp  • twoFactor        │  │
@@ -63,10 +63,10 @@ Il est structuré en **trois phases** :
             │  KYC / consentement OAuth                                 │
             └─────────────────────┬─────────────────────────────────────┘
                                   │
-                                  │ Cookie .idn.ga (session SSO)
+                                  │ Cookie .identite.ga (session SSO)
                                   │
             ┌─────────────────────▼─────────────────────────────────────┐
-            │  apps/web — Next.js 16  (idn.ga)                          │
+            │  apps/web — Next.js 16  (identite.ga)                          │
             │  ▷ Site public  ▷ Mon compte  ▷ Console admin             │
             │  ▷ Espace contrôleur  ▷ Portail développeur               │
             └───────────────┬───────────────────────────────────────────┘
@@ -118,8 +118,8 @@ Structure :
 ```
 identite.ga/
 ├── apps/
-│   ├── web/         Next.js — idn.ga
-│   ├── auth/        Next.js — connexion.idn.ga
+│   ├── web/         Next.js — identite.ga
+│   ├── auth/        Next.js — connexion.identite.ga
 │   └── docs/        Next.js — documentation SDK
 ├── packages/
 │   ├── ui/          Composants partagés
@@ -207,7 +207,7 @@ Conformité visée : **WCAG 2.1 AA / RGAA 4.1.2**.
 | **`admin`**                           | Rôles, permissions, gestion administrative                                                       |
 | **`organization`** _(optionnel)_      | Si on veut grouper les développeurs en équipes                                                   |
 | **`bearer`**                          | Auth API par bearer token (portail dev)                                                          |
-| **`crossDomain`** _(côté `apps/web`)_ | Lecture de session cross-subdomain (`Domain=.idn.ga`)                                            |
+| **`crossDomain`** _(côté `apps/web`)_ | Lecture de session cross-subdomain (`Domain=.identite.ga`)                                       |
 
 ### 4.3 Adapter de persistance
 
@@ -240,8 +240,11 @@ Côté Next.js (`apps/auth`), un proxy `app/api/auth/[...all]/route.ts` route ve
 import { createAuthClient } from "better-auth/react";
 
 export const authClient = createAuthClient({
-  baseURL: "https://connexion.idn.ga",
-  plugins: [crossDomainClient({ cookieDomain: ".idn.ga" }), twoFactorClient()],
+  baseURL: "https://connexion.identite.ga",
+  plugins: [
+    crossDomainClient({ cookieDomain: ".identite.ga" }),
+    twoFactorClient(),
+  ],
 });
 ```
 
@@ -251,7 +254,7 @@ export const authClient = createAuthClient({
 // apps/auth/lib/auth.ts (extrait)
 betterAuth({
   appName: "IDN",
-  trustedOrigins: ["https://idn.ga", "https://connexion.idn.ga"],
+  trustedOrigins: ["https://identite.ga", "https://connexion.identite.ga"],
   database: convexAdapter(),
 
   emailAndPassword: {
@@ -279,7 +282,10 @@ betterAuth({
     }),
     jwt({ jwks: { alg: "RS256" } }),
     admin({ roles: ["admin", "identity_controller", "developer"] }),
-    crossDomain({ siteUrl: "https://idn.ga", cookieDomain: ".idn.ga" }),
+    crossDomain({
+      siteUrl: "https://identite.ga",
+      cookieDomain: ".identite.ga",
+    }),
   ],
 });
 ```
@@ -1116,8 +1122,8 @@ Le **SDK reste inchangé** car il ne parle qu'OIDC standard.
 ### 14.4 Pourquoi deux apps (`apps/web` et `apps/auth`) plutôt qu'une
 
 - **Frontière de sécurité** : `apps/auth` est lockée (CSP maximale, zéro tiers)
-- **Scope cookies** : session sur `.idn.ga`, partagée mais isolée
-- **UX** : le citoyen voit `connexion.idn.ga` dans la barre d'adresse pendant l'auth — pattern Google/Apple/FranceConnect
+- **Scope cookies** : session sur `.identite.ga`, partagée mais isolée
+- **UX** : le citoyen voit `connexion.identite.ga` dans la barre d'adresse pendant l'auth — pattern Google/Apple/FranceConnect
 - **Scalabilité indépendante** lors des pics
 
 ### 14.5 Pourquoi Ory Kratos + Hydra (et pas Keycloak) si Phase 3
