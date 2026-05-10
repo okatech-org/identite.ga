@@ -20,17 +20,17 @@ export function PublicNav() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
-      <div className="mx-auto flex h-15 min-h-[60px] max-w-[1180px] items-center gap-7 px-4 md:px-7">
+      <div className="mx-auto flex h-15 min-h-[60px] max-w-[1180px] items-center gap-4 px-4 md:gap-7 md:px-7">
         <Link
           href="/"
-          className="flex items-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card rounded-md"
+          className="flex shrink-0 items-center gap-2.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
           aria-label={`${navActions.brand} — Accueil`}
         >
           <IdnMark size={26} />
-          <span className="text-sm font-semibold text-foreground">
+          <span className="hidden whitespace-nowrap text-sm font-semibold text-foreground sm:inline">
             {navActions.brand}
           </span>
-          <span className="hidden rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold tracking-[0.05em] text-muted-foreground sm:inline">
+          <span className="hidden whitespace-nowrap rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold tracking-[0.05em] text-muted-foreground md:inline">
             {navActions.republic}
           </span>
         </Link>
@@ -60,7 +60,7 @@ export function PublicNav() {
         </nav>
 
         <div className="flex flex-1 items-center justify-end gap-2">
-          <Button asChild variant="outline" size="sm">
+          <Button asChild variant="outline" size="sm" className="hidden sm:inline-flex">
             <Link href={SIGN_IN_URL}>{navActions.signIn}</Link>
           </Button>
           <Button asChild size="sm">

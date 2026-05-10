@@ -35,7 +35,7 @@ function Sparkline({ component }: { component: StatusComponent }) {
   const incidents = new Set(component.incidentDays ?? [])
   return (
     <div
-      className="flex gap-[2px]"
+      className="hidden gap-[2px] sm:flex"
       role="img"
       aria-label={`Disponibilité 90 jours : ${component.uptime}%`}
     >

@@ -21,17 +21,17 @@ const LOA_COLORS = {
 
 export default function HomePage() {
   return (
-    <section className="mx-auto w-full max-w-[1180px] px-4 py-12 md:px-7 md:py-15 lg:py-20">
-      <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[1.2fr_1fr] lg:gap-16">
+    <section className="mx-auto w-full max-w-[1180px] px-6 py-10 sm:px-6 sm:py-12 md:px-7 md:py-15 lg:py-20">
+      <div className="grid grid-cols-1 items-center gap-8 sm:gap-10 lg:grid-cols-[1.2fr_1fr] lg:gap-16">
         <div>
-          <div className="mb-6 flex items-center gap-2.5">
+          <div className="mb-5 flex items-center gap-2.5 sm:mb-6">
             <IdnFlagBars width={36} height={3} />
             <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
               {welcome.eyebrow}
             </span>
           </div>
 
-          <h1 className="text-4xl font-semibold leading-[1.05] tracking-[-0.025em] text-foreground sm:text-5xl lg:text-[52px]">
+          <h1 className="text-3xl font-semibold leading-[1.15] tracking-[-0.01em] text-foreground sm:text-4xl sm:leading-[1.1] sm:tracking-[-0.02em] md:text-5xl lg:text-[52px] lg:leading-[1.05] lg:tracking-[-0.025em]">
             {welcome.title.line1}
             <br />
             {welcome.title.line2}
@@ -39,14 +39,14 @@ export default function HomePage() {
             <span className="text-idn-green">{welcome.title.line3}</span>
           </h1>
 
-          <p className="mt-5 max-w-[460px] text-base leading-relaxed text-muted-foreground">
+          <p className="mt-4 max-w-[460px] text-sm leading-relaxed text-muted-foreground sm:mt-5 sm:text-base">
             {welcome.sub}
           </p>
 
-          <div className="mt-8 flex flex-wrap gap-2.5">
-            <Button asChild size="lg" className="h-12 px-5 text-[15px] has-[>svg]:px-5">
+          <div className="mt-7 flex flex-col gap-2.5 sm:mt-8 sm:flex-row sm:flex-wrap">
+            <Button asChild size="lg" className="w-full sm:w-auto">
               <Link href="/inscription">
-                <UserPlusIcon className="size-[18px]" aria-hidden="true" />
+                <UserPlusIcon aria-hidden="true" />
                 {welcome.ctaPrimary}
               </Link>
             </Button>
@@ -54,23 +54,26 @@ export default function HomePage() {
               asChild
               variant="outline"
               size="lg"
-              className="h-12 px-5 text-[15px] has-[>svg]:px-5"
+              className="w-full sm:w-auto"
             >
               <Link href="/connexion">
-                <LogInIcon className="size-[18px]" aria-hidden="true" />
+                <LogInIcon aria-hidden="true" />
                 {welcome.ctaSecondary}
               </Link>
             </Button>
           </div>
         </div>
 
-        <Card className="rounded-2xl p-7">
+        <Card className="rounded-2xl p-5 sm:p-7">
           <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             {welcome.loa.eyebrow}
           </p>
-          <ul className="mt-4 divide-y divide-idn-border-soft">
+          <ul className="mt-3 divide-y divide-idn-border-soft sm:mt-4">
             {welcome.loa.items.map((item) => (
-              <li key={item.level} className="flex items-start gap-3.5 py-3.5">
+              <li
+                key={item.level}
+                className="flex items-start gap-3.5 py-3 sm:py-3.5"
+              >
                 <span
                   className={`flex size-8 shrink-0 items-center justify-center rounded-[9px] bg-secondary text-sm font-semibold ${LOA_COLORS[item.level as 1 | 2 | 3]}`}
                   aria-hidden="true"
