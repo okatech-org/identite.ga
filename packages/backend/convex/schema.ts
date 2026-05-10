@@ -308,6 +308,23 @@ export default defineSchema({
     .index("by_userId_type", ["userId", "type"]),
 
   /**
+   * Habilitations IDN — un utilisateur peut avoir plusieurs rôles
+   * (admin, identity_controller, developer). Géré côté app et pas via le
+   * plugin admin de Better Auth (qui ajoute des colonnes incompatibles
+   * avec l'adapter @convex-dev/better-auth).
+   */
+  userRole: defineTable({
+    userId: v.string(),
+    role: v.union(...ROLES.map((r) => v.literal(r))),
+    assignedAt: v.number(),
+    assignedBy: v.optional(v.string()),
+    revokedAt: v.optional(v.number()),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_role", ["role"])
+    .index("by_userId_role", ["userId", "role"]),
+
+  /**
    * Demandes via formulaire de contact public (page /contact).
    * Pas d'auth requise.
    */

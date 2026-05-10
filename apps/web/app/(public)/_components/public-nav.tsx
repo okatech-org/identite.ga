@@ -9,8 +9,8 @@ import { cn } from "@repo/ui/lib/utils"
 
 import { navActions, navTabs } from "../_content/fr"
 
-const SIGN_IN_URL = "/connexion"
-const SIGN_UP_URL = "/inscription"
+const SIGN_IN_URL = "/sign-in"
+const SIGN_UP_URL = "/sign-up/profile"
 
 export function PublicNav() {
   const pathname = usePathname()

@@ -3,7 +3,6 @@ import { convex } from "@convex-dev/better-auth/plugins"
 import { oauthProvider } from "@better-auth/oauth-provider"
 import { betterAuth } from "better-auth/minimal"
 import {
-  admin,
   emailOTP,
   haveIBeenPwned,
   jwt,
@@ -43,7 +42,11 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
     ],
     emailAndPassword: {
       enabled: true,
-      requireEmailVerification: true,
+      // Le sign-up crée immédiatement la session (sinon impossible d'appeler
+      // les mutations IDN avant d'avoir signé séparément). La vérification
+      // d'email reste obligatoire côté métier : nos mutations sensibles
+      // passent par requireVerifiedAuth() qui contrôle `emailVerified`.
+      requireEmailVerification: false,
       minPasswordLength: 12,
       maxPasswordLength: 256,
       // TODO(idn): brancher zxcvbn-ts + HIBP via before-hook Better Auth
@@ -59,6 +62,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
       emailOTP({
         otpLength: 6,
         expiresIn: 60 * 15, // 15 min (§3.2)
+        sendVerificationOnSignUp: true, // OTP envoyé automatiquement au sign-up
         sendVerificationOTP: async ({ email, otp, type }) => {
           await sendOtpEmail(ctx as any, {
             to: email,
@@ -91,11 +95,11 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
         jwks: { keyPairConfig: { alg: "RS256", modulusLength: 2048 } },
       }),
 
-      // RBAC — rôles IDN (§3.9, §3.10, §3.11)
-      admin({
-        defaultRole: "user",
-        adminRoles: ["admin"],
-      }),
+      // RBAC — rôles IDN (§3.9, §3.10, §3.11) gérés via notre propre table
+      // `roles` (cf. schema.ts) plutôt que via le plugin admin de Better Auth :
+      // ce dernier ajoute des colonnes (banned, role, banExpires) que l'adapter
+      // @convex-dev/better-auth ne reconnaît pas encore. requireAdmin /
+      // requireController dans convex/lib/auth.ts lisent depuis notre table.
 
       // Plugin requis par @convex-dev/better-auth pour exposer l'auth à Convex
       convex({ authConfig }),

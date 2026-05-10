@@ -20,7 +20,7 @@ export const getCurrentUser = query({
       userId: v.string(),
       email: v.string(),
       emailVerified: v.boolean(),
-      role: v.string(),
+      roles: v.array(v.string()),
       profile: v.union(
         v.object({
           loa: v.number(),
@@ -55,7 +55,7 @@ export const getCurrentUser = query({
       userId: auth.userId,
       email: auth.email,
       emailVerified: auth.emailVerified,
-      role: auth.role ?? "user",
+      roles: auth.roles,
       profile: profile
         ? {
             loa: profile.loa,

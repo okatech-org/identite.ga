@@ -5,11 +5,11 @@
  */
 
 export const navTabs = [
-  { href: "/a-propos", label: "À propos" },
+  { href: "/about", label: "À propos" },
   { href: "/services", label: "Services" },
-  { href: "/administrations", label: "Administrations" },
-  { href: "/aide", label: "Aide" },
-  { href: "/etat", label: "État" },
+  { href: "/admins", label: "Administrations" },
+  { href: "/help", label: "Aide" },
+  { href: "/status", label: "État" },
 ] as const
 
 export const navActions = {
@@ -23,9 +23,9 @@ export const footer = {
   copyright:
     "© République Gabonaise — Agence Nationale des Infrastructures Numériques",
   links: [
-    { href: "/mentions-legales", label: "Mentions légales" },
-    { href: "/mentions-legales", label: "Confidentialité" },
-    { href: "/aide", label: "Accessibilité" },
+    { href: "/legal", label: "Mentions légales" },
+    { href: "/legal", label: "Confidentialité" },
+    { href: "/help", label: "Accessibilité" },
     { href: "/contact", label: "Contact" },
   ],
   skipToMain: "Aller au contenu principal",

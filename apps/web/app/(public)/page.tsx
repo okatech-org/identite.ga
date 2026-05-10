@@ -45,7 +45,7 @@ export default function HomePage() {
 
           <div className="mt-7 flex flex-col gap-2.5 sm:mt-8 sm:flex-row sm:flex-wrap">
             <Button asChild size="lg" className="w-full sm:w-auto">
-              <Link href="/inscription">
+              <Link href="/sign-up/profile">
                 <UserPlusIcon aria-hidden="true" />
                 {welcome.ctaPrimary}
               </Link>
@@ -56,7 +56,7 @@ export default function HomePage() {
               size="lg"
               className="w-full sm:w-auto"
             >
-              <Link href="/connexion">
+              <Link href="/sign-in">
                 <LogInIcon aria-hidden="true" />
                 {welcome.ctaSecondary}
               </Link>

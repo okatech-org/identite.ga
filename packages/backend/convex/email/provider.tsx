@@ -37,6 +37,13 @@ export async function sendOtpEmail(
   ctx: Ctx,
   args: { to: string; code: string; type: OtpType },
 ) {
+  // Log dev-only : facilite l'E2E sans avoir à ouvrir la boîte mail.
+  // (S'affiche dans `bunx convex logs`. À retirer / gater par env var
+  // dédiée avant la mise en production.)
+  console.log(
+    `[idn:dev] OTP ${args.type} pour ${args.to} = ${args.code}`,
+  )
+
   const html = await render(<OtpEmail code={args.code} type={args.type} />)
   return await resend.sendEmail(ctx, {
     from: FROM,
