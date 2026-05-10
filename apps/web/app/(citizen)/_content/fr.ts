@@ -312,22 +312,35 @@ export const kyc = {
   intro: {
     eyebrow: "VÉRIFICATION D'IDENTITÉ · NIVEAU 2",
     title: "Passons au Niveau 2",
-    sub: "3 étapes, environ 5 minutes. Documents officiels requis.",
+    sub: "Trois étapes pour passer du Niveau 1 (email vérifié) au Niveau 2 (substantiel). Comptez environ 5 minutes.",
     steps: [
       {
-        title: "1. Pièce d'identité",
-        body: "Photographiez votre CNI gabonaise, passeport ou carte de séjour (recto/verso).",
+        number: "01",
+        icon: "doc" as const,
+        title: "Document d'identité",
+        body: "Photographiez votre CNI gabonaise recto-verso. Cadrage automatique.",
       },
       {
-        title: "2. Selfie",
-        body: "Prenez un selfie pour confirmer que c'est bien vous (vérification biométrique).",
+        number: "02",
+        icon: "camera" as const,
+        title: "Selfie vivant",
+        body: "Détection de présence + face match avec le document.",
       },
       {
-        title: "3. Soumission",
-        body: "Validation automatique en quelques minutes. Revue manuelle si besoin (24h ouvrées).",
+        number: "03",
+        icon: "check" as const,
+        title: "Validation",
+        body: "Revue automatique puis manuelle si nécessaire (24-48h).",
       },
     ],
-    cta: "Commencer",
+    statusTodo: "À FAIRE",
+    statusInProgress: "EN COURS",
+    statusDone: "FAIT",
+    mobilePromo: {
+      body: "Le KYC peut s'effectuer plus confortablement depuis l'app mobile (caméra). Voulez-vous y continuer ?",
+      cta: "Continuer sur mobile",
+    },
+    cta: "Démarrer ici",
     chooseDocLabel: "Type de document",
     docOptions: [
       { value: "cni_gabon" as const, label: "CNI gabonaise" },

@@ -5,11 +5,11 @@ import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
+import { LockIcon, MailIcon, QrCodeIcon } from "lucide-react"
 import { toast } from "sonner"
 import { z } from "zod"
 
 import { Button } from "@repo/ui/components/button"
-import { Card } from "@repo/ui/components/card"
 import { IdnMark } from "@repo/ui/components/idn-mark"
 import { Input } from "@repo/ui/components/input"
 import { Label } from "@repo/ui/components/label"
@@ -65,7 +65,6 @@ export default function SignInPage() {
         setSubmitting(false)
         return
       }
-      // Better Auth peut renvoyer `data.twoFactorRedirect` si 2FA actif
       const data = result?.data as
         | { twoFactorRedirect?: boolean }
         | null
@@ -86,8 +85,6 @@ export default function SignInPage() {
     if (twoFactorCode.length !== 6) return
     setSubmitting(true)
     try {
-      // L'API exacte de Better Auth twoFactor pour TOTP côté client est
-      // `authClient.twoFactor.verifyTotp({ code })`
       const tf = (
         authClient as unknown as {
           twoFactor?: {
@@ -109,36 +106,39 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[420px] flex-1 flex-col justify-center px-6 py-10">
-      <Card className="p-7">
-        <div className="mb-5 flex items-center gap-3">
-          <IdnMark size={32} />
-          <div>
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-              Identité Numérique
-            </p>
-            <h1 className="text-lg font-semibold text-foreground">
+    <div className="mx-auto flex w-full max-w-[460px] flex-1 flex-col justify-center px-6 py-10 sm:py-16">
+      {!twoFactorRequired ? (
+        <>
+          <div className="flex flex-col items-center text-center">
+            <IdnMark size={56} />
+            <h1 className="mt-5 text-[26px] font-semibold leading-tight tracking-[-0.01em] text-foreground sm:text-[28px]">
               {signIn.title}
             </h1>
+            <p className="mt-1.5 text-sm text-muted-foreground">{signIn.sub}</p>
           </div>
-        </div>
 
-        {!twoFactorRequired ? (
-          <form onSubmit={onSubmit} noValidate className="space-y-4">
+          <form onSubmit={onSubmit} noValidate className="mt-8 space-y-5">
             <div className="space-y-1.5">
               <Label htmlFor="signin-email">{signIn.emailLabel}</Label>
-              <Input
-                id="signin-email"
-                type="email"
-                autoComplete="email"
-                required
-                aria-required="true"
-                aria-invalid={Boolean(errors.email)}
-                aria-describedby={
-                  errors.email ? "signin-email-error" : undefined
-                }
-                {...register("email")}
-              />
+              <div className="relative">
+                <MailIcon
+                  className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                  aria-hidden="true"
+                />
+                <Input
+                  id="signin-email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  aria-required="true"
+                  aria-invalid={Boolean(errors.email)}
+                  aria-describedby={
+                    errors.email ? "signin-email-error" : undefined
+                  }
+                  className="h-12 pl-10 text-base"
+                  {...register("email")}
+                />
+              </div>
               {errors.email && (
                 <p
                   id="signin-email-error"
@@ -151,27 +151,26 @@ export default function SignInPage() {
             </div>
 
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="signin-password">{signIn.passwordLabel}</Label>
-                <Link
-                  href="/forgot-password"
-                  className="text-[12px] font-medium text-idn-green hover:underline"
-                >
-                  {signIn.forgotLink}
-                </Link>
+              <Label htmlFor="signin-password">{signIn.passwordLabel}</Label>
+              <div className="relative">
+                <LockIcon
+                  className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                  aria-hidden="true"
+                />
+                <Input
+                  id="signin-password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  aria-required="true"
+                  aria-invalid={Boolean(errors.password)}
+                  aria-describedby={
+                    errors.password ? "signin-password-error" : undefined
+                  }
+                  className="h-12 pl-10 text-base"
+                  {...register("password")}
+                />
               </div>
-              <Input
-                id="signin-password"
-                type="password"
-                autoComplete="current-password"
-                required
-                aria-required="true"
-                aria-invalid={Boolean(errors.password)}
-                aria-describedby={
-                  errors.password ? "signin-password-error" : undefined
-                }
-                {...register("password")}
-              />
               {errors.password && (
                 <p
                   id="signin-password-error"
@@ -181,54 +180,85 @@ export default function SignInPage() {
                   {errors.password.message}
                 </p>
               )}
+              <div className="flex justify-end pt-1">
+                <Link
+                  href="/forgot-password"
+                  className="text-[13px] font-medium text-idn-green hover:underline dark:text-idn-green-on-dark"
+                >
+                  {signIn.forgotLink}
+                </Link>
+              </div>
             </div>
 
             <Button
               type="submit"
               size="lg"
               disabled={submitting}
-              className="w-full"
+              className="h-12 w-full text-base"
             >
               {submitting ? signIn.primarySubmitting : signIn.primary}
             </Button>
-
-            <p className="text-center text-xs text-muted-foreground">
-              {signIn.signUpPrefix}
-              <Link
-                href="/sign-up/profile"
-                className="font-semibold text-idn-green hover:underline"
-              >
-                {signIn.signUpLink}
-              </Link>
-            </p>
           </form>
-        ) : (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>{signIn.twoFactorLabel}</Label>
-              <OtpInput
-                value={twoFactorCode}
-                onChange={setTwoFactorCode}
-                length={6}
-                autoFocus
-                ariaLabel={signIn.twoFactorLabel}
-              />
-              <p className="text-xs text-muted-foreground">
-                {signIn.twoFactorHint}
-              </p>
-            </div>
-            <Button
-              type="button"
-              size="lg"
-              disabled={submitting || twoFactorCode.length !== 6}
-              onClick={onSubmit2FA}
-              className="w-full"
-            >
-              {submitting ? "…" : signIn.twoFactorPrimary}
-            </Button>
+
+          <div className="mt-6 flex items-center gap-3" aria-hidden="true">
+            <span className="h-px flex-1 bg-border" />
+            <span className="font-mono text-[11px] font-semibold tracking-[0.1em] text-muted-foreground">
+              {signIn.qrLabel}
+            </span>
+            <span className="h-px flex-1 bg-border" />
           </div>
-        )}
-      </Card>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="lg"
+            disabled
+            title={signIn.qrTooltip}
+            className="mt-6 h-12 w-full text-base"
+          >
+            <QrCodeIcon aria-hidden="true" />
+            {signIn.qrCta}
+          </Button>
+
+          <p className="mt-6 text-center text-sm text-muted-foreground">
+            {signIn.signUpPrefix}
+            <Link
+              href="/sign-up/profile"
+              className="font-semibold text-idn-green hover:underline dark:text-idn-green-on-dark"
+            >
+              {signIn.signUpLink}
+            </Link>
+          </p>
+        </>
+      ) : (
+        <div className="space-y-5">
+          <div className="flex flex-col items-center text-center">
+            <IdnMark size={48} />
+            <h1 className="mt-4 text-[22px] font-semibold text-foreground">
+              {signIn.twoFactorLabel}
+            </h1>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              {signIn.twoFactorHint}
+            </p>
+          </div>
+          <OtpInput
+            value={twoFactorCode}
+            onChange={setTwoFactorCode}
+            length={6}
+            autoFocus
+            ariaLabel={signIn.twoFactorLabel}
+          />
+          <Button
+            type="button"
+            size="lg"
+            disabled={submitting || twoFactorCode.length !== 6}
+            onClick={onSubmit2FA}
+            className="h-12 w-full text-base"
+          >
+            {submitting ? "…" : signIn.twoFactorPrimary}
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

@@ -9,7 +9,9 @@ import {
   CheckIcon,
   ChevronLeftIcon,
   FileTextIcon,
+  QrCodeIcon,
   ShieldCheckIcon,
+  ShieldIcon,
   XCircleIcon,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -169,48 +171,104 @@ export default function KycPage() {
   // ─────────────────────────────────────────────────────────────
   // Renderers
 
-  const renderIntro = () => (
-    <>
-      <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-        {kyc.intro.eyebrow}
-      </p>
-      <h1 className="mt-2 text-[26px] font-semibold leading-tight tracking-[-0.01em] text-foreground">
-        {kyc.intro.title}
-      </h1>
-      <p className="mt-2 text-sm text-muted-foreground">{kyc.intro.sub}</p>
+  const renderIntro = () => {
+    const stepIcons = {
+      doc: FileTextIcon,
+      camera: CameraIcon,
+      check: CheckIcon,
+    }
+    return (
+      <>
+        <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+          {kyc.intro.eyebrow}
+        </p>
+        <h1 className="mt-2 text-[26px] font-semibold leading-tight tracking-[-0.01em] text-foreground">
+          {kyc.intro.title}
+        </h1>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          {kyc.intro.sub}
+        </p>
 
-      <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {kyc.intro.steps.map((s, i) => (
-          <div key={i} className="rounded-xl border border-border bg-card p-4">
-            <p className="text-sm font-semibold text-foreground">{s.title}</p>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{s.body}</p>
-          </div>
-        ))}
-      </div>
+        <div className="mt-7 grid grid-cols-1 gap-[18px] sm:grid-cols-3">
+          {kyc.intro.steps.map((s) => {
+            const Icon = stepIcons[s.icon]
+            return (
+              <div
+                key={s.number}
+                className="flex flex-col rounded-2xl border border-border bg-card p-7"
+              >
+                <p className="font-mono text-[13px] font-semibold tracking-[0.05em] text-muted-foreground">
+                  {s.number}
+                </p>
+                <div
+                  aria-hidden="true"
+                  className="mt-4 flex size-12 items-center justify-center rounded-xl bg-secondary text-idn-green dark:text-idn-green-on-dark"
+                >
+                  <Icon className="size-6" />
+                </div>
+                <p className="mt-5 text-lg font-semibold text-foreground">
+                  {s.title}
+                </p>
+                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                  {s.body}
+                </p>
+                <p className="mt-6 font-mono text-[11px] font-semibold tracking-[0.05em] text-muted-foreground">
+                  {kyc.intro.statusTodo.toLowerCase()}
+                </p>
+              </div>
+            )
+          })}
+        </div>
 
-      <div className="mt-6 space-y-2">
-        <label htmlFor="kyc-doc-type" className="text-sm font-medium text-foreground">
-          {kyc.intro.chooseDocLabel}
-        </label>
-        <Select value={docType} onValueChange={(v) => setDocType(v as DocType)}>
-          <SelectTrigger id="kyc-doc-type" className="!h-12 w-full !text-base sm:w-[280px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {kyc.intro.docOptions.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+        <div className="mt-7 flex flex-col items-start gap-4 rounded-2xl border border-idn-blue/30 bg-idn-blue-soft p-5 dark:border-[#1F3454] dark:bg-[#10243A] sm:flex-row sm:items-center sm:gap-5 sm:p-[22px]">
+          <ShieldIcon
+            className="size-5 shrink-0 text-idn-blue dark:text-idn-blue-on-dark"
+            aria-hidden="true"
+          />
+          <p className="flex-1 text-sm leading-relaxed text-foreground/80">
+            {kyc.intro.mobilePromo.body}
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            disabled
+            title="Bientôt disponible"
+            className="h-11 shrink-0"
+          >
+            <QrCodeIcon aria-hidden="true" />
+            {kyc.intro.mobilePromo.cta}
+          </Button>
+        </div>
 
-      <Button type="button" size="lg" className="mt-6 h-12" disabled={submitting} onClick={handleStart}>
-        {submitting ? "…" : kyc.intro.cta}
-      </Button>
-    </>
-  )
+        <div className="mt-5 hidden">
+          {/* Sélecteur de doc déplacé à l'étape suivante (cf. maquette) */}
+          <Select value={docType} onValueChange={(v) => setDocType(v as DocType)}>
+            <SelectTrigger className="!h-12 w-full !text-base">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {kyc.intro.docOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <Button
+          type="button"
+          size="lg"
+          className="mt-7 h-12 self-start px-7"
+          disabled={submitting}
+          onClick={handleStart}
+        >
+          <CameraIcon aria-hidden="true" />
+          {submitting ? "…" : kyc.intro.cta}
+        </Button>
+      </>
+    )
+  }
 
   const renderDocument = () => (
     <>
@@ -363,7 +421,7 @@ export default function KycPage() {
   }
 
   return (
-    <section className="mx-auto flex w-full max-w-[640px] flex-1 flex-col px-5 py-6 md:px-7 md:py-8">
+    <section className="mx-auto flex w-full max-w-[1080px] flex-1 flex-col px-5 py-6 md:px-7 md:py-8">
       <Button
         asChild
         variant="ghost"
