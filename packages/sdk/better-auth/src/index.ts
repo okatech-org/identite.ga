@@ -4,7 +4,7 @@
  *
  * ```ts
  * import { genericOAuth } from "better-auth/plugins";
- * import { idn } from "@idn/better-auth";
+ * import { idn } from "@idn-ga/better-auth";
  *
  * export const auth = betterAuth({
  *   plugins: [
@@ -90,10 +90,10 @@ const defaultMapProfileToUser = (profile: IDNProfile): Record<string, unknown> =
  */
 export const idn = (options: IDNHelperOptions): Record<string, unknown> => {
   if (!options.clientId) {
-    throw new Error("[@idn/better-auth] clientId requis")
+    throw new Error("[@idn-ga/better-auth] clientId requis")
   }
   if (!options.clientSecret) {
-    throw new Error("[@idn/better-auth] clientSecret requis")
+    throw new Error("[@idn-ga/better-auth] clientSecret requis")
   }
 
   const issuer = (options.issuer ?? DEFAULT_ISSUER).replace(/\/+$/, "")

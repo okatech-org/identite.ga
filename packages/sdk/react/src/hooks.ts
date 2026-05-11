@@ -1,6 +1,6 @@
 "use client"
 
-import type { SignInOptions, SignOutOptions } from "@idn/core"
+import type { SignInOptions, SignOutOptions } from "@idn-ga/core"
 import { useCallback, useContext, useEffect, useState } from "react"
 
 import { IDNContext, type IDNContextValue } from "./context.js"
@@ -9,7 +9,7 @@ const useIDNContext = (): IDNContextValue => {
   const ctx = useContext(IDNContext)
   if (!ctx) {
     throw new Error(
-      "[@idn/react] Hook hors <IDNProvider> — wrap votre app avec <IDNProvider />",
+      "[@idn-ga/react] Hook hors <IDNProvider> — wrap votre app avec <IDNProvider />",
     )
   }
   return ctx

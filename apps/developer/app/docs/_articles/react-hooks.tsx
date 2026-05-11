@@ -20,8 +20,8 @@ const TOC = [
 
 export default function ReactHooks() {
   return (
-    <DocBody breadcrumbs={["@idn/react", "Hooks"]} toc={TOC}>
-      <H1>Hooks · @idn/react</H1>
+    <DocBody breadcrumbs={["@idn-ga/react", "Hooks"]} toc={TOC}>
+      <H1>Hooks · @idn-ga/react</H1>
       <Lede>
         5 hooks headless pour construire votre propre UI. Tous side-effect-safe,
         compatibles SSR (pas d&apos;accès à <Code>window</Code> au render

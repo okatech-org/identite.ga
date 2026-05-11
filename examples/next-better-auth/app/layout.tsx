@@ -5,7 +5,7 @@ import "./globals.css"
 
 export const metadata: Metadata = {
   title: "Bourses Étudiantes · Exemple IDN",
-  description: "Application exemple intégrant « Se connecter avec Identité Numérique » via @idn/better-auth.",
+  description: "Application exemple intégrant « Se connecter avec Identité Numérique » via @idn-ga/better-auth.",
 }
 
 export default function RootLayout({ children }: { children: ReactNode }) {

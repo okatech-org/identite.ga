@@ -10,7 +10,7 @@ export function SignInButton() {
   const onClick = async () => {
     setSubmitting(true)
     try {
-      // Le providerId "idn" est celui défini par notre helper @idn/better-auth.
+      // Le providerId "idn" est celui défini par notre helper @idn-ga/better-auth.
       const res = await authClient.signIn.oauth2({
         providerId: "idn",
         callbackURL: "/dashboard",

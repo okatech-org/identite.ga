@@ -1,6 +1,6 @@
 # IDN SDK — Kit d'intégration
 
-> **Cahier des charges — SDK `@idn/*`**
+> **Cahier des charges — SDK `@idn-ga/*`**
 > Version 1.0 — 10 mai 2026
 
 ---
@@ -9,10 +9,10 @@
 
 1. [Présentation](#1-présentation)
 2. [Périmètre et packages](#2-périmètre-et-packages)
-3. [`@idn/core` — Client OIDC vanilla](#3-idncore--client-oidc-vanilla)
-4. [`@idn/react` — Hooks et composants](#4-idnreact--hooks-et-composants)
-5. [`@idn/better-auth` — Helper genericOAuth](#5-idnbetter-auth--helper-genericoauth)
-6. [`@idn/next-auth` — Provider NextAuth](#6-idnnext-auth--provider-nextauth)
+3. [`@idn-ga/core` — Client OIDC vanilla](#3-idncore--client-oidc-vanilla)
+4. [`@idn-ga/react` — Hooks et composants](#4-idnreact--hooks-et-composants)
+5. [`@idn-ga/better-auth` — Helper genericOAuth](#5-idnbetter-auth--helper-genericoauth)
+6. [`@idn-ga/next-auth` — Provider NextAuth](#6-idnnext-auth--provider-nextauth)
 7. [Documentation et exemples](#7-documentation-et-exemples)
 8. [Sécurité](#8-sécurité)
 9. [Tests et qualité](#9-tests-et-qualité)
@@ -51,10 +51,10 @@ Ce cahier des charges couvre **uniquement les packages SDK** distribués sur npm
               │                                  │
               ▼                                  ▼
    ┌─────────────────────┐           ┌─────────────────────────┐
-   │ @idn/better-auth    │           │ @idn/react (hooks/UI)   │
-   │ @idn/next-auth      │           │       │                 │
+   │ @idn-ga/better-auth    │           │ @idn-ga/react (hooks/UI)   │
+   │ @idn-ga/next-auth      │           │       │                 │
    │       │             │           │       ▼                 │
-   │       └─── helper ──┼───────────┤  @idn/core (vanilla JS) │
+   │       └─── helper ──┼───────────┤  @idn-ga/core (vanilla JS) │
    │                     │           │                         │
    └──────────┬──────────┘           └────────────┬────────────┘
               │                                   │
@@ -72,10 +72,10 @@ Ce cahier des charges couvre **uniquement les packages SDK** distribués sur npm
 
 | Package | Rôle | Dépendances clés |
 | :--- | :--- | :--- |
-| **`@idn/core`** | Client OIDC vanilla, framework-agnostic | aucune (zéro dépendance lourde) |
-| **`@idn/react`** | Hooks React + composants pré-stylés | `@idn/core`, react ≥ 18 |
-| **`@idn/better-auth`** | Helper `genericOAuth` pour Better Auth | `better-auth` (peer) |
-| **`@idn/next-auth`** | Provider NextAuth.js | `next-auth` (peer) |
+| **`@idn-ga/core`** | Client OIDC vanilla, framework-agnostic | aucune (zéro dépendance lourde) |
+| **`@idn-ga/react`** | Hooks React + composants pré-stylés | `@idn-ga/core`, react ≥ 18 |
+| **`@idn-ga/better-auth`** | Helper `genericOAuth` pour Better Auth | `better-auth` (peer) |
+| **`@idn-ga/next-auth`** | Provider NextAuth.js | `next-auth` (peer) |
 
 **Tous les packages** :
 
@@ -87,7 +87,7 @@ Ce cahier des charges couvre **uniquement les packages SDK** distribués sur npm
 
 ---
 
-## 3. `@idn/core` — Client OIDC vanilla
+## 3. `@idn-ga/core` — Client OIDC vanilla
 
 ### 3.1 Objectif
 
@@ -96,7 +96,7 @@ Client OIDC pur JavaScript, utilisable dans tout environnement (browser, Node, B
 ### 3.2 API publique
 
 ```typescript
-import { createIDNClient } from "@idn/core";
+import { createIDNClient } from "@idn-ga/core";
 
 const idn = createIDNClient({
   // Obligatoires
@@ -178,7 +178,7 @@ interface IDNUser {
 
 ---
 
-## 4. `@idn/react` — Hooks et composants
+## 4. `@idn-ga/react` — Hooks et composants
 
 ### 4.1 Objectif
 
@@ -187,7 +187,7 @@ Couche React **headless-first** : hooks pour construire son propre UI, plus quel
 ### 4.2 Provider racine
 
 ```tsx
-import { IDNProvider } from "@idn/react";
+import { IDNProvider } from "@idn-ga/react";
 
 <IDNProvider
   clientId="your-client-id"
@@ -240,12 +240,12 @@ Tous overridables via `className`, `style`, et slots `render*`.
 
 ### 4.7 Bundle size cible
 
-- ESM minifié + gzip : **≤ 25 KB** (hors `@idn/core`)
+- ESM minifié + gzip : **≤ 25 KB** (hors `@idn-ga/core`)
 - CSS extrait : ≤ 8 KB
 
 ---
 
-## 5. `@idn/better-auth` — Helper genericOAuth
+## 5. `@idn-ga/better-auth` — Helper genericOAuth
 
 ### 5.1 Objectif
 
@@ -256,7 +256,7 @@ S'utilise **exactement comme** les helpers officiels Better Auth (`auth0()`, `ke
 ```typescript
 import { betterAuth } from "better-auth";
 import { genericOAuth } from "better-auth/plugins";
-import { idn } from "@idn/better-auth";
+import { idn } from "@idn-ga/better-auth";
 
 export const auth = betterAuth({
   plugins: [
@@ -320,7 +320,7 @@ mapProfileToUser: (profile: IDNUser) => ({
 
 ---
 
-## 6. `@idn/next-auth` — Provider NextAuth
+## 6. `@idn-ga/next-auth` — Provider NextAuth
 
 ### 6.1 Objectif
 
@@ -328,7 +328,7 @@ Helper équivalent pour les apps **NextAuth.js** v5+.
 
 ```typescript
 import NextAuth from "next-auth";
-import { IDN } from "@idn/next-auth";
+import { IDN } from "@idn-ga/next-auth";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -375,10 +375,10 @@ Au moins quatre apps minimales déployables :
 
 | Exemple | Stack |
 | :--- | :--- |
-| `examples/next-better-auth` | Next.js 16 + Better Auth + `@idn/better-auth` |
-| `examples/next-nextauth` | Next.js 16 + NextAuth v5 + `@idn/next-auth` |
-| `examples/react-vite` | Vite SPA + `@idn/react` |
-| `examples/vanilla-js` | HTML statique + `@idn/core` |
+| `examples/next-better-auth` | Next.js 16 + Better Auth + `@idn-ga/better-auth` |
+| `examples/next-nextauth` | Next.js 16 + NextAuth v5 + `@idn-ga/next-auth` |
+| `examples/react-vite` | Vite SPA + `@idn-ga/react` |
+| `examples/vanilla-js` | HTML statique + `@idn-ga/core` |
 
 Chacun déployable sur Vercel/Netlify avec un README pas-à-pas.
 
@@ -426,7 +426,7 @@ Documents dédiés pour migrer depuis :
 ### 8.5 Protection contre les fuites de secret
 
 - `clientSecret` n'apparaît jamais côté client (réservé aux helpers serveur Better Auth/NextAuth)
-- `@idn/core` et `@idn/react` ne demandent **jamais** de `clientSecret` (apps publiques, PKCE seulement)
+- `@idn-ga/core` et `@idn-ga/react` ne demandent **jamais** de `clientSecret` (apps publiques, PKCE seulement)
 
 ### 8.6 Audit de sécurité
 
@@ -440,7 +440,7 @@ Documents dédiés pour migrer depuis :
 
 ### 9.1 Couverture
 
-- **Unitaires** : ≥ 90 % pour `@idn/core` (logique OIDC critique)
+- **Unitaires** : ≥ 90 % pour `@idn-ga/core` (logique OIDC critique)
 - **Intégration** : tests end-to-end sur un sandbox IDN, par stack (Better Auth, NextAuth, vanilla)
 - **Visuels** : Playwright + screenshots pour les composants pré-stylés
 - **Conformité OIDC** : tests vs OpenID Connect Conformance Suite
@@ -465,7 +465,7 @@ Documents dédiés pour migrer depuis :
 ### 10.1 Registres
 
 - **npm public** sous le scope `@idn`
-- Mirror **JSR** (Deno-friendly) pour `@idn/core`
+- Mirror **JSR** (Deno-friendly) pour `@idn-ga/core`
 - CDN : esm.sh, jsdelivr, unpkg auto-disponibles
 
 ### 10.2 Build
@@ -481,10 +481,10 @@ Documents dédiés pour migrer depuis :
 
 | Package | Bundle gzip cible |
 | :--- | :--- |
-| `@idn/core` | ≤ 12 KB |
-| `@idn/react` | ≤ 25 KB (hors core) |
-| `@idn/better-auth` | ≤ 5 KB |
-| `@idn/next-auth` | ≤ 5 KB |
+| `@idn-ga/core` | ≤ 12 KB |
+| `@idn-ga/react` | ≤ 25 KB (hors core) |
+| `@idn-ga/better-auth` | ≤ 5 KB |
+| `@idn-ga/next-auth` | ≤ 5 KB |
 
 CI échoue si la taille dépasse de plus de 10 % (size-limit).
 
@@ -519,10 +519,10 @@ Le SDK reste compatible avec la plateforme IDN tant que celle-ci respecte le con
 
 | Phase | Périmètre | Priorité |
 | :--- | :--- | :--- |
-| **1** | `@idn/core` + `@idn/react` (hooks uniquement) — version `0.x` interne | 🔴 MVP |
-| **2** | `@idn/better-auth` — pour intégration `consulat.ga` | 🔴 MVP |
-| **3** | Composants pré-stylés `@idn/react` (boutons, dropdown, etc.) | 🟠 Post-MVP |
-| **4** | `@idn/next-auth` | 🟠 Post-MVP |
+| **1** | `@idn-ga/core` + `@idn-ga/react` (hooks uniquement) — version `0.x` interne | 🔴 MVP |
+| **2** | `@idn-ga/better-auth` — pour intégration `consulat.ga` | 🔴 MVP |
+| **3** | Composants pré-stylés `@idn-ga/react` (boutons, dropdown, etc.) | 🟠 Post-MVP |
+| **4** | `@idn-ga/next-auth` | 🟠 Post-MVP |
 | **5** | Site de docs `apps/docs` complet + 4 exemples runnables | 🟠 Post-MVP |
 | **6** | Audit de sécurité externe + version `1.0.0` publique | 🟢 Évolution |
 | **7** | Outils annexes : CLI `idn-cli` (gestion d'apps OAuth en local), playground, migration tools | 🟢 Évolution |
@@ -533,10 +533,10 @@ Le SDK reste compatible avec la plateforme IDN tant que celle-ci respecte le con
 
 ### 13.1 Fonctionnel
 
-- [ ] Une app Better Auth + Convex peut intégrer IDN en moins de 10 lignes de code via `@idn/better-auth`
-- [ ] Une app NextAuth peut intégrer IDN via `@idn/next-auth`
+- [ ] Une app Better Auth + Convex peut intégrer IDN en moins de 10 lignes de code via `@idn-ga/better-auth`
+- [ ] Une app NextAuth peut intégrer IDN via `@idn-ga/next-auth`
 - [ ] Une app React standalone peut intégrer IDN via `<IDNProvider>` + hooks
-- [ ] Une app vanilla JS peut intégrer IDN via `@idn/core`
+- [ ] Une app vanilla JS peut intégrer IDN via `@idn-ga/core`
 - [ ] Une app peut exiger un niveau LoA via `acrValues` et le hook `useLoA()` reflète le niveau atteint
 - [ ] La déconnexion locale + back-channel fonctionne sur Better Auth et NextAuth
 - [ ] Les composants `<SignedIn>`, `<SignedOut>`, `<RequireLoA>` rendent correctement
@@ -548,7 +548,7 @@ Le SDK reste compatible avec la plateforme IDN tant que celle-ci respecte le con
 - [ ] Tests OIDC Conformance Suite passent
 - [ ] Documentation publiée et déployée sur `docs.identite.ga`
 - [ ] 4 exemples déployés et fonctionnels
-- [ ] Couverture tests ≥ 90 % sur `@idn/core`
+- [ ] Couverture tests ≥ 90 % sur `@idn-ga/core`
 - [ ] Audit de sécurité externe sans findings critiques ouverts
 - [ ] Compatible Node 18, 20, 22 et Bun latest
 
@@ -581,6 +581,6 @@ Le SDK reste compatible avec la plateforme IDN tant que celle-ci respecte le con
 
 ### C. Décisions ouvertes
 
-- Faut-il un package `@idn/express` pour Express/Hono côté serveur ? — à arbitrer après MVP
-- Faut-il un package mobile `@idn/react-native` ? — Phase 6 (app native plateforme)
+- Faut-il un package `@idn-ga/express` pour Express/Hono côté serveur ? — à arbitrer après MVP
+- Faut-il un package mobile `@idn-ga/react-native` ? — Phase 6 (app native plateforme)
 - Verifiable Credentials W3C (présentation hors-ligne) côté SDK — Phase 6

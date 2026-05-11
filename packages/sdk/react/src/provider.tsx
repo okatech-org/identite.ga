@@ -1,6 +1,6 @@
 "use client"
 
-import { createIDNClient, type IDNClientConfig, type IDNSession } from "@idn/core"
+import { createIDNClient, type IDNClientConfig, type IDNSession } from "@idn-ga/core"
 import {
   type ReactNode,
   useCallback,

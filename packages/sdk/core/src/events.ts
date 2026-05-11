@@ -24,7 +24,7 @@ export class EventBus {
       try {
         ;(cb as IDNEventListener<E>)(payload)
       } catch (err) {
-        console.error("[@idn/core] listener threw", err)
+        console.error("[@idn-ga/core] listener threw", err)
       }
     }
   }

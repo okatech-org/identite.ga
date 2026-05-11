@@ -65,13 +65,13 @@ export default function QuickstartBetterAuth() {
       <H2 id="1-installer-le-package">1. Installer le package</H2>
       <CodeBlock lang="bash" title="terminal">
 {`# bun
-bun add @idn/better-auth
+bun add @idn-ga/better-auth
 
 # pnpm
-pnpm add @idn/better-auth
+pnpm add @idn-ga/better-auth
 
 # npm
-npm install @idn/better-auth`}
+npm install @idn-ga/better-auth`}
       </CodeBlock>
 
       <H2 id="2-configurer-better-auth">2. Configurer Better Auth</H2>
@@ -82,7 +82,7 @@ npm install @idn/better-auth`}
       <CodeBlock lang="ts" title="lib/auth.ts">
 {`import { betterAuth } from "better-auth";
 import { genericOAuth } from "better-auth/plugins";
-import { idn } from "@idn/better-auth";
+import { idn } from "@idn-ga/better-auth";
 
 export const auth = betterAuth({
   plugins: [

@@ -24,13 +24,13 @@ export default function QuickstartReact() {
       <H1>Quick start · React + Vite</H1>
       <Lede>
         Pour une SPA React qui n&apos;utilise ni Better Auth ni NextAuth.{" "}
-        <Code>@idn/react</Code> fournit un <Code>&lt;IDNProvider&gt;</Code> et
+        <Code>@idn-ga/react</Code> fournit un <Code>&lt;IDNProvider&gt;</Code> et
         des hooks headless.
       </Lede>
 
       <H2 id="1-installer">1. Installer</H2>
       <CodeBlock lang="bash" title="terminal">
-{`bun add @idn/react @idn/core`}
+{`bun add @idn-ga/react @idn-ga/core`}
       </CodeBlock>
 
       <H2 id="2-provider">2. Provider</H2>
@@ -40,7 +40,7 @@ export default function QuickstartReact() {
       </P>
       <CodeBlock lang="tsx" title="src/main.tsx">
 {`import { createRoot } from "react-dom/client";
-import { IDNProvider } from "@idn/react";
+import { IDNProvider } from "@idn-ga/react";
 import { App } from "./App";
 
 createRoot(document.getElementById("root")!).render(
@@ -61,7 +61,7 @@ createRoot(document.getElementById("root")!).render(
         <Code>&lt;SignedOut&gt;</Code> :
       </P>
       <CodeBlock lang="tsx" title="src/Profile.tsx">
-{`import { useIDN, useUser, SignedIn, SignedOut } from "@idn/react";
+{`import { useIDN, useUser, SignedIn, SignedOut } from "@idn-ga/react";
 
 export function Profile() {
   const { signIn, signOut } = useIDN();
@@ -88,7 +88,7 @@ export function Profile() {
       </P>
       <CodeBlock lang="tsx" title="src/routes/callback.tsx">
 {`import { useNavigate } from "react-router-dom";
-import { IDNCallback } from "@idn/react";
+import { IDNCallback } from "@idn-ga/react";
 
 export default function Callback() {
   const navigate = useNavigate();

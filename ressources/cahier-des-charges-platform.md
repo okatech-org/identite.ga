@@ -379,7 +379,7 @@ identite.ga/
 
 ```
 App cliente tierce (consulat.ga, e-visa.ga…)
-  utilise @idn/better-auth → genericOAuth
+  utilise @idn-ga/better-auth → genericOAuth
    │
    │  1. redirect OIDC → connexion.identite.ga/api/auth/oauth2/authorize
    ▼

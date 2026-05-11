@@ -74,7 +74,7 @@ export default function MigrationClerk() {
           permettre une bascule par feature-flag sans reconfigurer les apps.
         </li>
         <li>
-          <strong>Installer <Code>@idn/react</Code>.</strong> Garder{" "}
+          <strong>Installer <Code>@idn-ga/react</Code>.</strong> Garder{" "}
           <Code>@clerk/nextjs</Code> en parallèle pendant la phase de transition.
         </li>
         <li>

@@ -1,23 +1,78 @@
 {
-  "name": "@idn/core",
-  "version": "0.0.0",
-  "private": true,
-  "type": "module",
-  "license": "MIT",
+  "name": "@idn-ga/core",
+  "version": "0.1.0",
   "description": "Client OIDC vanilla pour Identité Numérique du Gabon",
+  "license": "MIT",
+  "type": "module",
   "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./types": "./src/types.ts"
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./types": {
+      "import": {
+        "types": "./dist/types.d.ts",
+        "default": "./dist/types.js"
+      },
+      "require": {
+        "types": "./dist/types.d.cts",
+        "default": "./dist/types.cjs"
+      }
+    }
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
     "lint": "eslint . --max-warnings 0",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "prepublishOnly": "bun run build"
   },
   "devDependencies": {
     "@repo/eslint-config": "*",
     "@repo/typescript-config": "*",
     "eslint": "^9.39.1",
+    "tsup": "^8.3.5",
     "typescript": "5.9.2"
+  },
+  "keywords": [
+    "oidc",
+    "oauth2",
+    "pkce",
+    "identite-numerique",
+    "gabon",
+    "idn",
+    "authentication",
+    "sdk"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/okatech-org/identite.ga.git",
+    "directory": "packages/sdk/core"
+  },
+  "homepage": "https://github.com/okatech-org/identite.ga/tree/main/packages/sdk/core#readme",
+  "bugs": {
+    "url": "https://github.com/okatech-org/identite.ga/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

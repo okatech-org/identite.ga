@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext } from "react"
-import type { IDNClient, IDNSession } from "@idn/core"
+import type { IDNClient, IDNSession } from "@idn-ga/core"
 
 export interface IDNContextValue {
   client: IDNClient

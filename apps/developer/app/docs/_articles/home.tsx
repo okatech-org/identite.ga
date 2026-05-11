@@ -10,25 +10,25 @@ import { Code } from "../_components/prose";
 
 const PACKAGES = [
   {
-    id: "@idn/core",
+    id: "@idn-ga/core",
     desc: "Client OIDC vanilla, zéro dépendance",
     size: "12 KB gzip",
     deps: "aucune",
   },
   {
-    id: "@idn/react",
+    id: "@idn-ga/react",
     desc: "Hooks headless + composants pré-stylés",
     size: "25 KB gzip",
     deps: "react ≥ 18",
   },
   {
-    id: "@idn/better-auth",
+    id: "@idn-ga/better-auth",
     desc: "Helper genericOAuth pour Better Auth",
     size: "5 KB gzip",
     deps: "better-auth",
   },
   {
-    id: "@idn/next-auth",
+    id: "@idn-ga/next-auth",
     desc: "Provider OIDC pour NextAuth v5",
     size: "5 KB gzip",
     deps: "next-auth",
@@ -123,7 +123,7 @@ export default function DocsHome() {
           en moins de 10 lignes.
         </h1>
         <p className="mt-4 max-w-[640px] text-[17px] leading-[1.6] text-idn-muted">
-          Le SDK <Code>@idn/*</Code> permet à toute application —
+          Le SDK <Code>@idn-ga/*</Code> permet à toute application —
           gouvernementale, privée, partenaire — d&apos;authentifier ses
           utilisateurs via Identité Numérique du Gabon. OpenID Connect standard,
           PKCE obligatoire, zéro vendor lock-in.

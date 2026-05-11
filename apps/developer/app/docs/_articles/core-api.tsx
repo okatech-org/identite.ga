@@ -20,10 +20,10 @@ const TOC = [
 export default function CoreApi() {
   return (
     <DocBody
-      breadcrumbs={["@idn/core", "Référence API"]}
+      breadcrumbs={["@idn-ga/core", "Référence API"]}
       toc={TOC}
     >
-      <H1>Référence API · @idn/core</H1>
+      <H1>Référence API · @idn-ga/core</H1>
       <Lede>
         API complète du client OIDC vanilla. Toutes les méthodes sont
         disponibles sur l&apos;instance retournée par{" "}

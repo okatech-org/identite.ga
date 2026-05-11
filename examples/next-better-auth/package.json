@@ -11,7 +11,7 @@
     "check-types": "next typegen && tsc --noEmit"
   },
   "dependencies": {
-    "@idn/better-auth": "*",
+    "@idn-ga/better-auth": "*",
     "@repo/ui": "*",
     "@tailwindcss/postcss": "^4.3.0",
     "better-auth": "^1.6.10",

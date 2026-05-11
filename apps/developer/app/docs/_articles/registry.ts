@@ -63,7 +63,7 @@ export const ARTICLE_GROUPS: ArticleGroup[] = [
         label: "Quick start · Better Auth",
         title: "Quick start · Better Auth",
         description:
-          "Intégration en 5 minutes avec Better Auth + helper @idn/better-auth.",
+          "Intégration en 5 minutes avec Better Auth + helper @idn-ga/better-auth.",
         component: QuickstartBetterAuth,
       },
       {
@@ -96,14 +96,14 @@ export const ARTICLE_GROUPS: ArticleGroup[] = [
       {
         slug: "core-overview",
         label: "Présentation",
-        title: "@idn/core",
+        title: "@idn-ga/core",
         description: "Client OIDC vanilla, zéro dépendance.",
         component: CoreOverview,
       },
       {
         slug: "core-api",
         label: "Référence API",
-        title: "Référence API · @idn/core",
+        title: "Référence API · @idn-ga/core",
         description: "API complète du client OIDC.",
         component: CoreApi,
       },
@@ -115,14 +115,14 @@ export const ARTICLE_GROUPS: ArticleGroup[] = [
       {
         slug: "react-hooks",
         label: "Hooks",
-        title: "Hooks · @idn/react",
+        title: "Hooks · @idn-ga/react",
         description: "5 hooks headless pour construire votre UI.",
         component: ReactHooks,
       },
       {
         slug: "react-components",
         label: "Composants",
-        title: "Composants · @idn/react",
+        title: "Composants · @idn-ga/react",
         description: "Composants pré-stylés et utilitaires de rendu conditionnel.",
         component: ReactComponents,
       },

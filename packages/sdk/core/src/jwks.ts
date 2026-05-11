@@ -44,7 +44,7 @@ const fetchJwks = async (jwksUri: string): Promise<JwksDocument> => {
   if (cached && Date.now() - cached.fetchedAt < JWKS_TTL_MS) return cached.doc
   const res = await fetch(jwksUri, { headers: { Accept: "application/json" } })
   if (!res.ok) {
-    throw new Error(`[@idn/core] JWKS fetch failed (${res.status}) ${jwksUri}`)
+    throw new Error(`[@idn-ga/core] JWKS fetch failed (${res.status}) ${jwksUri}`)
   }
   const doc = (await res.json()) as JwksDocument
   jwksCache.set(jwksUri, { doc, fetchedAt: Date.now() })
@@ -70,7 +70,7 @@ const importKey = async (jwk: JwkKey, alg: string): Promise<CryptoKey> => {
       ["verify"],
     )
   }
-  throw new Error(`[@idn/core] Algorithme non supporté : ${alg}`)
+  throw new Error(`[@idn-ga/core] Algorithme non supporté : ${alg}`)
 }
 
 const verifySignature = async (
@@ -117,7 +117,7 @@ export const verifyIdToken = async (
 ): Promise<DecodedIdToken> => {
   const parts = token.split(".")
   if (parts.length !== 3) {
-    throw new Error("[@idn/core] ID token mal formé (≠ 3 segments)")
+    throw new Error("[@idn-ga/core] ID token mal formé (≠ 3 segments)")
   }
   const [headerB64, payloadB64, signatureB64] = parts as [string, string, string]
   const header = decodeJwtPart<DecodedIdToken["header"]>(headerB64)
@@ -125,7 +125,7 @@ export const verifyIdToken = async (
 
   if (!ALLOWED_ALGS.has(header.alg)) {
     throw new Error(
-      `[@idn/core] Algo ID token refusé : ${header.alg} (autorisés : RS256, ES256)`,
+      `[@idn-ga/core] Algo ID token refusé : ${header.alg} (autorisés : RS256, ES256)`,
     )
   }
 
@@ -133,7 +133,7 @@ export const verifyIdToken = async (
   const jwk =
     (header.kid ? jwks.keys.find((k) => k.kid === header.kid) : undefined) ??
     jwks.keys[0]
-  if (!jwk) throw new Error("[@idn/core] Aucune clé JWKS trouvée")
+  if (!jwk) throw new Error("[@idn-ga/core] Aucune clé JWKS trouvée")
 
   const cryptoKey = await importKey(jwk, header.alg)
   const signature = base64UrlDecode(signatureB64)
@@ -143,28 +143,28 @@ export const verifyIdToken = async (
     `${headerB64}.${payloadB64}`,
     signature,
   )
-  if (!valid) throw new Error("[@idn/core] Signature ID token invalide")
+  if (!valid) throw new Error("[@idn-ga/core] Signature ID token invalide")
 
   if (payload.iss !== opts.issuer) {
     throw new Error(
-      `[@idn/core] Issuer mismatch : attendu ${opts.issuer}, reçu ${payload.iss}`,
+      `[@idn-ga/core] Issuer mismatch : attendu ${opts.issuer}, reçu ${payload.iss}`,
     )
   }
   const audOk = Array.isArray(payload.aud)
     ? payload.aud.includes(opts.audience)
     : payload.aud === opts.audience
   if (!audOk) {
-    throw new Error("[@idn/core] Audience mismatch")
+    throw new Error("[@idn-ga/core] Audience mismatch")
   }
   const now = Math.floor(Date.now() / 1000)
   const skew = opts.clockSkew ?? 60
-  if (payload.exp + skew < now) throw new Error("[@idn/core] ID token expiré")
-  if (payload.iat - skew > now) throw new Error("[@idn/core] ID token iat dans le futur")
+  if (payload.exp + skew < now) throw new Error("[@idn-ga/core] ID token expiré")
+  if (payload.iat - skew > now) throw new Error("[@idn-ga/core] ID token iat dans le futur")
   if (payload.nbf !== undefined && payload.nbf - skew > now) {
-    throw new Error("[@idn/core] ID token nbf dans le futur")
+    throw new Error("[@idn-ga/core] ID token nbf dans le futur")
   }
   if (opts.nonce !== undefined && payload.nonce !== opts.nonce) {
-    throw new Error("[@idn/core] Nonce mismatch")
+    throw new Error("[@idn-ga/core] Nonce mismatch")
   }
 
   return { header, payload }

@@ -134,9 +134,9 @@ export const fr = {
     title: "Documentation",
     sections: {
       gettingStarted: "Démarrage",
-      betterAuth: "@idn/better-auth",
-      core: "@idn/core",
-      react: "@idn/react",
+      betterAuth: "@idn-ga/better-auth",
+      core: "@idn-ga/core",
+      react: "@idn-ga/react",
       oidc: "OIDC standard",
     },
     items: {

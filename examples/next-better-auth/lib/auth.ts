@@ -2,14 +2,14 @@ import Database from "better-sqlite3"
 import { betterAuth } from "better-auth"
 import { genericOAuth } from "better-auth/plugins"
 
-import { idn } from "@idn/better-auth"
+import { idn } from "@idn-ga/better-auth"
 
 const sqlite = new Database("./better-auth.db")
 
 /**
  * Better Auth côté app exemple "Bourses Étudiantes".
  *
- * Le helper @idn/better-auth retourne une config genericOAuth pré-remplie :
+ * Le helper @idn-ga/better-auth retourne une config genericOAuth pré-remplie :
  * discoveryUrl, PKCE, mapping profil, etc. On l'utilise tel quel.
  *
  * NB : l'issuer pointé est le déploiement Convex (qui héberge le serveur
@@ -22,7 +22,7 @@ export const auth: any = betterAuth({
   plugins: [
     genericOAuth({
       config: [
-        // @idn/better-auth retourne un Record<string, unknown> pour rester
+        // @idn-ga/better-auth retourne un Record<string, unknown> pour rester
         // résilient aux évolutions mineures de l'API Better Auth — on cast
         // au call site, le helper garantit la forme attendue.
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

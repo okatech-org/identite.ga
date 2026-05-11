@@ -49,8 +49,8 @@ export class IDNClient {
   private refreshPromise?: Promise<IDNTokens>
 
   constructor(config: IDNClientConfig) {
-    if (!config.clientId) throw new Error("[@idn/core] clientId requis")
-    if (!config.redirectUri) throw new Error("[@idn/core] redirectUri requis")
+    if (!config.clientId) throw new Error("[@idn-ga/core] clientId requis")
+    if (!config.redirectUri) throw new Error("[@idn-ga/core] redirectUri requis")
     this.clientId = config.clientId
     this.redirectUri = config.redirectUri
     this.issuer = (config.issuer ?? DEFAULT_ISSUER).replace(/\/+$/, "")
@@ -65,7 +65,7 @@ export class IDNClient {
   /** Démarre le flow OIDC — redirige vers l'authorization endpoint. */
   async signIn(opts: SignInOptions = {}): Promise<void> {
     if (typeof window === "undefined") {
-      throw new Error("[@idn/core] signIn() requiert un environnement browser")
+      throw new Error("[@idn-ga/core] signIn() requiert un environnement browser")
     }
     const discovery = await this.getDiscovery()
     const codeVerifier = generateVerifier()
@@ -112,7 +112,7 @@ export class IDNClient {
     const href =
       callbackUrl ?? (typeof window !== "undefined" ? window.location.href : undefined)
     if (!href) {
-      throw new Error("[@idn/core] handleCallback() : URL inconnue")
+      throw new Error("[@idn-ga/core] handleCallback() : URL inconnue")
     }
     const url = new URL(href)
     const params = url.searchParams
@@ -120,23 +120,23 @@ export class IDNClient {
     const oauthError = params.get("error")
     if (oauthError) {
       const desc = params.get("error_description") ?? oauthError
-      const err = new Error(`[@idn/core] OAuth error : ${desc}`)
+      const err = new Error(`[@idn-ga/core] OAuth error : ${desc}`)
       this.bus.emit("error", { error: err })
       throw err
     }
 
     const code = params.get("code")
     const returnedState = params.get("state")
-    if (!code) throw new Error("[@idn/core] code manquant dans la callback URL")
-    if (!returnedState) throw new Error("[@idn/core] state manquant dans la callback URL")
+    if (!code) throw new Error("[@idn-ga/core] code manquant dans la callback URL")
+    if (!returnedState) throw new Error("[@idn-ga/core] state manquant dans la callback URL")
 
     const raw = await this.storage.get(this.keys.pkce)
-    if (!raw) throw new Error("[@idn/core] flow PKCE introuvable — sign-in expiré ?")
+    if (!raw) throw new Error("[@idn-ga/core] flow PKCE introuvable — sign-in expiré ?")
     const pending = JSON.parse(raw) as PendingFlow
     await this.storage.remove(this.keys.pkce)
 
     if (pending.state !== returnedState) {
-      throw new Error("[@idn/core] state mismatch — risque CSRF, flow rejeté")
+      throw new Error("[@idn-ga/core] state mismatch — risque CSRF, flow rejeté")
     }
 
     const discovery = await this.getDiscovery()

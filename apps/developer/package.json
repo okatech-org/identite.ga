@@ -12,9 +12,9 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
-    "@idn/better-auth": "*",
-    "@idn/core": "*",
-    "@idn/react": "*",
+    "@idn-ga/better-auth": "*",
+    "@idn-ga/core": "*",
+    "@idn-ga/react": "*",
     "@repo/backend": "*",
     "@repo/ui": "*",
     "@tailwindcss/postcss": "^4.3.0",

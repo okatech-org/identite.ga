@@ -69,7 +69,7 @@ export default function HomePage() {
       </section>
 
       {/* Desktop (>= lg) — split hero + LoA card */}
-      <section className="mx-auto hidden w-full max-w-[1180px] px-6 py-10 sm:px-6 sm:py-12 md:px-7 md:py-15 lg:block lg:py-20">
+      <section className="mx-auto hidden w-full max-w-[1180px] flex-1 flex-col justify-center px-6 py-10 sm:px-6 sm:py-12 md:px-7 md:py-15 lg:flex lg:py-20">
         <div className="grid grid-cols-1 items-center gap-8 sm:gap-10 lg:grid-cols-[1.2fr_1fr] lg:gap-16">
           <div>
             <div className="mb-5 flex items-center gap-2.5 sm:mb-6">

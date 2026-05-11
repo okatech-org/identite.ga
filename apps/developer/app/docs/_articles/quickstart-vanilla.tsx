@@ -25,24 +25,24 @@ export default function QuickstartVanilla() {
       <H1>Quick start · vanilla JavaScript</H1>
       <Lede>
         Pour Vue, Svelte, vanilla, ou tout framework non-React.{" "}
-        <Code>@idn/core</Code> est zéro dépendance et fonctionne dans le
+        <Code>@idn-ga/core</Code> est zéro dépendance et fonctionne dans le
         navigateur sans bundler.
       </Lede>
 
       <H2 id="installation">Installation</H2>
       <CodeBlock lang="bash" title="terminal">
-{`bun add @idn/core`}
+{`bun add @idn-ga/core`}
       </CodeBlock>
       <P>Ou par CDN, sans bundler :</P>
       <CodeBlock lang="html">
 {`<script type="module">
-  import { createIDNClient } from "https://esm.sh/@idn/core@1";
+  import { createIDNClient } from "https://esm.sh/@idn-ga/core@1";
 </script>`}
       </CodeBlock>
 
       <H2 id="creation-du-client">Création du client</H2>
       <CodeBlock lang="js" title="auth.js">
-{`import { createIDNClient } from "@idn/core";
+{`import { createIDNClient } from "@idn-ga/core";
 
 export const idn = createIDNClient({
   clientId: "votre-client-id",

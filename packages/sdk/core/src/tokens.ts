@@ -33,7 +33,7 @@ const postForm = async (
   })
   if (!res.ok) {
     const text = await res.text().catch(() => "")
-    throw new Error(`[@idn/core] Token endpoint ${res.status} — ${text}`)
+    throw new Error(`[@idn-ga/core] Token endpoint ${res.status} — ${text}`)
   }
   return (await res.json()) as TokenResponseRaw
 }
@@ -79,7 +79,7 @@ export const fetchUserInfo = async (
     },
   })
   if (!res.ok) {
-    throw new Error(`[@idn/core] userinfo ${res.status}`)
+    throw new Error(`[@idn-ga/core] userinfo ${res.status}`)
   }
   return (await res.json()) as IDNUser
 }

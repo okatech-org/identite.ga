@@ -7,7 +7,7 @@
 const subtle = (): SubtleCrypto => {
   if (typeof crypto === "undefined" || !crypto.subtle) {
     throw new Error(
-      "[@idn/core] WebCrypto indisponible — PKCE S256 requiert globalThis.crypto.subtle",
+      "[@idn-ga/core] WebCrypto indisponible — PKCE S256 requiert globalThis.crypto.subtle",
     )
   }
   return crypto.subtle

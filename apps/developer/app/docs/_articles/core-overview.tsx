@@ -12,7 +12,7 @@ import {
 } from "../_components/prose"
 
 const TOC = [
-  { label: "À propos de @idn/core" },
+  { label: "À propos de @idn-ga/core" },
   { label: "Architecture du flow OIDC" },
   { label: "Création du client" },
   { label: "Cycle de vie de la session" },
@@ -21,12 +21,12 @@ const TOC = [
 
 export default function CoreOverview() {
   return (
-    <DocBody breadcrumbs={["@idn/core", "Présentation"]} toc={TOC}>
-      <H1>@idn/core</H1>
+    <DocBody breadcrumbs={["@idn-ga/core", "Présentation"]} toc={TOC}>
+      <H1>@idn-ga/core</H1>
       <Lede>
         Client OpenID Connect vanilla, framework-agnostic. C&apos;est la
-        fondation sur laquelle reposent <Code>@idn/react</Code> et{" "}
-        <Code>@idn/better-auth</Code>.
+        fondation sur laquelle reposent <Code>@idn-ga/react</Code> et{" "}
+        <Code>@idn-ga/better-auth</Code>.
       </Lede>
 
       <div className="mt-4 flex flex-wrap gap-2">
@@ -76,7 +76,7 @@ export default function CoreOverview() {
 
       <H2 id="creation-du-client">Création du client</H2>
       <CodeBlock lang="ts" title="src/idn.ts">
-{`import { createIDNClient } from "@idn/core";
+{`import { createIDNClient } from "@idn-ga/core";
 
 export const idn = createIDNClient({
   // Obligatoires

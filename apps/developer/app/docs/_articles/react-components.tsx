@@ -61,8 +61,8 @@ const COMING: Array<{ name: string; desc: string }> = [
 
 export default function ReactComponents() {
   return (
-    <DocBody breadcrumbs={["@idn/react", "Composants"]} toc={TOC}>
-      <H1>Composants · @idn/react</H1>
+    <DocBody breadcrumbs={["@idn-ga/react", "Composants"]} toc={TOC}>
+      <H1>Composants · @idn-ga/react</H1>
       <Lede>
         Composants <strong>100% optionnels</strong> — vous pouvez tout
         construire avec les hooks. Overridables via <Code>className</Code>,{" "}

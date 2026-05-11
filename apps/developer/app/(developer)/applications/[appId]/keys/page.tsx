@@ -129,7 +129,7 @@ export default function AppKeysPage() {
             </div>
             <pre className="mt-2.5 overflow-x-auto rounded-md bg-[#0E110D] p-4 font-mono text-[12px] leading-[1.7] text-[#E6F2EA]">
 {`import { genericOAuth } from "better-auth/plugins";
-import { idn } from "@idn/better-auth";
+import { idn } from "@idn-ga/better-auth";
 
 export const auth = betterAuth({
   plugins: [

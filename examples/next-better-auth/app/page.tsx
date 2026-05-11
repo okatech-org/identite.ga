@@ -23,7 +23,7 @@ export default async function HomePage() {
           Démonstration de l&apos;intégration « Se connecter avec Identité
           Numérique » via le helper{" "}
           <code className="rounded bg-idn-surface-2 px-1.5 py-0.5 font-mono text-[12px]">
-            @idn/better-auth
+            @idn-ga/better-auth
           </code>
           .
         </p>

@@ -46,9 +46,9 @@ Il est structuré en **trois phases** :
 ```
                             ┌──────────────────────────────────────────┐
                             │   Apps tierces (consulat.ga, e-visa…)    │
-                            │   ▷ @idn/better-auth                     │
-                            │   ▷ @idn/next-auth                       │
-                            │   ▷ @idn/react / @idn/core               │
+                            │   ▷ @idn-ga/better-auth                     │
+                            │   ▷ @idn-ga/next-auth                       │
+                            │   ▷ @idn-ga/react / @idn-ga/core               │
                             └───────────────┬──────────────────────────┘
                                             │ OIDC RS256 + PKCE
                                             ▼
@@ -111,7 +111,7 @@ Il est structuré en **trois phases** :
 | Outil              | Rôle                                                                         |
 | :----------------- | :--------------------------------------------------------------------------- |
 | **Turborepo 2.x**  | Orchestration des tâches (build, lint, test, typecheck) avec cache distribué |
-| **Workspaces Bun** | Liaison locale `@repo/*` et `@idn/*`                                         |
+| **Workspaces Bun** | Liaison locale `@repo/*` et `@idn-ga/*`                                         |
 
 Structure :
 
@@ -1157,7 +1157,7 @@ Si la Phase 3 est déclenchée :
 | **Build**                                       | Bun + Turborepo + TypeScript                                                                 | inchangé                                                   | inchangé                                                               |
 | **Frontend**                                    | Next.js 16 + React 19 + Tailwind v4                                                          | inchangé                                                   | inchangé                                                               |
 | **UI**                                          | Tokens IDN + Radix Primitives + Motion                                                       | inchangé                                                   | inchangé                                                               |
-| **SDK**                                         | `@idn/*` packages                                                                            | inchangés                                                  | inchangés                                                              |
+| **SDK**                                         | `@idn-ga/*` packages                                                                            | inchangés                                                  | inchangés                                                              |
 | **Auth engine**                                 | Better Auth 1.4+                                                                             | **Better Auth (inchangé)**                                 | Ory Kratos + Ory Hydra                                                 |
 | **OIDC**                                        | Better Auth `oidcProvider` (RS256)                                                           | inchangé                                                   | Ory Hydra (RS256)                                                      |
 | **DB engine**                                   | Convex Cloud + composants officiels (better-auth, resend, rate-limiter, aggregate, workflow) | **Convex self-hosted** + mêmes composants                  | PostgreSQL 16 natif                                                    |

@@ -44,7 +44,7 @@ export const fetchDiscovery = async (
   const res = await fetch(url, { headers: { Accept: "application/json" } })
   if (!res.ok) {
     throw new Error(
-      `[@idn/core] Discovery failed (${res.status}) ${url} — vérifier l'issuer`,
+      `[@idn-ga/core] Discovery failed (${res.status}) ${url} — vérifier l'issuer`,
     )
   }
   const doc = (await res.json()) as DiscoveryDocument
