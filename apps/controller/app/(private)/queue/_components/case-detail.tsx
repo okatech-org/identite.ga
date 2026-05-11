@@ -3,6 +3,7 @@
 import * as React from "react"
 import { useMutation, useQuery } from "convex/react"
 import { ConvexError } from "convex/values"
+import { ExpandIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { api } from "@repo/backend/convex/_generated/api"
@@ -171,28 +172,68 @@ export function CaseDetail() {
 }
 
 function PreviewSlot({ url, label }: { url: string | null; label: string }) {
-  if (url) {
+  const [open, setOpen] = React.useState(false)
+
+  if (!url) {
     return (
       <div
-        className="overflow-hidden rounded-[10px] bg-idn-surface-2"
+        className="flex items-center justify-center rounded-[10px] font-mono text-[11px] uppercase tracking-[0.1em] text-idn-muted"
+        style={{ aspectRatio: "1.6 / 1", background: STRIPED_BG }}
+      >
+        {label}
+      </div>
+    )
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label={`Agrandir : ${label}`}
+        className="group relative flex items-center justify-center overflow-hidden rounded-[10px] bg-idn-surface-2 transition-colors hover:ring-2 hover:ring-idn-green/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-idn-green"
         style={{ aspectRatio: "1.6 / 1" }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={url}
           alt={label}
-          className="size-full object-cover"
+          className="size-full object-contain"
           loading="lazy"
         />
-      </div>
-    )
-  }
-  return (
-    <div
-      className="flex items-center justify-center rounded-[10px] font-mono text-[11px] uppercase tracking-[0.1em] text-idn-muted"
-      style={{ aspectRatio: "1.6 / 1", background: STRIPED_BG }}
-    >
-      {label}
-    </div>
+        <span className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/70 to-transparent px-3 py-2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-white">
+            {label}
+          </span>
+          <ExpandIcon
+            aria-hidden="true"
+            className="size-3.5 text-white"
+          />
+        </span>
+      </button>
+      <DialogContent
+        className="max-w-[90vw] sm:max-w-[1100px] p-0 overflow-hidden bg-idn-bg"
+        showCloseButton={false}
+      >
+        <DialogHeader className="flex flex-row items-center justify-between gap-3 border-b border-idn-border-soft px-5 py-3">
+          <DialogTitle className="text-sm font-semibold text-idn-ink">
+            {label}
+          </DialogTitle>
+          <DialogClose asChild>
+            <Button variant="ghost" size="sm" aria-label="Fermer">
+              Fermer
+            </Button>
+          </DialogClose>
+        </DialogHeader>
+        <div className="flex max-h-[80vh] items-center justify-center bg-black/30 p-4">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={url}
+            alt={label}
+            className="max-h-[78vh] w-auto max-w-full object-contain"
+          />
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }

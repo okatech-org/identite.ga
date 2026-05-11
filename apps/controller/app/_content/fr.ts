@@ -25,17 +25,28 @@ export const nav = {
 
 export const dashboard = {
   meta: { title: "Tableau de bord" },
-  sub: "BONJOUR, AGENT K. OVONO",
+  subFallback: "TABLEAU DE BORD",
+  sub: (name: string) => `BONJOUR, ${name.toUpperCase()}`,
   title: "Tableau de bord",
   cards: {
     queue: {
       sub: "REVUE MANUELLE",
-      headline: "12 demandes en attente",
+      headline: (n: number) =>
+        n === 0
+          ? "Aucune demande en attente"
+          : n === 1
+            ? "1 demande en attente"
+            : `${n} demandes en attente`,
       cta: "File de demandes",
     },
     history: {
       sub: "TRAÇABILITÉ",
-      headline: "5 contrôles aujourd'hui",
+      headline: (n: number) =>
+        n === 0
+          ? "Aucun contrôle aujourd'hui"
+          : n === 1
+            ? "1 contrôle aujourd'hui"
+            : `${n} contrôles aujourd'hui`,
       cta: "Historique de contrôles",
     },
     verify: {
@@ -47,6 +58,7 @@ export const dashboard = {
   recent: {
     title: "Activité récente",
     loc: "TRAÇABILITÉ · 30 DERNIERS JOURS",
+    empty: "Aucun contrôle récent. Vos prochaines décisions apparaîtront ici.",
   },
 } as const
 
@@ -72,6 +84,10 @@ export const scan = {
   meta: { title: "Scanner une identité" },
   sub: "CONTRÔLE TERRAIN",
   title: "Scanner une identité",
+  placeholderTitle: "À développer",
+  placeholderBody:
+    "Le scanner QR / NFC sera branché sur la caméra du poste de contrôle pour lire le code IDN du titulaire, vérifier la signature côté serveur et notifier le citoyen (transparence).",
+  placeholderEta: "Disponible dans une prochaine itération.",
   reader: {
     title: "Lecteur QR / NFC",
     sub: "Demandez au titulaire de présenter son code IDN.",
@@ -117,4 +133,60 @@ export const history = {
   title: "Historique de contrôles",
   resultValid: "VALIDE",
   resultExpired: "EXPIRÉ",
+} as const
+
+export const settings = {
+  meta: { title: "Paramètres" },
+  sub: "COMPTE · PRÉFÉRENCES",
+  title: "Paramètres",
+  tabs: {
+    account: "Compte",
+    preferences: "Préférences",
+  },
+  account: {
+    title: "Informations du compte",
+    sub: "Identité affichée dans l'espace contrôleur et utilisée pour l'audit.",
+    nameLabel: "Nom",
+    emailLabel: "Email",
+    emailHelper:
+      "Adresse fournie par l'administrateur ayant créé votre compte. Pour la modifier, contactez votre superviseur.",
+    roleLabel: "Rôle",
+    roleValue: "Contrôleur d'identité",
+  },
+  password: {
+    title: "Mot de passe",
+    sub: "Modifiez régulièrement votre mot de passe. Minimum 12 caractères.",
+    cta: "Modifier",
+    modalTitle: "Modifier le mot de passe",
+    currentLabel: "Mot de passe actuel",
+    newLabel: "Nouveau mot de passe",
+    newHint: "Minimum 12 caractères. Mélangez lettres, chiffres et symboles.",
+    submit: "Modifier",
+    cancel: "Annuler",
+    successToast: "Mot de passe modifié.",
+    errorTooShort: "Le nouveau mot de passe doit contenir au moins 12 caractères.",
+    errorSame: "Le nouveau mot de passe doit être différent de l'ancien.",
+  },
+  preferences: {
+    title: "Préférences",
+    sub: "Langue d'interface et thème.",
+    language: {
+      label: "Langue",
+      description: "Langue d'interface et communications.",
+      options: [
+        { value: "fr", label: "Français" },
+        { value: "en", label: "English" },
+      ],
+    },
+    theme: {
+      label: "Thème",
+      description: "Apparence claire, sombre ou automatique.",
+      options: [
+        { value: "light", label: "Clair" },
+        { value: "dark", label: "Sombre" },
+        { value: "auto", label: "Automatique" },
+      ],
+    },
+    saveSuccessToast: "Préférences enregistrées.",
+  },
 } as const

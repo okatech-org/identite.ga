@@ -241,16 +241,6 @@ export function SignInForm({ notice }: { notice?: string } = {}) {
             <QrCodeIcon aria-hidden="true" />
             {signIn.qrCta}
           </Button>
-
-          <p className="mt-6 text-center text-sm text-muted-foreground">
-            {signIn.signUpPrefix}
-            <Link
-              href="/sign-up/profile"
-              className="font-semibold text-idn-green hover:underline dark:text-idn-green-on-dark"
-            >
-              {signIn.signUpLink}
-            </Link>
-          </p>
         </>
       ) : (
         <div className="space-y-5">
