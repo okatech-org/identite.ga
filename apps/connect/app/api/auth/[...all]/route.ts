@@ -70,7 +70,7 @@ async function proxyToConvex(req: NextRequest): Promise<NextResponse> {
   }
 
   if (isDev) {
-    // eslint-disable-next-line no-console
+     
     console.log("[auth-proxy]", req.method, url.pathname, {
       cookie: proxyHeaders["cookie"] ?? "(none)",
     })
@@ -107,8 +107,7 @@ async function proxyToConvex(req: NextRequest): Promise<NextResponse> {
 
     // Re-écriture des Set-Cookie : en dev, le navigateur refuse les
     // cookies `__Secure-` / `Secure` posés sur http://localhost. On strip.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const setCookies = (upstream.headers as any).getSetCookie?.() as
+    const setCookies = (upstream.headers as Headers & { getSetCookie?: () => string[] }).getSetCookie?.() as
       | string[]
       | undefined
     if (setCookies && setCookies.length > 0) {

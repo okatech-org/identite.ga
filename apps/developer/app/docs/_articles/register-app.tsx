@@ -1,3 +1,5 @@
+import Link from "next/link"
+
 import { DocBody } from "../_components/doc-body"
 import {
   Callout,
@@ -100,12 +102,12 @@ IDN_ISSUER=https://identite.ga`}
         Le <Code>client_secret</Code> est l&apos;équivalent d&apos;un mot de
         passe pour votre application. Stockez-le dans Vercel/AWS Secrets Manager
         ou équivalent, jamais dans Git. Voir le guide{" "}
-        <a
+        <Link
           href="/docs/security"
           className="text-idn-green underline-offset-2 hover:underline"
         >
           Sécurité OIDC
-        </a>
+        </Link>
         .
       </Callout>
 

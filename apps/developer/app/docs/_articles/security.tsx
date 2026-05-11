@@ -1,3 +1,5 @@
+import Link from "next/link"
+
 import { DocBody } from "../_components/doc-body"
 import {
   Callout,
@@ -92,12 +94,12 @@ export default function Security() {
         Pour les apps qui manipulent des données régaliennes (impôts, santé,
         état civil), préférez <Code>sessionStorage</Code> ou un adapter cookie
         httpOnly côté serveur. Voir{" "}
-        <a
+        <Link
           href="/docs/core-overview"
           className="text-idn-green underline-offset-2 hover:underline"
         >
           adaptateurs de stockage
-        </a>
+        </Link>
         .
       </Callout>
 

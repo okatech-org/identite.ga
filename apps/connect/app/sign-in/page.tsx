@@ -98,12 +98,12 @@ export default function ConnectSignInPage() {
         // posés ainsi sont SameSite=Lax par défaut, ce qui suffit pour la
         // requête same-origin qui suit.
         try {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
           const cookieStr: string | undefined = (
             authClient as { getCookie?: () => string }
           ).getCookie?.()
           if (cookieStr) {
-            // eslint-disable-next-line no-console
+             
             console.log(
               "[idn:sign-in] writing localStorage session to document.cookie",
               cookieStr.split(/;\s*/).map((kv) => kv.split("=")[0]),
@@ -116,15 +116,15 @@ export default function ConnectSignInPage() {
               document.cookie = `${stripped}; path=/; SameSite=Lax`
             }
           } else {
-            // eslint-disable-next-line no-console
+             
             console.warn("[idn:sign-in] authClient.getCookie() returned nothing")
           }
         } catch (err) {
-          // eslint-disable-next-line no-console
+           
           console.error("[idn:sign-in] failed to write document.cookie", err)
         }
 
-        // eslint-disable-next-line no-console
+         
         console.log("[idn:sign-in] OAuth flow, fetching", postLoginUrl)
         let nextUrl: string | null = null
         try {
@@ -133,7 +133,7 @@ export default function ConnectSignInPage() {
             credentials: "include",
             headers: { Accept: "application/json" },
           })
-          // eslint-disable-next-line no-console
+           
           console.log("[idn:sign-in] authorize response", {
             status: r.status,
             ct: r.headers.get("content-type"),
@@ -146,21 +146,21 @@ export default function ConnectSignInPage() {
             const body = (await r.json().catch(() => null)) as
               | { redirect?: boolean; url?: string }
               | null
-            // eslint-disable-next-line no-console
+             
             console.log("[idn:sign-in] authorize body", body)
             if (body?.url) nextUrl = body.url
           }
         } catch (err) {
-          // eslint-disable-next-line no-console
+           
           console.error("[idn:sign-in] authorize fetch threw", err)
         }
         if (nextUrl) {
-          // eslint-disable-next-line no-console
+           
           console.log("[idn:sign-in] navigating to", nextUrl)
           window.location.assign(nextUrl)
           return
         }
-        // eslint-disable-next-line no-console
+         
         console.warn(
           "[idn:sign-in] no nextUrl from authorize, fallback full-page nav",
         )

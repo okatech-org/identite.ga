@@ -24,7 +24,6 @@ export class EventBus {
       try {
         ;(cb as IDNEventListener<E>)(payload)
       } catch (err) {
-        // eslint-disable-next-line no-console
         console.error("[@idn/core] listener threw", err)
       }
     }

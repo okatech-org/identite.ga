@@ -8,7 +8,7 @@ import { api } from "@repo/backend/convex/_generated/api"
 import { Switch } from "@repo/ui/components/switch"
 
 import { settings } from "../../_content/fr"
-import { SettingsRow, SettingsSection } from "../settings-section"
+import { SettingsSection } from "../settings-section"
 
 type Categories = "security" | "kyc" | "consent" | "comms"
 type Channels = "email" | "inApp"

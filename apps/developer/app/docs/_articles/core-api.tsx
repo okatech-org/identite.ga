@@ -1,3 +1,5 @@
+import Link from "next/link"
+
 import { DocBody } from "../_components/doc-body"
 import {
   Code,
@@ -31,12 +33,12 @@ export default function CoreApi() {
       <H2 id="createidnclient">createIDNClient</H2>
       <P>
         Factory qui crée un client OIDC. Voir{" "}
-        <a
+        <Link
           href="/docs/core-overview"
           className="text-idn-green underline-offset-2 hover:underline"
         >
           Présentation
-        </a>{" "}
+        </Link>{" "}
         pour la signature complète des options.
       </P>
       <CodeBlock lang="ts">

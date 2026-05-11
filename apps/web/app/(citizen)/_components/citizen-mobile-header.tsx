@@ -35,7 +35,7 @@ import { cn } from "@repo/ui/lib/utils"
 
 import { authClient } from "@/lib/auth-client"
 
-import { dashboard, userMenu } from "../_content/fr"
+import { userMenu } from "../_content/fr"
 
 const CONNECTED_LINKS = [
   { href: "/dashboard", label: userMenu.dashboard, icon: HomeIcon },

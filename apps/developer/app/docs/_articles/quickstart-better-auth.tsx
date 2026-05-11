@@ -1,3 +1,5 @@
+import Link from "next/link"
+
 import { DocBody } from "../_components/doc-body"
 import {
   Callout,
@@ -47,12 +49,12 @@ export default function QuickstartBetterAuth() {
         </li>
         <li>
           Application IDN enregistrée (voir{" "}
-          <a
+          <Link
             href="/docs/register-app"
             className="text-idn-green underline-offset-2 hover:underline"
           >
             Enregistrer une application
-          </a>
+          </Link>
           )
         </li>
         <li>
@@ -138,39 +140,39 @@ export default async function Dashboard() {
       <Ul>
         <li>
           Exiger un{" "}
-          <a
+          <Link
             href="/docs/loa"
             className="text-idn-green underline-offset-2 hover:underline"
           >
             niveau LoA spécifique
-          </a>
+          </Link>
         </li>
         <li>
           Récupérer des claims étendus via les{" "}
-          <a
+          <Link
             href="/docs/core-api"
             className="text-idn-green underline-offset-2 hover:underline"
           >
             scopes IDN
-          </a>
+          </Link>
         </li>
         <li>
           Mettre en place la{" "}
-          <a
+          <Link
             href="/docs/security"
             className="text-idn-green underline-offset-2 hover:underline"
           >
             déconnexion fédérée
-          </a>
+          </Link>
         </li>
         <li>
           Migrer depuis{" "}
-          <a
+          <Link
             href="/docs/migration-clerk"
             className="text-idn-green underline-offset-2 hover:underline"
           >
             Clerk
-          </a>{" "}
+          </Link>{" "}
           vers IDN
         </li>
       </Ul>

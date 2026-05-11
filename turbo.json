@@ -1,7 +1,13 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
   "ui": "tui",
-  "globalEnv": ["NEXT_PUBLIC_CONVEX_URL", "CONVEX_DEPLOYMENT"],
+  "globalEnv": [
+    "NEXT_PUBLIC_CONVEX_URL",
+    "CONVEX_DEPLOYMENT",
+    "CONVEX_SITE_URL",
+    "NEXT_PUBLIC_CONVEX_SITE_URL",
+    "NODE_ENV"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

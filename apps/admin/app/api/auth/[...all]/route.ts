@@ -62,7 +62,7 @@ async function proxyToConvex(req: NextRequest): Promise<NextResponse> {
 
     // Re-écriture des Set-Cookie : en dev, le navigateur refuse les
     // cookies `__Secure-` / `Secure` posés sur http://localhost. On strip.
-    const setCookies = (upstream.headers as any).getSetCookie?.() as
+    const setCookies = (upstream.headers as Headers & { getSetCookie?: () => string[] }).getSetCookie?.() as
       | string[]
       | undefined
     if (setCookies && setCookies.length > 0) {

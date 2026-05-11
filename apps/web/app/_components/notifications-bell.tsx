@@ -100,7 +100,7 @@ export function NotificationsBell({ className }: { className?: string }) {
           </div>
         ) : list.length === 0 ? (
           <div className="px-2 py-6 text-center text-xs text-muted-foreground">
-            Aucune notification pour l'instant.
+            Aucune notification pour l&apos;instant.
           </div>
         ) : (
           <div className="max-h-[420px] overflow-y-auto">
