@@ -14,6 +14,12 @@ const HOP_BY_HOP = new Set([
   "connection",
   "keep-alive",
   "upgrade",
+  // Node's fetch décompresse automatiquement la réponse upstream. Si on
+  // forward `content-encoding: gzip|br|...` au browser alors que le body
+  // est déjà en clair, le browser plante avec ERR_CONTENT_DECODING_FAILED.
+  // Idem `content-length` qui ne correspond plus à la taille décompressée.
+  "content-encoding",
+  "content-length",
 ])
 
 async function proxyToConvex(req: NextRequest): Promise<NextResponse> {
