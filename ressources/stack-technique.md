@@ -891,11 +891,16 @@ Configurés dans Next.js middleware par app :
 
 ### 12.2 Déploiement Phase 1
 
-| App                                  | Hébergement                                                   |
-| :----------------------------------- | :------------------------------------------------------------ |
-| `apps/web`, `apps/auth`, `apps/docs` | **Vercel** (région Paris ou Frankfurt pour proximité Afrique) |
-| Convex                               | Convex Cloud                                                  |
-| Resend                               | Resend Cloud                                                  |
+> Décision actée par [ADR-0011](./doc/adr-0011-deploiement-gcp-cloud-run.md) — bascule de Vercel vers **GCP Cloud Run** pour préparer la trajectoire Phase 2 (conteneurs Docker) et garantir la souveraineté EU dès le MVP.
+
+| App                                                                           | Hébergement                                                                |
+| :---------------------------------------------------------------------------- | :------------------------------------------------------------------------- |
+| `apps/web`, `apps/admin`, `apps/controller`, `apps/developer`, `apps/connect` | **Google Cloud Run** (région `europe-west1` — Belgique), 1 service par app |
+| Images Docker                                                                 | **Artifact Registry** `identite-ga` (région `europe-west1`)                |
+| Convex                                                                        | Convex Cloud                                                               |
+| Resend                                                                        | Resend Cloud                                                               |
+
+**CI/CD** : GitHub Actions, 1 workflow par app + 1 workflow Convex, déclenchés par `push` sur `main` avec filtres `paths:`. Auth GitHub → GCP via **Workload Identity Federation** (pas de clé JSON). Cf. ADR-0011 §2 pour le mapping workflows ↔ chemins.
 
 ### 12.3 Déploiement Phase 2 (souveraineté pragmatique)
 
