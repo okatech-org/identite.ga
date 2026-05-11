@@ -8,11 +8,66 @@
 
 export const fr = {
   brand: {
-    name: "IDN",
+    name: "Identité Numérique",
     operator: "Admin · Système",
-    role: "ADMINISTRATEUR",
+    role: "ESPACE ADMIN",
     badge: "O",
     connecte: "connecté",
+  },
+  settings: {
+    sub: "PARAMÈTRES",
+    title: "Paramètres du compte",
+    menu: "Paramètres",
+    signOut: "Se déconnecter",
+    tabs: {
+      account: "Compte",
+      preferences: "Préférences",
+    },
+    account: {
+      title: "Identité",
+      sub: "Informations administratives du compte.",
+      nameLabel: "Nom complet",
+      emailLabel: "Adresse email",
+      emailHelper: "Utilisée pour la connexion et les notifications.",
+      roleLabel: "Rôle",
+      roleValue: "Administrateur Système",
+    },
+    password: {
+      title: "Mot de passe",
+      sub: "Choisissez un mot de passe fort, propre à votre compte administrateur.",
+      newHint: "Au moins 12 caractères. Différent de l'ancien.",
+      cta: "Changer",
+      modalTitle: "Changer de mot de passe",
+      currentLabel: "Mot de passe actuel",
+      newLabel: "Nouveau mot de passe",
+      submit: "Mettre à jour",
+      cancel: "Annuler",
+      successToast: "Mot de passe mis à jour.",
+      errorTooShort: "Au moins 12 caractères requis.",
+      errorSame: "Le nouveau mot de passe doit être différent de l'ancien.",
+    },
+    preferences: {
+      title: "Préférences",
+      sub: "Langue de l'interface et thème.",
+      saveSuccessToast: "Préférence enregistrée.",
+      language: {
+        label: "Langue",
+        description: "Langue affichée dans la console.",
+        options: [
+          { value: "fr", label: "Français" },
+          { value: "en", label: "English" },
+        ],
+      },
+      theme: {
+        label: "Thème",
+        description: "Clair, sombre, ou suivant les préférences système.",
+        options: [
+          { value: "light", label: "Clair" },
+          { value: "dark", label: "Sombre" },
+          { value: "auto", label: "Système" },
+        ],
+      },
+    },
   },
 
   signIn: {

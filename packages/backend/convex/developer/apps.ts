@@ -224,6 +224,24 @@ export const create = mutation({
         message: "Au moins une redirect URI est requise.",
       })
     }
+    // Garde : un développeur non validé par le super-admin ne peut créer
+    // que des apps en sandbox. Le passage en production requiert d'avoir
+    // été approuvé manuellement (cf. admin/roles.setDeveloperVerified).
+    if (args.env === "production") {
+      const roleRow = await ctx.db
+        .query("userRole")
+        .withIndex("by_userId_role", (q) =>
+          q.eq("userId", user.userId).eq("role", "developer"),
+        )
+        .unique()
+      if (!roleRow || roleRow.revokedAt || roleRow.verified !== true) {
+        throw new ConvexError({
+          code: "DEVELOPER_NOT_VERIFIED",
+          message:
+            "Votre compte développeur doit être validé par un super-administrateur avant de publier en production.",
+        })
+      }
+    }
     for (const uri of args.redirectUris) {
       try {
         const parsed = new URL(uri)

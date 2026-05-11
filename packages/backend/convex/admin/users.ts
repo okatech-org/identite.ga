@@ -68,11 +68,18 @@ export const listProfiles = query({
         model: "user",
         where: [{ field: "_id", value: d.userId }],
       })) as { email?: string; name?: string } | null
+      // Le name Better Auth est généralement set à l'email côté apps/web
+      // (sign-up §39). On préfère donc le pivot KYC quand il est dispo.
+      const realName = d.pivot
+        ? `${d.pivot.firstName} ${d.pivot.lastName}`.trim()
+        : undefined
+      const isPlaceholderName =
+        !user?.name || user.name === user?.email
       results.push({
         _id: d._id,
         userId: d.userId,
         email: user?.email ?? "",
-        name: user?.name,
+        name: realName ?? (isPlaceholderName ? undefined : user?.name),
         profileType: d.profileType,
         loa: d.loa,
         hasPivot: !!d.pivot,

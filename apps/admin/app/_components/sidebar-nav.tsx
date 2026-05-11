@@ -3,8 +3,10 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import type { ReactNode } from "react"
+import { useQuery } from "convex/react"
 
 import { cn } from "@repo/ui/lib/utils"
+import { api } from "@repo/backend/convex/_generated/api"
 
 import { IdnIcons } from "./icons"
 
@@ -16,24 +18,77 @@ type NavItem = {
   tag?: string
 }
 
-const NAV: NavItem[] = [
-  { id: "dashboard", href: "/dashboard", label: "Tableau de bord",       icon: IdnIcons.dashboard },
-  { id: "apps",      href: "/apps",      label: "Applications OAuth",    icon: IdnIcons.link, tag: "23" },
-  { id: "users",     href: "/users",     label: "Comptes IDN",           icon: IdnIcons.user, tag: "142k" },
-  { id: "logs",      href: "/logs",      label: "Logs & audit",          icon: IdnIcons.doc  },
-  { id: "roles",     href: "/roles",     label: "Rôles & habilitations", icon: IdnIcons.shield },
-  { id: "providers", href: "/providers", label: "Providers email/SMS",   icon: IdnIcons.mail },
-]
+/**
+ * Format compact pour les badges sidebar : "142" jusqu'à 999, "1.2k" après.
+ * Renvoie undefined quand la valeur n'a pas encore été chargée pour ne pas
+ * flasher un "0" avant que la query Convex revienne.
+ */
+function fmtCompact(n: number | undefined): string | undefined {
+  if (n === undefined) return undefined
+  if (n < 1000) return String(n)
+  const k = n / 1000
+  return `${k < 10 ? k.toFixed(1) : Math.round(k)}k`
+}
 
 export function SidebarNav() {
   const pathname = usePathname() ?? ""
+
+  const totalAccounts = useQuery(api.admin.users.totalAccounts, {}) as
+    | number
+    | undefined
+  const apps = useQuery(api.admin.oauthApps.listApps, { limit: 500 }) as
+    | { disabled: boolean }[]
+    | undefined
+  const appsActive =
+    apps === undefined ? undefined : apps.filter((a) => !a.disabled).length
+
+  const NAV: NavItem[] = [
+    {
+      id: "dashboard",
+      href: "/dashboard",
+      label: "Tableau de bord",
+      icon: IdnIcons.dashboard,
+    },
+    {
+      id: "apps",
+      href: "/apps",
+      label: "Applications OAuth",
+      icon: IdnIcons.link,
+      tag: fmtCompact(appsActive),
+    },
+    {
+      id: "users",
+      href: "/users",
+      label: "Comptes IDN",
+      icon: IdnIcons.user,
+      tag: fmtCompact(totalAccounts),
+    },
+    {
+      id: "logs",
+      href: "/logs",
+      label: "Logs & audit",
+      icon: IdnIcons.doc,
+    },
+    {
+      id: "roles",
+      href: "/roles",
+      label: "Rôles & habilitations",
+      icon: IdnIcons.shield,
+    },
+    {
+      id: "providers",
+      href: "/providers",
+      label: "Providers email/SMS",
+      icon: IdnIcons.mail,
+    },
+  ]
+
   return (
     <nav
       className="flex flex-1 flex-col gap-0.5 px-2.5 py-3.5"
       aria-label="Navigation administrateur"
     >
       {NAV.map((n) => {
-        // Marque actif aussi sur sous-routes (/apps/[id] reste sous "apps")
         const sel =
           pathname === n.href ||
           (n.href !== "/" && pathname.startsWith(`${n.href}/`))

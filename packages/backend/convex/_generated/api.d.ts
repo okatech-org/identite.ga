@@ -8,12 +8,15 @@
  * @module
  */
 
+import type * as _dev_listLatestLogs from "../_dev/listLatestLogs.js";
 import type * as _dev_listRoles from "../_dev/listRoles.js";
+import type * as _dev_rebuildAggregates from "../_dev/rebuildAggregates.js";
 import type * as account from "../account.js";
 import type * as activity from "../activity.js";
 import type * as admin_auditLogs from "../admin/auditLogs.js";
 import type * as admin_dashboard from "../admin/dashboard.js";
 import type * as admin_oauthApps from "../admin/oauthApps.js";
+import type * as admin_operators from "../admin/operators.js";
 import type * as admin_providers from "../admin/providers.js";
 import type * as admin_roles from "../admin/roles.js";
 import type * as admin_users from "../admin/users.js";
@@ -27,7 +30,9 @@ import type * as controller_queue from "../controller/queue.js";
 import type * as developer_apps from "../developer/apps.js";
 import type * as documents from "../documents.js";
 import type * as email_provider from "../email/provider.js";
+import type * as email_templates_kycEmail from "../email/templates/kycEmail.js";
 import type * as email_templates_otpEmail from "../email/templates/otpEmail.js";
+import type * as functions from "../functions.js";
 import type * as http from "../http.js";
 import type * as kyc from "../kyc.js";
 import type * as kyc_actions from "../kyc/actions.js";
@@ -55,12 +60,15 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "_dev/listLatestLogs": typeof _dev_listLatestLogs;
   "_dev/listRoles": typeof _dev_listRoles;
+  "_dev/rebuildAggregates": typeof _dev_rebuildAggregates;
   account: typeof account;
   activity: typeof activity;
   "admin/auditLogs": typeof admin_auditLogs;
   "admin/dashboard": typeof admin_dashboard;
   "admin/oauthApps": typeof admin_oauthApps;
+  "admin/operators": typeof admin_operators;
   "admin/providers": typeof admin_providers;
   "admin/roles": typeof admin_roles;
   "admin/users": typeof admin_users;
@@ -74,7 +82,9 @@ declare const fullApi: ApiFromModules<{
   "developer/apps": typeof developer_apps;
   documents: typeof documents;
   "email/provider": typeof email_provider;
+  "email/templates/kycEmail": typeof email_templates_kycEmail;
   "email/templates/otpEmail": typeof email_templates_otpEmail;
+  functions: typeof functions;
   http: typeof http;
   kyc: typeof kyc;
   "kyc/actions": typeof kyc_actions;

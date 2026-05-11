@@ -159,6 +159,33 @@ export default function DashboardPage() {
   ).length
   const todayLogins = daily?.length ? daily[daily.length - 1]!.count : 0
 
+  // Hints dynamiques — pas de pic à 14h32 hardcodé : on remplace par des
+  // valeurs réelles tirées des queries.
+  const weeklyTotal = (daily ?? []).slice(-7).reduce((s, b) => s + b.count, 0)
+  const previousWeekTotal = (daily ?? [])
+    .slice(-14, -7)
+    .reduce((s, b) => s + b.count, 0)
+  const accountsHint =
+    weeklyTotal === 0 && previousWeekTotal === 0
+      ? "Aucune connexion 7 jours"
+      : previousWeekTotal === 0
+        ? `+${weeklyTotal} connexions 7 j`
+        : (() => {
+            const pct = Math.round(
+              ((weeklyTotal - previousWeekTotal) / previousWeekTotal) * 100,
+            )
+            const sign = pct >= 0 ? "+" : ""
+            return `${sign}${pct}% vs sem. dernière`
+          })()
+
+  const peakLabel = (() => {
+    if (!daily || daily.length === 0) return ""
+    const peak = daily.reduce((best, b) => (b.count > best.count ? b : best))
+    if (peak.count === 0) return "Aucune connexion 15 j"
+    const d = new Date(peak.day)
+    return `pic ${d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })} (${peak.count})`
+  })()
+
   return (
     <>
       <OpHeader
@@ -178,12 +205,12 @@ export default function DashboardPage() {
           <StatCard
             label={fr.dashboard.stats.accounts.label}
             value={accounts.toLocaleString("fr-FR")}
-            hint={fr.dashboard.stats.accounts.hint}
+            hint={accountsHint}
           />
           <StatCard
             label={fr.dashboard.stats.logins.label}
             value={todayLogins.toLocaleString("fr-FR")}
-            hint={fr.dashboard.stats.logins.hint}
+            hint={peakLabel}
           />
           <StatCard
             label={fr.dashboard.stats.apps.label}

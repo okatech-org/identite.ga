@@ -15,6 +15,10 @@ export const list = query({
     action: v.optional(ACTION),
     actorId: v.optional(v.string()),
     limit: v.optional(v.number()),
+    /** Borne basse incluse (timestamp ms). */
+    dateFrom: v.optional(v.number()),
+    /** Borne haute exclue (timestamp ms). */
+    dateTo: v.optional(v.number()),
   },
   returns: v.array(
     v.object({
@@ -47,12 +51,34 @@ export const list = query({
         .withIndex("by_actor", (q) => q.eq("actorId", aid))
         .order("desc")
         .take(limit)
+    } else if (args.dateFrom !== undefined) {
+      const from = args.dateFrom
+      const to = args.dateTo ?? Date.now() + 1
+      docs = await ctx.db
+        .query("auditLog")
+        .withIndex("by_createdAt", (q) =>
+          q.gte("createdAt", from).lt("createdAt", to),
+        )
+        .order("desc")
+        .take(limit)
     } else {
       docs = await ctx.db
         .query("auditLog")
         .withIndex("by_createdAt")
         .order("desc")
         .take(limit)
+    }
+
+    // Pour les paths "by_action" / "by_actor", on applique le filtre date
+    // a posteriori si présent (rare en V1 — les maquettes ne combinent pas
+    // les filtres).
+    if (
+      (args.action || args.actorId) &&
+      (args.dateFrom !== undefined || args.dateTo !== undefined)
+    ) {
+      const from = args.dateFrom ?? 0
+      const to = args.dateTo ?? Number.MAX_SAFE_INTEGER
+      docs = docs.filter((d) => d.createdAt >= from && d.createdAt < to)
     }
 
     return docs.map((d) => ({

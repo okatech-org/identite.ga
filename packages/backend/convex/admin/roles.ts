@@ -49,6 +49,7 @@ export const listRolesSummary = query({
 
 /**
  * Liste les opérateurs avec leur email. Limité à 200 pour la V1.
+ * Inclut le flag `verified` (pertinent uniquement pour le rôle developer).
  */
 export const listOperators = query({
   args: { role: v.optional(ROLE), limit: v.optional(v.number()) },
@@ -59,6 +60,8 @@ export const listOperators = query({
       name: v.optional(v.string()),
       role: v.string(),
       assignedAt: v.number(),
+      verified: v.boolean(),
+      verifiedAt: v.optional(v.number()),
     }),
   ),
   handler: async (ctx, args) => {
@@ -85,6 +88,8 @@ export const listOperators = query({
       name?: string
       role: string
       assignedAt: number
+      verified: boolean
+      verifiedAt?: number
     }> = []
     for (const r of active) {
       const user = (await ctx.runQuery(
@@ -98,9 +103,11 @@ export const listOperators = query({
       results.push({
         userId: r.userId,
         email: user.email ?? "",
-        name: user.name,
+        name: user.name && user.name !== user.email ? user.name : undefined,
         role: r.role,
         assignedAt: r.assignedAt,
+        verified: r.verified === true,
+        verifiedAt: r.verifiedAt,
       })
     }
     return results
@@ -142,6 +149,57 @@ export const assign = mutation({
       targetType: "user",
       targetId: args.userId,
       metadata: { role: args.role },
+    })
+
+    return null
+  },
+})
+
+/**
+ * Bascule le flag `verified` sur un rôle developer. Tant qu'il vaut
+ * `false`, le développeur ne peut créer/publier d'app qu'en sandbox
+ * (cf. developer/apps.ts:create).
+ *
+ * Idempotent : si déjà dans l'état demandé, no-op.
+ */
+export const setDeveloperVerified = mutation({
+  args: { userId: v.string(), verified: v.boolean() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const actor = await requireAdmin(ctx)
+    const existing = await ctx.db
+      .query("userRole")
+      .withIndex("by_userId_role", (q) =>
+        q.eq("userId", args.userId).eq("role", "developer"),
+      )
+      .unique()
+
+    if (!existing || existing.revokedAt) {
+      throw new ConvexError({
+        code: "DEVELOPER_NOT_FOUND",
+        message: "Aucun rôle développeur actif pour cet utilisateur.",
+      })
+    }
+
+    const current = existing.verified === true
+    if (current === args.verified) return null
+
+    await ctx.db.patch(existing._id, {
+      verified: args.verified,
+      verifiedAt: args.verified ? Date.now() : undefined,
+      verifiedBy: args.verified ? actor.userId : undefined,
+    })
+
+    await ctx.runMutation(internal.audit.recordAudit, {
+      actorId: actor.userId,
+      action: "admin_action",
+      targetType: "user",
+      targetId: args.userId,
+      metadata: {
+        kind: args.verified
+          ? "developer_verified"
+          : "developer_unverified",
+      },
     })
 
     return null

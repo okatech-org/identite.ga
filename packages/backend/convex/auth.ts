@@ -4,7 +4,7 @@ import { oauthProvider } from "@better-auth/oauth-provider";
 import { betterAuth } from "better-auth/minimal";
 import { emailOTP, haveIBeenPwned, jwt, twoFactor } from "better-auth/plugins";
 
-import { components } from "./_generated/api";
+import { components, internal } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
 import { query } from "./_generated/server";
 import authConfig from "./auth.config";
@@ -108,6 +108,49 @@ export const createAuth = (
     session: {
       expiresIn: 60 * 60 * 24 * 14, // 14 jours (§6.3)
       updateAge: 60 * 60 * 24, // refresh quotidien
+    },
+    /**
+     * Hook DB Better Auth : à chaque création de session (sign-in OK,
+     * sign-up OK ou OTP/2FA vérifié), on écrit un événement `login_success`
+     * dans `auditLog`. C'est ce qui alimente la sparkline « Connexions
+     * par jour » du dashboard admin (cf. admin/dashboard.getDailyLogins).
+     */
+    databaseHooks: {
+      session: {
+        create: {
+          after: async (session: {
+            userId?: string
+            ipAddress?: string | null
+            userAgent?: string | null
+          }) => {
+            try {
+              await (ctx as unknown as {
+                runMutation: (
+                  ref: typeof internal.audit.recordAudit,
+                  args: {
+                    actorId?: string
+                    action: "login_success"
+                    targetType: "session"
+                    targetId: string
+                    ip?: string
+                    userAgent?: string
+                  },
+                ) => Promise<unknown>
+              }).runMutation(internal.audit.recordAudit, {
+                actorId: session.userId ?? undefined,
+                action: "login_success",
+                targetType: "session",
+                targetId: session.userId ?? "—",
+                ip: session.ipAddress ?? undefined,
+                userAgent: session.userAgent ?? undefined,
+              })
+            } catch (err) {
+              // Ne pas casser la connexion si l'audit foire.
+              console.error("[auth] login audit failed", err)
+            }
+          },
+        },
+      },
     },
     advanced: {
       // Convex tourne toujours en HTTPS → Better Auth infère Secure cookies.

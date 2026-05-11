@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values"
 
 import { internal } from "./_generated/api"
-import { mutation } from "./_generated/server"
+import { mutation } from "./functions"
 import { requireAuth, requireVerifiedAuth } from "./lib/auth"
 import { generateIdnId } from "./lib/idnId"
 import { PROFILE_TYPES } from "./schema"

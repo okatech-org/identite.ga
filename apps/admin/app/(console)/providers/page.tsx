@@ -1,42 +1,37 @@
-"use client"
-
 /**
  * Providers email & SMS — port de idn-desktop.jsx:1490-1631 (AdminProviders).
- * Câblé sur `admin.providers.getActive` (lecture) + `setActive` (mutation
- * via le client island ProviderActivateButton).
+ *
+ * V1 : page **lecture seule**. La configuration des providers est faite
+ * manuellement via les variables d'environnement Convex (RESEND_API_KEY,
+ * etc.). Aucun bouton d'activation : un badge "Phase 2" prévient le
+ * super-admin qu'il ne peut pas encore basculer depuis l'UI.
  */
-import { useQuery } from "convex/react"
-
 import { cn } from "@repo/ui/lib/utils"
-import { api } from "@repo/backend/convex/_generated/api"
 
 import { fr } from "../../_content/fr"
 import { OpHeader } from "../../_components/op-header"
-import { ProviderActivateButton } from "../../_components/provider-activate-button"
 import {
   EMAIL_PROVIDERS,
   SMS_PROVIDERS,
   type Provider,
 } from "../../_mocks/providers"
 
-type ActiveProviders = { email: string | null; sms: string | null }
+const EMAIL_ACTIVE = "resend"
 
 function ProviderRow({
   provider,
-  channel,
   active,
 }: {
   provider: Provider
-  channel: "email" | "sms"
   active: boolean
 }) {
   return (
     <div
       className={cn(
-        "mb-2 flex items-center gap-3 rounded-[10px] border-[1.5px] px-3.5 py-3 transition-colors",
+        "mb-2 flex items-center gap-3 rounded-[10px] border-[1.5px] px-3.5 py-3",
         active
           ? "border-idn-green bg-idn-green-soft dark:bg-[#0F2A18]"
-          : "border-idn-border-soft bg-transparent",
+          : "border-idn-border-soft bg-transparent opacity-70",
       )}
     >
       <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-idn-surface-2 text-xs font-semibold text-idn-ink">
@@ -53,7 +48,9 @@ function ProviderRow({
           {fr.providers.badgeActive}
         </span>
       ) : (
-        <ProviderActivateButton channel={channel} providerId={provider.id} />
+        <span className="rounded-full bg-idn-surface-2 px-2.5 py-[3px] text-[11px] font-medium text-idn-muted">
+          Inactif
+        </span>
       )}
     </div>
   )
@@ -62,12 +59,10 @@ function ProviderRow({
 function Section({
   title,
   providers,
-  channel,
   activeId,
 }: {
   title: string
   providers: Provider[]
-  channel: "email" | "sms"
   activeId: string | null
 }) {
   return (
@@ -77,7 +72,6 @@ function Section({
         <ProviderRow
           key={p.id}
           provider={p}
-          channel={channel}
           active={p.id === activeId}
         />
       ))}
@@ -86,27 +80,33 @@ function Section({
 }
 
 export default function ProvidersPage() {
-  const data = useQuery(api.admin.providers.getActive, {}) as
-    | ActiveProviders
-    | undefined
-  const active = data ?? { email: "resend", sms: null }
-
   return (
     <>
-      <OpHeader sub={fr.providers.sub} title={fr.providers.title} />
+      <OpHeader
+        sub={fr.providers.sub}
+        title={fr.providers.title}
+        right={
+          <span className="inline-flex h-7 items-center rounded-full border border-idn-yellow bg-idn-yellow-soft px-3 text-[11px] font-semibold text-[#7a5a00]">
+            Phase 2 · configuration manuelle
+          </span>
+        }
+      />
       <div className="flex-1 overflow-auto p-7">
         <div className="max-w-[820px]">
+          <p className="mb-4 rounded-lg border border-idn-border-soft bg-idn-surface-2 px-3.5 py-2.5 text-xs text-idn-ink-2">
+            Le basculement des providers se fait actuellement via les
+            variables d&apos;environnement Convex (<code className="font-mono text-[11px]">RESEND_API_KEY</code>,
+            etc.). La gestion depuis cette page sera activée en Phase 2.
+          </p>
           <Section
             title={fr.providers.emailSectionTitle}
             providers={EMAIL_PROVIDERS}
-            channel="email"
-            activeId={active.email}
+            activeId={EMAIL_ACTIVE}
           />
           <Section
             title={fr.providers.smsSectionTitle}
             providers={SMS_PROVIDERS}
-            channel="sms"
-            activeId={active.sms}
+            activeId={null}
           />
         </div>
       </div>
