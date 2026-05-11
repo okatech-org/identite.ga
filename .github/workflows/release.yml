@@ -44,7 +44,12 @@ jobs:
           registry-url: "https://registry.npmjs.org"
 
       - name: Upgrade npm (Trusted Publishing requires >= 11.5.1)
-        run: npm install -g npm@latest
+        run: |
+          mkdir -p "$HOME/.npm-global"
+          npm config set prefix "$HOME/.npm-global"
+          echo "$HOME/.npm-global/bin" >> "$GITHUB_PATH"
+          npm install -g npm@latest
+          "$HOME/.npm-global/bin/npm" --version
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
