@@ -5,14 +5,27 @@ import {
 import { httpRouter } from "convex/server"
 
 import { httpAction } from "./_generated/server"
-import { authComponent, createAuth } from "./auth"
+import { createAuth } from "./auth"
 import { resend } from "./email/provider"
 
 const http = httpRouter()
 
+const AUTH_PATH = "/api/auth"
+
 // Routes Better Auth — /api/auth/* (sign-in/sign-up/sign-out, OTP, OIDC,
-// JWKS, userinfo, etc.). Le composant les enregistre toutes en une fois.
-authComponent.registerRoutes(http, createAuth)
+// JWKS, userinfo, etc.). Enregistrement manuel (au lieu de
+// `authComponent.registerRoutes`) pour passer le header Origin de la
+// requête à `createAuth`. Le plugin crossDomain peut alors renvoyer les
+// callbacks vers l'origin de l'app appelante (web / admin / developer /
+// controller).
+const authRequestHandler = httpAction(async (ctx, request) => {
+  const origin = request.headers.get("origin")
+  const auth = createAuth(ctx, origin)
+  return await auth.handler(request)
+})
+
+http.route({ pathPrefix: `${AUTH_PATH}/`, method: "GET", handler: authRequestHandler })
+http.route({ pathPrefix: `${AUTH_PATH}/`, method: "POST", handler: authRequestHandler })
 
 // Métadonnées OAuth Authorization Server (RFC 8414) et OpenID Connect
 // Discovery (OpenID Connect Discovery 1.0).
@@ -38,7 +51,7 @@ http.route({
   path: "/.well-known/oauth-authorization-server/api/auth",
   method: "GET",
   handler: httpAction(async (ctx, req) => {
-    const auth = createAuth(ctx) as unknown as AuthWithOAuthApi
+    const auth = createAuth(ctx, req.headers.get("origin")) as unknown as AuthWithOAuthApi
     return await oauthProviderAuthServerMetadata(auth)(req)
   }),
 })
@@ -47,7 +60,7 @@ http.route({
   path: "/.well-known/openid-configuration/api/auth",
   method: "GET",
   handler: httpAction(async (ctx, req) => {
-    const auth = createAuth(ctx) as unknown as AuthWithOAuthApi
+    const auth = createAuth(ctx, req.headers.get("origin")) as unknown as AuthWithOAuthApi
     return await oauthProviderOpenIdConfigMetadata(auth)(req)
   }),
 })

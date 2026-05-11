@@ -1,5 +1,5 @@
 import { createClient, type GenericCtx } from "@convex-dev/better-auth";
-import { convex } from "@convex-dev/better-auth/plugins";
+import { convex, crossDomain } from "@convex-dev/better-auth/plugins";
 import { oauthProvider } from "@better-auth/oauth-provider";
 import { betterAuth } from "better-auth/minimal";
 import { emailOTP, haveIBeenPwned, jwt, twoFactor } from "better-auth/plugins";
@@ -10,7 +10,40 @@ import { query } from "./_generated/server";
 import authConfig from "./auth.config";
 import { sendOtpEmail } from "./email/provider";
 
-const SITE_URL = process.env.SITE_URL ?? "http://localhost:3000";
+const isDev = process.env.NODE_ENV !== "production";
+
+/**
+ * Trusted origins lus depuis la variable d'env Convex `TRUSTED_ORIGINS`
+ * (CSV). En dev, la fonction `trustedOrigins` ci-dessous accepte aussi
+ * dynamiquement n'importe quel `localhost` / `127.0.0.1` / `*.local`
+ * venant du header Origin.
+ *
+ * Set via : `bunx convex env set TRUSTED_ORIGINS "https://...,https://..."`
+ */
+function parseTrustedOrigins(): string[] {
+  return (process.env.TRUSTED_ORIGINS ?? "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Dérive le `siteUrl` du plugin crossDomain depuis le header Origin de la
+ * requête. Permet à chaque app (web, admin, developer, controller) de se
+ * voir renvoyer les redirects OAuth/OIDC vers son propre origin.
+ *
+ * Fallback : env SITE_URL → "http://localhost:3000".
+ */
+function resolveSiteUrl(origin?: string | null): string {
+  if (origin) {
+    try {
+      return new URL(origin).origin;
+    } catch {
+      /* invalid origin, use fallback */
+    }
+  }
+  return process.env.SITE_URL ?? "http://localhost:3000";
+}
 
 /**
  * Client Better Auth + Convex.
@@ -24,17 +57,44 @@ export const authComponent = createClient<DataModel>(components.betterAuth);
  * Configuration Better Auth — appelée à chaque requête HTTP via http.ts.
  * Cf. cahier §6.2 (auth + politique mots de passe), §6.4 (sessions),
  * §6.5 (OIDC hardening), §3.7 (serveur OIDC).
+ *
+ * `requestOrigin` est passé par http.ts (header Origin de la requête)
+ * pour que le plugin crossDomain rewrite les callbacks OAuth vers l'app
+ * appelante.
  */
-export const createAuth = (ctx: GenericCtx<DataModel>) => {
+export const createAuth = (
+  ctx: GenericCtx<DataModel>,
+  requestOrigin?: string | null,
+) => {
   return betterAuth({
     appName: "IDN",
-    baseURL: SITE_URL,
+    // baseURL = CONVEX_SITE_URL pour que le JWT `iss` corresponde à ce
+    // qu'attend Convex (cf. auth.config.ts → getAuthConfigProvider()).
+    // L'origin dynamique de l'app appelante n'est utilisée que par le
+    // plugin crossDomain pour rewrite les redirects OAuth.
+    baseURL: process.env.CONVEX_SITE_URL,
     database: authComponent.adapter(ctx),
-    trustedOrigins: [
-      "https://identite.ga",
-      "https://connexion.identite.ga",
-      "http://localhost:3000",
-    ],
+    trustedOrigins: isDev
+      ? (request) => {
+          const origins = parseTrustedOrigins();
+          const reqOrigin = request?.headers?.get("origin");
+          if (reqOrigin) {
+            try {
+              const url = new URL(reqOrigin);
+              if (
+                url.hostname === "localhost" ||
+                url.hostname === "127.0.0.1" ||
+                url.hostname.endsWith(".local")
+              ) {
+                origins.push(reqOrigin);
+              }
+            } catch {
+              /* ignore */
+            }
+          }
+          return origins;
+        }
+      : parseTrustedOrigins(),
     emailAndPassword: {
       enabled: true,
       // Le sign-up crée immédiatement la session (sinon impossible d'appeler
@@ -44,15 +104,27 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
       requireEmailVerification: false,
       minPasswordLength: 12,
       maxPasswordLength: 256,
-      // TODO(idn): brancher zxcvbn-ts + HIBP via before-hook Better Auth
-      // avant signUp/changePassword. Helper prêt dans `convex/lib/password.ts`.
-      // Phase 1 : validation côté formulaire (apps/web) ; serveur Phase 1.5.
     },
     session: {
       expiresIn: 60 * 60 * 24 * 14, // 14 jours (§6.3)
       updateAge: 60 * 60 * 24, // refresh quotidien
     },
+    advanced: {
+      // Convex tourne toujours en HTTPS → Better Auth infère Secure cookies.
+      // En dev, le proxy Next.js parle en http://localhost → le navigateur
+      // refuserait les cookies Secure. On les force non-secure (le proxy
+      // strip aussi le préfixe __Secure- au passage).
+      useSecureCookies: isDev ? false : undefined,
+    },
     plugins: [
+      // Réécrit les redirects OAuth/OIDC vers l'origin de l'app appelante
+      // (web, admin, developer, controller, connect). Permet aussi au
+      // crossDomainClient côté navigateur d'enregistrer la session via
+      // localStorage (cookies cross-domain non garantis).
+      crossDomain({
+        siteUrl: resolveSiteUrl(requestOrigin),
+      }),
+
       // OTP 6 chiffres pour vérification email, reset password, changement email
       emailOTP({
         otpLength: 6,
@@ -98,13 +170,10 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
         jwks: { keyPairConfig: { alg: "RS256", modulusLength: 2048 } },
       }),
 
-      // RBAC — rôles IDN (§3.9, §3.10, §3.11) gérés via notre propre table
-      // `roles` (cf. schema.ts) plutôt que via le plugin admin de Better Auth :
-      // ce dernier ajoute des colonnes (banned, role, banExpires) que l'adapter
-      // @convex-dev/better-auth ne reconnaît pas encore. requireAdmin /
-      // requireController dans convex/lib/auth.ts lisent depuis notre table.
-
-      // Plugin requis par @convex-dev/better-auth pour exposer l'auth à Convex
+      // Plugin requis par @convex-dev/better-auth pour exposer l'auth à
+      // Convex (endpoint /api/auth/convex/token utilisé par
+      // ConvexBetterAuthProvider). Enregistré en dernier — c'était l'ordre
+      // qui fonctionnait avec @convex-dev/better-auth 0.12.x.
       convex({ authConfig }),
     ],
   });

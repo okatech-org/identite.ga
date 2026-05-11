@@ -1,18 +1,28 @@
-import { redirect } from "next/navigation"
+"use client"
 
-import { isAuthenticated } from "@/lib/auth-server"
+import { useRouter } from "next/navigation"
+import { useConvexAuth } from "convex/react"
+import { useEffect } from "react"
 
 import { CitizenHeader } from "./_components/citizen-header"
 import { CitizenMobileHeader } from "./_components/citizen-mobile-header"
 
-export default async function CitizenLayout({
+export default function CitizenLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const authed = await isAuthenticated()
-  if (!authed) {
-    redirect("/sign-in?redirect_to=/dashboard")
+  const { isAuthenticated, isLoading } = useConvexAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.replace("/sign-in?redirect_to=/dashboard")
+    }
+  }, [isLoading, isAuthenticated, router])
+
+  if (isLoading || !isAuthenticated) {
+    return <div className="min-h-svh bg-background" />
   }
 
   return (

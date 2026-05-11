@@ -62,6 +62,7 @@ async function proxyToConvex(req: NextRequest): Promise<NextResponse> {
 
     // Re-écriture des Set-Cookie : en dev, le navigateur refuse les
     // cookies `__Secure-` / `Secure` posés sur http://localhost. On strip.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const setCookies = (upstream.headers as any).getSetCookie?.() as
       | string[]
       | undefined
