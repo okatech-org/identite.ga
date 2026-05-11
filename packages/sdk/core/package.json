@@ -1,6 +1,6 @@
 {
   "name": "@idn-ga/core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Client OIDC vanilla pour Identité Numérique du Gabon",
   "license": "MIT",
   "type": "module",
