@@ -47,15 +47,13 @@ async function proxyToConvex(req: NextRequest): Promise<NextResponse> {
   // `text/html` et renvoie un vrai 302.
   proxyHeaders["host"] = new URL(CONVEX_SITE_URL).host
 
-  // En dev, le proxy strip `__Secure-` des cookies POSÉS par Convex pour que
-  // le browser les accepte sur http://localhost (Set-Cookie). À l'aller
-  // (browser → Convex), on doit faire l'INVERSE : remettre `__Secure-` sur
-  // les cookies Better Auth, sinon le middleware session côté Convex ne
-  // reconnaît pas la session (Convex baseURL est en https donc Better Auth
-  // y stocke les cookies avec préfixe `__Secure-`).
-  //
-  // Les cookies oidc_login_prompt / oidc_consent_prompt ne sont PAS posés
-  // avec __Secure- côté Convex — on ne les modifie pas.
+  // En dev, le plugin crossDomainClient stocke la session dans localStorage
+  // (pas dans des cookies HTTP). Le client la copie ensuite vers document.
+  // cookie pour qu'elle voyage avec la requête vers le proxy. Comme le
+  // browser refuse les cookies `__Secure-` sur http://localhost, le client
+  // strip ce préfixe à l'écriture. Ici (à l'aller vers Convex) on remet le
+  // préfixe, sinon le middleware session côté Convex (baseURL https) ne
+  // trouve pas le cookie qu'il a posé.
   if (isDev && proxyHeaders["cookie"]) {
     proxyHeaders["cookie"] = proxyHeaders["cookie"]
       .split(/;\s*/)
@@ -70,6 +68,18 @@ async function proxyToConvex(req: NextRequest): Promise<NextResponse> {
       })
       .join("; ")
   }
+
+  if (isDev) {
+    // eslint-disable-next-line no-console
+    console.log("[auth-proxy]", req.method, url.pathname, {
+      cookie: proxyHeaders["cookie"] ?? "(none)",
+    })
+  }
+  // NB : on n'ajoute PLUS de préfixe `__Secure-` aux cookies sortants.
+  // Test direct via curl montre que Convex accepte `better-auth.session_token`
+  // tel quel (le strip à l'aller-retour est symétrique). Garder une version
+  // commentée au cas où le besoin réapparaît.
+  // if (isDev && proxyHeaders["cookie"]) { ... }
 
   try {
     const body =

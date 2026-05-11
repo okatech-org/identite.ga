@@ -91,6 +91,39 @@ export default function ConnectSignInPage() {
       // `{ redirect: true, url }` (fetch). On gère les deux et on déclenche
       // un window.location.assign vers l'URL résolue.
       if (isOAuthFlow) {
+        // Le plugin crossDomainClient stocke la session dans localStorage
+        // (pas en cookie HTTP). Pour que le proxy /api/auth/* la transmette
+        // à Convex, on la copie vers document.cookie. `getCookie()` renvoie
+        // un string "name=value; name=value" prêt à l'emploi. Les cookies
+        // posés ainsi sont SameSite=Lax par défaut, ce qui suffit pour la
+        // requête same-origin qui suit.
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const cookieStr: string | undefined = (
+            authClient as { getCookie?: () => string }
+          ).getCookie?.()
+          if (cookieStr) {
+            // eslint-disable-next-line no-console
+            console.log(
+              "[idn:sign-in] writing localStorage session to document.cookie",
+              cookieStr.split(/;\s*/).map((kv) => kv.split("=")[0]),
+            )
+            for (const kv of cookieStr.split(/;\s*/)) {
+              if (!kv) continue
+              // Strip `__Secure-` : le browser refuse Secure cookies sur
+              // http://localhost. Le proxy remet le préfixe au passage.
+              const stripped = kv.replace(/^__Secure-/, "")
+              document.cookie = `${stripped}; path=/; SameSite=Lax`
+            }
+          } else {
+            // eslint-disable-next-line no-console
+            console.warn("[idn:sign-in] authClient.getCookie() returned nothing")
+          }
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error("[idn:sign-in] failed to write document.cookie", err)
+        }
+
         // eslint-disable-next-line no-console
         console.log("[idn:sign-in] OAuth flow, fetching", postLoginUrl)
         let nextUrl: string | null = null
