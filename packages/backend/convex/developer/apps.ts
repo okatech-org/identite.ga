@@ -363,9 +363,9 @@ export const remove = mutation({
 })
 
 /**
- * Métriques d'usage — mock pour la phase MVP (cf. cahier des charges
- * "Quotas & usage"). Les vraies métriques arriveront via une agrégation
- * des `oauthAccessToken` + logs HTTP en Phase 2.
+ * Métriques d'usage — zéros tant que l'agrégation des `oauthAccessToken`
+ * + logs HTTP n'est pas branchée (Phase 2). On retourne des valeurs neutres
+ * que l'UI traduit en empty-state.
  */
 export const usage = query({
   args: { clientId: v.optional(v.string()) },
@@ -376,27 +376,20 @@ export const usage = query({
     latencyP95Ms: v.number(),
     error4xxRate: v.string(),
     series: v.array(v.number()),
+    hasData: v.boolean(),
   }),
   handler: async (ctx, args) => {
     void args
     const user = await getCurrentAuthUser(ctx)
-    if (!user || !user.roles.includes("developer")) {
-      return {
-        requestsThisMonth: 0,
-        requestsQuota: 100_000,
-        requestsDelta: "—",
-        latencyP95Ms: 0,
-        error4xxRate: "—",
-        series: [],
-      }
-    }
+    void user
     return {
-      requestsThisMonth: 38542,
+      requestsThisMonth: 0,
       requestsQuota: 100_000,
-      requestsDelta: "+38.5%",
-      latencyP95Ms: 142,
-      error4xxRate: "0.42%",
-      series: [12, 18, 9, 22, 27, 31, 24, 19, 25, 29, 33, 28, 35, 30, 32, 38, 41],
+      requestsDelta: "—",
+      latencyP95Ms: 0,
+      error4xxRate: "—",
+      series: [],
+      hasData: false,
     }
   },
 })

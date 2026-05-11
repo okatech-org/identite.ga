@@ -28,9 +28,10 @@ export function SidebarNav({ appCount }: { appCount?: number }) {
       icon: IdnIcons.link,
       tag: appCount !== undefined ? String(appCount) : undefined,
     },
-    { id: "keys",  href: "/keys",  label: fr.nav.keys,  icon: IdnIcons.lock },
-    { id: "docs",  href: "/docs",  label: fr.nav.docs,  icon: IdnIcons.doc },
-    { id: "usage", href: "/usage", label: fr.nav.usage, icon: IdnIcons.dashboard },
+    { id: "keys",     href: "/keys",     label: fr.nav.keys,     icon: IdnIcons.lock },
+    { id: "docs",     href: "/docs",     label: fr.nav.docs,     icon: IdnIcons.doc },
+    { id: "usage",    href: "/usage",    label: fr.nav.usage,    icon: IdnIcons.dashboard },
+    { id: "settings", href: "/settings", label: fr.nav.settings, icon: IdnIcons.settings },
   ]
 
   return (

@@ -1,27 +1,43 @@
+"use client"
+
 /**
  * OpShell — port de idn-desktop.jsx:314-473 (sidebar 220px + main).
  */
 import type { ReactNode } from "react"
+import { useQuery } from "convex/react"
 
+import { api } from "@repo/backend/convex/_generated/api"
 import { IdnFlagBars } from "@repo/ui/components/idn-flag-bars"
 import { IdnMark } from "@repo/ui/components/idn-mark"
 
 import { fr } from "../_content/fr"
 import { SidebarNav } from "./sidebar-nav"
 
+function initialsFor(email: string, firstName?: string, lastName?: string): string {
+  if (firstName || lastName) {
+    return `${firstName?.[0] ?? ""}${lastName?.[0] ?? ""}`.toUpperCase() || "D"
+  }
+  const local = email.split("@")[0] ?? ""
+  return local.slice(0, 1).toUpperCase() || "D"
+}
+
 export function OpShell({
-  title = fr.brand.operator,
   role = fr.brand.role,
-  badge = fr.brand.badge,
   appCount,
   children,
 }: {
-  title?: string
   role?: string
-  badge?: string
   appCount?: number
   children: ReactNode
 }) {
+  const me = useQuery(api.profile.getCurrentUser)
+
+  const firstName = me?.profile?.pivot?.firstName ?? ""
+  const lastName = me?.profile?.pivot?.lastName ?? ""
+  const fullName = [firstName, lastName].filter(Boolean).join(" ")
+  const displayName = fullName || me?.email || "—"
+  const badge = me ? initialsFor(me.email, firstName, lastName) : "·"
+
   return (
     <div className="flex min-h-svh bg-idn-bg">
       <aside className="flex w-[220px] shrink-0 flex-col border-r border-idn-border bg-idn-surface">
@@ -46,7 +62,7 @@ export function OpShell({
           </div>
           <div className="min-w-0 flex-1">
             <div className="truncate text-xs font-medium text-idn-ink">
-              {title}
+              {displayName}
             </div>
             <div className="text-[10px] text-idn-muted">{fr.brand.connecte}</div>
           </div>

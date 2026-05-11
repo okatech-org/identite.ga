@@ -58,11 +58,28 @@ export const fr = {
     errorGeneric: "Impossible de créer le compte. Réessayez dans un instant.",
   },
 
+  verifyEmail: {
+    title: "Vérifiez votre email",
+    subPrefix: "Saisissez le code à 6 chiffres envoyé à ",
+    expiresIn: "Le code expire dans 15 minutes.",
+    primary: "Vérifier",
+    resend: "Renvoyer le code",
+    resendCooldown: (s: number) => `Renvoyer dans ${s}s`,
+    resentToast: "Code renvoyé.",
+    successToast: "Email vérifié.",
+    errorInvalid: "Code invalide. Vérifiez votre email puis réessayez.",
+    errorTooManyAttempts: "Trop de tentatives. Réessayez dans quelques minutes.",
+    errorMissingEmail:
+      "Impossible de retrouver l'email à vérifier. Recommencez l'inscription.",
+    changeEmail: "Changer d'email",
+  },
+
   nav: {
     applications: "Mes applications",
     keys: "Clés & secrets",
     docs: "Documentation",
     usage: "Quotas & usage",
+    settings: "Paramètres",
     signOut: "Se déconnecter",
   },
 
@@ -169,12 +186,73 @@ export const fr = {
     sub: "QUOTAS · MOIS EN COURS",
     title: "Usage",
     stats: {
-      requests: { label: "REQUÊTES / MOIS", value: "38 542 / 100k", delta: "+38.5%", hint: "quota standard" },
-      latency:  { label: "LATENCE P95",     value: "142ms",         hint: "seuil SLA : 300ms" },
-      errors:   { label: "ERREURS 4XX",     value: "0.42%",         hint: "invalid_grant principalement" },
+      requests: { label: "REQUÊTES / MOIS", hint: "quota standard" },
+      latency:  { label: "LATENCE P95",     hint: "seuil SLA : 300ms" },
+      errors:   { label: "ERREURS 4XX",     hint: "invalid_grant principalement" },
     },
     chart: {
       title: "Requêtes — derniers 17 jours",
+    },
+    empty: {
+      title: "Pas encore de trafic",
+      body: "Les métriques s'afficheront ici dès que vos applications recevront leurs premières requêtes.",
+    },
+  },
+
+  settings: {
+    sub: "COMPTE · PRÉFÉRENCES",
+    title: "Paramètres",
+    tabs: {
+      account: "Compte",
+      preferences: "Préférences",
+    },
+    account: {
+      title: "Informations du compte",
+      sub: "Identité affichée dans le portail développeur et utilisée pour l'audit.",
+      nameLabel: "Nom",
+      emailLabel: "Email",
+      emailHelper:
+        "Adresse utilisée pour la connexion et les notifications. Pour la modifier, contactez le support.",
+      roleLabel: "Rôle",
+      roleValue: "Développeur",
+      verifiedYes: "Email vérifié",
+      verifiedNo: "Email non vérifié",
+    },
+    password: {
+      title: "Mot de passe",
+      sub: "Modifiez régulièrement votre mot de passe. Minimum 12 caractères.",
+      cta: "Modifier",
+      modalTitle: "Modifier le mot de passe",
+      currentLabel: "Mot de passe actuel",
+      newLabel: "Nouveau mot de passe",
+      newHint: "Minimum 12 caractères. Mélangez lettres, chiffres et symboles.",
+      submit: "Modifier",
+      cancel: "Annuler",
+      successToast: "Mot de passe modifié.",
+      errorTooShort: "Le nouveau mot de passe doit contenir au moins 12 caractères.",
+      errorSame: "Le nouveau mot de passe doit être différent de l'ancien.",
+    },
+    preferences: {
+      title: "Préférences",
+      sub: "Langue d'interface et thème.",
+      language: {
+        label: "Langue",
+        description: "Langue d'interface et communications.",
+        options: [
+          { value: "fr", label: "Français" },
+          { value: "en", label: "English" },
+        ],
+      },
+      theme: {
+        label: "Thème",
+        description: "Apparence claire, sombre ou automatique.",
+        options: [
+          { value: "light", label: "Clair" },
+          { value: "dark", label: "Sombre" },
+          { value: "auto", label: "Automatique" },
+        ],
+      },
+      saveSuccessToast: "Préférences enregistrées.",
     },
   },
 } as const

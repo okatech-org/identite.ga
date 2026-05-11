@@ -8,9 +8,6 @@ import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
 
-import { useConvex } from "convex/react"
-
-import { api } from "@repo/backend/convex/_generated/api"
 import { Button } from "@repo/ui/components/button"
 import { Input } from "@repo/ui/components/input"
 import { Label } from "@repo/ui/components/label"
@@ -19,6 +16,8 @@ import { authClient } from "@/lib/auth-client"
 
 import { fr } from "../../_content/fr"
 import { IdnIcons } from "../../_components/icons"
+
+const PENDING_EMAIL_KEY = "idn-dev:pending-verification-email"
 
 const schema = z.object({
   name: z.string().trim().min(2, "Nom trop court.").max(120),
@@ -30,7 +29,6 @@ type FormValues = z.infer<typeof schema>
 
 export default function DeveloperSignUpPage() {
   const router = useRouter()
-  const convex = useConvex()
   const [submitting, setSubmitting] = useState(false)
 
   const {
@@ -61,14 +59,14 @@ export default function DeveloperSignUpPage() {
         setSubmitting(false)
         return
       }
-      // Attribue le rôle "developer" (idempotent côté backend).
+      // Persiste l'email pour la page de vérification (un OTP a été envoyé
+      // automatiquement par Better Auth via sendVerificationOnSignUp).
       try {
-        await convex.mutation(api.developer.apps.ensureRole, {})
+        window.sessionStorage.setItem(PENDING_EMAIL_KEY, values.email)
       } catch {
-        // si la mutation échoue (timing JWT), on continue — l'utilisateur
-        // pourra réessayer en se reconnectant.
+        /* storage indisponible — la page verify gérera le fallback */
       }
-      router.push("/applications")
+      router.push("/sign-up/verify")
     } catch {
       toast.error(fr.signUp.errorGeneric)
       setSubmitting(false)
