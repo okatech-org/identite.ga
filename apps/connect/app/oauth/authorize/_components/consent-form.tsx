@@ -96,28 +96,35 @@ export function ConsentForm({
 
   const submitDecision = async (decision: "allow" | "deny") => {
     setSubmitting(decision)
-    const formData = new URLSearchParams()
-    for (const [k, v] of Object.entries(oauthParams)) formData.set(k, v)
-    formData.set("consent", decision === "allow" ? "true" : "false")
+    // Better Auth oidcProvider endpoint `/oauth2/consent` accepte
+    // `{ accept: boolean, consent_code? }`. Le `consent_code` est résolu
+    // depuis le cookie signé `oidc_consent_prompt` posé par /authorize,
+    // donc on ne le passe pas (mais on accepte aussi via oauthParams.code
+    // si jamais le plugin l'a injecté en query).
     try {
       const res = await fetch("/api/auth/oauth2/consent", {
         method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: formData.toString(),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          accept: decision === "allow",
+          ...(oauthParams.consent_code
+            ? { consent_code: oauthParams.consent_code }
+            : {}),
+        }),
         redirect: "follow",
       })
       if (res.redirected) {
         window.location.assign(res.url)
         return
       }
-      const fallback = await fetch("/api/auth/oauth/consent", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: formData.toString(),
-        redirect: "follow",
-      })
-      if (fallback.redirected) {
-        window.location.assign(fallback.url)
+      // Better Auth renvoie en JSON la prochaine étape — souvent
+      // { redirectURI: "..." } qu'on doit suivre manuellement.
+      const json = (await res.json().catch(() => null)) as
+        | { redirectURI?: string; redirect_uri?: string }
+        | null
+      const redirectTo = json?.redirectURI ?? json?.redirect_uri
+      if (redirectTo) {
+        window.location.assign(redirectTo)
         return
       }
       if (decision === "deny" && oauthParams.redirect_uri) {

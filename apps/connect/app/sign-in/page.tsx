@@ -33,10 +33,29 @@ const safeRedirectTo = (raw: string | null): string => {
   return raw
 }
 
+/**
+ * Détecte une requête OAuth2 (sign-in déclenché par un client tiers via
+ * /api/auth/oauth2/authorize). Si oui, on doit rediriger vers ce même
+ * endpoint après login pour que le plugin oidcProvider reprenne le flow
+ * (la session vient juste d'être posée, le plugin va voir l'user et
+ * continuer vers consentPage).
+ */
+const buildPostLoginRedirect = (params: URLSearchParams): string => {
+  if (!params.get("client_id") || !params.get("response_type")) {
+    return safeRedirectTo(params.get("redirect_to"))
+  }
+  // Forward tous les params OAuth tels quels sur /api/auth/oauth2/authorize.
+  // Le proxy Next /api/auth/* relaie vers Convex avec les cookies de session.
+  return `/api/auth/oauth2/authorize?${params.toString()}`
+}
+
 export default function ConnectSignInPage() {
   const router = useRouter()
   const params = useSearchParams()
-  const redirectTo = safeRedirectTo(params.get("redirect_to"))
+  const postLoginUrl = buildPostLoginRedirect(params)
+  const isOAuthFlow = Boolean(
+    params.get("client_id") && params.get("response_type"),
+  )
   const [submitting, setSubmitting] = useState(false)
 
   const {
@@ -66,7 +85,14 @@ export default function ConnectSignInPage() {
         setSubmitting(false)
         return
       }
-      router.push(redirectTo)
+      // Pour un flow OAuth, on doit faire une nav full-page (pas push)
+      // pour que /api/auth/oauth2/authorize soit appelé en GET via proxy
+      // avec les cookies de session fraîchement posés.
+      if (isOAuthFlow) {
+        window.location.assign(postLoginUrl)
+      } else {
+        router.push(postLoginUrl)
+      }
     } catch {
       toast.error(fr.signIn.errorGeneric)
       setSubmitting(false)
