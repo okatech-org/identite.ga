@@ -46,6 +46,7 @@ export default function ConsentsPage() {
             <li key={app.id}>
               <ConsentCard
                 id={app.id}
+                clientId={app.clientId}
                 name={app.appName}
                 scopes={app.scopes}
                 grantedAt={app.grantedAt}
