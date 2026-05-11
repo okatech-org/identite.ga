@@ -1,0 +1,23 @@
+{
+  "name": "@idn/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "Client OIDC vanilla pour Identité Numérique du Gabon",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./types": "./src/types.ts"
+  },
+  "scripts": {
+    "lint": "eslint . --max-warnings 0",
+    "check-types": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "*",
+    "@repo/typescript-config": "*",
+    "eslint": "^9.39.1",
+    "typescript": "5.9.2"
+  }
+}

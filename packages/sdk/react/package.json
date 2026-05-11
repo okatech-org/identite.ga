@@ -1,0 +1,30 @@
+{
+  "name": "@idn/react",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "Provider + hooks React pour Identité Numérique du Gabon",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint . --max-warnings 0",
+    "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@idn/core": "*"
+  },
+  "peerDependencies": {
+    "react": "^18 || ^19"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "*",
+    "@repo/typescript-config": "*",
+    "@types/react": "19.2.2",
+    "eslint": "^9.39.1",
+    "react": "^19.2.0",
+    "typescript": "5.9.2"
+  }
+}
