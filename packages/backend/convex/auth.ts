@@ -4,6 +4,28 @@ import { oauthProvider } from "@better-auth/oauth-provider";
 import { betterAuth } from "better-auth/minimal";
 import { emailOTP, haveIBeenPwned, jwt, twoFactor } from "better-auth/plugins";
 
+// ─────────────────────────────────────────────────────────────────────────
+// Polyfill : `URL.canParse` (Node 19.9+ / Bun) — le V8 runtime Convex ne
+// l'expose pas, et @better-auth/oauth-provider v1.6.x l'utilise (sinon
+// les routes /api/auth/oauth2/{authorize,register,...} crashent avec
+// `TypeError: URL.canParse is not a function`).
+//
+// Spec : retourne true si `new URL(input, base)` ne throw pas.
+// ─────────────────────────────────────────────────────────────────────────
+if (typeof (URL as { canParse?: unknown }).canParse !== "function") {
+  ;(URL as { canParse: (input: string, base?: string) => boolean }).canParse = (
+    input: string,
+    base?: string,
+  ) => {
+    try {
+      new URL(input, base)
+      return true
+    } catch {
+      return false
+    }
+  }
+}
+
 import { components, internal } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
 import { query } from "./_generated/server";
@@ -206,6 +228,21 @@ export const createAuth = (
           oauthAuthServerConfig: true,
           openidConfig: true,
         },
+        // Le plugin 1.6.10 a renommé `oauthApplication` → `oauthClient` dans
+        // son schema. Le composant @convex-dev/better-auth 0.12.2 n'expose
+        // que `oauthApplication` côté adapter. On force le mapping inverse
+        // pour que les queries `findOne({ model: "oauthClient" })` du plugin
+        // ciblent la table `oauthApplication` côté Convex.
+        schema: {
+          oauthClient: { modelName: "oauthApplication" },
+        },
+        // Active la Dynamic Client Registration (RFC 7591) en mode public
+        // pour pouvoir enregistrer des clients via le standard plutôt qu'en
+        // écrivant directement dans la table (le format de `redirectUrls`
+        // attendu par le plugin n'est pas trivial à reproduire à la main).
+        // À durcir en prod (auth requise + rate limit).
+        allowDynamicClientRegistration: true,
+        allowUnauthenticatedClientRegistration: true,
       }),
 
       // Émission ID tokens RS256 + JWKS publique (§6.1)

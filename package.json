@@ -20,7 +20,8 @@
   "workspaces": [
     "apps/*",
     "packages/*",
-    "packages/sdk/*"
+    "packages/sdk/*",
+    "examples/*"
   ],
   "dependencies": {
     "@better-auth/oauth-provider": "^1.6.10",
