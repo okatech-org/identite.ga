@@ -179,3 +179,47 @@ export const revoke = mutation({
     return null
   },
 })
+
+/**
+ * Révoque tous les consentements de l'utilisateur courant pour un client
+ * OAuth donné — pratique pour forcer la ré-affichage du consent screen
+ * au prochain login (le plugin oidcProvider skip auto le consent quand
+ * un record `oauthConsent` existe pour le couple user+client).
+ *
+ * Audite chaque révocation.
+ */
+export const revokeForClient = mutation({
+  args: { clientId: v.string() },
+  returns: v.object({ revoked: v.number() }),
+  handler: async (ctx, args) => {
+    const user = await requireAuth(ctx)
+
+    const raw = (await ctx.runQuery(components.betterAuth.adapter.findMany, {
+      model: "oauthConsent",
+      where: [{ field: "userId", value: user.userId, operator: "eq" }],
+      paginationOpts: { numItems: 200, cursor: null },
+    })) as { page: ConsentDoc[] }
+
+    const targets = raw.page.filter((c) => c.clientId === args.clientId)
+    for (const t of targets) {
+      await ctx.runMutation(components.betterAuth.adapter.deleteOne, {
+        input: {
+          model: "oauthConsent",
+          where: [{ field: "_id", value: t._id, operator: "eq" }],
+        },
+      })
+      await ctx.runMutation(internal.audit.recordAudit, {
+        actorId: user.userId,
+        action: "consent_revoked",
+        targetType: "consent",
+        targetId: t._id,
+        metadata: {
+          clientId: t.clientId,
+          scopes: parseScopes(t.scopes ?? null),
+        },
+      })
+    }
+
+    return { revoked: targets.length }
+  },
+})
