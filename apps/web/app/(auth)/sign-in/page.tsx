@@ -28,6 +28,14 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>
 
 export default function SignInPage() {
+  return (
+    <React.Suspense fallback={null}>
+      <SignInPageInner />
+    </React.Suspense>
+  )
+}
+
+function SignInPageInner() {
   const router = useRouter()
   const params = useSearchParams()
   const redirectTo = safeRedirectTo(params.get("redirect_to"), "/dashboard")

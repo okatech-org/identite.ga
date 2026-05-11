@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { Suspense, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
@@ -50,6 +50,14 @@ const buildPostLoginRedirect = (params: URLSearchParams): string => {
 }
 
 export default function ConnectSignInPage() {
+  return (
+    <Suspense fallback={null}>
+      <ConnectSignInPageInner />
+    </Suspense>
+  )
+}
+
+function ConnectSignInPageInner() {
   const router = useRouter()
   const params = useSearchParams()
   const postLoginUrl = buildPostLoginRedirect(params)

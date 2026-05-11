@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -28,6 +28,14 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>
 
 export default function DeveloperSignInPage() {
+  return (
+    <Suspense fallback={null}>
+      <DeveloperSignInPageInner />
+    </Suspense>
+  )
+}
+
+function DeveloperSignInPageInner() {
   const router = useRouter()
   const params = useSearchParams()
   const convex = useConvex()

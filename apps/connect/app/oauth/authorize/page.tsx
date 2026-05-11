@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation"
 import { useConvexAuth, useQuery } from "convex/react"
-import { useEffect, useMemo } from "react"
+import { Suspense, useEffect, useMemo } from "react"
 
 import { api } from "@repo/backend/convex/_generated/api"
 
@@ -33,6 +33,14 @@ const PARAM_KEYS = [
  * du site principal identite.ga.
  */
 export default function OAuthAuthorizePage() {
+  return (
+    <Suspense fallback={null}>
+      <OAuthAuthorizePageInner />
+    </Suspense>
+  )
+}
+
+function OAuthAuthorizePageInner() {
   const searchParams = useSearchParams()
   const router = useRouter()
 
