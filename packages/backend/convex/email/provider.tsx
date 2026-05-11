@@ -4,6 +4,11 @@ import type { GenericMutationCtx } from "convex/server";
 
 import { components } from "../_generated/api";
 import type { DataModel } from "../_generated/dataModel";
+import {
+  KycEmail,
+  getKycEmailSubject,
+  type KycEmailKind,
+} from "./templates/kycEmail";
 import { OtpEmail, getOtpSubject, type OtpType } from "./templates/otpEmail";
 
 /**
@@ -47,6 +52,36 @@ export async function sendOtpEmail(
     from: FROM,
     to: args.to,
     subject: getOtpSubject(args.type),
+    html,
+  });
+}
+
+export async function sendKycEmail(
+  ctx: Ctx,
+  args: {
+    to: string;
+    kind: KycEmailKind;
+    recipientName?: string | null;
+    /** Message contrôleur (`complement_requested`) ou motif (`rejected`). */
+    detail?: string | null;
+  },
+) {
+  console.log(
+    `[idn:dev] KYC notif ${args.kind} → ${args.to}` +
+      (args.detail ? ` · ${args.detail.slice(0, 60)}…` : ""),
+  );
+
+  const html = await render(
+    <KycEmail
+      kind={args.kind}
+      recipientName={args.recipientName ?? null}
+      detail={args.detail ?? null}
+    />,
+  );
+  return await resend.sendEmail(ctx, {
+    from: FROM,
+    to: args.to,
+    subject: getKycEmailSubject(args.kind),
     html,
   });
 }

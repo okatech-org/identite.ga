@@ -4,12 +4,12 @@ import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useQuery } from "convex/react"
-import { BellIcon } from "lucide-react"
 
 import { api } from "@repo/backend/convex/_generated/api"
 import { IdnMark } from "@repo/ui/components/idn-mark"
 import { cn } from "@repo/ui/lib/utils"
 
+import { NotificationsBell } from "@/app/_components/notifications-bell"
 import { UserMenu } from "@/app/_components/user-menu"
 
 import { citizenNav } from "../_content/fr"
@@ -75,13 +75,7 @@ export function CitizenHeader({ className }: { className?: string }) {
         </nav>
 
         <div className="flex flex-1 items-center justify-end gap-3">
-          <button
-            type="button"
-            aria-label="Notifications"
-            className="flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
-          >
-            <BellIcon className="size-4" aria-hidden="true" />
-          </button>
+          <NotificationsBell />
           {me ? (
             <UserMenu user={me} />
           ) : (

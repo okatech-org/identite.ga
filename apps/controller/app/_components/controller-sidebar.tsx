@@ -23,6 +23,7 @@ import { authClient } from "@/lib/auth-client"
 
 import { nav, shell } from "../_content/fr"
 import { NavIcons } from "./icons"
+import { ControllerNotificationsBell } from "./notifications-bell"
 
 type NavItem = {
   href: string
@@ -100,14 +101,15 @@ export function ControllerSidebar() {
     <aside className="flex w-[220px] shrink-0 flex-col border-r border-idn-border bg-idn-surface">
       <div className="flex items-center gap-2.5 px-[18px] pb-3.5 pt-[18px]">
         <IdnMark size={26} />
-        <div>
+        <div className="min-w-0 flex-1">
           <div className="text-[13px] font-semibold tracking-[-0.01em] text-idn-ink">
             {shell.brand}
           </div>
-          <div className="text-[10px] font-semibold uppercase tracking-[0.1em] text-idn-muted">
+          <div className="truncate text-[10px] font-semibold uppercase tracking-[0.1em] text-idn-muted">
             {shell.role}
           </div>
         </div>
+        <ControllerNotificationsBell />
       </div>
       <div className="mx-[18px]">
         <IdnFlagBars width={184} height={2} />

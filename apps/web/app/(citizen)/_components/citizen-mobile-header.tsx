@@ -5,7 +5,6 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useQuery } from "convex/react"
 import {
-  BellIcon,
   HomeIcon,
   KeyRoundIcon,
   LogOutIcon,
@@ -14,6 +13,8 @@ import {
   UserIcon,
   XIcon,
 } from "lucide-react"
+
+import { NotificationsBell } from "@/app/_components/notifications-bell"
 
 import { api } from "@repo/backend/convex/_generated/api"
 import { Avatar } from "@repo/ui/components/avatar"
@@ -93,17 +94,7 @@ export function CitizenMobileHeader({ className }: { className?: string }) {
             </p>
           )}
         </div>
-        <button
-          type="button"
-          aria-label={dashboard.bellAria}
-          className="relative flex size-9 items-center justify-center rounded-full bg-secondary text-muted-foreground transition-colors hover:bg-secondary/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
-        >
-          <BellIcon className="size-4" aria-hidden="true" />
-          <span
-            aria-hidden="true"
-            className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-idn-green ring-[1.5px] ring-card"
-          />
-        </button>
+        <NotificationsBell className="bg-secondary" />
 
         <Drawer open={open} onOpenChange={setOpen}>
           <DrawerTrigger asChild>

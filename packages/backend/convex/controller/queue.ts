@@ -248,6 +248,11 @@ export const approve = mutation({
       targetId: args.kycRequestId,
       metadata: { auto: false },
     })
+    await ctx.runMutation(internal.notifications.dispatchKyc, {
+      userId: kyc.userId,
+      kind: "approved",
+      kycRequestId: args.kycRequestId,
+    })
     return null
   },
 })
@@ -288,6 +293,15 @@ export const reject = mutation({
       targetId: args.kycRequestId,
       metadata: { reason: args.reason.trim() },
     })
+    const kyc = await ctx.db.get(args.kycRequestId)
+    if (kyc) {
+      await ctx.runMutation(internal.notifications.dispatchKyc, {
+        userId: kyc.userId,
+        kind: "rejected",
+        kycRequestId: args.kycRequestId,
+        detail: args.reason.trim(),
+      })
+    }
     return null
   },
 })
@@ -333,6 +347,12 @@ export const requestComplement = mutation({
       targetType: "kyc",
       targetId: args.kycRequestId,
       metadata: { message },
+    })
+    await ctx.runMutation(internal.notifications.dispatchKyc, {
+      userId: kyc.userId,
+      kind: "complement_requested",
+      kycRequestId: args.kycRequestId,
+      detail: message,
     })
     return null
   },

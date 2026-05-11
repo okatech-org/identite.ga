@@ -288,6 +288,16 @@ export const respondComplement = mutation({
       targetType: "kyc",
       targetId: args.kycRequestId,
     })
+    // Notifie le contrôleur assigné que la demande est de retour dans
+    // sa file d'attente (in-app + email selon prefs). Si aucun
+    // reviewerId n'est encore assigné — cas théorique — on saute.
+    if (kyc.reviewerId) {
+      await ctx.runMutation(internal.notifications.dispatchKyc, {
+        userId: kyc.reviewerId,
+        kind: "complement_provided",
+        kycRequestId: args.kycRequestId,
+      })
+    }
     return null
   },
 })
