@@ -68,8 +68,7 @@
     "url": "https://github.com/okatech-org/identite.ga/issues"
   },
   "publishConfig": {
-    "access": "public",
-    "provenance": true
+    "access": "public"
   },
   "engines": {
     "node": ">=18"

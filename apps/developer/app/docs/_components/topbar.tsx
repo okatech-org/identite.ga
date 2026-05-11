@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
-import { IdnFlagBars } from "@repo/ui/components/idn-flag-bars";
 import { IdnMark } from "@repo/ui/components/idn-mark";
 
 import { ARTICLE_GROUPS } from "../_articles/registry";
@@ -34,12 +33,6 @@ const TABS: TabSpec[] = [
     label: "Référence API",
     href: "/docs/core-api",
     groups: ["@IDN/CORE", "@IDN/REACT"],
-  },
-  {
-    id: "playground",
-    label: "Playground",
-    href: "/docs/playground",
-    groups: ["OUTILS"],
   },
 ];
 
@@ -192,10 +185,6 @@ export function DocsTopbar() {
         >
           Console développeur
         </Link>
-
-        <span className="hidden md:block">
-          <IdnFlagBars width={24} height={2} />
-        </span>
       </header>
 
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
