@@ -22,7 +22,10 @@ import { cn } from "@repo/ui/lib/utils"
 import { consents, formatLongDate } from "../_content/fr"
 
 type ConsentCardProps = {
+  /** Record id (oauthConsent._id) — gardé pour key React + audit éventuel. */
   id: string
+  /** OAuth client_id — ce qu'on cible pour révoquer tous les consents user+app. */
+  clientId: string
   name: string
   description?: string | null
   scopes: readonly string[]
@@ -32,6 +35,7 @@ type ConsentCardProps = {
 
 export function ConsentCard({
   id,
+  clientId,
   name,
   description,
   scopes,
@@ -40,12 +44,18 @@ export function ConsentCard({
 }: ConsentCardProps) {
   const [open, setOpen] = React.useState(false)
   const [revoking, setRevoking] = React.useState(false)
-  const revoke = useMutation(api.oauthConsents.revoke)
+  // revokeForClient supprime TOUS les records oauthConsent pour ce couple
+  // user+client — sémantique attendue par l'utilisateur ("je retire mon
+  // accord à cette app", pas "je supprime un record technique"). C'est
+  // aussi ce qui force oidcProvider à ré-afficher le consent screen au
+  // prochain login depuis cette app.
+  const revoke = useMutation(api.oauthConsents.revokeForClient)
+  void id
 
   const handleRevoke = async () => {
     setRevoking(true)
     try {
-      await revoke({ consentId: id })
+      await revoke({ clientId })
       toast.success(consents.revokeSuccessToast)
       setOpen(false)
     } catch (err) {

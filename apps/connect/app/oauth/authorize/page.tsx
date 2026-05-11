@@ -18,6 +18,9 @@ const PARAM_KEYS = [
   "code_challenge",
   "code_challenge_method",
   "acr_values",
+  // consent_code est ajouté par oidcProvider quand il redirige vers cette
+  // page — on le forward au POST /oauth2/consent qui suit.
+  "consent_code",
 ] as const
 
 /**
@@ -39,6 +42,12 @@ export default function OAuthAuthorizePage() {
   const redirectUri = searchParams.get("redirect_uri") ?? ""
   const requestedScope = searchParams.get("scope") ?? ""
   const acrValues = searchParams.get("acr_values") ?? ""
+  // `consent_code` est posé par oidcProvider quand il redirige ici depuis
+  // /oauth2/authorize. Il sert de clé pour le POST /oauth2/consent qui suit.
+  // Sa présence indique aussi qu'on est dans un flow consent légitime, même
+  // sans redirect_uri en query (l'oidcProvider garde l'URI côté serveur dans
+  // le cookie oidc_consent_prompt).
+  const consentCode = searchParams.get("consent_code") ?? ""
 
   const oauthParams = useMemo(() => {
     const out: Record<string, string> = {}
@@ -69,11 +78,18 @@ export default function OAuthAuthorizePage() {
     isAuthenticated && clientId ? { clientId } : "skip",
   )
 
-  if (!clientId || !redirectUri) {
+  // Deux entrées légitimes côté browser :
+  //   A. Flow initial direct : client_id + redirect_uri en query (cas tests
+  //      manuels, ou apps qui ne passent pas par /oauth2/authorize d'abord).
+  //   B. Redirect depuis oidcProvider : client_id + consent_code en query
+  //      (le redirect_uri est récupéré côté serveur via cookie).
+  // On rejette uniquement quand client_id manque ET qu'on n'a ni redirect_uri
+  // ni consent_code à présenter.
+  if (!clientId || (!redirectUri && !consentCode)) {
     return (
       <ErrorScreen
         title="Requête OAuth invalide"
-        description="Le paramètre client_id ou redirect_uri est manquant."
+        description="Le paramètre client_id, redirect_uri ou consent_code est manquant."
       />
     )
   }
@@ -91,7 +107,10 @@ export default function OAuthAuthorizePage() {
     )
   }
 
-  if (app.redirectUris.length > 0 && !app.redirectUris.includes(redirectUri)) {
+  // Quand on vient d'oidcProvider via consent_code, redirect_uri n'est pas
+  // en query (oidcProvider l'a validé côté serveur). On ne vérifie donc que
+  // si l'URI est explicitement fournie.
+  if (redirectUri && app.redirectUris.length > 0 && !app.redirectUris.includes(redirectUri)) {
     return (
       <ErrorScreen
         title="Redirect URI non autorisée"
