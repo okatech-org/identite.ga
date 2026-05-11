@@ -88,7 +88,39 @@ export default function ConnectSignInPage() {
       // Pour un flow OAuth, on doit faire une nav full-page (pas push)
       // pour que /api/auth/oauth2/authorize soit appelé en GET via proxy
       // avec les cookies de session fraîchement posés.
+      //
+      // Si Better Auth retourne `{ redirect: true, url: "..." }` en JSON
+      // (au lieu d'un 302), on parse et on suit l'URL nous-mêmes.
       if (isOAuthFlow) {
+        try {
+          const r = await fetch(postLoginUrl, {
+            method: "GET",
+            credentials: "include",
+            headers: { Accept: "application/json, text/html" },
+            redirect: "manual",
+          })
+          // Cas 1 : 302 — `redirect: "manual"` empêche le browser de suivre,
+          // on lit la Location.
+          const loc = r.headers.get("location")
+          if (loc) {
+            window.location.assign(loc)
+            return
+          }
+          // Cas 2 : 200 JSON avec { redirect, url }
+          const ct = r.headers.get("content-type") ?? ""
+          if (ct.includes("application/json")) {
+            const j = (await r.json().catch(() => null)) as
+              | { redirect?: boolean; url?: string }
+              | null
+            if (j?.url) {
+              window.location.assign(j.url)
+              return
+            }
+          }
+        } catch {
+          /* fall through to full-page nav */
+        }
+        // Dernier recours : full-page nav vers le proxy (le browser suivra).
         window.location.assign(postLoginUrl)
       } else {
         router.push(postLoginUrl)

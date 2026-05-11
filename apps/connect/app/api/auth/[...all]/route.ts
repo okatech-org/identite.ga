@@ -33,8 +33,37 @@ async function proxyToConvex(req: NextRequest): Promise<NextResponse> {
       proxyHeaders[key] = value
     }
   })
-  proxyHeaders["accept-encoding"] = "application/json"
+  // NB : ne PAS forcer `accept-encoding: application/json` (faute initiale —
+  // c'est une valeur Accept, pas Accept-Encoding). Ça confondait Better Auth
+  // qui retournait `{ redirect: true, url }` JSON au lieu d'un 302 sur les
+  // redirects du flow OAuth (/oauth2/authorize, /oauth2/consent). On laisse
+  // l'`Accept` du browser passer tel quel — Better Auth voit alors
+  // `text/html` et renvoie un vrai 302.
   proxyHeaders["host"] = new URL(CONVEX_SITE_URL).host
+
+  // En dev, le proxy strip `__Secure-` des cookies POSÉS par Convex pour que
+  // le browser les accepte sur http://localhost (Set-Cookie). À l'aller
+  // (browser → Convex), on doit faire l'INVERSE : remettre `__Secure-` sur
+  // les cookies Better Auth, sinon le middleware session côté Convex ne
+  // reconnaît pas la session (Convex baseURL est en https donc Better Auth
+  // y stocke les cookies avec préfixe `__Secure-`).
+  //
+  // Les cookies oidc_login_prompt / oidc_consent_prompt ne sont PAS posés
+  // avec __Secure- côté Convex — on ne les modifie pas.
+  if (isDev && proxyHeaders["cookie"]) {
+    proxyHeaders["cookie"] = proxyHeaders["cookie"]
+      .split(/;\s*/)
+      .map((kv) => {
+        const eq = kv.indexOf("=")
+        if (eq < 0) return kv
+        const name = kv.slice(0, eq)
+        if (/^better-auth\./.test(name)) {
+          return `__Secure-${kv}`
+        }
+        return kv
+      })
+      .join("; ")
+  }
 
   try {
     const body =
