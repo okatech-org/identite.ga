@@ -38,12 +38,17 @@ export function CaseDetail() {
   const current = useQuery(api.controller.queue.myCurrent, {})
   const approve = useMutation(api.controller.queue.approve)
   const reject = useMutation(api.controller.queue.reject)
+  const requestComplement = useMutation(
+    api.controller.queue.requestComplement,
+  )
 
   const [submitting, setSubmitting] = React.useState<
-    "approve" | "reject" | null
+    "approve" | "reject" | "complement" | null
   >(null)
   const [rejectOpen, setRejectOpen] = React.useState(false)
   const [reason, setReason] = React.useState("")
+  const [complementOpen, setComplementOpen] = React.useState(false)
+  const [complementMessage, setComplementMessage] = React.useState("")
 
   if (current === undefined) {
     return (
@@ -99,6 +104,31 @@ export function CaseDetail() {
     }
   }
 
+  const onConfirmComplement = async () => {
+    if (complementMessage.trim().length < 5) {
+      toast.error(
+        "Précisez ce que doit fournir le citoyen (min. 5 caractères).",
+      )
+      return
+    }
+    setSubmitting("complement")
+    try {
+      await requestComplement({
+        kycRequestId: current._id,
+        message: complementMessage.trim(),
+      })
+      toast.success(`Complément demandé pour KYC ${current.ref}.`)
+      setComplementOpen(false)
+      setComplementMessage("")
+    } catch (err) {
+      toast.error(
+        describeError(err, "Impossible de demander un complément."),
+      )
+    } finally {
+      setSubmitting(null)
+    }
+  }
+
   return (
     <>
       <IdnCard className="mt-5">
@@ -120,7 +150,11 @@ export function CaseDetail() {
           <Button onClick={onApprove} disabled={submitting !== null}>
             {submitting === "approve" ? "…" : content.approveCta}
           </Button>
-          <Button variant="outline" disabled={submitting !== null}>
+          <Button
+            variant="outline"
+            disabled={submitting !== null}
+            onClick={() => setComplementOpen(true)}
+          >
             {content.requestMoreCta}
           </Button>
           <div className="flex-1" />
@@ -163,6 +197,49 @@ export function CaseDetail() {
               className="text-[#B83A3A] hover:bg-[#FBE5E5] hover:text-[#B83A3A] dark:hover:bg-[#3A1E1E]"
             >
               {submitting === "reject" ? "…" : "Confirmer le rejet"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={complementOpen}
+        onOpenChange={(o) => {
+          setComplementOpen(o)
+          if (!o) setComplementMessage("")
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Demander un complément — {current.ref}
+            </DialogTitle>
+            <DialogDescription>
+              Précisez ce que le citoyen doit fournir. Il recevra une
+              notification et pourra ré-uploader la pièce concernée.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            autoFocus
+            rows={4}
+            placeholder="Renvoyez le selfie en bonne lumière, ou un recto de CNI plus net…"
+            value={complementMessage}
+            onChange={(e) => setComplementMessage(e.target.value)}
+          />
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button
+                variant="outline"
+                disabled={submitting === "complement"}
+              >
+                Annuler
+              </Button>
+            </DialogClose>
+            <Button
+              onClick={onConfirmComplement}
+              disabled={submitting === "complement"}
+            >
+              {submitting === "complement" ? "…" : "Envoyer la demande"}
             </Button>
           </DialogFooter>
         </DialogContent>

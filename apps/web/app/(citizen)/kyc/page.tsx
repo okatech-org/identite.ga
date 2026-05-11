@@ -68,9 +68,27 @@ export default function KycPage() {
   const backInput = React.useRef<HTMLInputElement>(null)
   const selfieInput = React.useRef<HTMLInputElement>(null)
 
-  // Si une demande déjà soumise/approuvée existe, on saute en "status"
+  // Si une demande active existe (en cours d'examen, complément demandé,
+  // refusée), on redirige vers la page de détail dédiée pour éviter de
+  // proposer le démarrage d'une nouvelle demande.
   React.useEffect(() => {
-    if (latest && step === "intro" && ["submitted", "under_review", "approved", "rejected", "expired"].includes(latest.status)) {
+    if (
+      latest &&
+      ["submitted", "under_review", "complement_required", "rejected"].includes(
+        latest.status,
+      )
+    ) {
+      router.replace("/kyc/request")
+    }
+  }, [latest, router])
+
+  // Approuvée / expirée : on garde l'écran "status" en lecture seule.
+  React.useEffect(() => {
+    if (
+      latest &&
+      step === "intro" &&
+      ["approved", "expired"].includes(latest.status)
+    ) {
       setStep("status")
     }
   }, [latest, step])

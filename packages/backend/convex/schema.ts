@@ -35,6 +35,11 @@ export const KYC_STATUSES = [
   "pending",
   "submitted",
   "under_review",
+  // Le contrôleur a demandé un complément ; le citoyen voit la demande
+  // sur sa page `/kyc/request` et peut ré-uploader pour repasser en
+  // `under_review`. Cf. controller.queue.requestComplement +
+  // kyc.respondComplement.
+  "complement_required",
   "approved",
   "rejected",
   "expired",
@@ -75,6 +80,8 @@ export const AUDIT_ACTIONS = [
   // KYC
   "kyc_submitted",
   "kyc_under_review",
+  "kyc_complement_requested",
+  "kyc_complement_provided",
   "kyc_approved",
   "kyc_rejected",
   // OAuth / consentement
@@ -196,6 +203,19 @@ export default defineSchema({
     reviewerId: v.optional(v.string()), // userId du contrôleur
     reviewedAt: v.optional(v.number()),
     rejectionReason: v.optional(v.string()),
+
+    /**
+     * Demande de complément en cours (status = "complement_required").
+     * Posée par `controller.queue.requestComplement`, vidée par
+     * `kyc.respondComplement` au ré-upload citoyen.
+     */
+    complementRequest: v.optional(
+      v.object({
+        message: v.string(),
+        requestedAt: v.number(),
+        requestedBy: v.string(), // userId du contrôleur
+      }),
+    ),
 
     submittedAt: v.optional(v.number()),
     createdAt: v.number(),
@@ -327,6 +347,13 @@ export default defineSchema({
     assignedAt: v.number(),
     assignedBy: v.optional(v.string()),
     revokedAt: v.optional(v.number()),
+    // Spécifique au rôle `developer` : flag de validation par le super-admin.
+    // Tant qu'il vaut `false` ou est absent, le développeur ne peut publier
+    // ses apps qu'en sandbox (cf. developer/apps.requestProduction).
+    // Pour les autres rôles, le champ est ignoré.
+    verified: v.optional(v.boolean()),
+    verifiedAt: v.optional(v.number()),
+    verifiedBy: v.optional(v.string()),
   })
     .index("by_userId", ["userId"])
     .index("by_role", ["role"])

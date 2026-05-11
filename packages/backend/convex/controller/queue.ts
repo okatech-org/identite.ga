@@ -1,7 +1,8 @@
 import { ConvexError, v } from "convex/values"
 
 import { internal } from "../_generated/api"
-import { mutation, query } from "../_generated/server"
+import { query } from "../_generated/server"
+import { mutation } from "../functions"
 import { requireController } from "../lib/auth"
 
 /**
@@ -286,6 +287,52 @@ export const reject = mutation({
       targetType: "kyc",
       targetId: args.kycRequestId,
       metadata: { reason: args.reason.trim() },
+    })
+    return null
+  },
+})
+
+export const requestComplement = mutation({
+  args: {
+    kycRequestId: v.id("kycRequest"),
+    message: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const controller = await requireController(ctx)
+    const kyc = await ctx.db.get(args.kycRequestId)
+    if (!kyc) {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Demande introuvable.",
+      })
+    }
+    const message = args.message.trim()
+    if (message.length < 5) {
+      throw new ConvexError({
+        code: "INVALID",
+        message: "Précisez ce que doit fournir le citoyen (min. 5 caractères).",
+      })
+    }
+
+    const now = Date.now()
+    await ctx.db.patch(args.kycRequestId, {
+      status: "complement_required",
+      reviewerId: controller.userId,
+      complementRequest: {
+        message,
+        requestedAt: now,
+        requestedBy: controller.userId,
+      },
+      updatedAt: now,
+    })
+
+    await ctx.runMutation(internal.audit.recordAudit, {
+      actorId: controller.userId,
+      action: "kyc_complement_requested",
+      targetType: "kyc",
+      targetId: args.kycRequestId,
+      metadata: { message },
     })
     return null
   },

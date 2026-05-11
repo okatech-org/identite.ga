@@ -1,7 +1,8 @@
 import { ConvexError, v } from "convex/values"
 
 import { internal } from "./_generated/api"
-import { mutation, query } from "./_generated/server"
+import { query } from "./_generated/server"
+import { mutation } from "./functions"
 import { workflow } from "./kyc/workflow"
 import { getCurrentAuthUser, requireVerifiedAuth } from "./lib/auth"
 import { rateLimiter } from "./rateLimiter"
@@ -60,7 +61,7 @@ export const setDocumentImage = mutation({
     if (!kyc || kyc.userId !== user.userId) {
       throw new ConvexError({ code: "NOT_FOUND", message: "Demande introuvable." })
     }
-    if (kyc.status !== "pending") {
+    if (kyc.status !== "pending" && kyc.status !== "complement_required") {
       throw new ConvexError({
         code: "ALREADY_SUBMITTED",
         message: "Cette demande ne peut plus être modifiée.",
@@ -89,7 +90,7 @@ export const setSelfie = mutation({
     if (!kyc || kyc.userId !== user.userId) {
       throw new ConvexError({ code: "NOT_FOUND", message: "Demande introuvable." })
     }
-    if (kyc.status !== "pending") {
+    if (kyc.status !== "pending" && kyc.status !== "complement_required") {
       throw new ConvexError({
         code: "ALREADY_SUBMITTED",
         message: "Cette demande ne peut plus être modifiée.",
@@ -139,6 +140,154 @@ export const submit = mutation({
       kycRequestId: args.kycRequestId,
     })
 
+    return null
+  },
+})
+
+/**
+ * Citoyen — détail complet de sa demande KYC en cours (page /kyc/request).
+ *
+ * Renvoie le statut courant + URLs signées des documents + timeline
+ * d'événements (audit log filtré sur cette cible) + message du contrôleur
+ * si un complément a été demandé.
+ *
+ * `null` si l'utilisateur n'a aucune demande KYC.
+ */
+const ACTIVE_REQUEST = v.object({
+  _id: v.id("kycRequest"),
+  documentType: v.string(),
+  status: v.string(),
+  score: v.optional(v.number()),
+  faceMatchScore: v.optional(v.number()),
+  submittedAt: v.optional(v.number()),
+  reviewedAt: v.optional(v.number()),
+  rejectionReason: v.optional(v.string()),
+  createdAt: v.number(),
+  updatedAt: v.number(),
+  /** Document recto / verso / selfie — URLs signées Convex Storage. */
+  docFrontUrl: v.union(v.string(), v.null()),
+  docBackUrl: v.union(v.string(), v.null()),
+  selfieUrl: v.union(v.string(), v.null()),
+  complementRequest: v.optional(
+    v.object({
+      message: v.string(),
+      requestedAt: v.number(),
+    }),
+  ),
+  timeline: v.array(
+    v.object({
+      action: v.string(),
+      createdAt: v.number(),
+      metadata: v.optional(v.record(v.string(), v.any())),
+    }),
+  ),
+})
+
+export const getActiveRequest = query({
+  args: {},
+  returns: v.union(ACTIVE_REQUEST, v.null()),
+  handler: async (ctx) => {
+    const user = await getCurrentAuthUser(ctx)
+    if (!user) return null
+
+    const latest = await ctx.db
+      .query("kycRequest")
+      .withIndex("by_userId", (q) => q.eq("userId", user.userId))
+      .order("desc")
+      .first()
+    if (!latest) return null
+
+    const [docFrontUrl, docBackUrl, selfieUrl] = await Promise.all([
+      latest.documentImages.front
+        ? ctx.storage.getUrl(latest.documentImages.front)
+        : Promise.resolve(null),
+      latest.documentImages.back
+        ? ctx.storage.getUrl(latest.documentImages.back)
+        : Promise.resolve(null),
+      latest.selfieImage
+        ? ctx.storage.getUrl(latest.selfieImage)
+        : Promise.resolve(null),
+    ])
+
+    const auditEntries = await ctx.db
+      .query("auditLog")
+      .withIndex("by_target", (q) =>
+        q.eq("targetType", "kyc").eq("targetId", latest._id),
+      )
+      .order("asc")
+      .collect()
+
+    return {
+      _id: latest._id,
+      documentType: latest.documentType,
+      status: latest.status,
+      score: latest.score,
+      faceMatchScore: latest.faceMatchScore,
+      submittedAt: latest.submittedAt,
+      reviewedAt: latest.reviewedAt,
+      rejectionReason: latest.rejectionReason,
+      createdAt: latest.createdAt,
+      updatedAt: latest.updatedAt,
+      docFrontUrl,
+      docBackUrl,
+      selfieUrl,
+      complementRequest: latest.complementRequest
+        ? {
+            message: latest.complementRequest.message,
+            requestedAt: latest.complementRequest.requestedAt,
+          }
+        : undefined,
+      timeline: auditEntries.map((e) => ({
+        action: e.action,
+        createdAt: e.createdAt,
+        metadata: e.metadata,
+      })),
+    }
+  },
+})
+
+/**
+ * Citoyen — repasse la demande en `under_review` après ré-upload
+ * suite à un complément demandé par le contrôleur.
+ */
+export const respondComplement = mutation({
+  args: { kycRequestId: v.id("kycRequest") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const user = await requireVerifiedAuth(ctx)
+    const kyc = await ctx.db.get(args.kycRequestId)
+    if (!kyc || kyc.userId !== user.userId) {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Demande introuvable.",
+      })
+    }
+    if (kyc.status !== "complement_required") {
+      throw new ConvexError({
+        code: "INVALID_STATE",
+        message: "Cette demande n'est pas en attente de complément.",
+      })
+    }
+    if (!kyc.documentImages.front || !kyc.selfieImage) {
+      throw new ConvexError({
+        code: "INCOMPLETE",
+        message: "Document recto et selfie requis.",
+      })
+    }
+
+    const now = Date.now()
+    await ctx.db.patch(args.kycRequestId, {
+      status: "under_review",
+      complementRequest: undefined,
+      updatedAt: now,
+    })
+
+    await ctx.runMutation(internal.audit.recordAudit, {
+      actorId: user.userId,
+      action: "kyc_complement_provided",
+      targetType: "kyc",
+      targetId: args.kycRequestId,
+    })
     return null
   },
 })

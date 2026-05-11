@@ -8,6 +8,7 @@ import { api } from "@repo/backend/convex/_generated/api";
 import { type LoALevel } from "@repo/ui/components/loa-badge";
 
 import { dashboard, quickActions, services } from "../_content/fr";
+import { KycActiveCard } from "../_components/kyc-active-card";
 import { KycPromoCard } from "../_components/kyc-promo-card";
 import { ProfileCard } from "../_components/profile-card";
 import { QuickAction } from "../_components/quick-action";
@@ -15,8 +16,17 @@ import { RecentActivity } from "../_components/recent-activity";
 import { ServiceCard } from "../_components/service-card";
 import { SessionsCard } from "../_components/sessions-card";
 
+const ACTIVE_STATUSES = new Set([
+  "pending",
+  "submitted",
+  "under_review",
+  "complement_required",
+  "rejected",
+]);
+
 export default function DashboardPage() {
   const me = useQuery(api.profile.getCurrentUser);
+  const activeKyc = useQuery(api.kyc.getActiveRequest, {});
 
   if (me === undefined) {
     return (
@@ -38,6 +48,13 @@ export default function DashboardPage() {
   const idnId = profile?.idnId ?? null;
   const photoUrl = profile?.photoUrl ?? null;
 
+  // Une demande KYC est "active" tant qu'elle n'est ni approuvée ni
+  // expirée. Tant qu'elle l'est, on remplace `KycPromoCard` par
+  // `KycActiveCard` pour ne pas inviter à démarrer une seconde demande.
+  const hasActiveKyc = Boolean(
+    activeKyc && ACTIVE_STATUSES.has(activeKyc.status),
+  );
+
   return (
     <>
       {/* DESKTOP (≥ md) — match CWHome */}
@@ -52,9 +69,13 @@ export default function DashboardPage() {
             photoUrl={photoUrl}
             variant="desktop"
           />
-          {loa < 3 ?
+          {hasActiveKyc && activeKyc ? (
+            <KycActiveCard status={activeKyc.status} variant="desktop" />
+          ) : loa < 3 ? (
             <KycPromoCard currentLoa={loa as 1 | 2} variant="desktop" />
-          : <SessionsCard />}
+          ) : (
+            <SessionsCard />
+          )}
         </div>
 
         <section className="mt-8" aria-labelledby="services">
@@ -94,7 +115,11 @@ export default function DashboardPage() {
           href="/profile"
         />
 
-        {loa < 2 && <KycPromoCard currentLoa={loa as 1} variant="mobile" />}
+        {hasActiveKyc && activeKyc ? (
+          <KycActiveCard status={activeKyc.status} variant="mobile" />
+        ) : loa < 2 ? (
+          <KycPromoCard currentLoa={loa as 1} variant="mobile" />
+        ) : null}
 
         <section aria-labelledby="services-mobile">
           <p

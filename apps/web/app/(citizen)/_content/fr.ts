@@ -395,9 +395,90 @@ export const kyc = {
       title: "Demande expirée",
       sub: "Veuillez recommencer.",
     },
+    complement_required: {
+      title: "Complément demandé",
+      sub: "Le contrôleur a besoin d'éléments supplémentaires. Lisez son message et ré-uploadez la pièce concernée.",
+    },
     backToProfile: "Retour au profil",
     restart: "Recommencer",
     submitNow: "Soumettre maintenant",
+  },
+} as const
+
+export const kycActiveCard = {
+  eyebrow: "DEMANDE KYC EN COURS",
+  status: {
+    pending: { title: "Brouillon de demande", sub: "Reprenez là où vous vous êtes arrêté." },
+    submitted: { title: "Demande envoyée", sub: "Revue automatique en cours." },
+    under_review: {
+      title: "En cours d'examen",
+      sub: "Un contrôleur examine votre dossier (24h indicatif).",
+    },
+    complement_required: {
+      title: "Complément demandé",
+      sub: "Lisez le message du contrôleur et ré-uploadez la pièce concernée.",
+    },
+    rejected: {
+      title: "Demande refusée",
+      sub: "Consultez le motif et relancez une nouvelle demande.",
+    },
+  } as Record<string, { title: string; sub: string }>,
+  cta: "Voir la demande",
+} as const
+
+export const kycRequestPage = {
+  meta: {
+    title: "Ma demande KYC",
+    description:
+      "Statut détaillé de votre demande de passage de niveau, documents transmis et historique.",
+  },
+  backLink: "Retour au tableau de bord",
+  title: "Demande de vérification d'identité",
+  refLabel: "Référence",
+  documentTypeLabels: {
+    cni_gabon: "CNI gabonaise",
+    passport: "Passeport",
+    residence_card: "Carte de séjour",
+    birth_certificate: "Acte de naissance",
+    visa: "Visa",
+  } as Record<string, string>,
+  documentsTitle: "Documents transmis",
+  documentsEmpty: "Aucun document encore associé à cette demande.",
+  slots: {
+    front: "Recto",
+    back: "Verso",
+    selfie: "Selfie",
+  },
+  timeline: {
+    title: "Historique de la demande",
+    empty: "Aucun événement enregistré pour le moment.",
+    actions: {
+      kyc_submitted: "Demande envoyée",
+      kyc_under_review: "Mise en revue",
+      kyc_complement_requested: "Complément demandé",
+      kyc_complement_provided: "Complément envoyé",
+      kyc_approved: "Demande approuvée",
+      kyc_rejected: "Demande refusée",
+    } as Record<string, string>,
+  },
+  complement: {
+    title: "Message du contrôleur",
+    helper:
+      "Ré-uploadez la pièce ou le selfie demandé puis renvoyez la demande pour examen.",
+    replaceFront: "Remplacer le recto",
+    replaceBack: "Remplacer le verso",
+    replaceSelfie: "Remplacer le selfie",
+    submitCta: "Renvoyer pour examen",
+    submitErrorIncomplete: "Recto et selfie sont requis.",
+    submitSuccessToast: "Demande renvoyée pour examen.",
+  },
+  rejection: {
+    title: "Motif du refus",
+    restart: "Recommencer une demande",
+  },
+  approved: {
+    callout:
+      "Félicitations, votre demande a été approuvée. Votre niveau de garantie a été mis à jour.",
   },
 } as const
 
