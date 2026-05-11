@@ -16,15 +16,18 @@ Adopter un **monorepo Turborepo géré par Bun**, avec deux espaces de travail :
 
 ```
 apps/
-├── web/      Next.js 16 — identite.ga (site public + portail + consoles)
-├── auth/     Next.js 16 — connexion.identite.ga (futur)
-└── docs/     Next.js 16 — documentation publique SDK
+├── web/         Next.js 16 — identite.ga (site public + portail citoyen + console admin)
+├── auth/        Next.js 16 — connexion.identite.ga (futur)
+├── controller/  Next.js 16 — controleur.identite.ga (espace contrôleur d'identité)
+└── docs/        Next.js 16 — documentation publique SDK
 packages/
 ├── ui/                    Composants partagés (shadcn + primitives IDN)
 ├── backend/               Schéma + fonctions Convex
 ├── eslint-config/         Configurations ESLint (base, next, react-internal)
 └── typescript-config/     tsconfig de base partagés
 ```
+
+> **Mise à jour 2026-05-10** — `apps/controller` a été ajouté : initialement le cahier prévoyait l'espace contrôleur dans `apps/web` sous `/controleur/*`. La décision a été révisée pour un sous-domaine dédié `controleur.identite.ga`, hébergé comme app sœur. Motivations : surface d'attaque réduite (pas de mélange citoyen/contrôleur dans le même bundle), cycle de déploiement indépendant, lisibilité de l'URL (un agent en mission terrain reconnaît le domaine), futur durcissement CSP/Permissions-Policy spécifique scanner. Le cookie de session reste `Domain=.identite.ga` (cf. cahier §6.9) — l'authentification est partagée avec apps/web et apps/auth.
 
 - **Bun** comme gestionnaire de paquets et runtime de scripts (workspace `apps/*` + `packages/*`).
 - **Turborepo** pour l'orchestration des tâches (`dev`, `build`, `lint`, `check-types`) avec cache local et déduplication.
@@ -47,6 +50,7 @@ packages/
 - Versions de dépendances unifiées (React 19, Next 16, Convex 1.38) — moins de drift.
 - Refactor de l'UI partagée propagé instantanément aux apps consommatrices.
 - Apps séparées en runtime → chacune peut avoir sa CSP, son sous-domaine, son analytics.
+- L'ajout de `apps/controller` se fait sans toucher au bundle citoyen : les vues, content et mocks contrôleur restent isolés.
 
 **Négatives**
 
@@ -58,6 +62,8 @@ packages/
 
 - Migrer vers Turborepo Cloud (cache distant) si le CI dépasse 2 min.
 - Ajouter un workspace `apps/auth` dès qu'on bascule l'auth sur `connexion.identite.ga`.
+- Ajouter `https://controleur.identite.ga` à `trustedOrigins` dans `packages/backend/convex/auth.ts` quand le sous-domaine est exposé.
+- Aligner le cahier des charges (§3.10) avec ce changement : l'espace contrôleur n'est plus une route group de `apps/web` mais une app à part entière.
 
 ## Références
 
