@@ -25,6 +25,9 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
               {fr.brand.role}
             </div>
           </div>
+          <span className="hidden whitespace-nowrap rounded-full bg-idn-surface-2 px-2 py-0.5 text-[10px] font-semibold tracking-[0.05em] text-idn-muted sm:inline">
+            {fr.brand.republic}
+          </span>
           <div className="ml-auto">
             <IdnFlagBars width={120} height={2} />
           </div>

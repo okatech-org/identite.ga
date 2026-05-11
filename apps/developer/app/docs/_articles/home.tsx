@@ -117,8 +117,10 @@ export default function DocsHome() {
         </div>
         <h1 className="max-w-[760px] text-[48px] font-semibold leading-[1.1] tracking-[-0.02em] text-idn-ink">
           Intégrez{" "}
-          <span className="text-idn-green">« Se connecter avec IDN »</span> en
-          moins de 10 lignes.
+          <span className="text-idn-green">
+            « Se connecter avec Identité Numérique »
+          </span>{" "}
+          en moins de 10 lignes.
         </h1>
         <p className="mt-4 max-w-[640px] text-[17px] leading-[1.6] text-idn-muted">
           Le SDK <Code>@idn/*</Code> permet à toute application —

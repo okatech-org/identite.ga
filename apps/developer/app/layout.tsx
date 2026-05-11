@@ -22,8 +22,8 @@ const plexMono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Portail développeur · IDN",
-    template: "%s · Portail développeur · IDN",
+    default: "Portail développeur · Identité Numérique",
+    template: "%s · Portail développeur · Identité Numérique",
   },
   description:
     "Enregistrez vos applications, gérez vos clés OAuth et consultez votre usage de l'API Identité Numérique du Gabon.",

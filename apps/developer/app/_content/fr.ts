@@ -8,7 +8,8 @@
 
 export const fr = {
   brand: {
-    name: "IDN",
+    name: "Identité Numérique",
+    republic: "RÉPUBLIQUE GABONAISE",
     role: "DÉVELOPPEUR",
     operator: "dev@startup.ga",
     badge: "D",

@@ -95,14 +95,20 @@ export function DocsTopbar() {
       <header className="sticky top-0 z-30 flex h-14 items-center gap-7 border-b border-idn-border bg-idn-surface px-7">
         <Link
           href="/docs"
-          className="flex items-center gap-2.5 outline-none focus-visible:ring-2 focus-visible:ring-idn-green focus-visible:rounded"
+          className="flex shrink-0 items-center gap-2.5 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-idn-green"
+          aria-label="Identité Numérique — Documentation"
         >
-          <IdnMark size={24} />
-          <div className="text-[14px] font-semibold text-idn-ink">
-            IDN<span className="font-normal text-idn-muted"> / Docs</span>
+          <IdnMark size={26} />
+          <div className="leading-tight">
+            <div className="text-[13px] font-semibold tracking-[-0.012em] text-idn-ink">
+              Identité Numérique
+            </div>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-idn-muted">
+              DOCUMENTATION · DÉVELOPPEUR
+            </div>
           </div>
-          <span className="rounded-full bg-idn-surface-2 px-2 py-0.5 font-mono text-[10px] tracking-[0.04em] text-idn-muted">
-            v1.0.0
+          <span className="hidden whitespace-nowrap rounded-full bg-idn-surface-2 px-2 py-0.5 text-[10px] font-semibold tracking-[0.05em] text-idn-muted lg:inline">
+            RÉPUBLIQUE GABONAISE
           </span>
         </Link>
 

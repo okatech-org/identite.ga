@@ -2,7 +2,6 @@ import { notFound } from "next/navigation"
 
 import { ARTICLES_BY_SLUG } from "../_articles/registry"
 import { DocsSidebar } from "../_components/sidebar"
-import { ARTICLE_GROUPS } from "../_articles/registry"
 import DocsHome from "../_articles/home"
 
 interface PageProps {
@@ -45,13 +44,11 @@ export default async function DocsCatchAll({ params }: PageProps) {
 // son état actif et son `href`, et on a vu Next servir du HTML mis en cache
 // avec le markup figé sur "/docs". On revisitera (PPR / SSG + RSC dédiés)
 // une fois le routing stabilisé.
+// NB : on ne déclare PAS `generateStaticParams` exprès — sinon Next pré-rend
+// les routes statiquement et sert ensuite le HTML cached, ignorant le
+// `dynamic = "force-dynamic"`. Voir https://github.com/vercel/next.js/issues
+// pour les détails du conflit avec une catch-all optionnelle.
 export const dynamic = "force-dynamic"
-
-export async function generateStaticParams() {
-  return ARTICLE_GROUPS.flatMap((g) => g.items).map((a) => ({
-    slug: [a.slug],
-  }))
-}
 
 export async function generateMetadata({ params }: PageProps) {
   const { slug } = await params

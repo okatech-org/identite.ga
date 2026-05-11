@@ -5,11 +5,11 @@ import { DocsTopbar } from "./_components/topbar"
 
 export const metadata: Metadata = {
   title: {
-    default: "Documentation IDN",
-    template: "%s · Documentation IDN",
+    default: "Documentation · Identité Numérique",
+    template: "%s · Documentation Identité Numérique",
   },
   description:
-    "Documentation du SDK Identité Numérique du Gabon : « Se connecter avec IDN » en moins de 10 lignes. OIDC standard, PKCE obligatoire, zéro vendor lock-in.",
+    "Documentation du SDK Identité Numérique du Gabon : « Se connecter avec Identité Numérique » en moins de 10 lignes. OIDC standard, PKCE obligatoire, zéro vendor lock-in.",
   robots: { index: true, follow: true },
 }
 
