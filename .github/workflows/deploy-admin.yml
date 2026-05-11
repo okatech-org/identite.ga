@@ -1,4 +1,4 @@
-name: deploy-admin
+name: Deploy Admin Web Platform
 
 on:
   push:
@@ -67,4 +67,6 @@ jobs:
           service: ${{ env.SERVICE }}
           region: ${{ env.GCP_REGION }}
           image: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.SERVICE }}:${{ github.sha }}
+          env_vars: |
+            CONVEX_SITE_URL=${{ secrets.CONVEX_SITE_URL }}
           flags: --allow-unauthenticated --port=8080
