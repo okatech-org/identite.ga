@@ -1,8 +1,13 @@
 import { createClient, type GenericCtx } from "@convex-dev/better-auth";
 import { convex, crossDomain } from "@convex-dev/better-auth/plugins";
-import { oauthProvider } from "@better-auth/oauth-provider";
 import { betterAuth } from "better-auth/minimal";
-import { emailOTP, haveIBeenPwned, jwt, twoFactor } from "better-auth/plugins";
+import {
+  emailOTP,
+  haveIBeenPwned,
+  jwt,
+  oidcProvider,
+  twoFactor,
+} from "better-auth/plugins";
 
 // ─────────────────────────────────────────────────────────────────────────
 // Polyfill : `URL.canParse` (Node 19.9+ / Bun) — le V8 runtime Convex ne
@@ -214,35 +219,24 @@ export const createAuth = (
           "Ce mot de passe figure dans une fuite de données publique. Choisissez-en un autre.",
       }),
 
-      // Serveur OAuth/OIDC — RS256 obligatoire, PKCE requis (§3.7, §6.5)
-      // Successeur de l'ancien `oidcProvider` (plugin déprécié).
-      oauthProvider({
-        loginPage: "/connexion",
-        consentPage: "/consentement",
+      // Serveur OAuth/OIDC — `oidcProvider` intégré à better-auth/plugins
+      // (NB : pas le plugin séparé `@better-auth/oauth-provider` qui n'est
+      // pas compatible avec le schema du composant @convex-dev/better-auth
+      // 0.12.2 — voir l'ancien projet /Users/berny/Developer/idn/apps/portal
+      // qui utilise déjà ce pattern).
+      //
+      // `loginPage` / `consentPage` sont des URLs complètes vers apps/connect
+      // (point d'authentification fédéré) — Convex ne sert pas de HTML.
+      // `useJWTPlugin: true` → ID tokens signés en RS256 via le plugin jwt
+      // ci-dessous (§6.1) plutôt qu'en HS256 avec BETTER_AUTH_SECRET.
+      oidcProvider({
+        loginPage:
+          process.env.IDN_LOGIN_PAGE ?? "http://localhost:3004/sign-in",
+        consentPage:
+          process.env.IDN_CONSENT_PAGE ?? "http://localhost:3004/oauth/authorize",
         requirePKCE: true,
-        // Les endpoints metadata sont montés à la racine convex.site
-        // dans http.ts (RFC 8414 + OIDC Discovery). Le plugin n'a pas
-        // moyen de tester leur présence à runtime, on lui dit qu'on a fait
-        // le nécessaire.
-        silenceWarnings: {
-          oauthAuthServerConfig: true,
-          openidConfig: true,
-        },
-        // Le plugin 1.6.10 a renommé `oauthApplication` → `oauthClient` dans
-        // son schema. Le composant @convex-dev/better-auth 0.12.2 n'expose
-        // que `oauthApplication` côté adapter. On force le mapping inverse
-        // pour que les queries `findOne({ model: "oauthClient" })` du plugin
-        // ciblent la table `oauthApplication` côté Convex.
-        schema: {
-          oauthClient: { modelName: "oauthApplication" },
-        },
-        // Active la Dynamic Client Registration (RFC 7591) en mode public
-        // pour pouvoir enregistrer des clients via le standard plutôt qu'en
-        // écrivant directement dans la table (le format de `redirectUrls`
-        // attendu par le plugin n'est pas trivial à reproduire à la main).
-        // À durcir en prod (auth requise + rate limit).
-        allowDynamicClientRegistration: true,
-        allowUnauthenticatedClientRegistration: true,
+        useJWTPlugin: true,
+        allowPlainCodeChallengeMethod: false,
       }),
 
       // Émission ID tokens RS256 + JWKS publique (§6.1)

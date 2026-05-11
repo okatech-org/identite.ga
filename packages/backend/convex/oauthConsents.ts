@@ -98,8 +98,11 @@ export const listMine = query({
         let appIcon: string | null = null
         if (auth && headers) {
           try {
-            const client = (await auth.api.getOAuthClientPublic({
-              query: { client_id: c.clientId },
+            // oidcProvider expose `getOAuthClient` (au lieu de
+            // `getOAuthClientPublic` du plugin oauth-provider abandonné).
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const client = (await (auth.api as any).getOAuthClient({
+              params: { id: c.clientId },
               headers,
             })) as OAuthClientDoc | null
             if (client?.name) appName = client.name
@@ -151,10 +154,16 @@ export const revoke = mutation({
       })
     }
 
-    await auth.api.deleteOAuthConsent({
-      body: { id: args.consentId },
-      headers,
+    // oidcProvider n'expose pas `deleteOAuthConsent` côté API. On supprime
+    // directement via l'adapter Convex (model "oauthConsent").
+    await ctx.runMutation(components.betterAuth.adapter.deleteOne, {
+      input: {
+        model: "oauthConsent",
+        where: [{ field: "_id", value: args.consentId, operator: "eq" }],
+      },
     })
+    void auth
+    void headers
 
     await ctx.runMutation(internal.audit.recordAudit, {
       actorId: user.userId,
