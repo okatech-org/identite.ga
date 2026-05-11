@@ -85,42 +85,52 @@ export default function ConnectSignInPage() {
         setSubmitting(false)
         return
       }
-      // Pour un flow OAuth, on doit faire une nav full-page (pas push)
-      // pour que /api/auth/oauth2/authorize soit appelé en GET via proxy
-      // avec les cookies de session fraîchement posés.
-      //
-      // Si Better Auth retourne `{ redirect: true, url: "..." }` en JSON
-      // (au lieu d'un 302), on parse et on suit l'URL nous-mêmes.
+      // Flow OAuth : on appelle /api/auth/oauth2/authorize via fetch pour
+      // récupérer la prochaine étape — Better Auth retourne soit un 302
+      // avec Location (browser nav directe) soit un 200 JSON
+      // `{ redirect: true, url }` (fetch). On gère les deux et on déclenche
+      // un window.location.assign vers l'URL résolue.
       if (isOAuthFlow) {
+        // eslint-disable-next-line no-console
+        console.log("[idn:sign-in] OAuth flow, fetching", postLoginUrl)
+        let nextUrl: string | null = null
         try {
           const r = await fetch(postLoginUrl, {
             method: "GET",
             credentials: "include",
-            headers: { Accept: "application/json, text/html" },
-            redirect: "manual",
+            headers: { Accept: "application/json" },
           })
-          // Cas 1 : 302 — `redirect: "manual"` empêche le browser de suivre,
-          // on lit la Location.
-          const loc = r.headers.get("location")
-          if (loc) {
-            window.location.assign(loc)
-            return
-          }
-          // Cas 2 : 200 JSON avec { redirect, url }
-          const ct = r.headers.get("content-type") ?? ""
-          if (ct.includes("application/json")) {
-            const j = (await r.json().catch(() => null)) as
+          // eslint-disable-next-line no-console
+          console.log("[idn:sign-in] authorize response", {
+            status: r.status,
+            ct: r.headers.get("content-type"),
+            redirected: r.redirected,
+            url: r.url,
+          })
+          if (r.redirected) {
+            nextUrl = r.url
+          } else {
+            const body = (await r.json().catch(() => null)) as
               | { redirect?: boolean; url?: string }
               | null
-            if (j?.url) {
-              window.location.assign(j.url)
-              return
-            }
+            // eslint-disable-next-line no-console
+            console.log("[idn:sign-in] authorize body", body)
+            if (body?.url) nextUrl = body.url
           }
-        } catch {
-          /* fall through to full-page nav */
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error("[idn:sign-in] authorize fetch threw", err)
         }
-        // Dernier recours : full-page nav vers le proxy (le browser suivra).
+        if (nextUrl) {
+          // eslint-disable-next-line no-console
+          console.log("[idn:sign-in] navigating to", nextUrl)
+          window.location.assign(nextUrl)
+          return
+        }
+        // eslint-disable-next-line no-console
+        console.warn(
+          "[idn:sign-in] no nextUrl from authorize, fallback full-page nav",
+        )
         window.location.assign(postLoginUrl)
       } else {
         router.push(postLoginUrl)
