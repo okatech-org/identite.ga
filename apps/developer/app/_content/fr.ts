@@ -17,11 +17,12 @@ export const fr = {
 
   welcome: {
     eyebrow: "PORTAIL DÉVELOPPEUR",
-    title: "Construisez avec IDN",
+    title: "Construisez avec Identité Numérique",
     subtitle:
-      "Intégrez « Se connecter avec IDN » dans vos applications en quelques minutes. OAuth 2.1, OIDC standard, PKCE — et un kit SDK officiel pour les stacks les plus courantes.",
+      "Intégrez « Se connecter avec Identité Numérique » dans vos applications en quelques minutes. OAuth 2.1, OIDC standard, PKCE — et un kit SDK officiel pour les stacks les plus courantes.",
     signIn: "Se connecter",
     signUp: "Créer un compte",
+    docs: "Découvrir la documentation",
     secondaryHint: "Vous avez déjà un compte ? Connectez-vous.",
   },
 

@@ -42,6 +42,12 @@ export default function WelcomePage() {
           <Link href="/sign-in">{fr.welcome.signIn}</Link>
         </Button>
       </div>
+      <Link
+        href="/docs"
+        className="mt-5 text-sm font-medium text-idn-green outline-none underline-offset-2 hover:underline focus-visible:underline"
+      >
+        {fr.welcome.docs} →
+      </Link>
     </main>
   )
 }
