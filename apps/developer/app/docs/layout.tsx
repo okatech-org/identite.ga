@@ -1,16 +1,57 @@
 import type { Metadata } from "next"
 import type { ReactNode } from "react"
 
+import {
+  absoluteUrl,
+  DEFAULT_DOCS_OG_IMAGE,
+  DOCS_DESCRIPTION,
+  DOCS_NAME,
+  SITE_LOCALE,
+} from "../../lib/seo"
 import { DocsTopbar } from "./_components/topbar"
 
 export const metadata: Metadata = {
   title: {
-    default: "Documentation · Identité Numérique",
-    template: "%s · Documentation Identité Numérique",
+    default: DOCS_NAME,
+    template: `%s · ${DOCS_NAME}`,
   },
-  description:
-    "Documentation du SDK Identité Numérique du Gabon : « Se connecter avec Identité Numérique » en moins de 10 lignes. OIDC standard, PKCE obligatoire, zéro vendor lock-in.",
-  robots: { index: true, follow: true },
+  description: DOCS_DESCRIPTION,
+  alternates: {
+    canonical: absoluteUrl("/docs"),
+  },
+  openGraph: {
+    type: "website",
+    url: absoluteUrl("/docs"),
+    siteName: DOCS_NAME,
+    title: DOCS_NAME,
+    description: DOCS_DESCRIPTION,
+    locale: SITE_LOCALE,
+    images: [
+      {
+        url: DEFAULT_DOCS_OG_IMAGE,
+        width: 1200,
+        height: 630,
+        alt: DOCS_NAME,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: DOCS_NAME,
+    description: DOCS_DESCRIPTION,
+    images: [DEFAULT_DOCS_OG_IMAGE],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-snippet": -1,
+      "max-image-preview": "large",
+      "max-video-preview": -1,
+    },
+  },
 }
 
 export default function DocsLayout({ children }: { children: ReactNode }) {

@@ -1,4 +1,3 @@
-import type { Metadata } from "next"
 import Link from "next/link"
 import { LogInIcon, UserPlusIcon } from "lucide-react"
 
@@ -7,12 +6,19 @@ import { Card } from "@repo/ui/components/card"
 import { IdnFlagBars } from "@repo/ui/components/idn-flag-bars"
 import { IdnMark } from "@repo/ui/components/idn-mark"
 
+import {
+  jsonLdScript,
+  organizationJsonLd,
+  websiteJsonLd,
+} from "../../lib/json-ld"
+import { pageMetadata } from "../../lib/seo"
 import { navActions, welcome } from "./_content/fr"
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: welcome.meta.title,
   description: welcome.meta.description,
-}
+  path: "/",
+})
 
 const LOA_COLORS = {
   1: "text-idn-muted",
@@ -23,6 +29,14 @@ const LOA_COLORS = {
 export default function HomePage() {
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(organizationJsonLd()) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(websiteJsonLd()) }}
+      />
       {/* Mobile (< lg) — match maquette 01 : tout le bloc centré verticalement, texte aligné à gauche, CTAs full-width inclus dans le bloc centré */}
       <section className="flex flex-1 flex-col justify-center gap-8 px-6 py-8 lg:hidden">
         <div>

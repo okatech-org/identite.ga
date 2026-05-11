@@ -1,8 +1,9 @@
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google"
 
 import { Toaster } from "@repo/ui/components/sonner"
 
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "../lib/seo"
 import "./globals.css"
 import { Providers } from "./providers"
 
@@ -21,13 +22,36 @@ const plexMono = IBM_Plex_Mono({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "Portail développeur · Identité Numérique",
-    template: "%s · Portail développeur · Identité Numérique",
+    default: SITE_NAME,
+    template: `%s · ${SITE_NAME}`,
   },
-  description:
-    "Enregistrez vos applications, gérez vos clés OAuth et consultez votre usage de l'API Identité Numérique du Gabon.",
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  referrer: "strict-origin-when-cross-origin",
+  authors: [
+    { name: "Agence Nationale des Infrastructures Numériques", url: SITE_URL },
+  ],
+  creator: "Agence Nationale des Infrastructures Numériques (ANINF)",
+  publisher: "République Gabonaise",
+  // Le portail (espace authentifié) est noindex par défaut ; la doc surcharge
+  // explicitement avec `robots: { index: true }` dans son layout.
   robots: { index: false, follow: false },
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+}
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
+  width: "device-width",
+  initialScale: 1,
 }
 
 export default function RootLayout({

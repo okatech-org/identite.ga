@@ -1,14 +1,14 @@
-import type { Metadata } from "next"
-
 import { Card, CardContent } from "@repo/ui/components/card"
 
+import { pageMetadata } from "../../../lib/seo"
 import { PageHero } from "../_components/page-hero"
 import { about } from "../_content/fr"
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: about.meta.title,
   description: about.meta.description,
-}
+  path: "/about",
+})
 
 export default function AboutPage() {
   return (

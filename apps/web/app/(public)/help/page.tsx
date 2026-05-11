@@ -1,4 +1,3 @@
-import type { Metadata } from "next"
 import Link from "next/link"
 import { ShieldCheckIcon } from "lucide-react"
 
@@ -10,17 +9,26 @@ import {
 } from "@repo/ui/components/accordion"
 import { Button } from "@repo/ui/components/button"
 
+import { faqJsonLd, jsonLdScript } from "../../../lib/json-ld"
+import { pageMetadata } from "../../../lib/seo"
 import { PageHero } from "../_components/page-hero"
 import { help } from "../_content/fr"
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: help.meta.title,
   description: help.meta.description,
-}
+  path: "/help",
+})
 
 export default function HelpPage() {
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: jsonLdScript(faqJsonLd([...help.faqs])),
+        }}
+      />
       <PageHero
         eyebrow={help.hero.eyebrow}
         title={help.hero.title}

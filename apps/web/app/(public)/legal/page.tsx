@@ -1,12 +1,12 @@
-import type { Metadata } from "next"
-
+import { pageMetadata } from "../../../lib/seo"
 import { PageHero } from "../_components/page-hero"
 import { legal } from "../_content/fr"
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: legal.meta.title,
   description: legal.meta.description,
-}
+  path: "/legal",
+})
 
 export default function LegalPage() {
   return (

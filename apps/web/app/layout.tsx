@@ -1,8 +1,15 @@
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google"
 
 import { Toaster } from "@repo/ui/components/sonner"
 
+import {
+  DEFAULT_OG_IMAGE,
+  SITE_DESCRIPTION,
+  SITE_LOCALE,
+  SITE_NAME,
+  SITE_URL,
+} from "../lib/seo"
 import "./globals.css"
 import { Providers } from "./providers"
 
@@ -21,12 +28,85 @@ const plexMono = IBM_Plex_Mono({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "Identité Numérique du Gabon",
-    template: "%s · Identité Numérique du Gabon",
+    default: SITE_NAME,
+    template: `%s · ${SITE_NAME}`,
   },
-  description:
-    "Plateforme d'identité numérique souveraine de la République Gabonaise. Un compte unique pour accéder à tous les services de l'État.",
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  referrer: "strict-origin-when-cross-origin",
+  authors: [
+    {
+      name: "Agence Nationale des Infrastructures Numériques",
+      url: SITE_URL,
+    },
+  ],
+  creator: "Agence Nationale des Infrastructures Numériques (ANINF)",
+  publisher: "République Gabonaise",
+  keywords: [
+    "Identité Numérique",
+    "Gabon",
+    "IDN",
+    "ANINF",
+    "République Gabonaise",
+    "OpenID Connect",
+    "services publics",
+    "e-administration",
+    "authentification",
+    "KYC",
+    "eIDAS",
+  ],
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    locale: SITE_LOCALE,
+    url: SITE_URL,
+    siteName: SITE_NAME,
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    images: [
+      {
+        url: DEFAULT_OG_IMAGE,
+        width: 1200,
+        height: 630,
+        alt: SITE_NAME,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    images: [DEFAULT_OG_IMAGE],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-snippet": -1,
+      "max-image-preview": "large",
+      "max-video-preview": -1,
+    },
+  },
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+}
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
+  width: "device-width",
+  initialScale: 1,
 }
 
 export default function RootLayout({

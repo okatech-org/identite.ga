@@ -1,16 +1,17 @@
-import type { Metadata } from "next"
 import Link from "next/link"
 
 import { Button } from "@repo/ui/components/button"
 import { Card } from "@repo/ui/components/card"
 
+import { pageMetadata } from "../../../lib/seo"
 import { PageHero } from "../_components/page-hero"
 import { administrations } from "../_content/fr"
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: administrations.meta.title,
   description: administrations.meta.description,
-}
+  path: "/admins",
+})
 
 export default function AdministrationsPage() {
   return (

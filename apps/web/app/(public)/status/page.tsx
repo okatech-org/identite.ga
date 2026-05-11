@@ -1,8 +1,7 @@
-import type { Metadata } from "next"
-
 import { Card } from "@repo/ui/components/card"
 import { cn } from "@repo/ui/lib/utils"
 
+import { pageMetadata } from "../../../lib/seo"
 import { PageHero } from "../_components/page-hero"
 import { status as statusContent } from "../_content/fr"
 import {
@@ -12,10 +11,11 @@ import {
   type StatusComponent,
 } from "./_data"
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: statusContent.meta.title,
   description: statusContent.meta.description,
-}
+  path: "/status",
+})
 
 const SPARKLINE_BARS = 60
 

@@ -1,17 +1,18 @@
-import type { Metadata } from "next"
 import Link from "next/link"
 
 import { Button } from "@repo/ui/components/button"
 import { Card } from "@repo/ui/components/card"
 
+import { pageMetadata } from "../../../lib/seo"
 import { PageHero } from "../_components/page-hero"
 import { contact } from "../_content/fr"
 import { ContactForm } from "./_form"
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: contact.meta.title,
   description: contact.meta.description,
-}
+  path: "/contact",
+})
 
 export default function ContactPage() {
   return (
