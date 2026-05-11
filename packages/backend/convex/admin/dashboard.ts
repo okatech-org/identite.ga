@@ -7,6 +7,7 @@ import {
   usersByLoa,
   usersByProfile,
 } from "../aggregates"
+import { AUDIT_ACTIONS } from "../schema"
 
 /**
  * Tableau de bord admin (§3.9 onglet 1).
@@ -69,5 +70,85 @@ export const getDashboardKpis = query({
       },
       kyc: { pending, submitted, underReview, approved, rejected },
     }
+  },
+})
+
+/**
+ * Activité récente — 4 lignes (par défaut) issues de l'audit log.
+ * Sert le bloc "Activité récente" du tableau de bord.
+ */
+export const getRecentActivity = query({
+  args: { limit: v.optional(v.number()) },
+  returns: v.array(
+    v.object({
+      _id: v.id("auditLog"),
+      action: v.union(...AUDIT_ACTIONS.map((a) => v.literal(a))),
+      targetType: v.string(),
+      targetId: v.string(),
+      actorId: v.optional(v.string()),
+      metadata: v.optional(v.record(v.string(), v.any())),
+      createdAt: v.number(),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx)
+    const limit = Math.min(args.limit ?? 4, 20)
+    const docs = await ctx.db
+      .query("auditLog")
+      .withIndex("by_createdAt")
+      .order("desc")
+      .take(limit)
+    return docs.map((d) => ({
+      _id: d._id,
+      action: d.action,
+      targetType: d.targetType,
+      targetId: d.targetId,
+      actorId: d.actorId,
+      metadata: d.metadata,
+      createdAt: d.createdAt,
+    }))
+  },
+})
+
+/**
+ * Connexions par jour — buckets quotidiens des `login_success` sur les
+ * `days` derniers jours (défaut 15, max 60). Renvoyé du plus ancien au
+ * plus récent pour faciliter le rendu sparkline.
+ */
+export const getDailyLogins = query({
+  args: { days: v.optional(v.number()) },
+  returns: v.array(
+    v.object({
+      day: v.number(),
+      count: v.number(),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx)
+    const days = Math.min(Math.max(args.days ?? 15, 1), 60)
+    const now = Date.now()
+    const dayMs = 24 * 60 * 60 * 1000
+    const startOfToday = new Date(now)
+    startOfToday.setHours(0, 0, 0, 0)
+    const firstBucket = startOfToday.getTime() - (days - 1) * dayMs
+
+    const docs = await ctx.db
+      .query("auditLog")
+      .withIndex("by_action", (q) => q.eq("action", "login_success"))
+      .order("desc")
+      .take(5000)
+
+    const buckets: number[] = new Array(days).fill(0)
+    for (const d of docs) {
+      if (d.createdAt < firstBucket) continue
+      const idx = Math.floor((d.createdAt - firstBucket) / dayMs)
+      if (idx >= 0 && idx < days) {
+        buckets[idx] = (buckets[idx] ?? 0) + 1
+      }
+    }
+    return buckets.map((count, i) => ({
+      day: firstBucket + i * dayMs,
+      count,
+    }))
   },
 })

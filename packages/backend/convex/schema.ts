@@ -333,6 +333,20 @@ export default defineSchema({
     .index("by_userId_role", ["userId", "role"]),
 
   /**
+   * Clé/valeur pour la configuration système modifiable par le super-admin
+   * (providers email/SMS actifs, feature flags, etc.).
+   *
+   * Une seule entrée par clé. `value` est un objet libre pour pouvoir
+   * stocker des structures variées (id de provider, options de config).
+   */
+  systemConfig: defineTable({
+    key: v.string(),
+    value: v.record(v.string(), v.any()),
+    updatedAt: v.number(),
+    updatedBy: v.optional(v.string()),
+  }).index("by_key", ["key"]),
+
+  /**
    * Demandes via formulaire de contact public (page /contact).
    * Pas d'auth requise.
    */
