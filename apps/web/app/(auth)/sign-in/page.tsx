@@ -17,6 +17,7 @@ import { Label } from "@repo/ui/components/label"
 import { authClient } from "@/lib/auth-client"
 
 import { signIn } from "../_content/fr"
+import { CrossDeviceQr } from "../_components/cross-device-qr"
 import { OtpInput } from "../_components/otp-input"
 import { PinPad } from "../_components/pin-pad"
 import { safeRedirectTo } from "../_lib/redirect"
@@ -51,6 +52,7 @@ function SignInPageInner() {
   const [pin, setPin] = React.useState("")
   const [pinError, setPinError] = React.useState<string | null>(null)
   const [submitting, setSubmitting] = React.useState(false)
+  const [qrOpen, setQrOpen] = React.useState(false)
 
   const [twoFactorRequired, setTwoFactorRequired] = React.useState(false)
   const [twoFactorCode, setTwoFactorCode] = React.useState("")
@@ -436,7 +438,7 @@ function SignInPageInner() {
         type="button"
         variant="outline"
         size="lg"
-        disabled
+        onClick={() => setQrOpen(true)}
         title={signIn.qrTooltip}
         className="mt-6 h-12 w-full text-base"
       >
@@ -453,6 +455,20 @@ function SignInPageInner() {
           {signIn.signUpLink}
         </Link>
       </p>
+
+      {qrOpen ? (
+        <CrossDeviceQr
+          onClose={() => setQrOpen(false)}
+          onApproved={(approvedEmail) => {
+            setQrOpen(false)
+            setEmail(approvedEmail)
+            emailForm.setValue("email", approvedEmail)
+            setPin("")
+            setPinError(null)
+            setPhase("pin")
+          }}
+        />
+      ) : null}
     </div>
   )
 }
