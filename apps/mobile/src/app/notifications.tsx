@@ -147,14 +147,16 @@ export default function Notifications() {
               key={f.id}
               onPress={() => setFilter(f.id)}
               style={{
-                paddingHorizontal: 14, paddingVertical: 8,
+                paddingHorizontal: 14,
+                minHeight: 32,
                 backgroundColor: sel ? idnTokens.green : t.surface,
                 borderWidth: 1,
                 borderColor: sel ? idnTokens.green : t.border,
                 borderRadius: 9999,
+                alignItems: 'center', justifyContent: 'center',
               }}
             >
-              <Text style={{ fontSize: 12, fontWeight: '600', color: sel ? '#fff' : t.ink2, letterSpacing: 0.2 }}>{f.label}</Text>
+              <Text style={{ fontSize: 12, lineHeight: 16, fontWeight: '600', color: sel ? '#fff' : t.ink2, letterSpacing: 0.2 }}>{f.label}</Text>
             </Pressable>
           );
         })}

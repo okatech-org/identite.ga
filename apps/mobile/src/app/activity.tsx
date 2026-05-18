@@ -130,12 +130,14 @@ export default function Activity() {
           const sel = i === filter;
           return (
             <Pressable key={f.id} onPress={() => setFilter(i)} style={{
-              paddingHorizontal: 12, paddingVertical: 6,
+              paddingHorizontal: 12,
+              minHeight: 30,
               borderRadius: 9999, borderWidth: 1,
               backgroundColor: sel ? idnTokens.green : t.surface,
               borderColor: sel ? idnTokens.green : t.border,
+              alignItems: 'center', justifyContent: 'center',
             }}>
-              <Text style={{ fontSize: 12, fontWeight: '500', color: sel ? '#fff' : t.ink2 }}>{f.label}</Text>
+              <Text style={{ fontSize: 12, lineHeight: 16, fontWeight: '500', color: sel ? '#fff' : t.ink2 }}>{f.label}</Text>
             </Pressable>
           );
         })}

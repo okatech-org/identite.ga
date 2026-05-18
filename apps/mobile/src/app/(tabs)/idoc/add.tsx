@@ -30,14 +30,16 @@ export default function DocAddSelect() {
                   key={f.id}
                   onPress={() => setSelected(f.id)}
                   style={{
-                    paddingHorizontal: 12, paddingVertical: 8,
+                    paddingHorizontal: 12,
+                    minHeight: 32,
                     backgroundColor: sel ? idnTokens.green : t.surface,
                     borderWidth: 1,
                     borderColor: sel ? idnTokens.green : t.border,
                     borderRadius: 9999,
+                    alignItems: 'center', justifyContent: 'center',
                   }}
                 >
-                  <Text style={{ fontSize: 12, fontWeight: '500', color: sel ? '#fff' : t.ink2 }}>{f.label}</Text>
+                  <Text style={{ fontSize: 12, lineHeight: 16, fontWeight: '500', color: sel ? '#fff' : t.ink2 }}>{f.label}</Text>
                 </Pressable>
               );
             })}

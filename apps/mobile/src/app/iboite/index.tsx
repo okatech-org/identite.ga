@@ -58,20 +58,21 @@ export default function IBoiteHome() {
                 key={i}
                 style={{
                   paddingHorizontal: 12,
-                  paddingVertical: 6,
+                  minHeight: 30,
                   backgroundColor: f.sel ? idnTokens.green : t.surface,
                   borderWidth: 1,
                   borderColor: f.sel ? idnTokens.green : t.border,
                   borderRadius: 9999,
                   flexDirection: 'row',
                   alignItems: 'center',
+                  justifyContent: 'center',
                   gap: 6,
                 }}
               >
-                <Text style={{ fontSize: 12, fontWeight: '500', color: f.sel ? '#fff' : t.ink2 }}>{f.l}</Text>
+                <Text style={{ fontSize: 12, lineHeight: 16, fontWeight: '500', color: f.sel ? '#fff' : t.ink2 }}>{f.l}</Text>
                 {f.n ? (
                   <View style={{ paddingHorizontal: 6, borderRadius: 9999, backgroundColor: f.sel ? 'rgba(255,255,255,0.22)' : t.surface2 }}>
-                    <Text style={{ fontSize: 10, fontWeight: '700', color: f.sel ? '#fff' : t.ink2 }}>{f.n}</Text>
+                    <Text style={{ fontSize: 10, lineHeight: 14, fontWeight: '700', color: f.sel ? '#fff' : t.ink2 }}>{f.n}</Text>
                   </View>
                 ) : null}
               </Pressable>
@@ -192,20 +193,21 @@ export default function IBoiteHome() {
                 key={i}
                 style={{
                   paddingHorizontal: 12,
-                  paddingVertical: 6,
+                  minHeight: 30,
                   backgroundColor: f.sel ? idnTokens.green : t.surface,
                   borderWidth: 1,
                   borderColor: f.sel ? idnTokens.green : t.border,
                   borderRadius: 9999,
                   flexDirection: 'row',
                   alignItems: 'center',
+                  justifyContent: 'center',
                   gap: 6,
                 }}
               >
-                <Text style={{ fontSize: 12, fontWeight: '500', color: f.sel ? '#fff' : t.ink2 }}>{f.l}</Text>
+                <Text style={{ fontSize: 12, lineHeight: 16, fontWeight: '500', color: f.sel ? '#fff' : t.ink2 }}>{f.l}</Text>
                 {f.n ? (
                   <View style={{ paddingHorizontal: 6, borderRadius: 9999, backgroundColor: f.sel ? 'rgba(255,255,255,0.22)' : t.surface2 }}>
-                    <Text style={{ fontSize: 10, fontWeight: '700', color: f.sel ? '#fff' : t.ink2 }}>{f.n}</Text>
+                    <Text style={{ fontSize: 10, lineHeight: 14, fontWeight: '700', color: f.sel ? '#fff' : t.ink2 }}>{f.n}</Text>
                   </View>
                 ) : null}
               </Pressable>
