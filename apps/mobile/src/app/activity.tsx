@@ -125,7 +125,7 @@ export default function Activity() {
   return (
     <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top }}>
       <NLargeHeader t={t} title="Activité" sub="Tous les événements de votre compte" onBack={() => router.back()} />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 22, paddingBottom: 12, gap: 6 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ paddingHorizontal: 22, paddingBottom: 12, gap: 6 }}>
         {FILTERS.map((f, i) => {
           const sel = i === filter;
           return (

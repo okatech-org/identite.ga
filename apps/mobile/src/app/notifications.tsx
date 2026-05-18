@@ -139,7 +139,7 @@ export default function Notifications() {
       </View>
 
       {/* Filtres */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 22, gap: 6, paddingVertical: 8 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ paddingHorizontal: 22, gap: 6, paddingVertical: 8 }}>
         {FILTERS.map(f => {
           const sel = f.id === filter;
           return (

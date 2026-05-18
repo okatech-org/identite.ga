@@ -22,7 +22,7 @@ export default function DocAddSelect() {
         {/* Sélection dossier */}
         <View>
           <Text style={{ fontSize: 10, color: t.muted, letterSpacing: 1.2, fontWeight: '600', marginBottom: 8 }}>DOSSIER DE DESTINATION</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 2 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 6, paddingVertical: 2 }}>
             {DOC_FOLDERS.slice(0, 6).map(f => {
               const sel = f.id === selected;
               return (

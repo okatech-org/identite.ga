@@ -52,7 +52,7 @@ export default function IBoiteHome() {
       <View style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 6, paddingBottom: insets.bottom + 86 }} showsVerticalScrollIndicator={false}>
           {/* Folder chips */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 6 }} style={{ marginBottom: 6 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 6 }} style={{ marginBottom: 6, flexGrow: 0 }}>
             {COURRIER_FOLDERS.map((f, i) => (
               <Pressable
                 key={i}
@@ -186,7 +186,7 @@ export default function IBoiteHome() {
     return (
       <View style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 6, paddingBottom: insets.bottom + 24 }} showsVerticalScrollIndicator={false}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 6 }} style={{ marginBottom: 6 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 6 }} style={{ marginBottom: 6, flexGrow: 0 }}>
             {EMAIL_FOLDERS.map((f, i) => (
               <Pressable
                 key={i}
