@@ -33,12 +33,49 @@ type OAuthAppDoc = {
 
 const MODEL = "oauthApplication" as const
 
+const SERVICE_CATEGORIES = [
+  "administrative",
+  "civilStatus",
+  "fiscal",
+  "education",
+  "health",
+  "transport",
+  "social",
+  "other",
+] as const
+type ServiceCategory = (typeof SERVICE_CATEGORIES)[number]
+
+interface AppService {
+  id: string
+  label: string
+  description: string
+  category: ServiceCategory
+  link: string
+}
+
 interface AppMetadata {
   env: "production" | "sandbox"
   loa: 1 | 2 | 3
   description: string
   scopes: string[]
   createdBy: string
+  services: AppService[]
+}
+
+const parseService = (raw: unknown): AppService | null => {
+  if (!raw || typeof raw !== "object") return null
+  const r = raw as Record<string, unknown>
+  const id = typeof r.id === "string" ? r.id.trim() : ""
+  const label = typeof r.label === "string" ? r.label.trim() : ""
+  const link = typeof r.link === "string" ? r.link.trim() : ""
+  if (!id || !label || !link) return null
+  const category =
+    typeof r.category === "string" &&
+    (SERVICE_CATEGORIES as readonly string[]).includes(r.category)
+      ? (r.category as ServiceCategory)
+      : "other"
+  const description = typeof r.description === "string" ? r.description : ""
+  return { id, label, description, category, link }
 }
 
 const parseMetadata = (raw: string | null | undefined): AppMetadata => {
@@ -48,16 +85,25 @@ const parseMetadata = (raw: string | null | undefined): AppMetadata => {
     description: "",
     scopes: [],
     createdBy: "",
+    services: [],
   }
   if (!raw) return fallback
   try {
-    const obj = JSON.parse(raw) as Partial<AppMetadata>
+    const obj = JSON.parse(raw) as Partial<AppMetadata> & {
+      services?: unknown
+    }
+    const services = Array.isArray(obj.services)
+      ? obj.services
+          .map(parseService)
+          .filter((s): s is AppService => s !== null)
+      : []
     return {
       env: obj.env === "production" ? "production" : "sandbox",
       loa: obj.loa === 2 || obj.loa === 3 ? obj.loa : 1,
       description: typeof obj.description === "string" ? obj.description : "",
       scopes: Array.isArray(obj.scopes) ? obj.scopes.map(String) : [],
       createdBy: typeof obj.createdBy === "string" ? obj.createdBy : "",
+      services,
     }
   } catch {
     return fallback
@@ -118,6 +164,18 @@ const slugify = (input: string): string =>
     .replace(/^-+|-+$/g, "")
     .slice(0, 32) || "app"
 
+const SERVICE_CATEGORY_VALIDATOR = v.union(
+  ...SERVICE_CATEGORIES.map((c) => v.literal(c)),
+)
+
+const SERVICE_VALIDATOR = v.object({
+  id: v.string(),
+  label: v.string(),
+  description: v.string(),
+  category: SERVICE_CATEGORY_VALIDATOR,
+  link: v.string(),
+})
+
 const toDto = (doc: OAuthAppDoc) => {
   const meta = parseMetadata(doc.metadata)
   return {
@@ -129,6 +187,7 @@ const toDto = (doc: OAuthAppDoc) => {
     scopes: meta.scopes,
     redirectUris: parseRedirectUrls(doc.redirectUrls),
     description: meta.description,
+    services: meta.services,
     disabled: Boolean(doc.disabled),
     createdAt: tsOf(doc.createdAt),
   }
@@ -143,6 +202,7 @@ const appDtoValidator = v.object({
   scopes: v.array(v.string()),
   redirectUris: v.array(v.string()),
   description: v.string(),
+  services: v.array(SERVICE_VALIDATOR),
   disabled: v.boolean(),
   createdAt: v.number(),
 })
@@ -270,6 +330,7 @@ export const create = mutation({
       description: args.description ?? "",
       scopes: args.scopes,
       createdBy: user.userId,
+      services: [],
     }
 
     const created = (await ctx.runMutation(components.betterAuth.adapter.create, {
@@ -331,6 +392,84 @@ export const rotateSecret = mutation({
     })
 
     return { clientSecret: newSecretPlain }
+  },
+})
+
+/**
+ * Met à jour la liste des services publiés par l'app. Ces services sont
+ * exposés au catalogue citoyen via `convex/services.ts` après consentement
+ * OAuth — l'app mobile les présente dans (tabs)/services.
+ */
+export const setServices = mutation({
+  args: {
+    clientId: v.string(),
+    services: v.array(SERVICE_VALIDATOR),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const user = await requireDeveloper(ctx)
+    if (args.services.length > 50) {
+      throw new ConvexError({
+        code: "TOO_MANY_SERVICES",
+        message: "Maximum 50 services par application.",
+      })
+    }
+    const seenIds = new Set<string>()
+    for (const s of args.services) {
+      if (seenIds.has(s.id)) {
+        throw new ConvexError({
+          code: "DUPLICATE_ID",
+          message: `Identifiant en double : ${s.id}`,
+        })
+      }
+      seenIds.add(s.id)
+      if (!/^[a-z0-9][a-z0-9_-]{0,63}$/i.test(s.id)) {
+        throw new ConvexError({
+          code: "INVALID_ID",
+          message: `ID invalide : ${s.id} (a-z, 0-9, _, -)`,
+        })
+      }
+      try {
+        const url = new URL(s.link)
+        if (url.protocol !== "https:" && url.protocol !== "http:") {
+          throw new Error("non-http")
+        }
+      } catch {
+        throw new ConvexError({
+          code: "INVALID_LINK",
+          message: `Lien invalide pour ${s.id} : ${s.link}`,
+        })
+      }
+    }
+
+    const raw = (await ctx.runQuery(components.betterAuth.adapter.findMany, {
+      model: MODEL,
+      where: [{ field: "clientId", value: args.clientId, operator: "eq" }],
+      paginationOpts: { numItems: 1, cursor: null },
+    })) as { page: OAuthAppDoc[] }
+    const doc = raw.page[0]
+    if (!doc) {
+      throw new ConvexError({ code: "NOT_FOUND", message: "App introuvable." })
+    }
+    if (doc.userId !== user.userId) {
+      throw new ConvexError({
+        code: "FORBIDDEN",
+        message: "Cette application ne vous appartient pas.",
+      })
+    }
+    const meta = parseMetadata(doc.metadata)
+    const nextMeta: AppMetadata = { ...meta, services: args.services }
+    await ctx.runMutation(components.betterAuth.adapter.updateOne, {
+      input: {
+        model: MODEL,
+        where: [{ field: "_id", value: doc._id, operator: "eq" }],
+        update: {
+          metadata: JSON.stringify(nextMeta),
+          updatedAt: Date.now(),
+        },
+      },
+    })
+    return null
   },
 })
 

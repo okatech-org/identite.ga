@@ -80,6 +80,7 @@ export const fr = {
     docs: "Documentation",
     usage: "Quotas & usage",
     settings: "Paramètres",
+    services: "Services",
     signOut: "Se déconnecter",
   },
 
@@ -87,6 +88,7 @@ export const fr = {
     sub: "VOS APPS · {count} ENREGISTRÉES",
     title: "Applications",
     newApp: "Nouvelle app",
+    services: "Services",
     empty: {
       title: "Aucune application enregistrée",
       body: "Créez votre première application pour obtenir un client_id et commencer l'intégration.",
@@ -143,6 +145,41 @@ export const fr = {
       clientSecret: "CLIENT_SECRET",
       redirectUris: "REDIRECT URIS",
       jwks: "JWKS",
+    },
+  },
+
+  services: {
+    sub: "CATALOGUE CITOYEN",
+    title: "Services proposés",
+    description:
+      "Les services listés ici apparaissent dans l'app mobile des citoyens ayant consenti à votre application. Chaque entrée est un point de redirection vers une page de votre service.",
+    emptyTitle: "Aucun service publié",
+    emptyDesc:
+      "Ajoutez les démarches que votre application propose pour les rendre visibles dans le catalogue citoyen.",
+    addService: "Ajouter un service",
+    serviceId: "Identifiant",
+    serviceIdHint: "Identifiant interne unique (a-z, 0-9, _, -).",
+    label: "Libellé",
+    labelPlaceholder: "Déclaration fiscale 2025",
+    descriptionLabel: "Description",
+    descriptionPlaceholder: "Déposez votre déclaration en ligne en 5 minutes.",
+    category: "Catégorie",
+    link: "Lien d'accès",
+    linkHint: "URL absolue (HTTPS recommandé en production).",
+    remove: "Retirer",
+    save: "Enregistrer",
+    saving: "Enregistrement…",
+    savedToast: "Services mis à jour.",
+    errorGeneric: "Impossible de mettre à jour les services. Réessayez.",
+    categories: {
+      administrative: "Administratif",
+      civilStatus: "État civil",
+      fiscal: "Fiscalité",
+      education: "Éducation",
+      health: "Santé",
+      transport: "Transport",
+      social: "Social",
+      other: "Autres",
     },
   },
 

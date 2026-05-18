@@ -103,10 +103,18 @@ export default function ApplicationsPage() {
                       {fr.applications.card.usage}
                     </div>
                     <div className="mt-0.5 font-mono text-base font-semibold text-idn-ink">
-                      0 {fr.applications.card.perMonth}
+                      {app.services.length} {fr.nav.services.toLowerCase()}
                     </div>
                   </div>
                 </Link>
+                <div className="mt-1 flex justify-end">
+                  <Link
+                    href={`/applications/${app.clientId}/services`}
+                    className="rounded-md px-2 py-1 text-[11px] font-semibold text-idn-green hover:bg-idn-green-soft"
+                  >
+                    {fr.nav.services} →
+                  </Link>
+                </div>
               </li>
             ))}
           </ul>
