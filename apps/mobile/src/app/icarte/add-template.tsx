@@ -29,7 +29,7 @@ export default function ICarteAddTemplate() {
           {CARD_TEMPLATES.map(tp => (
             <Pressable
               key={tp.id}
-              onPress={() => { router.back(); router.push('/icarte/add' as any); }}
+              onPress={() => { router.back(); router.push(`/icarte/add?template=${tp.id}` as never); }}
               style={{ width: '48%', backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 12, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 }}
             >
               <View style={{ width: 44, height: 28, borderRadius: 5, overflow: 'hidden' }}>

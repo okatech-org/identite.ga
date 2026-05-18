@@ -1,7 +1,8 @@
 import React from 'react';
-import { ScrollView, View, Text, Pressable } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { useConvexAuth, useMutation, useQuery } from 'convex/react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useIdnTheme } from '@/design/theme';
 import { idnTokens } from '@/design/tokens';
@@ -11,15 +12,57 @@ import { MiniCard } from '@/components/cards/mini-card';
 import { CardRow } from '@/components/cards/card-row';
 import { CardArtIcon } from '@/components/cards/card-art-icon';
 import { Icon } from '@/design/icons';
-import { CARD_GRADIENTS, CARD_TEMPLATES, DEFAULT_CARDS } from '@/data/cards';
+import { CARD_GRADIENTS, CARD_TEMPLATES } from '@/data/cards';
+import { api } from '@/lib/api';
+import { walletCardToUi } from '@/lib/wallet-adapter';
+
+function confirm(title: string, message: string, onConfirm: () => void) {
+  if (Platform.OS === 'web') {
+    if (typeof window !== 'undefined' && window.confirm(`${title}\n\n${message}`)) {
+      onConfirm();
+    }
+    return;
+  }
+  Alert.alert(title, message, [
+    { text: 'Annuler', style: 'cancel' },
+    { text: 'Confirmer', style: 'destructive', onPress: onConfirm },
+  ]);
+}
 
 export default function ICarteHome() {
   const t = useIdnTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { isAuthenticated } = useConvexAuth();
+  const wallet = useQuery(api.wallet.listMine, isAuthenticated ? {} : 'skip');
+  const setFeatured = useMutation(api.wallet.setFeatured);
+  const removeCard = useMutation(api.wallet.remove);
 
-  const featured = DEFAULT_CARDS.filter(c => c.featured);
-  const others = DEFAULT_CARDS.filter(c => !c.featured);
+  const cards = wallet?.cards.map(walletCardToUi) ?? [];
+  const featured = cards.filter((c) => c.featured);
+  const others = cards.filter((c) => !c.featured);
+  const limit = wallet?.featuredLimit ?? 6;
+  const atMax = featured.length >= limit;
+
+  async function toggleFeatured(id: string, next: boolean) {
+    try {
+      await setFeatured({ cardId: id as never, featured: next });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Action impossible.';
+      Alert.alert('Erreur', msg);
+    }
+  }
+
+  async function deleteCard(id: string, name: string) {
+    confirm('Supprimer la carte', `Confirmer la suppression de « ${name} » ?`, async () => {
+      try {
+        await removeCard({ cardId: id as never });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Suppression impossible.';
+        Alert.alert('Erreur', msg);
+      }
+    });
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top }}>
@@ -30,19 +73,22 @@ export default function ICarteHome() {
         onBack={() => router.back()}
         right={
           <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 9999, backgroundColor: t.dark ? '#0F2A18' : idnTokens.greenSoft }}>
-            <Text style={{ fontSize: 11, fontWeight: '600', color: idnTokens.green }}>{featured.length}/6 dans le profil</Text>
+            <Text style={{ fontSize: 11, fontWeight: '600', color: idnTokens.green }}>{featured.length}/{limit} dans le profil</Text>
           </View>
         }
       />
       <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingBottom: insets.bottom + 24 }} showsVerticalScrollIndicator={false}>
-        {/* Cartes dans le profil */}
         <NSectionLabel
           t={t}
           right={<Text style={{ fontSize: 10, color: t.muted }}>Maintenez pour réordonner</Text>}
         >
           <Text style={{ color: idnTokens.green }}>● </Text>CARTES DANS LE PROFIL
         </NSectionLabel>
-        {featured.length === 0 ? (
+        {wallet === undefined ? (
+          <View style={{ paddingVertical: 30, alignItems: 'center' }}>
+            <Text style={{ fontSize: 12, color: t.muted }}>Chargement…</Text>
+          </View>
+        ) : featured.length === 0 ? (
           <View style={{ paddingVertical: 30, alignItems: 'center', borderWidth: 1.5, borderColor: t.border, borderStyle: 'dashed', borderRadius: 14 }}>
             <Icon name="wallet" size={36} color={t.mutedSoft} />
             <Text style={{ fontSize: 13, color: t.ink2, fontWeight: '500', marginTop: 10 }}>Aucune carte dans le profil</Text>
@@ -50,15 +96,19 @@ export default function ICarteHome() {
           </View>
         ) : (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            {featured.map(c => (
-              <Pressable key={c.id} onPress={() => router.push(`/icarte/${c.id}` as any)} style={{ width: '48.5%' }}>
-                <MiniCard card={c} t={t} dragMode />
+            {featured.map((c) => (
+              <Pressable
+                key={c.id}
+                onPress={() => router.push(`/icarte/${c.id}` as never)}
+                onLongPress={() => toggleFeatured(c.id, false)}
+                style={{ width: '48.5%' }}
+              >
+                <MiniCard card={c} t={t} dragMode onRemove={() => toggleFeatured(c.id, false)} />
               </Pressable>
             ))}
           </View>
         )}
 
-        {/* Autres cartes */}
         <NSectionLabel
           t={t}
           right={<Text style={{ fontSize: 10, color: t.muted, fontFamily: idnTokens.mono }}>{others.length} cartes</Text>}
@@ -75,19 +125,26 @@ export default function ICarteHome() {
           <View style={{ backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
             {others.map((c, i) => (
               <View key={c.id} style={{ borderBottomWidth: i === others.length - 1 ? 0 : 1, borderBottomColor: t.borderSoft }}>
-                <CardRow card={c} t={t} atMax={featured.length >= 6} />
+                <CardRow
+                  card={c}
+                  t={t}
+                  atMax={atMax}
+                  onPress={() => router.push(`/icarte/${c.id}` as never)}
+                  onEdit={() => router.push(`/icarte/edit/${c.id}` as never)}
+                  onToggleFeatured={() => toggleFeatured(c.id, true)}
+                  onDelete={() => deleteCard(c.id, c.name)}
+                />
               </View>
             ))}
           </View>
         )}
 
-        {/* Ajouter une carte */}
         <NSectionLabel t={t}>AJOUTER UNE CARTE</NSectionLabel>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {CARD_TEMPLATES.map(tp => (
+          {CARD_TEMPLATES.map((tp) => (
             <Pressable
               key={tp.id}
-              onPress={() => router.push('/icarte/add' as any)}
+              onPress={() => router.push(`/icarte/add-template?template=${tp.id}` as never)}
               style={{ width: '23%', backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 10, paddingVertical: 10, alignItems: 'center', gap: 6 }}
             >
               <View style={{ width: 40, height: 26, borderRadius: 5, overflow: 'hidden' }}>
@@ -99,7 +156,7 @@ export default function ICarteHome() {
             </Pressable>
           ))}
           <Pressable
-            onPress={() => router.push('/icarte/custom' as any)}
+            onPress={() => router.push('/icarte/custom' as never)}
             style={{ flex: 1, minWidth: '48%', backgroundColor: t.dark ? '#0F2A18' : idnTokens.greenSoft, borderWidth: 1, borderColor: t.dark ? '#1B3F2A' : '#C5E0CC', borderRadius: 10, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
           >
             <Icon name="palette" size={18} color={idnTokens.green} />
