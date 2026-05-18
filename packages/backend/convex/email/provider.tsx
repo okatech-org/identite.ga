@@ -4,6 +4,7 @@ import type { GenericMutationCtx } from "convex/server";
 
 import { components } from "../_generated/api";
 import type { DataModel } from "../_generated/dataModel";
+import { GenericEmail } from "./templates/genericEmail";
 import {
   KycEmail,
   getKycEmailSubject,
@@ -52,6 +53,34 @@ export async function sendOtpEmail(
     from: FROM,
     to: args.to,
     subject: getOtpSubject(args.type),
+    html,
+  });
+}
+
+export async function sendGenericEmail(
+  ctx: Ctx,
+  args: {
+    to: string;
+    subject: string;
+    title: string;
+    body: string;
+    recipientName?: string | null;
+  },
+) {
+  console.log(
+    `[idn:dev] generic email → ${args.to} · ${args.subject.slice(0, 60)}`,
+  );
+  const html = await render(
+    <GenericEmail
+      title={args.title}
+      body={args.body}
+      recipientName={args.recipientName ?? null}
+    />,
+  );
+  return await resend.sendEmail(ctx, {
+    from: FROM,
+    to: args.to,
+    subject: args.subject,
     html,
   });
 }

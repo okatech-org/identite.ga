@@ -59,6 +59,43 @@ export const NOTIFICATION_CATEGORIES = [
   "kyc",
   "consent",
   "comms",
+  "documents",
+  "ai",
+  "cv",
+  "system",
+] as const
+
+// Catalogue des cartes du portefeuille citoyen (iCarte).
+export const WALLET_CARD_TYPES = [
+  "cni",
+  "driving",
+  "transport",
+  "health",
+  "bank",
+  "business",
+  "consular",
+  "voter",
+  "loyalty",
+  "custom",
+] as const
+
+// Comptes iBoîte (boîte aux lettres souveraine multi-comptes).
+export const IBOITE_ACCOUNT_TYPES = [
+  "personal",
+  "professional",
+  "association",
+] as const
+
+// Dossiers iDocument (coffre-fort numérique chiffré E2E).
+export const VAULT_FOLDERS = [
+  "identity",
+  "civil_status",
+  "residence",
+  "education",
+  "work",
+  "health",
+  "vehicle",
+  "other",
 ] as const
 
 export const AUDIT_ACTIONS = [
@@ -100,6 +137,8 @@ export const AUDIT_ACTIONS = [
   // Contrôleur
   "identity_check_performed",
   "signature_verified",
+  // Présentation d'identité (mobile)
+  "presentation_minted",
 ] as const
 
 export const AUDIT_TARGET_TYPES = [
@@ -263,6 +302,8 @@ export default defineSchema({
   /**
    * Notifications utilisateur (email + in-app).
    * Lien optionnel vers email Resend pour traçabilité delivery/bounce.
+   * `deletedAt` permet le bouton « Tout effacer » du centre de notifications
+   * sans purger les enregistrements (préserve les liens audit).
    */
   notification: defineTable({
     userId: v.string(),
@@ -275,15 +316,20 @@ export default defineSchema({
     readAt: v.optional(v.number()),
     sentAt: v.optional(v.number()),
     emailMessageId: v.optional(v.string()), // ref @convex-dev/resend message id
+    deletedAt: v.optional(v.number()),
 
     createdAt: v.number(),
   })
     .index("by_userId", ["userId", "createdAt"])
     .index("by_userId_unread", ["userId", "readAt"])
+    .index("by_userId_category", ["userId", "category", "createdAt"])
     .index("by_category", ["category", "createdAt"]),
 
   /**
    * Préférences notifications (matrice canal × catégorie).
+   * Les nouvelles catégories (documents/ai/cv/system) sont optionnelles
+   * en lecture pour rester rétro-compatible avec les anciens documents ;
+   * une valeur absente est traitée comme « activée » côté dispatcher.
    */
   notificationPreference: defineTable({
     userId: v.string(),
@@ -292,12 +338,20 @@ export default defineSchema({
       kyc: v.boolean(),
       consent: v.boolean(),
       comms: v.boolean(),
+      documents: v.optional(v.boolean()),
+      ai: v.optional(v.boolean()),
+      cv: v.optional(v.boolean()),
+      system: v.optional(v.boolean()),
     }),
     inApp: v.object({
       security: v.boolean(),
       kyc: v.boolean(),
       consent: v.boolean(),
       comms: v.boolean(),
+      documents: v.optional(v.boolean()),
+      ai: v.optional(v.boolean()),
+      cv: v.optional(v.boolean()),
+      system: v.optional(v.boolean()),
     }),
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
@@ -372,6 +426,236 @@ export default defineSchema({
     updatedAt: v.number(),
     updatedBy: v.optional(v.string()),
   }).index("by_key", ["key"]),
+
+  // ─────────────────────────────────────────────────────────────────────
+  // iCarte — Portefeuille numérique de cartes (cf. ressources/SPECS_FEATURES_CITIZEN.md §1).
+  // Toutes les cartes sont stockées ici (CNI, permis, transport, CNAMGS, bancaire,
+  // visite, électeur, fidélité, consulaire + custom). Le citoyen peut éditer ou
+  // supprimer n'importe laquelle (V1 — pas de couche "officielle non-éditable").
+  // ─────────────────────────────────────────────────────────────────────
+  walletCard: defineTable({
+    userId: v.string(),
+    type: v.union(...WALLET_CARD_TYPES.map((t) => v.literal(t))),
+    name: v.string(),
+    subtitle: v.optional(v.string()),
+    // Apparence
+    gradient: v.string(),
+    iconKey: v.string(),
+    isOfficialStyle: v.boolean(),
+    // Données affichées (recto + verso)
+    data: v.record(v.string(), v.string()),
+    backData: v.optional(v.record(v.string(), v.string())),
+    // Mise en avant dans le profil — max 6 par utilisateur
+    featured: v.boolean(),
+    position: v.number(), // multiples de 1000 pour insertions sans renumérotation
+    // Soft delete
+    deletedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_featured", ["userId", "featured", "position"])
+    .index("by_userId_deletedAt", ["userId", "deletedAt"]),
+
+  // ─────────────────────────────────────────────────────────────────────
+  // iBoîte — Boîte aux lettres souveraine multi-comptes
+  // (cf. ressources/SPECS_FEATURES_CITIZEN.md §2). Trois sections :
+  // Courriers physiques (saisie admin), Colis (saisie admin), eMails internes
+  // (IDN ↔ administrations, app-only — pas de SMTP entrant).
+  // ─────────────────────────────────────────────────────────────────────
+  iboiteAccount: defineTable({
+    userId: v.string(),
+    type: v.union(...IBOITE_ACCOUNT_TYPES.map((t) => v.literal(t))),
+    label: v.string(),
+    emailAlias: v.string(), // ex "jean.dupont@idn.ga" — alias interne, pas SMTP
+    // Adresse postale virtuelle (point relais idn.ga)
+    street: v.string(),
+    city: v.string(),
+    postalCode: v.string(),
+    country: v.string(),
+    qrCode: v.string(), // identifiant unique global, ex "IDNGA-12345"
+    // Compteurs dénormalisés — maintenus par les mutations métier pour éviter
+    // les .collect().length sur les listes (cf. Convex guidelines).
+    counters: v.object({
+      unreadLetters: v.number(),
+      pendingLetters: v.number(),
+      availablePackages: v.number(),
+      unreadMessages: v.number(),
+    }),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_type", ["userId", "type"])
+    .index("by_qrCode", ["qrCode"])
+    .index("by_emailAlias", ["emailAlias"]),
+
+  iboiteLetter: defineTable({
+    accountId: v.id("iboiteAccount"),
+    userId: v.string(), // dénormalisé pour ownership rapide
+    folder: v.union(
+      v.literal("inbox"),
+      v.literal("sent"),
+      v.literal("pending"), // « À traiter »
+      v.literal("trash"),
+    ),
+    senderName: v.string(),
+    senderAddress: v.string(),
+    recipientName: v.string(),
+    recipientAddress: v.string(),
+    subject: v.string(),
+    body: v.string(), // texte pré-formaté (whitespace pre-line)
+    type: v.union(
+      v.literal("action_required"),
+      v.literal("informational"),
+      v.literal("standard"),
+    ),
+    stampColor: v.union(
+      v.literal("red"),
+      v.literal("blue"),
+      v.literal("green"),
+    ),
+    isRead: v.boolean(),
+    dueAt: v.optional(v.number()),
+    originOperator: v.optional(v.string()), // userId de l'admin qui a déposé
+    createdAt: v.number(),
+  })
+    .index("by_user_folder", ["userId", "folder", "createdAt"])
+    .index("by_account_folder", ["accountId", "folder", "createdAt"])
+    .index("by_user_unread", ["userId", "folder", "isRead"]),
+
+  iboiteLetterAttachment: defineTable({
+    letterId: v.id("iboiteLetter"),
+    name: v.string(),
+    size: v.number(),
+    storageRef: v.id("_storage"),
+    mimeType: v.string(),
+  }).index("by_letter", ["letterId"]),
+
+  iboitePackage: defineTable({
+    accountId: v.id("iboiteAccount"),
+    userId: v.string(),
+    trackingNumber: v.string(),
+    senderName: v.string(),
+    description: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("transit"),
+      v.literal("available"), // à retirer au point relais
+      v.literal("delivered"),
+    ),
+    estimatedDeliveryAt: v.optional(v.number()),
+    pickedUpAt: v.optional(v.number()),
+    originOperator: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_user_status", ["userId", "status", "createdAt"])
+    .index("by_account_status", ["accountId", "status", "createdAt"])
+    .index("by_tracking", ["trackingNumber"]),
+
+  iboiteMessage: defineTable({
+    accountId: v.id("iboiteAccount"),
+    userId: v.string(),
+    threadId: v.string(), // UUID au premier message d'un fil
+    senderKind: v.union(v.literal("admin"), v.literal("citizen")),
+    senderName: v.string(),
+    senderEmail: v.string(),
+    recipientName: v.string(),
+    recipientEmail: v.string(),
+    subject: v.string(),
+    preview: v.string(),
+    body: v.string(),
+    folder: v.union(
+      v.literal("inbox"),
+      v.literal("sent"),
+      v.literal("trash"),
+    ),
+    isRead: v.boolean(),
+    isStarred: v.boolean(),
+    hasAttachment: v.boolean(),
+    inReplyTo: v.optional(v.id("iboiteMessage")),
+    createdAt: v.number(),
+  })
+    .index("by_user_folder", ["userId", "folder", "createdAt"])
+    .index("by_account_folder", ["accountId", "folder", "createdAt"])
+    .index("by_thread", ["threadId", "createdAt"])
+    .index("by_user_starred", ["userId", "isStarred", "createdAt"]),
+
+  // ─────────────────────────────────────────────────────────────────────
+  // iDocument — Coffre-fort numérique chiffré E2E
+  // (cf. ressources/SPECS_FEATURES_CITIZEN.md §3). Le serveur ne voit jamais
+  // le contenu en clair : seuls `folderId`, `fileSize`, `expirationDate`,
+  // `status` restent en clair pour permettre filtres et notifs d'expiration.
+  // Architecture envelope encryption :
+  //   • MVK (Master Vault Key) AES-256-GCM générée côté client à l'activation.
+  //   • MVK wrappée par PBKDF2(passe vault) — stockée dans `vaultKey`.
+  //   • Optionnel : wrap MVK par PBKDF2(code de récupération BIP-39).
+  //   • Chaque item : blob chiffré + DEK aléatoire wrappée par MVK.
+  // ─────────────────────────────────────────────────────────────────────
+  vaultKey: defineTable({
+    userId: v.string(),
+    algorithm: v.string(), // ex "AES-256-GCM"
+    kdf: v.string(), // ex "PBKDF2-SHA256"
+    kdfIterations: v.number(), // 600 000 (cf. cahier §6.1)
+    passwordSalt: v.string(), // base64
+    wrappedMvk: v.string(), // base64 — MVK wrap par la clé dérivée du mot de passe
+    passwordHint: v.optional(v.string()),
+    recoverySalt: v.optional(v.string()),
+    wrappedMvkRecovery: v.optional(v.string()),
+    activatedAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_userId", ["userId"]),
+
+  vaultItem: defineTable({
+    userId: v.string(),
+    folderId: v.union(...VAULT_FOLDERS.map((f) => v.literal(f))),
+    // Chiffrement
+    contentRef: v.id("_storage"), // blob ciphertext
+    encryptedMetadata: v.string(), // base64 — JSON chiffré (name, original_name, métadonnées libres)
+    wrappedDek: v.string(), // base64 — DEK wrappée par MVK
+    iv: v.string(), // base64 — IV utilisé pour le blob
+    metaIv: v.string(), // base64 — IV utilisé pour encryptedMetadata
+    // Cleartext utile pour filtres / notifs d'expiration
+    fileType: v.union(
+      v.literal("pdf"),
+      v.literal("image"),
+      v.literal("other"),
+    ),
+    fileSize: v.number(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("verified"),
+      v.literal("rejected"),
+      v.literal("expired"),
+    ),
+    expirationDate: v.optional(v.string()), // ISO YYYY-MM-DD
+    // Recto/verso (pairing)
+    side: v.optional(v.union(v.literal("front"), v.literal("back"))),
+    pairedItemId: v.optional(v.id("vaultItem")),
+    // Soft delete
+    deletedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_folder", ["userId", "folderId", "createdAt"])
+    .index("by_userId_expiration", ["userId", "expirationDate"])
+    .index("by_userId_deletedAt", ["userId", "deletedAt"])
+    .index("by_expiration", ["expirationDate"]),
+
+  /**
+   * Trace de notification d'expiration vault — utilisée par le cron pour
+   * dédupliquer (on ne re-notifie pas deux fois le même item dans la fenêtre
+   * « < 30 jours »). Une ligne par (item, palier) ; palier = 30 / 7 / 0.
+   */
+  vaultExpirationNotice: defineTable({
+    userId: v.string(),
+    vaultItemId: v.id("vaultItem"),
+    tier: v.union(v.literal("30d"), v.literal("7d"), v.literal("expired")),
+    notifiedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_item_tier", ["vaultItemId", "tier"]),
 
   /**
    * Demandes via formulaire de contact public (page /contact).

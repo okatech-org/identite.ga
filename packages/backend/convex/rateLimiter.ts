@@ -27,4 +27,12 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
   },
   kycSubmit: { kind: "fixed window", rate: 3, period: HOUR },
   contactSubmit: { kind: "fixed window", rate: 5, period: HOUR },
+  // iCarte (wallet) : create/update/remove/setFeatured/reorder — token bucket par user.
+  walletWrite: { kind: "token bucket", rate: 30, period: MINUTE, capacity: 30 },
+  // iBoîte messages : envoi citoyen → admin. Token bucket par user.
+  messageSend: { kind: "token bucket", rate: 30, period: HOUR, capacity: 30 },
+  // iDocument : protection des uploads (signed URL) — par user.
+  vaultUpload: { kind: "token bucket", rate: 30, period: MINUTE, capacity: 30 },
+  // iDocument : opérations sensibles sur les clés (activate / changePassword).
+  vaultKeyOp: { kind: "fixed window", rate: 10, period: HOUR },
 })
