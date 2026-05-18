@@ -7,10 +7,10 @@ import { useIdnTheme } from '@/design/theme';
 import { Icon, type IconName } from '@/design/icons';
 
 const TABS: { id: string; label: string; icon: IconName }[] = [
-  { id: 'home',     label: 'Accueil',  icon: 'home' },
-  { id: 'services', label: 'Services', icon: 'grid' },
-  { id: 'activity', label: 'Activité', icon: 'activity' },
-  { id: 'profile',  label: 'Profil',   icon: 'user' },
+  { id: 'home',     label: 'Accueil',    icon: 'home' },
+  { id: 'services', label: 'Services',   icon: 'grid' },
+  { id: 'idoc',     label: 'iDocument',  icon: 'file' },
+  { id: 'profile',  label: 'Profil',     icon: 'user' },
 ];
 
 export function NTabBar({ state, navigation }: BottomTabBarProps) {

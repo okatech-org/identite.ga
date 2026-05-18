@@ -43,7 +43,7 @@ export default function RootLayout() {
               <Stack.Screen name="settings" />
               <Stack.Screen name="icarte" />
               <Stack.Screen name="iboite" />
-              <Stack.Screen name="idoc" />
+              <Stack.Screen name="activity" />
             </Stack>
           </SafeAreaProvider>
         </GestureHandlerRootView>

@@ -6,7 +6,7 @@ export default function TabsLayout() {
     <Tabs screenOptions={{ headerShown: false }} tabBar={(props) => <NTabBar {...props} />}>
       <Tabs.Screen name="home" />
       <Tabs.Screen name="services" />
-      <Tabs.Screen name="activity" />
+      <Tabs.Screen name="idoc" />
       <Tabs.Screen name="profile" />
     </Tabs>
   );

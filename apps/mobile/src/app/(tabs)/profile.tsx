@@ -144,6 +144,7 @@ export default function Profile() {
         <SectionLabel>COMPTE</SectionLabel>
         <Group>
           <Row icon={IconG('doc')} l="Mes documents" sub={`${documentsCount} document${documentsCount > 1 ? 's' : ''} stocké${documentsCount > 1 ? 's' : ''}`} />
+          <Row icon={IconG('activity')} l="Activité" sub="Tous les événements de votre compte" onPress={() => router.push('/activity')} />
           <Row icon={IconG('shield')} l="Consentements" sub={`${consentsCount} application${consentsCount > 1 ? 's' : ''} autorisée${consentsCount > 1 ? 's' : ''}`} />
           <Row
             icon={<Svg width={18} height={18} viewBox="0 0 24 24" fill="none"><Path d="M3 6h18l-2 14H5z" stroke={idnTokens.green} strokeWidth={1.6} strokeLinejoin="round" /><Path d="M9 10v6M15 10v6" stroke={idnTokens.green} strokeWidth={1.6} /></Svg>}

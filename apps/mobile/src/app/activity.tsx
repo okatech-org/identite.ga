@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useConvexAuth, useQuery } from 'convex/react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useIdnTheme } from '@/design/theme';
@@ -102,6 +103,7 @@ function formatTime(ts: number): string {
 
 export default function Activity() {
   const t = useIdnTheme();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const [filter, setFilter] = useState(0);
   const { isAuthenticated } = useConvexAuth();
@@ -122,7 +124,7 @@ export default function Activity() {
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top }}>
-      <NLargeHeader t={t} title="Activité" sub="Tous les événements de votre compte" />
+      <NLargeHeader t={t} title="Activité" sub="Tous les événements de votre compte" onBack={() => router.back()} />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 22, paddingBottom: 12, gap: 6 }}>
         {FILTERS.map((f, i) => {
           const sel = i === filter;

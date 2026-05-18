@@ -216,7 +216,7 @@ export default function Home() {
         </View>
 
         {/* Activité récente */}
-        <SectionH t={t} title="Activité récente" right="Tout voir" />
+        <SectionH t={t} title="Activité récente" right="Tout voir" onRightPress={() => router.push('/activity')} />
         <View style={{ backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 12, paddingHorizontal: 14 }}>
           {HOME_ACTIVITY.map((a, i) => (
             <View
