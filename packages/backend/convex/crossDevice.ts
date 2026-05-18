@@ -33,7 +33,7 @@ function generateSessionCode(): string {
   const buf = new Uint8Array(CODE_BYTES)
   crypto.getRandomValues(buf)
   let s = ""
-  for (let i = 0; i < buf.length; i++) s += String.fromCharCode(buf[i])
+  for (let i = 0; i < buf.length; i++) s += String.fromCharCode(buf[i]!)
   return btoa(s).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "")
 }
 
