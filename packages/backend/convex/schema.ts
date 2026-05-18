@@ -658,6 +658,39 @@ export default defineSchema({
     .index("by_item_tier", ["vaultItemId", "tier"]),
 
   /**
+   * Cross-device login (scanner mobile depuis un QR affiché côté web).
+   * Le web crée une session pending, affiche un QR avec le `sessionCode`,
+   * et poll le status. Le mobile authentifié scanne le QR et approuve.
+   * Phase 1 : le serveur ne crée pas encore de session Better Auth pour
+   * le web — il signale juste qu'une approbation a eu lieu. Le web
+   * pourra ensuite proposer un sign-in léger (PIN) pré-rempli avec
+   * l'email retourné. La fabrication d'une session Better Auth complète
+   * via ce flow demande un plugin dédié (device-authorization) — laissé
+   * pour la V2.
+   */
+  crossDeviceSession: defineTable({
+    sessionCode: v.string(), // identifiant aléatoire encodé dans le QR
+    status: v.union(
+      v.literal("pending"),
+      v.literal("approved"),
+      v.literal("expired"),
+      v.literal("cancelled"),
+    ),
+    // userId Better Auth — renseigné quand le mobile approuve.
+    userId: v.optional(v.string()),
+    // Email du citoyen approuvant — utilisé côté web pour pré-remplir
+    // le sign-in PIN.
+    approvedEmail: v.optional(v.string()),
+    // Métadonnées (user agent web pour distinguer la session)
+    userAgent: v.optional(v.string()),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    approvedAt: v.optional(v.number()),
+  })
+    .index("by_sessionCode", ["sessionCode"])
+    .index("by_expiresAt", ["expiresAt"]),
+
+  /**
    * Demandes via formulaire de contact public (page /contact).
    * Pas d'auth requise.
    */
