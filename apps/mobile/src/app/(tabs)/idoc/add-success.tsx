@@ -1,19 +1,32 @@
 import React from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { useConvexAuth, useQuery } from 'convex/react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useIdnTheme } from '@/design/theme';
 import { idnTokens } from '@/design/tokens';
 import { IdnButton } from '@/design/components/idn-button';
 import { Icon } from '@/design/icons';
 import { DOC_FOLDERS } from '@/data/documents';
+import { api } from '@/lib/api';
 
 export default function DocAddSuccess() {
   const t = useIdnTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const folder = DOC_FOLDERS[0];
+  const { isAuthenticated } = useConvexAuth();
+  const summary = useQuery(api.vault.folders.summary, isAuthenticated ? {} : 'skip');
+
+  // Le dossier le plus récemment ajouté n'est pas exposé par add.tsx ;
+  // on affiche celui qui a la plus grosse population — heuristique
+  // simple pour donner un contexte visuel.
+  const counts = new Map((summary ?? []).map((s) => [s.folderId as string, s.count]));
+  const top = DOC_FOLDERS.slice()
+    .map((f) => ({ folder: f, count: counts.get(f.id) ?? 0 }))
+    .sort((a, b) => b.count - a.count)[0];
+  const folder = top?.folder ?? DOC_FOLDERS[0];
+  const folderCount = top?.count ?? 0;
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top + 40, paddingHorizontal: 26, paddingBottom: Math.max(insets.bottom, 26) }}>
@@ -24,7 +37,7 @@ export default function DocAddSuccess() {
         <View style={{ alignItems: 'center' }}>
           <Text style={{ fontSize: 24, fontWeight: '700', color: t.ink, letterSpacing: -0.4 }}>Document ajouté !</Text>
           <Text style={{ fontSize: 13, color: t.muted, marginTop: 10, lineHeight: 21, maxWidth: 280, textAlign: 'center' }}>
-            Votre document est en cours de vérification. Vous serez notifié·e dès qu'il sera validé.
+            Votre document est chiffré et stocké. Il restera lisible uniquement après déverrouillage du coffre.
           </Text>
         </View>
         <View style={{ width: '100%', maxWidth: 280, padding: 14, backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -34,13 +47,17 @@ export default function DocAddSuccess() {
             </LinearGradient>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 12, color: t.ink, fontWeight: '600' }}>Identité</Text>
-            <Text style={{ fontSize: 11, color: t.muted }}>4 documents</Text>
+            <Text style={{ fontSize: 12, color: t.ink, fontWeight: '600' }}>{folder.label}</Text>
+            <Text style={{ fontSize: 11, color: t.muted }}>
+              {folderCount} document{folderCount > 1 ? 's' : ''}
+            </Text>
           </View>
         </View>
       </View>
-      <IdnButton t={t} variant="primary" size="lg" full onPress={() => router.replace('/idoc' as any)}>Retour aux documents</IdnButton>
-      <Pressable onPress={() => router.replace('/idoc/add' as any)} style={{ padding: 16, alignItems: 'center' }}>
+      <IdnButton t={t} variant="primary" size="lg" full onPress={() => router.replace('/idoc' as never)}>
+        Retour aux documents
+      </IdnButton>
+      <Pressable onPress={() => router.replace('/idoc/add' as never)} style={{ padding: 16, alignItems: 'center' }}>
         <Text style={{ color: t.muted, fontSize: 13, fontWeight: '500' }}>Ajouter un autre</Text>
       </Pressable>
     </View>

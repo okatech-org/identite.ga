@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, Text, TextInput, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useConvexAuth, useMutation, useQuery } from 'convex/react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useIdnTheme } from '@/design/theme';
@@ -14,14 +14,15 @@ export default function IBoiteCompose() {
   const t = useIdnTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ to?: string; subject?: string; body?: string }>();
   const { isAuthenticated } = useConvexAuth();
   const accounts = useQuery(api.iboite.accounts.listMine, isAuthenticated ? {} : 'skip');
   const send = useMutation(api.iboite.messages.send);
   const [accountId, setAccountId] = useState<string | null>(null);
-  const [toEmail, setToEmail] = useState('');
+  const [toEmail, setToEmail] = useState((params.to as string | undefined) ?? '');
   const [toName, setToName] = useState('');
-  const [subject, setSubject] = useState('');
-  const [body, setBody] = useState('');
+  const [subject, setSubject] = useState((params.subject as string | undefined) ?? '');
+  const [body, setBody] = useState((params.body as string | undefined) ?? '');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {

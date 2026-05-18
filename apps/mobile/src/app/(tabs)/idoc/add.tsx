@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMutation } from 'convex/react';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useIdnTheme } from '@/design/theme';
@@ -24,7 +26,27 @@ const FOLDERS: VaultFolderId[] = [
   'work', 'health', 'vehicle', 'other',
 ];
 
-async function pickFile(): Promise<{ name: string; mime: string; bytes: Uint8Array; fileType: 'image' | 'pdf' | 'other' } | null> {
+type PickedFile = {
+  name: string;
+  mime: string;
+  bytes: Uint8Array;
+  fileType: 'image' | 'pdf' | 'other';
+};
+
+function inferFileType(mime: string): 'image' | 'pdf' | 'other' {
+  if (mime.startsWith('image/')) return 'image';
+  if (mime === 'application/pdf') return 'pdf';
+  return 'other';
+}
+
+function base64ToBytes(b64: string): Uint8Array {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+async function pickFile(): Promise<PickedFile | null> {
   if (Platform.OS === 'web') {
     return new Promise((resolve) => {
       const input = document.createElement('input');
@@ -38,32 +60,47 @@ async function pickFile(): Promise<{ name: string; mime: string; bytes: Uint8Arr
         }
         const buf = new Uint8Array(await f.arrayBuffer());
         const mime = f.type || 'application/octet-stream';
-        const fileType: 'image' | 'pdf' | 'other' = mime.startsWith('image/')
-          ? 'image'
-          : mime === 'application/pdf' ? 'pdf' : 'other';
-        resolve({ name: f.name, mime, bytes: buf, fileType });
+        resolve({ name: f.name, mime, bytes: buf, fileType: inferFileType(mime) });
       };
       input.click();
     });
   }
-  const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (!perm.granted) return null;
-  const res = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-    allowsEditing: false,
-    quality: 0.85,
-    base64: true,
+  // Natif : DocumentPicker supporte images + PDF + autres documents.
+  const res = await DocumentPicker.getDocumentAsync({
+    type: ['image/*', 'application/pdf'],
+    copyToCacheDirectory: true,
+    multiple: false,
   });
   if (res.canceled || !res.assets[0]) return null;
   const asset = res.assets[0];
-  if (!asset.base64) return null;
-  const bin = atob(asset.base64);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const mime = asset.mimeType ?? 'application/octet-stream';
+  const b64 = await FileSystem.readAsStringAsync(asset.uri, {
+    encoding: 'base64' as never,
+  });
+  return {
+    name: asset.name,
+    mime,
+    bytes: base64ToBytes(b64),
+    fileType: inferFileType(mime),
+  };
+}
+
+// Fallback caméra (sur natif uniquement) — permet de prendre une photo.
+async function captureWithCamera(): Promise<PickedFile | null> {
+  const perm = await ImagePicker.requestCameraPermissionsAsync();
+  if (!perm.granted) return null;
+  const res = await ImagePicker.launchCameraAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    quality: 0.85,
+    base64: true,
+  });
+  const asset = res.canceled ? null : res.assets[0];
+  if (!asset || !asset.base64) return null;
+  const b64 = asset.base64;
   return {
     name: asset.fileName ?? 'photo.jpg',
     mime: asset.mimeType ?? 'image/jpeg',
-    bytes,
+    bytes: base64ToBytes(b64),
     fileType: 'image',
   };
 }
@@ -81,7 +118,7 @@ export default function DocAddSelect() {
   const [selected, setSelected] = useState<VaultFolderId>(initialFolder);
   const [name, setName] = useState('');
   const [expiration, setExpiration] = useState('');
-  const [picked, setPicked] = useState<Awaited<ReturnType<typeof pickFile>>>(null);
+  const [picked, setPicked] = useState<PickedFile | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   async function onPick() {
@@ -92,6 +129,21 @@ export default function DocAddSelect() {
       if (!name) setName(f.name);
     } catch (err) {
       Alert.alert('Erreur', err instanceof Error ? err.message : 'Sélection impossible.');
+    }
+  }
+
+  async function onCapture() {
+    if (Platform.OS === 'web') {
+      void onPick();
+      return;
+    }
+    try {
+      const f = await captureWithCamera();
+      if (!f) return;
+      setPicked(f);
+      if (!name) setName(f.name);
+    } catch (err) {
+      Alert.alert('Erreur', err instanceof Error ? err.message : 'Capture impossible.');
     }
   }
 
@@ -206,6 +258,27 @@ export default function DocAddSelect() {
             </Text>
           </View>
         </Pressable>
+
+        {Platform.OS !== 'web' ? (
+          <Pressable
+            onPress={onCapture}
+            style={{
+              marginTop: 10,
+              paddingVertical: 14,
+              borderWidth: 1,
+              borderColor: t.border,
+              backgroundColor: t.surface,
+              borderRadius: 12,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+            }}
+          >
+            <Icon name="camera" size={18} color={t.ink} />
+            <Text style={{ fontSize: 13, fontWeight: '500', color: t.ink }}>Prendre une photo</Text>
+          </Pressable>
+        ) : null}
 
         <View style={{ marginTop: 18, gap: 12 }}>
           <IdnInput t={t} label="Nom du document" value={name} onChangeText={setName} />

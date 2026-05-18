@@ -60,10 +60,27 @@ export default function EmailDetail() {
     }
   }
 
+  const replyTo = email.senderKind === 'admin' ? email.senderEmail : email.senderEmail;
+  const replyBody = `\n\n--- Message d'origine ---\nDe : ${email.senderName} <${email.senderEmail}>\nDate : ${date}\nObjet : ${email.subject}\n\n${email.body}`;
+  const replyHref =
+    `/iboite/compose?to=${encodeURIComponent(replyTo)}` +
+    `&subject=${encodeURIComponent(`Re: ${email.subject.replace(/^Re:\s*/i, '')}`)}` +
+    `&body=${encodeURIComponent(replyBody)}`;
+  const fwdHref =
+    `/iboite/compose?subject=${encodeURIComponent(`Tr: ${email.subject.replace(/^(Re|Tr|Fwd):\s*/i, '')}`)}` +
+    `&body=${encodeURIComponent(replyBody)}`;
+
+  async function onArchive() {
+    Alert.alert(
+      'Bientôt disponible',
+      'L\'archivage sera proposé dans la prochaine version. En attendant, marquez ce message comme favori (étoile) pour le retrouver facilement.',
+    );
+  }
+
   const actions: Action[] = [
-    { icon: 'reply', l: 'Répondre', primary: true, onPress: () => router.push('/iboite/compose' as never) },
-    { icon: 'forward', l: 'Transférer', onPress: () => router.push('/iboite/compose' as never) },
-    { icon: 'archive', l: 'Archiver', onPress: () => {} },
+    { icon: 'reply', l: 'Répondre', primary: true, onPress: () => router.push(replyHref as never) },
+    { icon: 'forward', l: 'Transférer', onPress: () => router.push(fwdHref as never) },
+    { icon: 'archive', l: 'Archiver', onPress: onArchive },
     { icon: 'trash', l: 'Suppr.', danger: true, onPress: onDelete },
   ];
 

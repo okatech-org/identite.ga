@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useConvexAuth, useMutation, useQuery } from 'convex/react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -59,10 +59,23 @@ export default function CourrierDetail() {
     }
   }
 
+  const replyBody = `\n\n--- Courrier d'origine ---\nDe : ${letter.senderName}\nDate : ${created}\nObjet : ${letter.subject}\n\n${letter.body}`;
+  const replyHref =
+    `/iboite/compose?subject=${encodeURIComponent(`Re: ${letter.subject.replace(/^Re:\s*/i, '')}`)}` +
+    `&body=${encodeURIComponent(replyBody)}`;
+
+  function onPrint() {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.print();
+      return;
+    }
+    Alert.alert('Impression', 'L\'impression directe sera disponible dans une prochaine version.');
+  }
+
   const actions: Action[] = [
-    { icon: 'reply', l: 'Répondre', primary: true, onPress: () => router.push('/iboite/compose' as never) },
+    { icon: 'reply', l: 'Répondre', primary: true, onPress: () => router.push(replyHref as never) },
     { icon: 'clock', l: 'À traiter', onPress: () => move('pending') },
-    { icon: 'printer', l: 'Imprimer', onPress: () => {} },
+    { icon: 'printer', l: 'Imprimer', onPress: onPrint },
     { icon: 'trash', l: 'Suppr.', danger: true, onPress: () => move('trash') },
   ];
 
