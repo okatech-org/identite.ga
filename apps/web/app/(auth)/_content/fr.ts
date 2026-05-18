@@ -181,6 +181,7 @@ export const signIn = {
   forgotLink: "Mot de passe oublié ?",
   primary: "Se connecter",
   primarySubmitting: "Connexion en cours…",
+  continue: "Continuer",
   qrLabel: "OU",
   qrCta: "Scanner le QR depuis l'app mobile",
   qrTooltip: "Bientôt disponible",
@@ -193,6 +194,23 @@ export const signIn = {
   errorEmailNotVerified:
     "Veuillez vérifier votre adresse email avant de vous connecter.",
   errorGeneric: "Connexion impossible pour le moment. Réessayez.",
+  // Étape PIN (sign-in)
+  pinTitle: "Entrez votre PIN",
+  pinSub: "Saisissez votre code à 6 chiffres pour vous connecter.",
+  pinBack: "Modifier l'email",
+  pinPrimary: "Se connecter",
+  pinUsePassword: "Utiliser mon mot de passe à la place",
+  pinErrorInvalid: "PIN incorrect. Réessayez.",
+  pinErrorTooMany: "Trop de tentatives. Réessayez dans une minute.",
+  emailStepTitle: "Connectez-vous",
+  emailStepSub: "Saisissez l'adresse email associée à votre compte IDN.",
+  passwordBack: "Utiliser mon PIN",
+  // Aria du pavé numérique (réutilisés depuis l'onboarding)
+  pinNumpadAria: "Pavé numérique",
+  pinBackspaceAria: "Effacer le dernier chiffre",
+  pinDigitAria: (n: number) => `Chiffre ${n}`,
+  pinDotsAria: (filled: number, total: number) =>
+    `PIN saisi : ${filled} chiffre${filled > 1 ? "s" : ""} sur ${total}`,
 } as const
 
 export const forgotPassword = {

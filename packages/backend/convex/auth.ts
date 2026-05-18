@@ -1,5 +1,6 @@
 import { createClient, type GenericCtx } from "@convex-dev/better-auth";
 import { convex, crossDomain } from "@convex-dev/better-auth/plugins";
+import { expo } from "@better-auth/expo";
 import { betterAuth } from "better-auth/minimal";
 import {
   emailOTP,
@@ -36,6 +37,7 @@ import type { DataModel } from "./_generated/dataModel";
 import { query } from "./_generated/server";
 import authConfig from "./auth.config";
 import { sendOtpEmail } from "./email/provider";
+import { pinSignIn } from "./lib/pinSignInPlugin";
 
 const isDev = process.env.NODE_ENV !== "production";
 
@@ -194,6 +196,27 @@ export const createAuth = (
       crossDomain({
         siteUrl: resolveSiteUrl(requestOrigin),
       }),
+
+      // Sign-in par PIN à 6 chiffres — endpoint /api/auth/sign-in/pin.
+      // Le plugin reçoit (email, pin), résout l'email via Better Auth,
+      // vérifie le pinHash côté Convex (PBKDF2-SHA256, §6.1) puis crée
+      // la session standard via internalAdapter.createSession.
+      pinSignIn(async (userId, pin) => {
+        return await (ctx as unknown as {
+          runQuery: (
+            ref: typeof internal.onboarding.verifyPinForUserId,
+            args: { userId: string; pin: string },
+          ) => Promise<boolean>
+        }).runQuery(internal.onboarding.verifyPinForUserId, {
+          userId,
+          pin,
+        });
+      }),
+
+      // Support Expo (beta) — gère le retour de session via deep link
+      // (scheme idn://) et l'authent depuis l'app mobile RN. À utiliser
+      // conjointement avec expoClient() côté client + expo-secure-store.
+      expo(),
 
       // OTP 6 chiffres pour vérification email, reset password, changement email
       emailOTP({

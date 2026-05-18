@@ -21,6 +21,68 @@ type PinPadProps = {
   resetKey?: string | number
 }
 
+/**
+ * Tick audio court (~30 ms) joué à chaque tap. Synthétisé à la volée via
+ * WebAudio pour éviter d'embarquer un asset ; le contexte audio est lazy
+ * (créé au premier tap pour respecter la politique "user gesture" des
+ * navigateurs) et partagé entre les instances du composant.
+ */
+let sharedAudioCtx: AudioContext | null = null
+function playTick(): void {
+  if (typeof window === "undefined") return
+  try {
+    if (!sharedAudioCtx) {
+      const Ctor =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext?: typeof AudioContext })
+          .webkitAudioContext
+      if (!Ctor) return
+      sharedAudioCtx = new Ctor()
+    }
+    const ctx = sharedAudioCtx
+    if (ctx.state === "suspended") void ctx.resume()
+    const now = ctx.currentTime
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.type = "square"
+    osc.frequency.setValueAtTime(880, now)
+    osc.frequency.exponentialRampToValueAtTime(660, now + 0.04)
+    gain.gain.setValueAtTime(0.0001, now)
+    gain.gain.exponentialRampToValueAtTime(0.18, now + 0.005)
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.06)
+    osc.connect(gain).connect(ctx.destination)
+    osc.start(now)
+    osc.stop(now + 0.07)
+  } catch {
+    /* WebAudio indisponible — silencieux */
+  }
+}
+
+function vibrate(ms = 12): void {
+  if (typeof navigator === "undefined") return
+  // Best-effort : Safari iOS ignore. Pas d'erreur si la fonction n'existe pas.
+  const nav = navigator as Navigator & {
+    vibrate?: (pattern: number | number[]) => boolean
+  }
+  try {
+    nav.vibrate?.(ms)
+  } catch {
+    /* noop */
+  }
+}
+
+/**
+ * Pavé numérique pour la saisie d'un PIN.
+ *
+ * Feedback à chaque tap (touche ou bouton) :
+ *   - visuel : `data-pressed` + transform scale(0.95) court (CSS)
+ *   - sonore : tick WebAudio synthétisé (lazy AudioContext)
+ *   - haptique : navigator.vibrate(12) (best-effort, Android/Chrome)
+ *
+ * Les feedbacks sont désactivés si `prefers-reduced-motion: reduce`
+ * est actif (uniquement la partie animation visuelle ; le tick et la
+ * vibration sont aussi mutés pour cohérence).
+ */
 export function PinPad({
   length = 6,
   value,
@@ -38,6 +100,13 @@ export function PinPad({
 }: PinPadProps) {
   const hiddenInputRef = React.useRef<HTMLInputElement>(null)
   const completedRef = React.useRef(false)
+  const [pressed, setPressed] = React.useState<string | null>(null)
+  const pressTimeoutRef = React.useRef<number | null>(null)
+
+  const prefersReducedMotion = React.useMemo(() => {
+    if (typeof window === "undefined") return false
+    return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+  }, [])
 
   React.useEffect(() => {
     completedRef.current = false
@@ -47,8 +116,32 @@ export function PinPad({
     if (autoFocus) hiddenInputRef.current?.focus()
   }, [autoFocus])
 
+  React.useEffect(() => {
+    return () => {
+      if (pressTimeoutRef.current !== null)
+        window.clearTimeout(pressTimeoutRef.current)
+    }
+  }, [])
+
+  const flashPressed = (key: string) => {
+    if (prefersReducedMotion) return
+    setPressed(key)
+    if (pressTimeoutRef.current !== null)
+      window.clearTimeout(pressTimeoutRef.current)
+    pressTimeoutRef.current = window.setTimeout(() => setPressed(null), 130)
+  }
+
+  const triggerFeedback = (key: string) => {
+    flashPressed(key)
+    if (!prefersReducedMotion) {
+      playTick()
+      vibrate(12)
+    }
+  }
+
   const append = (digit: string) => {
     if (disabled) return
+    triggerFeedback(digit)
     if (value.length >= length) return
     const next = (value + digit).slice(0, length)
     onChange(next)
@@ -60,6 +153,7 @@ export function PinPad({
 
   const remove = () => {
     if (disabled) return
+    triggerFeedback("back")
     if (value.length === 0) return
     completedRef.current = false
     onChange(value.slice(0, -1))
@@ -77,12 +171,25 @@ export function PinPad({
 
   const onHiddenKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     // Allow space/enter on the hidden input to focus dots only — no-op
-    if (e.key === " " || e.key === "Enter") e.preventDefault()
+    if (e.key === " " || e.key === "Enter") {
+      e.preventDefault()
+      return
+    }
+    if (/^\d$/.test(e.key)) {
+      triggerFeedback(e.key)
+    } else if (e.key === "Backspace" && value.length > 0) {
+      triggerFeedback("back")
+    }
   }
 
   const focusInput = () => hiddenInputRef.current?.focus()
 
   const dotsLabel = dotsAriaLabel(value.length, length)
+
+  const padBtnBase =
+    "flex h-16 cursor-pointer select-none items-center justify-center rounded-xl border border-border bg-card text-2xl font-semibold text-foreground transition-all duration-150 ease-out hover:bg-secondary/50 active:scale-95 active:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
+
+  const pressedStyle = "!scale-95 !bg-idn-green/15 !border-idn-green"
 
   return (
     <div
@@ -106,11 +213,11 @@ export function PinPad({
               key={i}
               aria-hidden="true"
               className={cn(
-                "size-3 rounded-full transition-colors",
+                "size-3 rounded-full transition-all duration-150",
                 hasError
                   ? "bg-destructive"
                   : filled
-                    ? "bg-idn-green"
+                    ? "scale-110 bg-idn-green"
                     : "border border-border bg-transparent",
               )}
             />
@@ -144,8 +251,9 @@ export function PinPad({
             type="button"
             onClick={() => append(String(n))}
             disabled={disabled}
+            data-pressed={pressed === String(n) ? "true" : undefined}
             aria-label={digitAriaLabel(n)}
-            className="flex h-16 cursor-pointer items-center justify-center rounded-xl border border-border bg-card text-2xl font-semibold text-foreground transition-colors hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
+            className={cn(padBtnBase, pressed === String(n) && pressedStyle)}
           >
             {n}
           </button>
@@ -155,8 +263,9 @@ export function PinPad({
           type="button"
           onClick={() => append("0")}
           disabled={disabled}
+          data-pressed={pressed === "0" ? "true" : undefined}
           aria-label={digitAriaLabel(0)}
-          className="flex h-16 cursor-pointer items-center justify-center rounded-xl border border-border bg-card text-2xl font-semibold text-foreground transition-colors hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
+          className={cn(padBtnBase, pressed === "0" && pressedStyle)}
         >
           0
         </button>
@@ -164,8 +273,9 @@ export function PinPad({
           type="button"
           onClick={remove}
           disabled={disabled}
+          data-pressed={pressed === "back" ? "true" : undefined}
           aria-label={backspaceAriaLabel}
-          className="flex h-16 cursor-pointer items-center justify-center rounded-xl border border-border bg-card text-foreground transition-colors hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
+          className={cn(padBtnBase, pressed === "back" && pressedStyle)}
         >
           <DeleteIcon
             className={cn(

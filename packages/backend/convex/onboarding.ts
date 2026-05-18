@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values"
 
 import { internal } from "./_generated/api"
+import { internalQuery } from "./_generated/server"
 import { mutation } from "./functions"
 import { requireAuth, requireVerifiedAuth } from "./lib/auth"
 import { generateIdnId } from "./lib/idnId"
@@ -239,3 +240,36 @@ export const verifyPin = mutation({
     return { valid: candidate === profile.pinHash }
   },
 })
+
+/**
+ * Vérification PIN pour le sign-in (appelée depuis le plugin Better Auth
+ * `pinSignIn` via http.ts → createAuth → ctx.runQuery).
+ *
+ * Renvoie `true` uniquement si le user a bien un `pinHash` enregistré et
+ * que le PIN correspond. Pas de throw — l'appelant gère l'erreur.
+ *
+ * Privée (`internalQuery`) : seul le plugin server-side peut l'invoquer.
+ */
+export const verifyPinForUserId = internalQuery({
+  args: { userId: v.string(), pin: v.string() },
+  returns: v.boolean(),
+  handler: async (ctx, args) => {
+    if (!PIN_REGEX.test(args.pin)) return false
+    if (args.userId === "__unknown__") {
+      // Path anti-énumération : on consomme du CPU pour égaliser le timing.
+      await derivePinHash(args.pin, args.userId)
+      return false
+    }
+    const profile = await ctx.db
+      .query("userProfile")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .unique()
+    if (!profile?.pinHash) {
+      await derivePinHash(args.pin, args.userId)
+      return false
+    }
+    const candidate = await derivePinHash(args.pin, args.userId)
+    return candidate === profile.pinHash
+  },
+})
+
