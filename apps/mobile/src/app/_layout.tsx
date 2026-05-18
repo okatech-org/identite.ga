@@ -8,6 +8,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { authClient } from '@/lib/auth-client';
+import { VaultProvider } from '@/hooks/use-vault';
 
 const convexUrl = process.env.EXPO_PUBLIC_CONVEX_URL;
 
@@ -25,6 +26,7 @@ export default function RootLayout() {
   return (
     <StrictMode>
       <ConvexBetterAuthProvider client={convex} authClient={authClient}>
+        <VaultProvider>
         <GestureHandlerRootView style={{ flex: 1 }}>
           <SafeAreaProvider>
             <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
@@ -47,6 +49,7 @@ export default function RootLayout() {
             </Stack>
           </SafeAreaProvider>
         </GestureHandlerRootView>
+        </VaultProvider>
       </ConvexBetterAuthProvider>
     </StrictMode>
   );
