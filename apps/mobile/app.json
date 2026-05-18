@@ -9,9 +9,15 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon",
-      "supportsTablet": false
+      "supportsTablet": false,
+      "bundleIdentifier": "ga.idn.mobile",
+      "associatedDomains": [
+        "webcredentials:idn.ga",
+        "webcredentials:auth.idn.ga"
+      ]
     },
     "android": {
+      "package": "ga.idn.mobile",
       "adaptiveIcon": {
         "backgroundColor": "#0E7C3A",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
