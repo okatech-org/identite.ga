@@ -1,26 +1,38 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Platform, Pressable, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as LocalAuth from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIdnTheme } from '@/design/theme';
 import { idnTokens } from '@/design/tokens';
 import { IdnButton } from '@/design/components/idn-button';
+import { authClient } from '@/lib/auth-client';
 
+// Conservé pour compat des composants existants qui lisent ce flag
+// (ex: launcher.tsx, profile.tsx). À terme, on bascule entièrement sur
+// l'existence d'un passkey côté serveur (passkey.listUserPasskeys).
 export const BIOMETRIC_KEY = 'idn.biometricEnabled';
 
 export default function SignupBio() {
   const t = useIdnTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ next?: string }>();
+  const nextHref: Href = (params.next as Href) ?? '/(auth)/signup/done';
   const [available, setAvailable] = useState<boolean>(false);
   const [activating, setActivating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
+      // Sur web (Expo web), on suppose WebAuthn dispo dans le navigateur.
+      // Sur natif, on vérifie le hardware biométrique pour ajuster le copy.
+      if (Platform.OS === 'web') {
+        setAvailable(typeof window !== 'undefined' && 'PublicKeyCredential' in window);
+        return;
+      }
       try {
         const hasHw = await LocalAuth.hasHardwareAsync();
         const enrolled = await LocalAuth.isEnrolledAsync();
@@ -32,39 +44,29 @@ export default function SignupBio() {
   }, []);
 
   async function activate() {
-    if (!available) {
-      // Sur simulateur web/dev sans biométrie : on garde le flag à false et on avance.
-      await AsyncStorage.setItem(BIOMETRIC_KEY, '0');
-      router.push('/(auth)/signup/done');
-      return;
-    }
     setActivating(true);
     setError(null);
     try {
-      const r = await LocalAuth.authenticateAsync({
-        promptMessage: 'Activer Face ID pour IDN',
-        cancelLabel: 'Annuler',
-        disableDeviceFallback: false,
-      });
-      if (r.success) {
-        await AsyncStorage.setItem(BIOMETRIC_KEY, '1');
-      } else {
+      const res = await authClient.passkey.addPasskey({ name: 'Face ID' });
+      if (res?.error) {
         await AsyncStorage.setItem(BIOMETRIC_KEY, '0');
-        setError('Authentification biométrique refusée.');
+        setError(res.error.message ?? 'Impossible d\'enrôler le passkey.');
         setActivating(false);
         return;
       }
+      await AsyncStorage.setItem(BIOMETRIC_KEY, '1');
     } catch (err) {
+      await AsyncStorage.setItem(BIOMETRIC_KEY, '0');
       setError(err instanceof Error ? err.message : 'Erreur lors de l\'activation.');
       setActivating(false);
       return;
     }
-    router.push('/(auth)/signup/done');
+    router.replace(nextHref);
   }
 
   async function skip() {
     await AsyncStorage.setItem(BIOMETRIC_KEY, '0');
-    router.push('/(auth)/signup/done');
+    router.replace(nextHref);
   }
 
   return (

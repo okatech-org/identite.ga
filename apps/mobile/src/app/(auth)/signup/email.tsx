@@ -12,22 +12,24 @@ import {
   setOnboardingEmail,
 } from '@/hooks/use-onboarding-state';
 
-function passwordStrength(pwd: string): { score: 0 | 1 | 2 | 3 | 4; label: string } {
-  if (pwd.length < 8) return { score: 0, label: 'trop court' };
-  let score = 0;
-  if (pwd.length >= 12) score++;
-  if (/[A-Z]/.test(pwd) && /[a-z]/.test(pwd)) score++;
-  if (/\d/.test(pwd)) score++;
-  if (/[^A-Za-z0-9]/.test(pwd)) score++;
-  const labels = ['très faible', 'faible', 'moyenne', 'forte', 'excellente'] as const;
-  return { score: score as 0 | 1 | 2 | 3 | 4, label: labels[score] };
+// Better Auth `signUp.email` exige un password. L'app ne l'expose pas à
+// l'utilisateur : on génère un secret aléatoire fort (32 caractères),
+// non stocké côté client. Le compte ne sera ensuite accessible que par
+// PIN (créé à l'étape suivante) ou passkey (étape bio).
+function generateInternalPassword(): string {
+  const alphabet =
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=';
+  const buf = new Uint32Array(32);
+  crypto.getRandomValues(buf);
+  let s = '';
+  for (let i = 0; i < buf.length; i++) s += alphabet[buf[i] % alphabet.length];
+  return s;
 }
 
 export default function SignupEmail() {
   const t = useIdnTheme();
   const router = useRouter();
   const [email, setEmail] = useState('');
-  const [pwd, setPwd] = useState('');
   const [agreed, setAgreed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,11 +41,8 @@ export default function SignupEmail() {
     })();
   }, [router]);
 
-  const strength = passwordStrength(pwd);
-  const colors = [t.border, '#B83A3A', idnTokens.yellow, idnTokens.green, idnTokens.green];
-  const bars = [0, 1, 2, 3].map((i) => (i < strength.score ? colors[strength.score] : t.border));
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-  const canSubmit = emailValid && pwd.length >= 12 && agreed && !submitting;
+  const canSubmit = emailValid && agreed && !submitting;
 
   async function next() {
     if (!canSubmit) return;
@@ -52,7 +51,7 @@ export default function SignupEmail() {
     try {
       const result = await authClient.signUp.email({
         email: email.trim().toLowerCase(),
-        password: pwd,
+        password: generateInternalPassword(),
         name: email.trim().toLowerCase(),
       });
       if (result?.error) {
@@ -61,10 +60,8 @@ export default function SignupEmail() {
           code === 'USER_ALREADY_EXISTS'
             ? 'Un compte existe déjà avec cette adresse.'
             : code === 'PASSWORD_COMPROMISED'
-              ? 'Ce mot de passe a fuité dans une base de données. Choisissez-en un autre.'
-              : code === 'PASSWORD_TOO_SHORT'
-                ? 'Le mot de passe doit faire au moins 12 caractères.'
-                : (result.error.message ?? 'Une erreur est survenue. Réessayez.'),
+              ? 'Erreur interne lors de la création du compte. Réessayez.'
+              : (result.error.message ?? 'Une erreur est survenue. Réessayez.'),
         );
         setSubmitting(false);
         return;
@@ -82,8 +79,8 @@ export default function SignupEmail() {
       t={t}
       step={2}
       total={5}
-      title="Vos identifiants"
-      sub="Vous pourrez ajouter la 2FA plus tard."
+      title="Votre adresse email"
+      sub="Vous accéderez à votre compte par PIN ou empreinte."
       primary={submitting ? 'Envoi en cours…' : 'Recevoir le code'}
       onBack={() => router.back()}
       onPrimary={next}
@@ -98,27 +95,6 @@ export default function SignupEmail() {
         leadIcon={<Icon name="mail" size={20} color={t.muted} />}
         autoFocus
       />
-      <IdnInput
-        t={t}
-        label="Mot de passe"
-        value={pwd}
-        onChangeText={setPwd}
-        placeholder="Minimum 12 caractères"
-        type="password"
-        leadIcon={<Icon name="lock" size={20} color={t.muted} />}
-      />
-      {pwd.length > 0 ? (
-        <>
-          <View style={{ flexDirection: 'row', gap: 4 }}>
-            {bars.map((c, i) => (
-              <View key={i} style={{ flex: 1, height: 4, borderRadius: 2, backgroundColor: c }} />
-            ))}
-          </View>
-          <Text style={{ fontSize: 12, color: t.muted, marginTop: -8 }}>
-            Force du mot de passe : <Text style={{ color: colors[strength.score], fontWeight: '600' }}>{strength.label}</Text>
-          </Text>
-        </>
-      ) : null}
       <Pressable onPress={() => setAgreed((v) => !v)} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
         <View style={{
           width: 18, height: 18, borderRadius: 4, marginTop: 2,

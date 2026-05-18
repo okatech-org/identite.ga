@@ -2,6 +2,7 @@ import { convexClient } from "@convex-dev/better-auth/client/plugins";
 import { expoClient } from "@better-auth/expo/client";
 import { createAuthClient } from "better-auth/react";
 import Constants from "expo-constants";
+import { expoPasskeyClient } from "expo-better-auth-passkey";
 import * as SecureStore from "expo-secure-store";
 
 const scheme = Constants.expoConfig?.scheme as string;
@@ -15,6 +16,9 @@ export const authClient: any = createAuthClient({
       storagePrefix: scheme,
       storage: SecureStore,
     }),
+    // Passkey natif iOS / Android (Face ID / Touch ID / Credential Manager).
+    // Sur web, retombe automatiquement sur le WebAuthn navigateur.
+    expoPasskeyClient(),
     convexClient(),
   ],
 });

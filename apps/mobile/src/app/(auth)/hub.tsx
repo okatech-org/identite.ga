@@ -36,12 +36,6 @@ export default function AuthHub() {
         </View>
         <View style={{ gap: 8 }}>
           <NMiniRow t={t}
-            icon={<View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: t.surface2, alignItems: 'center', justifyContent: 'center' }}><Icon name="qr" size={18} color={t.ink2} /></View>}
-            title="Scanner un QR"
-            sub="Connexion depuis un autre appareil"
-            onPress={() => router.push('/scanner')}
-          />
-          <NMiniRow t={t}
             icon={<View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: t.surface2, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontFamily: idnTokens.mono, fontSize: 13, color: t.ink2, fontWeight: '600' }}>#</Text></View>}
             title="Continuer en USSD"
             sub="Composez *242# sans internet"

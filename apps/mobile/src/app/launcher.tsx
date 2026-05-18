@@ -5,7 +5,6 @@ import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import Svg, { Path, Rect } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as LocalAuth from 'expo-local-authentication';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useIdnTheme } from '@/design/theme';
 import { IdnFlagBars } from '@/design/mark';
@@ -27,36 +26,38 @@ export default function Launcher() {
     })();
   }, []);
 
-  async function tryFaceId() {
+  async function tryPasskey() {
     setError(null);
     if (!bioEnabled) {
+      // Pas de passkey enrôlé : on entre direct (session Better Auth valide).
       router.replace('/(tabs)/home');
       return;
     }
     setAuthenticating(true);
     try {
-      const hasHw = await LocalAuth.hasHardwareAsync();
-      const enrolled = await LocalAuth.isEnrolledAsync();
-      if (!hasHw || !enrolled) {
-        // Pas de biométrie côté appareil : on déverrouille directement.
-        router.replace('/(tabs)/home');
-        return;
-      }
-      const r = await LocalAuth.authenticateAsync({
-        promptMessage: 'Déverrouiller IDN',
-        cancelLabel: 'Utiliser le PIN',
-        disableDeviceFallback: false,
-      });
-      if (r.success) {
-        router.replace('/(tabs)/home');
-      } else {
+      const res = await authClient.signIn.passkey();
+      if (res?.error) {
         setError('Authentification refusée. Utilisez votre PIN.');
         setAuthenticating(false);
+        return;
       }
+      router.replace('/(tabs)/home');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur d\'authentification.');
       setAuthenticating(false);
     }
+  }
+
+  async function usePin() {
+    // Bascule sur le sign-in PIN — la session courante reste valide tant
+    // que l'utilisateur ne valide pas un PIN, mais on l'envoie sur le hub
+    // d'auth pour qu'il saisisse email + PIN proprement.
+    try {
+      await authClient.signOut();
+    } catch {
+      // ignore
+    }
+    router.replace('/(auth)/login');
   }
 
   async function switchAccount() {
@@ -90,7 +91,7 @@ export default function Launcher() {
           </View>
         </View>
         <View style={{ alignItems: 'center', width: '100%', gap: 18 }}>
-          <Pressable onPress={tryFaceId} disabled={authenticating} style={{
+          <Pressable onPress={tryPasskey} disabled={authenticating} style={{
             width: 76, height: 76, borderRadius: 9999,
             backgroundColor: 'rgba(255,255,255,0.16)',
             borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)',
@@ -105,13 +106,13 @@ export default function Launcher() {
             </Svg>
           </Pressable>
           <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.86)', textAlign: 'center' }}>
-            {bioEnabled ? 'Touchez pour vous identifier avec Face ID' : 'Touchez pour entrer'}
+            {bioEnabled ? 'Touchez pour vous identifier avec votre passkey' : 'Touchez pour entrer'}
           </Text>
           {error ? (
             <Text style={{ fontSize: 12, color: '#FFD7D7', textAlign: 'center' }}>{error}</Text>
           ) : null}
           <View style={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-            <Pressable onPress={() => router.replace('/(tabs)/home')}>
+            <Pressable onPress={usePin}>
               <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)' }}>Utiliser le PIN</Text>
             </Pressable>
             <IdnFlagBars width={28} height={2.5} />

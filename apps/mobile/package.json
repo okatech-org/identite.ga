@@ -21,6 +21,7 @@
     "better-auth": "^1.6.10",
     "convex": "^1.38.0",
     "expo": "~55.0.24",
+    "expo-better-auth-passkey": "^1.4.3",
     "expo-blur": "~55.0.14",
     "expo-constants": "~55.0.16",
     "expo-device": "~55.0.17",

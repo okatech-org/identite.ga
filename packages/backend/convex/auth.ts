@@ -1,6 +1,7 @@
 import { createClient, type GenericCtx } from "@convex-dev/better-auth";
 import { convex, crossDomain } from "@convex-dev/better-auth/plugins";
 import { expo } from "@better-auth/expo";
+import { passkey } from "@better-auth/passkey";
 import { betterAuth } from "better-auth/minimal";
 import {
   emailOTP,
@@ -217,6 +218,22 @@ export const createAuth = (
       // (scheme idn://) et l'authent depuis l'app mobile RN. À utiliser
       // conjointement avec expoClient() côté client + expo-secure-store.
       expo(),
+
+      // WebAuthn / passkey — enrôlement biométrique (Face ID / Touch ID
+      // sur iOS, Credential Manager sur Android, plateformes WebAuthn sur
+      // desktop). `rpID` = hostname (sans schéma ni port). `origin` doit
+      // inclure tous les origins qui authentifient (HTTPS de prod, scheme
+      // expo, dev tunnels). En dev par défaut on accepte localhost.
+      passkey({
+        rpID: process.env.PASSKEY_RP_ID ?? "localhost",
+        rpName: "Identité Numérique",
+        origin: (() => {
+          const csv = process.env.PASSKEY_RP_ORIGINS ?? "";
+          const fromEnv = csv.split(",").map((o) => o.trim()).filter(Boolean);
+          // Toujours autoriser le scheme expo mobile (idn://) en plus.
+          return fromEnv.length > 0 ? [...fromEnv, "idn://"] : ["idn://"];
+        })(),
+      }),
 
       // OTP 6 chiffres pour vérification email, reset password, changement email
       emailOTP({
