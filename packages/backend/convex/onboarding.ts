@@ -73,6 +73,9 @@ export const selectProfile = mutation({
     })
 
     // Préférences notifications par défaut : tout activé pour security/kyc/consent
+    // Les nouvelles catégories (documents/ai/cv/system) ne sont pas posées
+    // explicitement — le dispatcher considère leur absence comme « activé »
+    // par défaut (cf. notifications.ts/DEFAULT_PREF_VALUE).
     await ctx.db.insert("notificationPreference", {
       userId: user.userId,
       email: { security: true, kyc: true, consent: true, comms: false },
@@ -86,6 +89,16 @@ export const selectProfile = mutation({
       targetType: "user",
       targetId: user.userId,
       metadata: { profileType: args.profileType, idnId },
+    })
+
+    // Seed iCarte + iBoîte (idempotent — n'écrit que si vide).
+    // iDocument démarre sans données (le vault est activé manuellement par
+    // le citoyen depuis l'UI, ce qui pose la `vaultKey`).
+    await ctx.runMutation(internal.wallet.seedDefaultsForUser, {
+      userId: user.userId,
+    })
+    await ctx.runMutation(internal.iboite.accounts.ensurePersonal, {
+      userId: user.userId,
     })
 
     return { profileId }
