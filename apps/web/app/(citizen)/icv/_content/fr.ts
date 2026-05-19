@@ -49,6 +49,12 @@ export const icv = {
   preview: {
     a4Footer: "A4 · 210×297 mm",
   },
+  studio: {
+    done: "Terminé",
+    backToDashboard: "Retour au tableau de bord",
+    zoomIn: "Agrandir",
+    zoomOut: "Réduire",
+  },
   list: {
     title: "Mes CV",
     description: "Tous vos CV au même endroit",
@@ -89,7 +95,11 @@ export const icv = {
   },
   dashboard: {
     title: "Tableau de bord iCV",
-    subtitle: (name: string) => `${name}`,
+    subtitle: (lastUpdate: string, name: string) =>
+      `Mis à jour ${lastUpdate} · ${name}`,
+    lastUpdateToday: "aujourd'hui",
+    lastUpdateYesterday: "hier",
+    lastUpdateOlder: (date: string) => `le ${date}`,
     score: "SCORE",
     levelExpert: "Niveau Expert",
     levelGood: "Niveau Bon",
@@ -104,6 +114,8 @@ export const icv = {
     changeTheme: "Changer de thème",
     editCv: "Modifier mon CV",
     downloadPdf: "Télécharger PDF",
+    share: "Partager",
+    shareComingSoon: "Bientôt disponible",
   },
   editor: {
     eyebrow: "ICV · ÉDITION",
@@ -164,7 +176,7 @@ export const icv = {
     title: "Importer un CV",
     desc: "Vos données seront extraites et pré-remplies.",
     dropTitle: "Déposez votre CV",
-    dropSpec: "PDF ou DOCX · 5 Mo max.",
+    dropSpec: "PDF ou image · 5 Mo max.",
     browse: "Parcourir mes fichiers",
     modeLabel: "Que faire de l'import ?",
     modeNew: "Créer un nouveau CV",

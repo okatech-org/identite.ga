@@ -5,12 +5,16 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useQuery } from "convex/react"
 import {
+  FileSignatureIcon,
+  FolderIcon,
   HomeIcon,
+  InboxIcon,
   KeyRoundIcon,
   LogOutIcon,
   MenuIcon,
   ShieldCheckIcon,
   UserIcon,
+  WalletIcon,
   XIcon,
 } from "lucide-react"
 
@@ -35,10 +39,21 @@ import { cn } from "@repo/ui/lib/utils"
 
 import { authClient } from "@/lib/auth-client"
 
-import { userMenu } from "../_content/fr"
+import { citizenNav, userMenu } from "../_content/fr"
 
-const CONNECTED_LINKS = [
+type ConnectedLink = {
+  href: string
+  label: string
+  icon: typeof HomeIcon
+  disabled?: boolean
+}
+
+const CONNECTED_LINKS: readonly ConnectedLink[] = [
   { href: "/dashboard", label: userMenu.dashboard, icon: HomeIcon },
+  { href: "/icarte", label: userMenu.icarte, icon: WalletIcon, disabled: true },
+  { href: "/iboite", label: userMenu.iboite, icon: InboxIcon, disabled: true },
+  { href: "/idoc", label: userMenu.idoc, icon: FolderIcon, disabled: true },
+  { href: "/icv", label: userMenu.icv, icon: FileSignatureIcon },
   { href: "/profile", label: userMenu.profile, icon: UserIcon },
   { href: "/consents", label: userMenu.consents, icon: ShieldCheckIcon },
   { href: "/settings", label: userMenu.settings, icon: KeyRoundIcon },
@@ -150,8 +165,25 @@ export function CitizenMobileHeader({ className }: { className?: string }) {
               className="flex flex-col gap-1 p-3"
               aria-label="Mon compte"
             >
-              {CONNECTED_LINKS.map(({ href, label, icon: Icon }) => {
+              {CONNECTED_LINKS.map(({ href, label, icon: Icon, disabled }) => {
                 const active = isActive(href)
+                if (disabled) {
+                  return (
+                    <button
+                      key={href}
+                      type="button"
+                      disabled
+                      title={citizenNav.comingSoon}
+                      className="flex cursor-not-allowed items-center gap-3 rounded-md px-4 py-3 text-left text-[15px] font-medium text-foreground/40"
+                    >
+                      <Icon className="size-4" aria-hidden="true" />
+                      {label}
+                      <span className="ml-auto text-[10px] font-mono uppercase tracking-[0.06em] text-foreground/40">
+                        {citizenNav.comingSoon}
+                      </span>
+                    </button>
+                  )
+                }
                 return (
                   <Link
                     key={href}

@@ -14,8 +14,18 @@ import { UserMenu } from "@/app/_components/user-menu"
 
 import { citizenNav } from "../_content/fr"
 
-const NAV_ITEMS = [
+type NavItem = {
+  href: string
+  label: string
+  disabled?: boolean
+}
+
+const NAV_ITEMS: readonly NavItem[] = [
   { href: "/dashboard", label: citizenNav.home },
+  { href: "/icarte", label: citizenNav.icarte, disabled: true },
+  { href: "/iboite", label: citizenNav.iboite, disabled: true },
+  { href: "/idoc", label: citizenNav.idoc, disabled: true },
+  { href: "/icv", label: citizenNav.icv },
   { href: "/profile", label: citizenNav.profile },
   { href: "/consents", label: citizenNav.consents },
 ] as const
@@ -32,7 +42,7 @@ export function CitizenHeader({ className }: { className?: string }) {
   return (
     <header
       className={cn(
-        "sticky top-0 z-40 flex h-15 min-h-[60px] items-center gap-7 border-b border-border bg-card/95 px-7 backdrop-blur supports-[backdrop-filter]:bg-card/80",
+        "sticky top-0 z-40 flex h-15 min-h-[60px] items-center justify-between border-b border-border bg-card/95 px-7 backdrop-blur supports-[backdrop-filter]:bg-card/80",
         className,
       )}
     >
@@ -42,20 +52,35 @@ export function CitizenHeader({ className }: { className?: string }) {
           aria-label="Identité Numérique — Tableau de bord"
         >
           <IdnMark size={26} />
-          <span className="hidden whitespace-nowrap text-sm font-semibold text-foreground sm:inline">
-            Identité Numérique
-          </span>
-          <span className="hidden whitespace-nowrap rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold tracking-[0.05em] text-muted-foreground md:inline">
-            RÉPUBLIQUE GABONAISE
+          <span className="hidden flex-col leading-tight whitespace-nowrap sm:flex">
+            <span className="text-sm font-semibold text-foreground">
+              Identité Numérique
+            </span>
+            <span className="text-[10px] font-medium tracking-[0.04em] text-muted-foreground">
+              République Gabonaise
+            </span>
           </span>
         </Link>
 
         <nav
-          className="ml-2 flex items-center gap-1"
+          className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-1"
           aria-label="Navigation principale"
         >
           {NAV_ITEMS.map((tab) => {
             const active = isActive(tab.href)
+            if (tab.disabled) {
+              return (
+                <button
+                  key={tab.href}
+                  type="button"
+                  disabled
+                  title={citizenNav.comingSoon}
+                  className="cursor-not-allowed rounded-md px-3.5 py-2 text-[13px] font-medium text-foreground/40"
+                >
+                  {tab.label}
+                </button>
+              )
+            }
             return (
               <Link
                 key={tab.href}
@@ -74,7 +99,7 @@ export function CitizenHeader({ className }: { className?: string }) {
           })}
         </nav>
 
-        <div className="flex flex-1 items-center justify-end gap-3">
+        <div className="flex items-center gap-3">
           <NotificationsBell />
           {me ? (
             <UserMenu user={me} />

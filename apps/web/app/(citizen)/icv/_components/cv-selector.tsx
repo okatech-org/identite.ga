@@ -40,7 +40,7 @@ const SOURCE_BADGE_COLOR: Record<CvSummary["source"], string> = {
 }
 
 /**
- * Sélecteur de CV transverse (header `/icv` et `/icv/dashboard`).
+ * Sélecteur de CV transverse (header `/icv` et `/icv/studio`).
  * Affiche le CV actif sous forme de pill + popover de switch.
  * Voir SPECS_FEATURE_ICV.md §3.
  */

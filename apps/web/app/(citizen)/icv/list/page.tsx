@@ -79,7 +79,7 @@ export default function IcvListPage() {
 
   if (cvs === undefined) {
     return (
-      <section className="mx-auto w-full max-w-[1280px] px-5 py-6 md:px-7 md:py-8">
+      <section className="mx-auto w-full px-5 py-6 md:px-4 md:py-8 lg:px-20">
         <div className="h-32 animate-pulse rounded-2xl bg-secondary" />
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[0, 1, 2].map((i) => (
@@ -94,7 +94,7 @@ export default function IcvListPage() {
   }
 
   return (
-    <section className="mx-auto w-full max-w-[1280px] px-5 py-6 md:px-7 md:py-8">
+    <section className="mx-auto w-full px-5 py-6 md:px-4 md:py-8 lg:px-20">
       {/* Header */}
       <div className="flex items-center gap-3">
         <Button asChild variant="ghost" size="icon" className="rounded-full">
@@ -129,7 +129,7 @@ export default function IcvListPage() {
             <CvCard
               key={cv._id}
               cv={cv}
-              defaultDisabled={cvs.length === 1}
+              isOnlyCv={cvs.length === 1}
               onRename={() =>
                 setRenameTarget({ id: cv._id, name: cv.name })
               }
@@ -176,12 +176,13 @@ type CvSummary = {
 
 function CvCard({
   cv,
-  defaultDisabled,
+  isOnlyCv,
   onRename,
   onDelete,
 }: {
   cv: CvSummary
-  defaultDisabled: boolean
+  /** Vrai s'il n'y a qu'un CV au total — autorise la suppression du défaut. */
+  isOnlyCv: boolean
   onRename: () => void
   onDelete: () => void
 }) {
@@ -341,7 +342,7 @@ function CvCard({
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onSelect={onDelete}
-                disabled={cv.isDefault}
+                disabled={cv.isDefault && !isOnlyCv}
                 className="text-destructive"
               >
                 <Trash2 className="h-3.5 w-3.5" />

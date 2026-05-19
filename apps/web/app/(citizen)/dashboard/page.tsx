@@ -7,13 +7,13 @@ import { LinkIcon, QrCodeIcon } from "lucide-react";
 import { api } from "@repo/backend/convex/_generated/api";
 import { type LoALevel } from "@repo/ui/components/loa-badge";
 
-import { dashboard, quickActions, services } from "../_content/fr";
+import { dashboard, modules, quickActions } from "../_content/fr";
 import { KycActiveCard } from "../_components/kyc-active-card";
 import { KycPromoCard } from "../_components/kyc-promo-card";
+import { ModuleCard } from "../_components/module-card";
 import { ProfileCard } from "../_components/profile-card";
 import { QuickAction } from "../_components/quick-action";
 import { RecentActivity } from "../_components/recent-activity";
-import { ServiceCard } from "../_components/service-card";
 import { SessionsCard } from "../_components/sessions-card";
 
 const ACTIVE_STATUSES = new Set([
@@ -78,23 +78,35 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <section className="mt-8" aria-labelledby="services">
-          <p
-            id="services"
-            className="font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground"
-          >
-            {dashboard.servicesEyebrow}
-          </p>
-          <div className="mt-3 grid grid-cols-3 gap-3">
-            {services.map((s) => (
-              <ServiceCard
-                key={s.key}
-                title={s.title}
-                sub={s.sub}
-                loa={s.loa}
-                icon={s.icon}
+        <section className="mt-8" aria-labelledby="modules">
+          <div className="flex items-baseline justify-between">
+            <p
+              id="modules"
+              className="font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground"
+            >
+              {dashboard.modulesEyebrow}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {dashboard.modulesHint}
+            </p>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+            {modules.map((m) => (
+              <ModuleCard
+                key={m.key}
+                title={m.title}
+                sub={m.sub}
+                icon={m.icon}
+                color={m.color}
+                bgLight={m.bgLight}
+                bgDark={m.bgDark}
                 variant="desktop"
-                href={"href" in s ? s.href : undefined}
+                href={"href" in m ? m.href : undefined}
+                disabled={"disabled" in m ? m.disabled : undefined}
+                disabledTooltip={
+                  "disabledTooltip" in m ? m.disabledTooltip : undefined
+                }
+                badge={"badge" in m ? m.badge : undefined}
               />
             ))}
           </div>
@@ -122,32 +134,31 @@ export default function DashboardPage() {
           <KycPromoCard currentLoa={loa as 1} variant="mobile" />
         ) : null}
 
-        <section aria-labelledby="services-mobile">
+        <section aria-labelledby="modules-mobile">
           <p
-            id="services-mobile"
+            id="modules-mobile"
             className="font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground"
           >
-            {dashboard.servicesEyebrow}
+            {dashboard.modulesEyebrow}
           </p>
-          <div className="mt-2.5 overflow-hidden rounded-2xl border border-border bg-card">
-            {services.slice(0, 4).map((s, i, arr) => (
-              <div
-                key={s.key}
-                className={
-                  i < arr.length - 1 ?
-                    "border-b border-idn-border-soft"
-                  : undefined
+          <div className="mt-2.5 grid grid-cols-2 gap-2.5">
+            {modules.map((m) => (
+              <ModuleCard
+                key={m.key}
+                title={m.title}
+                sub={m.sub}
+                icon={m.icon}
+                color={m.color}
+                bgLight={m.bgLight}
+                bgDark={m.bgDark}
+                variant="desktop"
+                href={"href" in m ? m.href : undefined}
+                disabled={"disabled" in m ? m.disabled : undefined}
+                disabledTooltip={
+                  "disabledTooltip" in m ? m.disabledTooltip : undefined
                 }
-              >
-                <ServiceCard
-                  title={s.title}
-                  sub={s.sub}
-                  loa={s.loa}
-                  icon={s.icon}
-                  variant="mobile"
-                  href={"href" in s ? s.href : undefined}
-                />
-              </div>
+                badge={"badge" in m ? m.badge : undefined}
+              />
             ))}
           </div>
         </section>

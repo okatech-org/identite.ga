@@ -52,7 +52,7 @@ export default function IcvEditPage() {
       section={sectionParam as SectionKind}
       cvId={cvParam}
       entryId={idParam}
-      onClose={() => router.push("/icv/dashboard")}
+      onClose={() => router.push("/icv")}
     />
   )
 }
@@ -104,7 +104,7 @@ function Editor({
           size="icon"
           className="rounded-full"
         >
-          <Link href="/icv/dashboard">
+          <Link href="/icv">
             <ArrowLeft className="h-5 w-5" />
           </Link>
         </Button>

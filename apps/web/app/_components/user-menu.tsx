@@ -3,11 +3,15 @@
 import * as React from "react"
 import Link from "next/link"
 import {
+  FileSignatureIcon,
+  FolderIcon,
   HomeIcon,
+  InboxIcon,
   KeyRoundIcon,
   LogOutIcon,
   ShieldCheckIcon,
   UserIcon,
+  WalletIcon,
 } from "lucide-react"
 
 import { Avatar } from "@repo/ui/components/avatar"
@@ -86,6 +90,33 @@ export function UserMenu({ user, className, triggerLabel }: UserMenuProps) {
           <Link href="/dashboard">
             <HomeIcon aria-hidden="true" />
             <span>Tableau de bord</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem disabled>
+          <WalletIcon aria-hidden="true" />
+          <span>iCarte</span>
+          <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
+            Bientôt
+          </span>
+        </DropdownMenuItem>
+        <DropdownMenuItem disabled>
+          <InboxIcon aria-hidden="true" />
+          <span>iBoîte</span>
+          <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
+            Bientôt
+          </span>
+        </DropdownMenuItem>
+        <DropdownMenuItem disabled>
+          <FolderIcon aria-hidden="true" />
+          <span>iDocument</span>
+          <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
+            Bientôt
+          </span>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/icv">
+            <FileSignatureIcon aria-hidden="true" />
+            <span>Mon CV (iCV)</span>
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>

@@ -12,13 +12,22 @@ export const PROFILE_TYPE_LABELS = {
 
 export const citizenNav = {
   home: "Accueil",
+  icarte: "iCarte",
+  iboite: "iBoîte",
+  idoc: "iDocument",
+  icv: "iCV",
   profile: "Mon profil",
   consents: "Consentements",
+  comingSoon: "Bientôt disponible",
 } as const
 
 export const userMenu = {
   ariaLabel: "Mon compte",
   dashboard: "Tableau de bord",
+  icarte: "iCarte",
+  iboite: "iBoîte",
+  idoc: "iDocument",
+  icv: "Mon CV (iCV)",
   profile: "Mon profil",
   consents: "Mes consentements",
   settings: "Paramètres",
@@ -35,6 +44,8 @@ export const dashboard = {
   profileEyebrow: "Mon compte IDN",
   idnIdLabel: "ID IDN",
   idnIdEmpty: "—",
+  modulesEyebrow: "MON ESPACE PERSONNEL",
+  modulesHint: "Vos modules IDN",
   servicesEyebrow: "SERVICES",
   recentEyebrow: "ACTIVITÉ RÉCENTE",
   recentEmpty: "Aucune activité récente.",
@@ -178,6 +189,58 @@ export function formatVerifiedDocuments(types: readonly string[]): string {
     .filter(Boolean)
     .join(" · ")
 }
+
+/**
+ * Modules personnels IDN (iCarte, iBoîte, iDocument, iCV).
+ * Alignés sur HOME_MODULES de l'app mobile et la maquette CWHome.
+ * Seul `iCV` dispose d'une page web ; les autres sont en `disabled`.
+ */
+export const modules = [
+  {
+    key: "icarte",
+    title: "iCarte",
+    sub: "Cartes & wallet",
+    icon: "wallet" as const,
+    color: "#0E7C3A",
+    bgLight: "#E6F2EA",
+    bgDark: "#0F2A18",
+    disabled: true,
+    disabledTooltip: "Bientôt disponible",
+  },
+  {
+    key: "iboite",
+    title: "iBoîte",
+    sub: "Courriers · emails",
+    icon: "inbox" as const,
+    color: "#3b82f6",
+    bgLight: "#E6EEF7",
+    bgDark: "#10243A",
+    disabled: true,
+    disabledTooltip: "Bientôt disponible",
+  },
+  {
+    key: "idoc",
+    title: "iDocument",
+    sub: "Documents archivés",
+    icon: "folder" as const,
+    color: "#a855f7",
+    bgLight: "#F3E8FF",
+    bgDark: "#2A1542",
+    disabled: true,
+    disabledTooltip: "Bientôt disponible",
+  },
+  {
+    key: "icv",
+    title: "iCV",
+    sub: "Mon CV en ligne",
+    icon: "cv" as const,
+    color: "#EC4899",
+    bgLight: "#FCE7F3",
+    bgDark: "#2A1426",
+    href: "/icv" as const,
+    badge: "Nouveau",
+  },
+] as const
 
 export const services = [
   {
