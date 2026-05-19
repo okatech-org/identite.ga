@@ -1,4 +1,6 @@
+import Link from "next/link"
 import {
+  FileSignatureIcon,
   FileTextIcon,
   MailIcon,
   ShieldIcon,
@@ -13,6 +15,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   shield: ShieldIcon,
   user: UserIcon,
   mail: MailIcon,
+  cv: FileSignatureIcon,
 }
 
 type ServiceCardProps = {
@@ -22,6 +25,8 @@ type ServiceCardProps = {
   icon: keyof typeof ICON_MAP
   variant?: "desktop" | "mobile"
   className?: string
+  /** Si fourni, la carte devient un lien Next.js cliquable. */
+  href?: string
 }
 
 export function ServiceCard({
@@ -31,41 +36,36 @@ export function ServiceCard({
   icon,
   variant = "desktop",
   className,
+  href,
 }: ServiceCardProps) {
   const Icon = ICON_MAP[icon] ?? FileTextIcon
 
-  if (variant === "mobile") {
-    return (
+  const mobileContent = (
+    <>
       <div
-        className={cn(
-          "flex items-center gap-3 px-4 py-3.5",
-          className,
-        )}
+        aria-hidden="true"
+        className="flex size-8 shrink-0 items-center justify-center rounded-md bg-secondary text-muted-foreground"
       >
-        <div
-          aria-hidden="true"
-          className="flex size-8 shrink-0 items-center justify-center rounded-md bg-secondary text-muted-foreground"
-        >
-          <Icon className="size-4" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-foreground">{title}</p>
-          <p className="mt-0.5 truncate text-xs text-muted-foreground">{sub}</p>
-        </div>
-        <span className="font-mono text-[11px] text-muted-foreground">
-          Niv. {loa}
-        </span>
+        <Icon className="size-4" />
       </div>
-    )
-  }
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium text-foreground">{title}</p>
+        <p className="mt-0.5 truncate text-xs text-muted-foreground">{sub}</p>
+      </div>
+      <span className="font-mono text-[11px] text-muted-foreground">
+        Niv. {loa}
+      </span>
+    </>
+  )
 
-  return (
-    <div
-      className={cn(
-        "flex flex-col gap-3 rounded-xl border border-border bg-card p-4 transition-colors hover:border-idn-green/40 hover:bg-secondary/40",
-        className,
-      )}
-    >
+  const mobileClass = cn(
+    "flex items-center gap-3 px-4 py-3.5",
+    href && "transition-colors hover:bg-muted/40",
+    className,
+  )
+
+  const desktopContent = (
+    <>
       <div className="flex items-center gap-2.5">
         <div
           aria-hidden="true"
@@ -81,6 +81,29 @@ export function ServiceCard({
         <p className="text-sm font-semibold text-foreground">{title}</p>
         <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>
       </div>
-    </div>
+    </>
+  )
+
+  const desktopClass = cn(
+    "flex flex-col gap-3 rounded-xl border border-border bg-card p-4 transition-colors hover:border-idn-green/40 hover:bg-secondary/40",
+    className,
+  )
+
+  if (variant === "mobile") {
+    return href ? (
+      <Link href={href} className={mobileClass}>
+        {mobileContent}
+      </Link>
+    ) : (
+      <div className={mobileClass}>{mobileContent}</div>
+    )
+  }
+
+  return href ? (
+    <Link href={href} className={desktopClass}>
+      {desktopContent}
+    </Link>
+  ) : (
+    <div className={desktopClass}>{desktopContent}</div>
   )
 }

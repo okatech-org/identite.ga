@@ -94,6 +94,7 @@ export default function DashboardPage() {
                 loa={s.loa}
                 icon={s.icon}
                 variant="desktop"
+                href={"href" in s ? s.href : undefined}
               />
             ))}
           </div>
@@ -144,6 +145,7 @@ export default function DashboardPage() {
                   loa={s.loa}
                   icon={s.icon}
                   variant="mobile"
+                  href={"href" in s ? s.href : undefined}
                 />
               </div>
             ))}

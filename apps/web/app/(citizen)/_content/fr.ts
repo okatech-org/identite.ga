@@ -181,6 +181,14 @@ export function formatVerifiedDocuments(types: readonly string[]): string {
 
 export const services = [
   {
+    key: "icv",
+    title: "iCV",
+    sub: "Mon CV en ligne",
+    loa: 1 as const,
+    icon: "cv" as const,
+    href: "/icv" as const,
+  },
+  {
     key: "evisa",
     title: "e-Visa",
     sub: "Statut : actif",
