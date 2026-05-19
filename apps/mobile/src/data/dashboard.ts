@@ -2,7 +2,7 @@ import type { IconName } from '@/design/icons';
 import { idnTokens } from '@/design/tokens';
 
 export type HomeModule = {
-  id: 'icarte' | 'iboite' | 'idoc' | 'notif';
+  id: 'icarte' | 'iboite' | 'idoc' | 'icv' | 'notif';
   label: string;
   sub: string;
   badge?: string;
@@ -17,6 +17,7 @@ export const HOME_MODULES: HomeModule[] = [
   { id: 'icarte', label: 'iCarte',       sub: '6 cartes',           color: idnTokens.green, bgLight: idnTokens.greenSoft, bgDark: '#0F2A18', icon: 'wallet', route: '/icarte' },
   { id: 'iboite', label: 'iBoîte',       sub: 'Courriers · emails', badge: '2 nouveaux', color: '#3b82f6', bgLight: idnTokens.blueSoft,   bgDark: '#10243A', icon: 'mail2',  route: '/iboite' },
   { id: 'idoc',   label: 'iDocument',    sub: '17 documents',                              color: '#a855f7', bgLight: '#F3E8FF',           bgDark: '#2A1542', icon: 'file',   route: '/idoc' },
+  { id: 'icv',    label: 'iCV',          sub: 'Mon CV en ligne',                            color: '#EC4899', bgLight: '#FCE7F3',           bgDark: '#2A1426', icon: 'file',   route: '/icv' },
   { id: 'notif',  label: 'Notifications',sub: 'Centre alertes',     badge: '3 non lues',   color: '#dc2626', bgLight: '#FEE2E2',           bgDark: '#2A1414', icon: 'bell',   route: '/notifications' },
 ];
 
