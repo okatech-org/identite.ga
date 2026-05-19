@@ -167,6 +167,47 @@ export const LANGUAGES = ["fr", "en"] as const
 export const THEMES = ["light", "dark", "auto"] as const
 export const FONT_SIZES = ["sm", "md", "lg", "xl"] as const
 
+// iCV — 12 thèmes de présentation (cf. SPECS_FEATURE_ICV.md §9).
+export const CV_THEMES = [
+  "modern",
+  "classic",
+  "minimalist",
+  "professional",
+  "creative",
+  "startup",
+  "bold",
+  "tech",
+  "academic",
+  "executive",
+  "elegant",
+  "compact",
+] as const
+
+// iCV — origine d'un CV (utile pour distinguer les variants dans l'UI).
+export const CV_SOURCES = [
+  "onboarding",   // seed initial à la sélection de profil
+  "manual",       // créé / dupliqué à la main par le citoyen
+  "ai_optimize",  // dérivé via cv.ai.optimizeForJob
+  "import",       // créé via cv.import.parseAndApply
+] as const
+
+// iCV — features IA disponibles (cf. PLAN_BACKEND_ICV.md §8).
+export const CV_AI_FEATURES = [
+  "improve_summary",
+  "suggest_skills",
+  "optimize_job",
+  "generate_letter",
+  "ats_check",
+] as const
+
+// iCV — cycle de vie d'un job IA.
+export const CV_AI_STATUSES = [
+  "queued",
+  "running",
+  "completed",
+  "failed",
+] as const
+
 export default defineSchema({
   /**
    * Profil étendu IDN — un par user Better Auth.
@@ -689,6 +730,154 @@ export default defineSchema({
   })
     .index("by_sessionCode", ["sessionCode"])
     .index("by_expiresAt", ["expiresAt"]),
+
+  // ─────────────────────────────────────────────────────────────────────
+  // iCV — Constructeur de CV professionnel (cf. SPECS_FEATURE_ICV.md +
+  // PLAN_BACKEND_ICV.md). Multi-CV : un user peut avoir N CV (max 10),
+  // avec un CV principal (isDefault) + des variantes générées via
+  // l'outil IA `optimize_job` ou importées.
+  //
+  // Les sections (experiences, education, skills, languages) sont des
+  // tableaux embarqués dans le document — cardinalité bornée par usage
+  // humain (≤ ~50 entrées), aucun risque d'atteindre la limite de 1 MB.
+  // ─────────────────────────────────────────────────────────────────────
+  citizenCv: defineTable({
+    userId: v.string(),
+    name: v.string(),            // ex « CV principal », « CV - Chef de projet »
+    isDefault: v.boolean(),      // un seul `true` par user — appliqué en mutation
+    source: v.union(...CV_SOURCES.map((s) => v.literal(s))),
+    derivedFromCvId: v.optional(v.id("citizenCv")),
+
+    // Coordonnées (champs racine éditables via cv.profile.upsert)
+    firstName: v.string(),
+    lastName: v.string(),
+    email: v.string(),
+    phone: v.string(),
+    address: v.string(),
+    summary: v.string(),
+    portfolioUrl: v.optional(v.string()),
+    linkedinUrl: v.optional(v.string()),
+    activeTheme: v.union(...CV_THEMES.map((t) => v.literal(t))),
+
+    // Sections embarquées
+    experiences: v.array(
+      v.object({
+        id: v.string(),
+        position: v.number(), // multiples de 1000
+        title: v.string(),
+        company: v.string(),
+        startDate: v.string(),         // ISO YYYY-MM ou YYYY-MM-DD
+        endDate: v.optional(v.string()),
+        current: v.boolean(),
+        description: v.string(),
+      }),
+    ),
+    education: v.array(
+      v.object({
+        id: v.string(),
+        position: v.number(),
+        degree: v.string(),
+        school: v.string(),
+        year: v.string(),
+        description: v.optional(v.string()),
+      }),
+    ),
+    skills: v.array(
+      v.object({
+        id: v.string(),
+        position: v.number(),
+        name: v.string(),
+        level: v.union(
+          v.literal("Débutant"),
+          v.literal("Intermédiaire"),
+          v.literal("Avancé"),
+          v.literal("Expert"),
+        ),
+      }),
+    ),
+    languages: v.array(
+      v.object({
+        id: v.string(),
+        position: v.number(),
+        name: v.string(),
+        level: v.union(
+          v.literal("A1"),
+          v.literal("A2"),
+          v.literal("B1"),
+          v.literal("B2"),
+          v.literal("C1"),
+          v.literal("C2"),
+          v.literal("Natif"),
+        ),
+      }),
+    ),
+    hobbies: v.array(v.string()),
+
+    // Score de complétion (0..100) — dénormalisé, recalculé à chaque write
+    completionScore: v.number(),
+
+    // Soft delete (le multi-CV permet la suppression sans casser les liens
+    // `derivedFromCvId` qui peuvent pointer vers ce CV depuis une variante)
+    deletedAt: v.optional(v.number()),
+
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_default", ["userId", "isDefault"])
+    .index("by_userId_deletedAt", ["userId", "deletedAt"]),
+
+  /**
+   * Cache des exports PDF générés pour un CV donné.
+   * Permet de réutiliser le blob si le CV n'a pas changé depuis le dernier
+   * export avec le même thème (clé = sha256(JSON canonique du CV + theme)).
+   */
+  citizenCvExport: defineTable({
+    userId: v.string(),
+    cvId: v.id("citizenCv"),
+    theme: v.union(...CV_THEMES.map((t) => v.literal(t))),
+    contentHash: v.string(), // hash 64 chars du couple (CV serialisé + theme)
+    storageRef: v.id("_storage"),
+    expiresAt: v.number(), // TTL 24h
+    createdAt: v.number(),
+  })
+    .index("by_user_cv", ["userId", "cvId", "createdAt"])
+    .index("by_hash", ["contentHash"]),
+
+  /**
+   * Trace asynchrone des appels IA iCV — pour rate-limit, audit, retry,
+   * historique. Une ligne par appel (`cv.ai.improveSummary`, etc.).
+   */
+  citizenCvAiJob: defineTable({
+    userId: v.string(),
+    cvId: v.id("citizenCv"),
+    feature: v.union(...CV_AI_FEATURES.map((f) => v.literal(f))),
+    status: v.union(...CV_AI_STATUSES.map((s) => v.literal(s))),
+
+    // Provider effectivement utilisé (audit + observabilité multi-provider)
+    provider: v.optional(v.string()), // "gemini" | "anthropic" | "openai" | "ollama" | "mock"
+    model: v.optional(v.string()),    // ex "gemini-2.5-flash"
+
+    // Entrée libre (paramètres feature-specific)
+    input: v.optional(v.record(v.string(), v.any())),
+    // Résultat structuré
+    result: v.optional(v.record(v.string(), v.any())),
+    // Pour optimize_job : pointe vers le CV dérivé créé
+    derivedCvId: v.optional(v.id("citizenCv")),
+    errorMessage: v.optional(v.string()),
+
+    // Métriques
+    tokensIn: v.optional(v.number()),
+    tokensOut: v.optional(v.number()),
+    startedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+
+    createdAt: v.number(),
+  })
+    .index("by_userId", ["userId", "createdAt"])
+    .index("by_user_cv", ["userId", "cvId", "createdAt"])
+    .index("by_user_cv_feature", ["userId", "cvId", "feature", "createdAt"])
+    .index("by_status", ["status", "createdAt"]),
 
   /**
    * Demandes via formulaire de contact public (page /contact).

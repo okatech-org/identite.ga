@@ -1,11 +1,18 @@
 import { ConvexError } from "convex/values"
 
 import { authComponent } from "../auth"
-import type { QueryCtx, MutationCtx } from "../_generated/server"
+import type { ActionCtx, QueryCtx, MutationCtx } from "../_generated/server"
 import type { ROLES } from "../schema"
 
 type AuthCtx = QueryCtx | MutationCtx
 type Role = (typeof ROLES)[number]
+
+/** Identité minimale accessible depuis une action (sans accès `ctx.db` → pas de chargement des rôles). */
+export type AuthIdentityForAction = {
+  userId: string
+  email: string
+  emailVerified: boolean
+}
 
 /**
  * Helpers RBAC IDN.
@@ -111,4 +118,41 @@ export async function requireVerifiedAuth(ctx: AuthCtx): Promise<AuthUser> {
     })
   }
   return user
+}
+
+/**
+ * Variante des helpers d'auth pour les `action` (qui n'ont pas accès à
+ * `ctx.db` et donc pas aux rôles `userRole`). Suffisant pour les
+ * actions citoyen comme `cv.ai.*` qui n'ont besoin que de
+ * `userId` + `emailVerified`.
+ */
+export async function requireVerifiedAuthInAction(
+  ctx: ActionCtx,
+): Promise<AuthIdentityForAction> {
+  let user
+  try {
+    user = await authComponent.getAuthUser(ctx)
+  } catch {
+    throw new ConvexError({
+      code: "UNAUTHENTICATED",
+      message: "Vous devez être connecté.",
+    })
+  }
+  if (!user) {
+    throw new ConvexError({
+      code: "UNAUTHENTICATED",
+      message: "Vous devez être connecté.",
+    })
+  }
+  if (!user.emailVerified) {
+    throw new ConvexError({
+      code: "EMAIL_NOT_VERIFIED",
+      message: "Vérifiez votre adresse email avant de continuer.",
+    })
+  }
+  return {
+    userId: user._id ?? user.userId ?? "",
+    email: user.email,
+    emailVerified: Boolean(user.emailVerified),
+  }
 }

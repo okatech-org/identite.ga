@@ -35,4 +35,12 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
   vaultUpload: { kind: "token bucket", rate: 30, period: MINUTE, capacity: 30 },
   // iDocument : opérations sensibles sur les clés (activate / changePassword).
   vaultKeyOp: { kind: "fixed window", rate: 10, period: HOUR },
+  // iCV : écritures CRUD (profile / sections / cvs.*).
+  cvWrite: { kind: "token bucket", rate: 60, period: MINUTE, capacity: 60 },
+  // iCV : appels IA (5 features) — borne quotidienne généreuse.
+  cvAi: { kind: "fixed window", rate: 10, period: HOUR * 24 },
+  // iCV : import PDF/DOCX — borne quotidienne stricte (parse coûteux).
+  cvImport: { kind: "fixed window", rate: 5, period: HOUR * 24 },
+  // iCV : export PDF serveur — cap quotidien (rendu @react-pdf coûteux).
+  cvExport: { kind: "token bucket", rate: 30, period: HOUR * 24, capacity: 30 },
 })
