@@ -91,13 +91,16 @@ export const selectProfile = mutation({
       metadata: { profileType: args.profileType, idnId },
     })
 
-    // Seed iCarte + iBoîte (idempotent — n'écrit que si vide).
+    // Seed iCarte + iBoîte + iCV (idempotent — n'écrit que si vide).
     // iDocument démarre sans données (le vault est activé manuellement par
     // le citoyen depuis l'UI, ce qui pose la `vaultKey`).
     await ctx.runMutation(internal.wallet.seedDefaultsForUser, {
       userId: user.userId,
     })
     await ctx.runMutation(internal.iboite.accounts.ensurePersonal, {
+      userId: user.userId,
+    })
+    await ctx.runMutation(internal.cv.cvs.ensureDefaultForUser, {
       userId: user.userId,
     })
 
