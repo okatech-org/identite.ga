@@ -18,6 +18,7 @@ import { Button } from "@repo/ui/components/button"
 import { Input } from "@repo/ui/components/input"
 import { cn } from "@repo/ui/lib/utils"
 
+import { AddDocumentSheet } from "./_components/add-document-sheet"
 import { FolderCard } from "./_components/folder-card"
 import { FolderView } from "./_components/folder-view"
 import { FOLDERS, type VaultFolderId } from "./_content/folders"
@@ -44,6 +45,7 @@ export default function IdocHomePage() {
   const activeFolder: VaultFolderId | null = isVaultFolderId(folderParam)
     ? folderParam
     : null
+  const addOpen = searchParams.get("add") === "1"
 
   // Navigation centralisée via search params (préserve les autres params).
   const setParams = React.useCallback(
@@ -73,6 +75,10 @@ export default function IdocHomePage() {
 
   const handleOpenAdd = React.useCallback(() => {
     setParams({ add: "1" })
+  }, [setParams])
+
+  const handleCloseAdd = React.useCallback(() => {
+    setParams({ add: null })
   }, [setParams])
 
   const handleOpenDoc = React.useCallback(
@@ -118,16 +124,25 @@ export default function IdocHomePage() {
   const loading = summary === undefined
 
   // Vue dossier — la grille reste démontée mais le layout + vault sont
-  // préservés (la page elle-même reste montée).
+  // préservés (la page elle-même reste montée). Le sheet d'ajout est rendu
+  // dans les deux branches pour que ses animations open/close jouent
+  // peu importe la vue active.
   if (activeFolder) {
     return (
-      <FolderView
-        slug={activeFolder}
-        confidential={confidential}
-        onBack={handleBackToHome}
-        onOpenAdd={handleOpenAdd}
-        onOpenDoc={handleOpenDoc}
-      />
+      <>
+        <FolderView
+          slug={activeFolder}
+          confidential={confidential}
+          onBack={handleBackToHome}
+          onOpenAdd={handleOpenAdd}
+          onOpenDoc={handleOpenDoc}
+        />
+        <AddDocumentSheet
+          open={addOpen}
+          initialFolder={activeFolder}
+          onClose={handleCloseAdd}
+        />
+      </>
     )
   }
 
@@ -230,6 +245,12 @@ export default function IdocHomePage() {
           </p>
         ) : null}
       </section>
+
+      <AddDocumentSheet
+        open={addOpen}
+        initialFolder={null}
+        onClose={handleCloseAdd}
+      />
     </>
   )
 }
