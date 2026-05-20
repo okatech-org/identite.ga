@@ -24,7 +24,7 @@ const NAV_ITEMS: readonly NavItem[] = [
   { href: "/dashboard", label: citizenNav.home },
   { href: "/icarte", label: citizenNav.icarte, disabled: true },
   { href: "/iboite", label: citizenNav.iboite, disabled: true },
-  { href: "/idoc", label: citizenNav.idoc, disabled: true },
+  { href: "/idoc", label: citizenNav.idoc },
   { href: "/icv", label: citizenNav.icv },
   { href: "/profile", label: citizenNav.profile },
   { href: "/consents", label: citizenNav.consents },

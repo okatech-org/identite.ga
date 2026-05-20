@@ -226,8 +226,8 @@ export const modules = [
     color: "#a855f7",
     bgLight: "#F3E8FF",
     bgDark: "#2A1542",
-    disabled: true,
-    disabledTooltip: "Bientôt disponible",
+    href: "/idoc" as const,
+    badge: "Nouveau",
   },
   {
     key: "icv",
