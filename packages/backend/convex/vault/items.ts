@@ -231,6 +231,10 @@ export const create = mutation({
     }
 
     const now = Date.now()
+    // Coffre E2E : le serveur ne voit que du ciphertext, il ne peut donc
+    // pas "vérifier" le contenu. On crée chaque doc directement en
+    // `verified` ; un futur scan antivirus (sur le ciphertext puis sur le
+    // plaintext côté client) pourra rétrograder un item à `rejected`.
     const id = await ctx.db.insert("vaultItem", {
       userId: user.userId,
       folderId: args.folderId,
@@ -241,7 +245,7 @@ export const create = mutation({
       metaIv: args.metaIv,
       fileType: args.fileType,
       fileSize: args.fileSize,
-      status: "pending",
+      status: "verified",
       expirationDate: args.expirationDate,
       side: args.side,
       createdAt: now,

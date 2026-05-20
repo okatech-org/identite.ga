@@ -2,11 +2,16 @@
 
 import * as React from "react"
 import { useQuery } from "convex/react"
-import { ArrowLeft, FileText, Plus } from "lucide-react"
+import {
+  ArrowLeft,
+  FileText,
+  ImageIcon,
+  Plus,
+  ShieldCheck,
+} from "lucide-react"
 
 import { api } from "@repo/backend/convex/_generated/api"
 import type { Id } from "@repo/backend/convex/_generated/dataModel"
-import { Badge } from "@repo/ui/components/badge"
 import { Button } from "@repo/ui/components/button"
 import { cn } from "@repo/ui/lib/utils"
 
@@ -31,9 +36,9 @@ type FolderViewProps = {
  * quand `?folder=<slug>` est présent. La page parente reste montée :
  * le vault et l'état local sont préservés.
  *
- * MVP : lecture des items chiffrés + déchiffrement des métadonnées via
- * `useDecryptedItems`. Aperçu (`?doc=<id>`) et ajout (`?add=1`) sont
- * implémentés aux étapes 3/4.
+ * Les documents sont affichés en grille de vignettes (cf. SPECS §3) :
+ * preview gradient du dossier, badge RECTO/VERSO si applicable, badge
+ * statut, footer avec nom + label d'expiration.
  */
 export function FolderView({
   slug,
@@ -92,28 +97,29 @@ export function FolderView({
       {/* Contenu */}
       <section className="mx-auto w-full px-5 py-6 md:px-4 md:py-8 lg:px-20">
         {loading ? (
-          <div className="space-y-2">
-            {Array.from({ length: 3 }).map((_, i) => (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
               <div
                 key={i}
-                className="h-[68px] animate-pulse rounded-xl bg-secondary"
+                className="aspect-[5/6] animate-pulse rounded-2xl bg-secondary"
               />
             ))}
           </div>
         ) : empty ? (
           <EmptyState onOpenAdd={onOpenAdd} />
         ) : (
-          <ul className="space-y-2">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-4">
             {decoded?.map((item) => (
-              <DocumentRow
+              <DocumentCard
                 key={item._id}
                 item={item}
+                folderGradient={folder.gradient}
                 confidential={confidential}
                 neverExpires={neverExpires}
                 onOpen={() => onOpenDoc(item._id)}
               />
             ))}
-          </ul>
+          </div>
         )}
       </section>
     </>
@@ -144,17 +150,21 @@ function EmptyState({ onOpenAdd }: { onOpenAdd: () => void }) {
 type DecodedItem = {
   _id: Id<"vaultItem">
   status: "pending" | "verified" | "rejected" | "expired"
+  fileType: "pdf" | "image" | "other"
   expirationDate?: string
+  side?: "front" | "back"
   metadata: Record<string, unknown> | null
 }
 
-function DocumentRow({
+function DocumentCard({
   item,
+  folderGradient,
   confidential,
   neverExpires,
   onOpen,
 }: {
   item: DecodedItem
+  folderGradient: string
   confidential: boolean
   neverExpires: boolean
   onOpen: () => void
@@ -163,67 +173,122 @@ function DocumentRow({
     typeof item.metadata?.name === "string" && item.metadata.name.trim()
       ? (item.metadata.name as string)
       : "—"
+  const statusInfo = STATUS_STYLES[item.status]
 
   return (
-    <li>
-      <button
-        type="button"
-        onClick={onOpen}
-        className="flex w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+    <button
+      type="button"
+      onClick={onOpen}
+      className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card text-left transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+    >
+      {/* Preview area */}
+      <div
+        className={cn(
+          "relative flex aspect-[5/4] items-center justify-center bg-gradient-to-br",
+          folderGradient,
+        )}
+        aria-hidden="true"
       >
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-          <FileText className="h-5 w-5" />
-        </div>
-        <div className="flex min-w-0 flex-1 flex-col">
-          <p
+        <DocPreview fileType={item.fileType} />
+
+        {/* Badge RECTO/VERSO */}
+        {item.side ? (
+          <span className="absolute left-2 top-2 rounded-md bg-foreground/85 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-background">
+            {item.side === "front"
+              ? idoc.folder.sideFront
+              : idoc.folder.sideBack}
+          </span>
+        ) : null}
+
+        {/* Badge shield statut */}
+        {statusInfo.shieldClass ? (
+          <span
             className={cn(
-              "truncate text-sm font-medium text-foreground",
-              confidential && "blur-sm select-none",
+              "absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full border-2 border-background",
+              statusInfo.shieldClass,
             )}
           >
-            {name}
-          </p>
-          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+            <ShieldCheck className="h-3 w-3" />
+          </span>
+        ) : null}
+      </div>
+
+      {/* Footer */}
+      <div className="flex flex-col gap-1 px-3 py-2.5">
+        <p
+          className={cn(
+            "truncate text-sm font-semibold text-foreground",
+            confidential && "blur-sm select-none",
+          )}
+        >
+          {name}
+        </p>
+        <div className="flex items-center gap-1.5 text-[11px]">
+          {statusInfo.label ? (
+            <span
+              className={cn(
+                "shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 font-bold uppercase tracking-wider",
+                statusInfo.badgeClass,
+              )}
+            >
+              {statusInfo.label}
+            </span>
+          ) : null}
+          <span className="truncate text-muted-foreground">
             {expirationLabel(item.expirationDate, neverExpires)}
-          </p>
+          </span>
         </div>
-        <StatusBadge status={item.status} />
-      </button>
-    </li>
+      </div>
+    </button>
   )
 }
 
 // ─────────────────────────────────────────────────────────────────────────
 
-function StatusBadge({ status }: { status: DecodedItem["status"] }) {
-  const cfg = STATUS_STYLES[status]
-  return (
-    <Badge variant="outline" className={cn("shrink-0", cfg.className)}>
-      {cfg.label}
-    </Badge>
-  )
+function DocPreview({ fileType }: { fileType: DecodedItem["fileType"] }) {
+  if (fileType === "pdf") {
+    return (
+      <span className="flex h-14 w-12 items-center justify-center rounded-sm bg-white text-[10px] font-bold tracking-wider text-foreground shadow-sm">
+        PDF
+      </span>
+    )
+  }
+  if (fileType === "image") {
+    return <ImageIcon className="h-10 w-10 text-white/90" strokeWidth={1.5} />
+  }
+  return <FileText className="h-10 w-10 text-white/90" strokeWidth={1.5} />
 }
+
+// ─────────────────────────────────────────────────────────────────────────
 
 const STATUS_STYLES: Record<
   DecodedItem["status"],
-  { label: string; className: string }
+  {
+    label: string | null
+    badgeClass: string
+    shieldClass: string | null
+  }
 > = {
   verified: {
     label: idoc.folder.status.verified,
-    className:
-      "border-idn-green/40 bg-idn-green-soft text-idn-green dark:bg-[#0F2A18] dark:text-idn-green-on-dark",
+    badgeClass:
+      "bg-idn-green-soft text-idn-green dark:bg-[#0F2A18] dark:text-idn-green-on-dark",
+    shieldClass: "bg-idn-green text-white",
   },
   pending: {
     label: idoc.folder.status.pending,
-    className: "border-border bg-secondary text-secondary-foreground",
+    badgeClass: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
+    shieldClass: "bg-amber-500 text-white",
   },
   rejected: {
     label: idoc.folder.status.rejected,
-    className: "border-destructive/40 bg-destructive/10 text-destructive",
+    badgeClass: "bg-destructive/15 text-destructive",
+    shieldClass: "bg-destructive text-white",
   },
   expired: {
     label: idoc.folder.status.expired,
-    className: "border-destructive/40 bg-destructive/10 text-destructive",
+    badgeClass: "bg-destructive/15 text-destructive",
+    shieldClass: "bg-destructive text-white",
   },
 }
 
@@ -243,17 +308,14 @@ function expirationLabel(
   const diffDays = Math.floor((ts - Date.now()) / MS_PER_DAY)
   if (diffDays < 0) return idoc.folder.expiredLabel
   if (diffDays <= 30) return idoc.folder.expiresSoonLabel(diffDays)
-  return idoc.folder.expiresLabel(formatDateFr(ts))
+  return idoc.folder.expiresLabel(humanizeDuration(diffDays))
 }
 
-function formatDateFr(timestamp: number): string {
-  try {
-    return new Intl.DateTimeFormat("fr-FR", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    }).format(new Date(timestamp))
-  } catch {
-    return new Date(timestamp).toISOString().slice(0, 10)
+function humanizeDuration(days: number): string {
+  if (days < 365) {
+    const months = Math.max(1, Math.round(days / 30))
+    return `${months} mois`
   }
+  const years = Math.round(days / 365)
+  return `${years} an${years > 1 ? "s" : ""}`
 }
