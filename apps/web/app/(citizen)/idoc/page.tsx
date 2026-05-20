@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import Link from "next/link"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useQuery } from "convex/react"
 import {
   Eye,
@@ -13,21 +13,74 @@ import {
 } from "lucide-react"
 
 import { api } from "@repo/backend/convex/_generated/api"
+import type { Id } from "@repo/backend/convex/_generated/dataModel"
 import { Button } from "@repo/ui/components/button"
 import { Input } from "@repo/ui/components/input"
 import { cn } from "@repo/ui/lib/utils"
 
 import { FolderCard } from "./_components/folder-card"
+import { FolderView } from "./_components/folder-view"
 import { FOLDERS, type VaultFolderId } from "./_content/folders"
 import { idoc } from "./_content/fr"
 import { useConfidentialMode, useOpenedFolders } from "./_hooks/use-confidential"
 
+const VALID_FOLDER_IDS = new Set<VaultFolderId>(FOLDERS.map((f) => f.id))
+
+function isVaultFolderId(value: string | null): value is VaultFolderId {
+  return value !== null && VALID_FOLDER_IDS.has(value as VaultFolderId)
+}
+
 export default function IdocHomePage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const summary = useQuery(api.vault.folders.summary, {})
   const { enabled: confidential, toggle: toggleConfidential } =
     useConfidentialMode()
-  const { isOpened } = useOpenedFolders()
+  const { isOpened, markOpened } = useOpenedFolders()
   const [query, setQuery] = React.useState("")
+
+  // Lecture des paramètres URL (cf. plan — pas de segments).
+  const folderParam = searchParams.get("folder")
+  const activeFolder: VaultFolderId | null = isVaultFolderId(folderParam)
+    ? folderParam
+    : null
+
+  // Navigation centralisée via search params (préserve les autres params).
+  const setParams = React.useCallback(
+    (patch: Record<string, string | null>) => {
+      const params = new URLSearchParams(searchParams.toString())
+      for (const [k, v] of Object.entries(patch)) {
+        if (v === null) params.delete(k)
+        else params.set(k, v)
+      }
+      const qs = params.toString()
+      router.replace(qs ? `/idoc?${qs}` : "/idoc", { scroll: false })
+    },
+    [router, searchParams],
+  )
+
+  const handleOpenFolder = React.useCallback(
+    (id: VaultFolderId) => {
+      markOpened(id)
+      setParams({ folder: id })
+    },
+    [markOpened, setParams],
+  )
+
+  const handleBackToHome = React.useCallback(() => {
+    setParams({ folder: null })
+  }, [setParams])
+
+  const handleOpenAdd = React.useCallback(() => {
+    setParams({ add: "1" })
+  }, [setParams])
+
+  const handleOpenDoc = React.useCallback(
+    (itemId: Id<"vaultItem">) => {
+      setParams({ doc: itemId })
+    },
+    [setParams],
+  )
 
   // Combine la config statique (label, icône, gradient) avec les compteurs
   // serveur (count + hasExpiring).
@@ -63,6 +116,20 @@ export default function IdocHomePage() {
   }, [folders, query])
 
   const loading = summary === undefined
+
+  // Vue dossier — la grille reste démontée mais le layout + vault sont
+  // préservés (la page elle-même reste montée).
+  if (activeFolder) {
+    return (
+      <FolderView
+        slug={activeFolder}
+        confidential={confidential}
+        onBack={handleBackToHome}
+        onOpenAdd={handleOpenAdd}
+        onOpenDoc={handleOpenDoc}
+      />
+    )
+  }
 
   return (
     <>
@@ -103,11 +170,9 @@ export default function IdocHomePage() {
                 <Eye className="h-4 w-4" />
               )}
             </button>
-            <Button asChild size="sm">
-              <Link href="/idoc/add">
-                <Plus className="h-3.5 w-3.5" />
-                {idoc.home.add}
-              </Link>
+            <Button type="button" size="sm" onClick={handleOpenAdd}>
+              <Plus className="h-3.5 w-3.5" />
+              {idoc.home.add}
             </Button>
           </div>
         </div>
@@ -154,6 +219,7 @@ export default function IdocHomePage() {
                   count={f.count}
                   hasExpiring={f.hasExpiring}
                   opened={isOpened(f.id)}
+                  onSelect={() => handleOpenFolder(f.id)}
                 />
               ))}
         </div>

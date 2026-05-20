@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import Link from "next/link"
 
 import { cn } from "@repo/ui/lib/utils"
 
@@ -14,6 +13,7 @@ export type FolderCardProps = {
   hasExpiring: boolean
   /** `true` si l'utilisateur l'a déjà ouvert (persisté localStorage). */
   opened: boolean
+  onSelect: () => void
 }
 
 /**
@@ -28,14 +28,16 @@ export function FolderCard({
   count,
   hasExpiring,
   opened,
+  onSelect,
 }: FolderCardProps) {
   const empty = count === 0
   const Icon = folder.icon
   const showOpenedPaper = !empty && opened
 
   return (
-    <Link
-      href={`/idoc/folder/${folder.id}`}
+    <button
+      type="button"
+      onClick={onSelect}
       className="group flex flex-col items-center gap-3 rounded-2xl border border-border bg-card p-4 text-center transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       aria-label={`${folder.label} — ${idoc.home.folderCount(count)}`}
     >
@@ -85,6 +87,6 @@ export function FolderCard({
           {idoc.home.folderCount(count)}
         </p>
       </div>
-    </Link>
+    </button>
   )
 }
