@@ -147,18 +147,6 @@ export const idoc = {
     notFound: "Document introuvable.",
     loading: "Chargement…",
   },
-  request: {
-    title: "Demander un Document",
-    sub: "Faites une demande de document officiel en ligne",
-    backToList: "Retour à iDocument",
-    sectionInProgress: "DEMANDES EN COURS",
-    sectionAvailable: "TYPES DE DOCUMENTS DISPONIBLES",
-    submitCta: "Envoyer la demande",
-    requestedOn: (requestedDate: string, expectedDate: string) =>
-      `Demandé le ${requestedDate} · Prévu le ${expectedDate}`,
-    submitSuccess: "Demande enregistrée.",
-    submitError: "Échec de l'envoi.",
-  },
   toasts: {
     documentAdded: "Document ajouté.",
     documentDeleted: "Document supprimé.",

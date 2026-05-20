@@ -9,7 +9,6 @@ import {
   FileText,
   Plus,
   Search,
-  Send,
   Sparkles,
 } from "lucide-react"
 
@@ -104,12 +103,6 @@ export default function IdocHomePage() {
                 <Eye className="h-4 w-4" />
               )}
             </button>
-            <Button asChild variant="outline" size="sm" className="hidden md:inline-flex">
-              <Link href="/idoc/request">
-                <Send className="h-3.5 w-3.5" />
-                Demander
-              </Link>
-            </Button>
             <Button asChild size="sm">
               <Link href="/idoc/add">
                 <Plus className="h-3.5 w-3.5" />

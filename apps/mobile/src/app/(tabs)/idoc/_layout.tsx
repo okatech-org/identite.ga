@@ -10,7 +10,6 @@ export default function IDocLayout() {
         <Stack.Screen name="preview/[id]" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.95] }} />
         <Stack.Screen name="add" />
         <Stack.Screen name="add-success" />
-        <Stack.Screen name="request" />
       </Stack>
     </VaultGate>
   );
