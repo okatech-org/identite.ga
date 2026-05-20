@@ -19,6 +19,7 @@ import { Input } from "@repo/ui/components/input"
 import { cn } from "@repo/ui/lib/utils"
 
 import { AddDocumentSheet } from "./_components/add-document-sheet"
+import { DocumentPreviewSheet } from "./_components/document-preview-sheet"
 import { FolderCard } from "./_components/folder-card"
 import { FolderView } from "./_components/folder-view"
 import { FOLDERS, type VaultFolderId } from "./_content/folders"
@@ -46,6 +47,10 @@ export default function IdocHomePage() {
     ? folderParam
     : null
   const addOpen = searchParams.get("add") === "1"
+  const docParam = searchParams.get("doc")
+  const activeDocId: Id<"vaultItem"> | null = docParam
+    ? (docParam as Id<"vaultItem">)
+    : null
 
   // Navigation centralisée via search params (préserve les autres params).
   const setParams = React.useCallback(
@@ -87,6 +92,10 @@ export default function IdocHomePage() {
     },
     [setParams],
   )
+
+  const handleCloseDoc = React.useCallback(() => {
+    setParams({ doc: null })
+  }, [setParams])
 
   // Combine la config statique (label, icône, gradient) avec les compteurs
   // serveur (count + hasExpiring).
@@ -141,6 +150,11 @@ export default function IdocHomePage() {
           open={addOpen}
           initialFolder={activeFolder}
           onClose={handleCloseAdd}
+        />
+        <DocumentPreviewSheet
+          open={!!activeDocId}
+          itemId={activeDocId}
+          onClose={handleCloseDoc}
         />
       </>
     )
@@ -250,6 +264,11 @@ export default function IdocHomePage() {
         open={addOpen}
         initialFolder={null}
         onClose={handleCloseAdd}
+      />
+      <DocumentPreviewSheet
+        open={!!activeDocId}
+        itemId={activeDocId}
+        onClose={handleCloseDoc}
       />
     </>
   )
