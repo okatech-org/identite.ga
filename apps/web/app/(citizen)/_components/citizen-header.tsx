@@ -22,7 +22,7 @@ type NavItem = {
 
 const NAV_ITEMS: readonly NavItem[] = [
   { href: "/dashboard", label: citizenNav.home },
-  { href: "/icarte", label: citizenNav.icarte, disabled: true },
+  { href: "/icarte", label: citizenNav.icarte },
   { href: "/iboite", label: citizenNav.iboite, disabled: true },
   { href: "/idoc", label: citizenNav.idoc },
   { href: "/icv", label: citizenNav.icv },

@@ -19,6 +19,7 @@
     "@zxcvbn-ts/language-en": "^3.0.2",
     "@zxcvbn-ts/language-fr": "^3.0.2",
     "convex": "^1.38.0",
+    "framer-motion": "^12.23.24",
     "next": "16.2.0",
     "postcss": "^8.5.14",
     "qrcode.react": "^4.2.0",

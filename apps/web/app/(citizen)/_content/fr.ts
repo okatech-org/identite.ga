@@ -193,7 +193,6 @@ export function formatVerifiedDocuments(types: readonly string[]): string {
 /**
  * Modules personnels IDN (iCarte, iBoîte, iDocument, iCV).
  * Alignés sur HOME_MODULES de l'app mobile et la maquette CWHome.
- * Seul `iCV` dispose d'une page web ; les autres sont en `disabled`.
  */
 export const modules = [
   {
@@ -204,8 +203,8 @@ export const modules = [
     color: "#0E7C3A",
     bgLight: "#E6F2EA",
     bgDark: "#0F2A18",
-    disabled: true,
-    disabledTooltip: "Bientôt disponible",
+    href: "/icarte" as const,
+    badge: "Nouveau",
   },
   {
     key: "iboite",

@@ -92,12 +92,11 @@ export function UserMenu({ user, className, triggerLabel }: UserMenuProps) {
             <span>Tableau de bord</span>
           </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem disabled>
-          <WalletIcon aria-hidden="true" />
-          <span>iCarte</span>
-          <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
-            Bientôt
-          </span>
+        <DropdownMenuItem asChild>
+          <Link href="/icarte">
+            <WalletIcon aria-hidden="true" />
+            <span>iCarte</span>
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuItem disabled>
           <InboxIcon aria-hidden="true" />
