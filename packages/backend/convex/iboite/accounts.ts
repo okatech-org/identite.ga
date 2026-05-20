@@ -41,6 +41,11 @@ const ACCOUNT_OUT = v.object({
   city: v.string(),
   postalCode: v.string(),
   country: v.string(),
+  isAddressConfigured: v.boolean(),
+  latitude: v.union(v.number(), v.null()),
+  longitude: v.union(v.number(), v.null()),
+  district: v.union(v.string(), v.null()),
+  addressLine: v.union(v.string(), v.null()),
   qrCode: v.string(),
   counters: COUNTERS_OUT,
   createdAt: v.number(),
@@ -105,6 +110,11 @@ function serializeAccount(a: Doc<"iboiteAccount">) {
     city: a.city,
     postalCode: a.postalCode,
     country: a.country,
+    isAddressConfigured: a.isAddressConfigured === true,
+    latitude: a.latitude ?? null,
+    longitude: a.longitude ?? null,
+    district: a.district ?? null,
+    addressLine: a.addressLine ?? null,
     qrCode: a.qrCode,
     counters: a.counters,
     createdAt: a.createdAt,
@@ -169,6 +179,73 @@ export const setLabel = mutation({
   },
 })
 
+/**
+ * Configure ou met à jour l'adresse postale du compte (par le citoyen
+ * lui-même). Tous les champs sont optionnels individuellement mais on exige
+ * **au moins une coordonnée GPS** ou **une ville** pour permettre la livraison
+ * physique. Marque `isAddressConfigured: true` à la fin.
+ *
+ * Pour la V1 (Gabon), pas de validation stricte de format — l'urbanisme local
+ * ne le permet pas. Le geocoding (reverse) est fait côté client (Nominatim),
+ * on stocke ce que le geocoder a renvoyé + ce que l'utilisateur a édité.
+ */
+export const setAddress = mutation({
+  args: {
+    accountId: v.id("iboiteAccount"),
+    latitude: v.optional(v.number()),
+    longitude: v.optional(v.number()),
+    district: v.optional(v.string()),
+    addressLine: v.optional(v.string()),
+    street: v.optional(v.string()),
+    city: v.optional(v.string()),
+    postalCode: v.optional(v.string()),
+    country: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const user = await requireAuth(ctx)
+    const account = await loadOwnedAccount(ctx, args.accountId, user.userId)
+
+    const hasGps =
+      typeof args.latitude === "number" && typeof args.longitude === "number"
+    const hasCity = (args.city ?? "").trim().length > 0
+    if (!hasGps && !hasCity) {
+      throw new ConvexError({
+        code: "INVALID",
+        message:
+          "Indiquez au moins votre ville ou activez la géolocalisation.",
+      })
+    }
+    if (hasGps) {
+      if (
+        args.latitude! < -90 ||
+        args.latitude! > 90 ||
+        args.longitude! < -180 ||
+        args.longitude! > 180
+      ) {
+        throw new ConvexError({
+          code: "INVALID",
+          message: "Coordonnées GPS invalides.",
+        })
+      }
+    }
+
+    await ctx.db.patch(account._id, {
+      latitude: args.latitude ?? undefined,
+      longitude: args.longitude ?? undefined,
+      district: args.district?.trim() || undefined,
+      addressLine: args.addressLine?.trim() || undefined,
+      street: (args.street ?? "").trim(),
+      city: (args.city ?? "").trim(),
+      postalCode: (args.postalCode ?? "").trim(),
+      country: (args.country ?? "Gabon").trim() || "Gabon",
+      isAddressConfigured: true,
+      updatedAt: Date.now(),
+    })
+    return null
+  },
+})
+
 // ─────────────────────────────────────────────────────────────────────────
 // Internal — appelé depuis onboarding.selectProfile
 // ─────────────────────────────────────────────────────────────────────────
@@ -207,13 +284,14 @@ export const ensurePersonal = internalMutation({
       type: "personal",
       label: "Personnel",
       emailAlias,
-      // Adresse postale virtuelle (point relais idn.ga) — valeurs par défaut
-      // alignées avec les maquettes ; le citoyen ne peut pas les modifier
-      // (V1) — c'est une adresse fournie par IDN.
-      street: "Avenue du Colonel Parant",
-      city: "Libreville",
-      postalCode: "BP 1000",
+      // Adresse vide à la création — le citoyen la configure depuis l'UI
+      // iBoîte (géolocalisation GPS prioritaire, saisie manuelle en fallback).
+      // Au Gabon les adresses formelles sont rares — voir `setAddress`.
+      street: "",
+      city: "",
+      postalCode: "",
       country: "Gabon",
+      isAddressConfigured: false,
       qrCode,
       counters: emptyCounters(),
       createdAt: now,

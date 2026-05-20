@@ -214,8 +214,8 @@ export const modules = [
     color: "#3b82f6",
     bgLight: "#E6EEF7",
     bgDark: "#10243A",
-    disabled: true,
-    disabledTooltip: "Bientôt disponible",
+    href: "/iboite" as const,
+    badge: "Nouveau",
   },
   {
     key: "idoc",

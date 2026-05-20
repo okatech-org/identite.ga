@@ -51,7 +51,7 @@ type ConnectedLink = {
 const CONNECTED_LINKS: readonly ConnectedLink[] = [
   { href: "/dashboard", label: userMenu.dashboard, icon: HomeIcon },
   { href: "/icarte", label: userMenu.icarte, icon: WalletIcon },
-  { href: "/iboite", label: userMenu.iboite, icon: InboxIcon, disabled: true },
+  { href: "/iboite", label: userMenu.iboite, icon: InboxIcon },
   { href: "/idoc", label: userMenu.idoc, icon: FolderIcon },
   { href: "/icv", label: userMenu.icv, icon: FileSignatureIcon },
   { href: "/profile", label: userMenu.profile, icon: UserIcon },

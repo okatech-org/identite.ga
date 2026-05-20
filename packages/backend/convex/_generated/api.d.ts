@@ -11,6 +11,7 @@
 import type * as _dev_listLatestLogs from "../_dev/listLatestLogs.js";
 import type * as _dev_listRoles from "../_dev/listRoles.js";
 import type * as _dev_rebuildAggregates from "../_dev/rebuildAggregates.js";
+import type * as _dev_resetIboiteAddresses from "../_dev/resetIboiteAddresses.js";
 import type * as account from "../account.js";
 import type * as activity from "../activity.js";
 import type * as admin_auditLogs from "../admin/auditLogs.js";
@@ -80,7 +81,6 @@ import type * as oauthAuthorize from "../oauthAuthorize.js";
 import type * as oauthConsents from "../oauthConsents.js";
 import type * as onboarding from "../onboarding.js";
 import type * as preferences from "../preferences.js";
-import type * as presentation from "../presentation.js";
 import type * as privacy from "../privacy.js";
 import type * as profile from "../profile.js";
 import type * as rateLimiter from "../rateLimiter.js";
@@ -104,6 +104,7 @@ declare const fullApi: ApiFromModules<{
   "_dev/listLatestLogs": typeof _dev_listLatestLogs;
   "_dev/listRoles": typeof _dev_listRoles;
   "_dev/rebuildAggregates": typeof _dev_rebuildAggregates;
+  "_dev/resetIboiteAddresses": typeof _dev_resetIboiteAddresses;
   account: typeof account;
   activity: typeof activity;
   "admin/auditLogs": typeof admin_auditLogs;
@@ -173,7 +174,6 @@ declare const fullApi: ApiFromModules<{
   oauthConsents: typeof oauthConsents;
   onboarding: typeof onboarding;
   preferences: typeof preferences;
-  presentation: typeof presentation;
   privacy: typeof privacy;
   profile: typeof profile;
   rateLimiter: typeof rateLimiter;

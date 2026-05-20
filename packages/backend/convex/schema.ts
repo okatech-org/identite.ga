@@ -509,11 +509,21 @@ export default defineSchema({
     type: v.union(...IBOITE_ACCOUNT_TYPES.map((t) => v.literal(t))),
     label: v.string(),
     emailAlias: v.string(), // ex "jean.dupont@idn.ga" — alias interne, pas SMTP
-    // Adresse postale virtuelle (point relais idn.ga)
+    // Adresse postale physique du citoyen. Au Gabon les adresses formelles
+    // sont rares — on privilégie la géolocalisation GPS + un quartier libre.
+    // Les champs sont vides tant que `isAddressConfigured` est false.
     street: v.string(),
     city: v.string(),
     postalCode: v.string(),
     country: v.string(),
+    // Adresse étendue (config V2). Les anciens comptes n'ont pas ces champs —
+    // l'absence ou `isAddressConfigured !== true` doit déclencher le flow de
+    // configuration dans l'UI.
+    isAddressConfigured: v.optional(v.boolean()),
+    latitude: v.optional(v.number()),
+    longitude: v.optional(v.number()),
+    district: v.optional(v.string()), // quartier (Akanda, Glass, Nzeng-Ayong…)
+    addressLine: v.optional(v.string()), // libellé formaté (geocoder ou saisi)
     qrCode: v.string(), // identifiant unique global, ex "IDNGA-12345"
     // Compteurs dénormalisés — maintenus par les mutations métier pour éviter
     // les .collect().length sur les listes (cf. Convex guidelines).
