@@ -60,15 +60,10 @@ export default function EmailDetail() {
     }
   }
 
-  const replyTo = email.senderKind === 'admin' ? email.senderEmail : email.senderEmail;
-  const replyBody = `\n\n--- Message d'origine ---\nDe : ${email.senderName} <${email.senderEmail}>\nDate : ${date}\nObjet : ${email.subject}\n\n${email.body}`;
-  const replyHref =
-    `/iboite/compose?to=${encodeURIComponent(replyTo)}` +
-    `&subject=${encodeURIComponent(`Re: ${email.subject.replace(/^Re:\s*/i, '')}`)}` +
-    `&body=${encodeURIComponent(replyBody)}`;
-  const fwdHref =
-    `/iboite/compose?subject=${encodeURIComponent(`Tr: ${email.subject.replace(/^(Re|Tr|Fwd):\s*/i, '')}`)}` +
-    `&body=${encodeURIComponent(replyBody)}`;
+  // Plus de bricolage URL : on passe `replyToId` au compose qui ira lire le
+  // message d'origine via Convex et pré-remplira destinataire/objet/citation.
+  const replyHref = `/iboite/compose?replyToId=${id}`;
+  const fwdHref = `/iboite/compose?replyToId=${id}&mode=forward`;
 
   async function onArchive() {
     Alert.alert(

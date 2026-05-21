@@ -10,62 +10,29 @@ import { IdnButton } from '@/design/components/idn-button';
 import { Icon } from '@/design/icons';
 import { api } from '@/lib/api';
 
-export default function IBoiteCompose() {
+/**
+ * Composition d'un courrier physique iBoîte (équivalent mobile du
+ * `LetterComposeModal` web). Sans éditeur riche dans cette première
+ * mouture mobile — un textarea suffit. Les PJ sont à ajouter dans un
+ * second passage (expo-document-picker → generateUploadUrl → send).
+ */
+export default function IBoiteCourrierCompose() {
   const t = useIdnTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{
-    to?: string;
-    subject?: string;
-    body?: string;
-    replyToId?: string;
-    mode?: 'reply' | 'forward';
-  }>();
+  const params = useLocalSearchParams<{ to?: string; subject?: string; body?: string }>();
   const { isAuthenticated } = useConvexAuth();
   const accounts = useQuery(api.iboite.accounts.listMine, isAuthenticated ? {} : 'skip');
-  const send = useMutation(api.iboite.messages.send);
-  // Réponse / transfert : on lit le message d'origine via Convex pour
-  // pré-remplir proprement destinataire / objet / citation (au lieu de
-  // tout passer en query params).
-  const replyToId = (params.replyToId as string | undefined) ?? null;
-  const mode = (params.mode as 'reply' | 'forward' | undefined) ?? 'reply';
-  const original = useQuery(
-    api.iboite.messages.get,
-    isAuthenticated && replyToId ? { messageId: replyToId as never } : 'skip',
-  );
-
+  const send = useMutation(api.iboite.letters.send);
   const [accountId, setAccountId] = useState<string | null>(null);
   const [toEmail, setToEmail] = useState((params.to as string | undefined) ?? '');
-  const [toName, setToName] = useState('');
   const [subject, setSubject] = useState((params.subject as string | undefined) ?? '');
   const [body, setBody] = useState((params.body as string | undefined) ?? '');
   const [submitting, setSubmitting] = useState(false);
-  // Sentinel pour ne pré-remplir qu'une seule fois (sinon l'effet ré-écrase
-  // les modifs que l'utilisateur fait pendant la frappe).
-  const [prefilled, setPrefilled] = useState(false);
 
   useEffect(() => {
     if (!accountId && accounts && accounts.length > 0) setAccountId(accounts[0]._id);
   }, [accounts, accountId]);
-
-  useEffect(() => {
-    if (prefilled || !original) return;
-    const stripPrefix = (s: string) => s.replace(/^(Re|Tr|Fwd):\s*/i, '');
-    const date = new Date(original.createdAt).toLocaleString('fr-FR', {
-      day: 'numeric', month: 'long', year: 'numeric',
-      hour: '2-digit', minute: '2-digit',
-    });
-    const quote = `\n\n--- Message d'origine ---\nDe : ${original.senderName} <${original.senderEmail}>\nDate : ${date}\nObjet : ${original.subject}\n\n${original.body}`;
-    if (mode === 'forward') {
-      setSubject((prev) => prev || `Tr: ${stripPrefix(original.subject)}`);
-    } else {
-      setToEmail((prev) => prev || original.senderEmail);
-      setToName((prev) => prev || original.senderName);
-      setSubject((prev) => prev || `Re: ${stripPrefix(original.subject)}`);
-    }
-    setBody((prev) => prev || quote);
-    setPrefilled(true);
-  }, [original, mode, prefilled]);
 
   const senderEmail = accounts?.find((a) => a._id === accountId)?.emailAlias ?? '—';
 
@@ -75,16 +42,16 @@ export default function IBoiteCompose() {
       Alert.alert('Aucun compte', 'Aucun compte iBoîte actif.');
       return;
     }
-    if (!toEmail.trim() || !toEmail.includes('@')) {
-      Alert.alert('Destinataire invalide', 'Saisissez une adresse email valide.');
+    if (!toEmail.trim()) {
+      Alert.alert('Destinataire requis', 'Saisissez une adresse iBoîte (login ou alias @idn.ga).');
       return;
     }
     if (!subject.trim()) {
-      Alert.alert('Objet requis', 'Donnez un objet à votre message.');
+      Alert.alert('Objet requis', 'Donnez un objet à votre courrier.');
       return;
     }
     if (!body.trim()) {
-      Alert.alert('Message vide', 'Écrivez votre message.');
+      Alert.alert('Courrier vide', 'Écrivez le contenu de votre courrier.');
       return;
     }
     setSubmitting(true);
@@ -92,7 +59,6 @@ export default function IBoiteCompose() {
       await send({
         accountId: accountId as never,
         recipientEmail: toEmail.trim().toLowerCase(),
-        recipientName: toName.trim() || toEmail.trim().split('@')[0],
         subject: subject.trim(),
         body: body.trim(),
       });
@@ -107,7 +73,7 @@ export default function IBoiteCompose() {
     <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top }}>
       <NSheetHeader
         t={t}
-        title="Nouveau message"
+        title="Nouveau courrier"
         onBack={() => router.back()}
         right={
           <Pressable onPress={submit} disabled={submitting} style={{ padding: 4 }}>
@@ -125,20 +91,10 @@ export default function IBoiteCompose() {
           <TextInput
             value={toEmail}
             onChangeText={setToEmail}
-            placeholder="destinataire@…"
+            placeholder="login ou destinataire@idn.ga"
             placeholderTextColor={t.muted}
             autoCapitalize="none"
             keyboardType="email-address"
-            style={{ flex: 1, fontSize: 13, color: t.ink }}
-          />
-        </View>
-        <View style={{ borderBottomWidth: 1, borderBottomColor: t.borderSoft, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Text style={{ fontSize: 12, color: t.muted, width: 36, fontWeight: '500' }}>Nom</Text>
-          <TextInput
-            value={toName}
-            onChangeText={setToName}
-            placeholder="Nom du destinataire (optionnel)"
-            placeholderTextColor={t.muted}
             style={{ flex: 1, fontSize: 13, color: t.ink }}
           />
         </View>
@@ -154,7 +110,7 @@ export default function IBoiteCompose() {
         <TextInput
           value={body}
           onChangeText={setBody}
-          placeholder="Votre message…"
+          placeholder="Rédigez votre courrier…"
           placeholderTextColor={t.muted}
           multiline
           textAlignVertical="top"
@@ -162,7 +118,10 @@ export default function IBoiteCompose() {
         />
       </View>
       <View style={{ borderTopWidth: 1, borderTopColor: t.borderSoft, backgroundColor: t.surface, paddingHorizontal: 14, paddingTop: 10, paddingBottom: Math.max(insets.bottom, 10), flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-        <Pressable style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8 }}>
+        <Pressable
+          onPress={() => Alert.alert('Bientôt disponible', 'Les pièces jointes seront ajoutées dans une prochaine version.')}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8 }}
+        >
           <Icon name="paper" size={14} color={t.ink2} />
           <Text style={{ color: t.ink2, fontSize: 12, fontWeight: '500' }}>Joindre</Text>
         </Pressable>

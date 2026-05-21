@@ -97,6 +97,7 @@ export default function IBoiteHome() {
           folder={letterFolder}
           onFolder={setLetterFolder}
           onOpen={(id) => router.push(`/iboite/courrier/${id}` as never)}
+          onCompose={() => router.push('/iboite/courrier/compose' as never)}
         />
       ) : null}
       {tab === 'colis' ? <ColisTab accountId={account._id as never} qr={accUi.addr.qr} /> : null}
@@ -118,11 +119,13 @@ function CourriersTab({
   folder,
   onFolder,
   onOpen,
+  onCompose,
 }: {
   accountId: string;
   folder: LetterFolder;
   onFolder: (f: LetterFolder) => void;
   onOpen: (id: string) => void;
+  onCompose: () => void;
 }) {
   const t = useIdnTheme();
   const insets = useSafeAreaInsets();
@@ -208,6 +211,28 @@ function CourriersTab({
           ))
         )}
       </ScrollView>
+      <Pressable
+        onPress={onCompose}
+        accessibilityLabel="Nouveau courrier"
+        style={{
+          position: 'absolute',
+          right: 16,
+          bottom: insets.bottom + 24,
+          width: 52,
+          height: 52,
+          borderRadius: 9999,
+          backgroundColor: idnTokens.green,
+          alignItems: 'center',
+          justifyContent: 'center',
+          shadowColor: idnTokens.green,
+          shadowOpacity: 0.36,
+          shadowRadius: 20,
+          shadowOffset: { width: 0, height: 8 },
+          elevation: 8,
+        }}
+      >
+        <Icon name="plus" size={22} color="#fff" />
+      </Pressable>
     </View>
   );
 }
