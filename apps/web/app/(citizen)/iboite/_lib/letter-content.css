@@ -1,0 +1,133 @@
+/* Styles de la feuille de courrier (A4) et de son contenu rédigé via TipTap.
+ *
+ * IMPORTANT — Le courrier est une feuille papier A4. Elle reste BLANCHE et
+ * le texte reste FONCÉ, peu importe le thème de l'app (dark/light). Aucun
+ * sélecteur `.dark` ne doit changer ces couleurs ici : sinon l'export PDF
+ * embarque le mode sombre, et l'éditeur affiche du blanc sur blanc.
+ *
+ * Deux classes complémentaires :
+ *  - `.letter-paper` : conteneur fixe au format A4 (210×297mm min), fond
+ *    blanc, scrollable verticalement si le contenu déborde, ombre légère.
+ *  - `.letter-content` : styles tags HTML (p, h1, listes, hr, blockquote…)
+ *    appliqués sur le conteneur du HTML émis par TipTap.
+ */
+
+.letter-paper {
+  /* Couleurs forcées — la feuille A4 reste claire en dark/light. */
+  background: #ffffff;
+  color: #1a1a1a;
+  color-scheme: light;
+
+  /* Format A4 portrait — 210mm × 297mm. `min-height` permet aux courriers
+   * longs de pousser la hauteur (multi-pages PDF). */
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  padding: 25mm 22mm;
+  box-sizing: border-box;
+
+  /* Aspect "feuille flottante" — ombre douce qui distingue du fond gris. */
+  border-radius: 2px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.letter-content {
+  font-family: Georgia, "Times New Roman", serif;
+  /* Sous `.letter-paper` la couleur est forcée à #1a1a1a ; dans un autre
+   * contexte (ex. preview de liste — actuellement non utilisé), le parent
+   * dicte la couleur. */
+}
+
+.letter-content p {
+  margin: 0 0 0.6em;
+}
+.letter-content p:last-child {
+  margin-bottom: 0;
+}
+
+.letter-content h1 {
+  font-size: 1.5em;
+  font-weight: 700;
+  margin: 0.8em 0 0.4em;
+  line-height: 1.3;
+}
+.letter-content h2 {
+  font-size: 1.25em;
+  font-weight: 700;
+  margin: 0.7em 0 0.35em;
+  line-height: 1.3;
+}
+.letter-content h3 {
+  font-size: 1.1em;
+  font-weight: 700;
+  margin: 0.6em 0 0.3em;
+  line-height: 1.3;
+}
+
+.letter-content strong,
+.letter-content b {
+  font-weight: 700;
+}
+.letter-content em,
+.letter-content i {
+  font-style: italic;
+}
+.letter-content u {
+  text-decoration: underline;
+}
+
+.letter-content ul,
+.letter-content ol {
+  margin: 0.5em 0 0.8em;
+  padding-left: 1.5em;
+}
+.letter-content ul {
+  list-style-type: disc;
+}
+.letter-content ol {
+  list-style-type: decimal;
+}
+.letter-content li {
+  margin: 0.15em 0;
+}
+.letter-content li > p {
+  margin: 0;
+}
+
+.letter-content hr {
+  border: 0;
+  border-top: 1px solid #d6d2c4;
+  margin: 1.2em 0;
+}
+
+.letter-content img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0.6em 0;
+}
+
+.letter-content a {
+  color: #0e7c3a;
+  text-decoration: underline;
+}
+
+.letter-content blockquote {
+  border-left: 3px solid #d6d2c4;
+  padding-left: 0.8em;
+  margin: 0.6em 0;
+  color: #555;
+  font-style: italic;
+}
+
+/* Placeholder TipTap : affiche un texte d'aide sur le premier paragraphe
+ * vide pour guider l'utilisateur quand il commence un courrier. */
+.letter-content p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #a3a3a3;
+  pointer-events: none;
+  height: 0;
+}

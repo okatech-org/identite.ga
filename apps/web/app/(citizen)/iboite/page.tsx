@@ -3,7 +3,6 @@
 import * as React from "react"
 import { useQuery } from "convex/react"
 import { ArrowLeftIcon, PlusIcon, SendIcon } from "lucide-react"
-import { toast } from "sonner"
 
 import { api } from "@repo/backend/convex/_generated/api"
 import type { Id } from "@repo/backend/convex/_generated/dataModel"
@@ -26,6 +25,7 @@ import {
 import { EmailDetail } from "./_components/email-detail"
 import { EmailFolderList } from "./_components/email-folder-list"
 import { EmailList } from "./_components/email-list"
+import { LetterComposeModal } from "./_components/letter-compose-modal"
 import { SectionTabs } from "./_components/section-tabs"
 import { iboite } from "./_content/fr"
 import { useIBoiteState } from "./_hooks/use-iboite-state"
@@ -111,6 +111,7 @@ export default function IBoitePage() {
                 active={state.courrierFolder}
                 counters={account.counters}
                 onChange={state.setCourrierFolder}
+                onCompose={() => state.openCompose()}
               />
               {state.selectedId ? (
                 <CourrierActionsPanel
@@ -234,7 +235,7 @@ export default function IBoitePage() {
           {state.section === "courriers" && !itemOpen ? (
             <button
               type="button"
-              onClick={() => toast.info(iboite.toasts.soonAvailable)}
+              onClick={() => state.openCompose()}
               aria-label={iboite.courriers.newLetter}
               className="absolute bottom-4 right-4 inline-flex items-center justify-center rounded-full bg-idn-green text-white shadow-lg shadow-idn-green/40 hover:bg-idn-green/90 md:hidden"
               style={{ height: 52, width: 52 }}
@@ -245,7 +246,7 @@ export default function IBoitePage() {
         </section>
       </div>
 
-      {state.composeOpen ? (
+      {state.composeOpen && state.section === "emails" ? (
         <ComposeModal
           accountId={account._id}
           onClose={state.closeCompose}
@@ -254,6 +255,13 @@ export default function IBoitePage() {
               ? (state.replyToId as Id<"iboiteMessage">)
               : undefined
           }
+        />
+      ) : null}
+
+      {state.composeOpen && state.section === "courriers" ? (
+        <LetterComposeModal
+          accountId={account._id}
+          onClose={state.closeCompose}
         />
       ) : null}
 

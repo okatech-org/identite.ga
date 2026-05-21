@@ -8,7 +8,6 @@ import {
   SendIcon,
   Trash2Icon,
 } from "lucide-react"
-import { toast } from "sonner"
 
 import { Button } from "@repo/ui/components/button"
 import { cn } from "@repo/ui/lib/utils"
@@ -36,10 +35,12 @@ export function CourrierFolderList({
   active,
   counters,
   onChange,
+  onCompose,
 }: {
   active: CourrierFolder
   counters: Counters
   onChange: (folder: CourrierFolder) => void
+  onCompose: () => void
 }) {
   return (
     <>
@@ -123,12 +124,7 @@ export function CourrierFolderList({
             )
           })}
         </ul>
-        <Button
-          type="button"
-          size="sm"
-          className="w-full"
-          onClick={() => toast.info(iboite.toasts.soonAvailable)}
-        >
+        <Button type="button" size="sm" className="w-full" onClick={onCompose}>
           <PlusIcon className="h-3.5 w-3.5" aria-hidden="true" />
           {iboite.courriers.newLetter}
         </Button>

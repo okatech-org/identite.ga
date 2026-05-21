@@ -1,6 +1,6 @@
 "use client"
 
-import { useMutation } from "convex/react"
+import { useMutation, useQuery } from "convex/react"
 import { toast } from "sonner"
 
 import { api } from "@repo/backend/convex/_generated/api"
@@ -16,6 +16,9 @@ export function useCourrierActions({
   onAfterMove: () => void
 }) {
   const move = useMutation(api.iboite.letters.move)
+  // Lit le sujet pour nommer le fichier PDF. La query est déjà chargée par
+  // `CourrierDetail` au même moment, donc Convex la déduplique.
+  const letter = useQuery(api.iboite.letters.get, { letterId })
 
   async function moveTo(target: "pending" | "trash") {
     try {
@@ -35,8 +38,33 @@ export function useCourrierActions({
     if (typeof window !== "undefined") window.print()
   }
 
-  function onDownload() {
-    toast.info(iboite.toasts.soonAvailable)
+  /**
+   * Capture la feuille A4 du courrier ouvert (sélecteur stable
+   * `[data-letter-paper={letterId}]`) et déclenche le téléchargement d'un
+   * PDF rendu via jsPDF + html2canvas-pro.
+   *
+   * Le module `letter-pdf` est chargé en `await import()` car jspdf dépend
+   * de `fflate` qui référence `worker_threads` dans son bundle CJS — Next.js
+   * échoue à le bundler en SSR. L'import dynamique le laisse côté client.
+   */
+  async function onDownload() {
+    if (typeof document === "undefined") return
+    const paper = document.querySelector<HTMLElement>(
+      `[data-letter-paper="${letterId}"]`,
+    )
+    if (!paper) {
+      toast.error(iboite.toasts.downloadFailed)
+      return
+    }
+    try {
+      const { exportLetterToPdf, safeFilename } = await import(
+        "../_lib/letter-pdf"
+      )
+      const filename = `${safeFilename(letter?.subject ?? iboite.courriers.newLetter)}.pdf`
+      await exportLetterToPdf(paper, filename)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : iboite.toasts.downloadFailed)
+    }
   }
 
   function onReply() {

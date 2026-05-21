@@ -168,8 +168,20 @@ export const iboite = {
     },
   },
 
+  letterCompose: {
+    title: "Nouveau courrier",
+    errors: {
+      attachmentTooLarge: (max: string) =>
+        `Pièce jointe trop volumineuse (max ${max}).`,
+      imageUploadFailed: "Impossible d'insérer l'image. Réessayez.",
+      removeAttachment: (name: string) => `Retirer la pièce jointe ${name}`,
+    },
+  },
+
   toasts: {
     sent: "Message envoyé.",
+    letterSent: "Courrier envoyé.",
+    downloadFailed: "Téléchargement impossible.",
     movedToPending: "Courrier déplacé vers « À traiter ».",
     movedToTrash: "Courrier supprimé.",
     emailDeleted: "Message supprimé.",
