@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { useMutation } from "convex/react"
+import { ConvexError } from "convex/values"
 import { PaperclipIcon, SendIcon } from "lucide-react"
 import { toast } from "sonner"
 
@@ -39,8 +40,18 @@ export function ComposeModal({
     e?.preventDefault()
     if (submitting) return
     const trimmedTo = to.trim().toLowerCase()
-    if (!trimmedTo || !trimmedTo.includes("@")) {
+    if (!trimmedTo) {
       toast.error(iboite.compose.errors.invalidRecipient)
+      return
+    }
+    // Mode tolérant : si l'utilisateur tape juste « jean.dupont »,
+    // on suffixe automatiquement le domaine iBoîte. Si un autre domaine
+    // est saisi, on rejette tout de suite côté client.
+    const normalizedTo = trimmedTo.includes("@")
+      ? trimmedTo
+      : `${trimmedTo}@idn.ga`
+    if (!normalizedTo.endsWith("@idn.ga")) {
+      toast.error(iboite.compose.errors.invalidDomain)
       return
     }
     if (!subject.trim()) {
@@ -55,17 +66,33 @@ export function ComposeModal({
     try {
       await send({
         accountId,
-        recipientEmail: trimmedTo,
-        recipientName: trimmedTo.split("@")[0] ?? trimmedTo,
+        recipientEmail: normalizedTo,
+        recipientName: normalizedTo.split("@")[0] ?? normalizedTo,
         subject: subject.trim(),
         body: body.trim(),
       })
       toast.success(iboite.toasts.sent)
       onClose()
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : iboite.compose.errors.sendFailed,
-      )
+      // Erreur métier ConvexError → on lit `.data.code` pour afficher le
+      // message i18n correspondant (RECIPIENT_UNKNOWN, INVALID_DOMAIN…).
+      // Sinon fallback générique : surtout pas de crash de l'UI.
+      if (err instanceof ConvexError) {
+        const data = err.data as { code?: string; message?: string } | string
+        const code = typeof data === "object" ? data.code : undefined
+        const message = typeof data === "object" ? data.message : undefined
+        if (code === "RECIPIENT_UNKNOWN") {
+          toast.error(iboite.compose.errors.recipientUnknown)
+        } else if (code === "INVALID_DOMAIN") {
+          toast.error(iboite.compose.errors.invalidDomain)
+        } else {
+          toast.error(message ?? iboite.compose.errors.sendFailed)
+        }
+      } else {
+        toast.error(
+          err instanceof Error ? err.message : iboite.compose.errors.sendFailed,
+        )
+      }
       setSubmitting(false)
     }
   }
@@ -85,7 +112,10 @@ export function ComposeModal({
             <Label htmlFor="compose-to">{iboite.compose.to}</Label>
             <Input
               id="compose-to"
-              type="email"
+              // `type="text"` (pas "email") : on accepte une saisie sans `@`
+              // que l'on suffixe ensuite avec `@idn.ga` côté submit.
+              type="text"
+              inputMode="email"
               value={to}
               onChange={(e) => setTo(e.target.value)}
               placeholder={iboite.compose.toPlaceholder}

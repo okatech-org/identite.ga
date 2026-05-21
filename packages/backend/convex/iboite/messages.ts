@@ -1,12 +1,15 @@
 import { ConvexError, v } from "convex/values"
 import { paginationOptsValidator } from "convex/server"
 
+import { internal } from "../_generated/api"
 import { mutation, query } from "../_generated/server"
 import type { Doc, Id } from "../_generated/dataModel"
 import { authComponent } from "../auth"
 import { requireAuth } from "../lib/auth"
 import { rateLimiter } from "../rateLimiter"
-import { loadOwnedAccount } from "./accounts"
+import { loadAccountByEmailAlias, loadOwnedAccount } from "./accounts"
+
+const IBOITE_DOMAIN = "idn.ga"
 
 /**
  * iBoîte — eMails internes (cf. SPECS_FEATURES_CITIZEN.md §2.7 + §2.9.3).
@@ -297,10 +300,34 @@ export const send = mutation({
     if (args.body.trim().length < 1) {
       throw new ConvexError({ code: "INVALID", message: "Message vide." })
     }
-    if (!args.recipientEmail.includes("@")) {
+
+    // Normalisation tolérante : on accepte « jean.dupont » comme
+    // « jean.dupont@idn.ga ». En revanche, tout autre domaine est rejeté
+    // (iBoîte est un système fermé, pas de SMTP sortant).
+    const rawTo = args.recipientEmail.trim().toLowerCase()
+    if (rawTo.length < 1) {
       throw new ConvexError({
         code: "INVALID",
-        message: "Adresse destinataire invalide.",
+        message: "Adresse destinataire requise.",
+      })
+    }
+    const recipientAlias = rawTo.includes("@")
+      ? rawTo
+      : `${rawTo}@${IBOITE_DOMAIN}`
+    if (!recipientAlias.endsWith(`@${IBOITE_DOMAIN}`)) {
+      throw new ConvexError({
+        code: "INVALID_DOMAIN",
+        message: `Adresse non valide. Seul le domaine @${IBOITE_DOMAIN} est accepté.`,
+      })
+    }
+
+    // Vérification stricte : l'alias doit exister dans iboiteAccount.
+    // Sinon on remonte un RECIPIENT_UNKNOWN — l'UI l'affiche en toast.
+    const recipientAccount = await loadAccountByEmailAlias(ctx, recipientAlias)
+    if (!recipientAccount) {
+      throw new ConvexError({
+        code: "RECIPIENT_UNKNOWN",
+        message: "Aucun utilisateur ne correspond à cette adresse iBoîte.",
       })
     }
 
@@ -325,17 +352,21 @@ export const send = mutation({
     const senderName = (authUser as { name?: string } | null)?.name ?? "Citoyen"
 
     const now = Date.now()
-    const id = await ctx.db.insert("iboiteMessage", {
+    const subject = args.subject.trim()
+    const preview = makePreview(args.body)
+
+    // 1) Copie « envoyée » côté expéditeur (folder: sent, owner: user courant).
+    const sentId = await ctx.db.insert("iboiteMessage", {
       accountId: account._id,
       userId: user.userId,
       threadId,
       senderKind: "citizen",
       senderName,
       senderEmail: account.emailAlias,
-      recipientName: args.recipientName,
-      recipientEmail: args.recipientEmail.toLowerCase(),
-      subject: args.subject.trim(),
-      preview: makePreview(args.body),
+      recipientName: recipientAccount.label,
+      recipientEmail: recipientAlias,
+      subject,
+      preview,
       body: args.body,
       folder: "sent",
       isRead: true,
@@ -344,6 +375,52 @@ export const send = mutation({
       inReplyTo: args.inReplyTo,
       createdAt: now,
     })
-    return id
+
+    // 2) Copie « reçue » côté destinataire (folder: inbox, owner: destinataire).
+    //    C'est cette insertion qui rend le message visible chez l'autre.
+    const inboxId = await ctx.db.insert("iboiteMessage", {
+      accountId: recipientAccount._id,
+      userId: recipientAccount.userId,
+      threadId,
+      senderKind: "citizen",
+      senderName,
+      senderEmail: account.emailAlias,
+      recipientName: recipientAccount.label,
+      recipientEmail: recipientAlias,
+      subject,
+      preview,
+      body: args.body,
+      folder: "inbox",
+      isRead: false,
+      isStarred: false,
+      hasAttachment: args.hasAttachment ?? false,
+      // `inReplyTo` est un Id<"iboiteMessage"> du compte expéditeur, on ne
+      // le propage pas côté destinataire (la continuité de thread est
+      // assurée par `threadId`).
+      createdAt: now,
+    })
+
+    // 3) Compteur unread + notification in-app côté destinataire.
+    await ctx.db.patch(recipientAccount._id, {
+      counters: {
+        ...recipientAccount.counters,
+        unreadMessages: recipientAccount.counters.unreadMessages + 1,
+      },
+      updatedAt: now,
+    })
+
+    await ctx.runMutation(internal.notifications.dispatch, {
+      userId: recipientAccount.userId,
+      category: "documents",
+      title: `Nouveau message de ${senderName}`,
+      body: `${subject}\n\n${makePreview(args.body, 200)}`,
+      metadata: {
+        module: "iboite",
+        kind: "message",
+        messageId: inboxId,
+      },
+    })
+
+    return sentId
   },
 })
