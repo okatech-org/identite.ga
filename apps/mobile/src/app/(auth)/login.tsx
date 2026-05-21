@@ -11,25 +11,41 @@ import { Icon } from '@/design/icons';
 import { authClient } from '@/lib/auth-client';
 import { setOnboardingDone } from '@/hooks/use-app-state';
 
-type Phase = 'email' | 'pin';
+type Phase = 'handle' | 'pin';
 
 const PIN_KEYS: string[] = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'];
+const HANDLE_REGEX = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/;
+const IDN_DOMAIN = '@idn.ga';
+
+/**
+ * Accepte `handle` ou `handle@idn.ga` indifféremment.
+ * Renvoie l'email Better Auth normalisé (lower + suffixe @idn.ga).
+ */
+function normalizeIdnIdentifier(input: string): { handle: string; email: string } | null {
+  const raw = input.trim().toLowerCase();
+  if (!raw) return null;
+  const handle = raw.endsWith(IDN_DOMAIN) ? raw.slice(0, -IDN_DOMAIN.length) : raw;
+  if (handle.length < 3 || handle.length > 32) return null;
+  if (!HANDLE_REGEX.test(handle)) return null;
+  return { handle, email: `${handle}${IDN_DOMAIN}` };
+}
 
 export default function Login() {
   const t = useIdnTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [phase, setPhase] = useState<Phase>('email');
-  const [email, setEmail] = useState('');
+  const [phase, setPhase] = useState<Phase>('handle');
+  const [identifier, setIdentifier] = useState('');
   const [pin, setPin] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const normalized = normalizeIdnIdentifier(identifier);
+  const handleValid = normalized !== null;
 
   function goToPin() {
-    if (!emailValid) {
-      setError('Saisissez une adresse email valide.');
+    if (!handleValid) {
+      setError('Saisissez un identifiant IDN valide.');
       return;
     }
     setError(null);
@@ -37,8 +53,8 @@ export default function Login() {
     setPhase('pin');
   }
 
-  function backToEmail() {
-    setPhase('email');
+  function backToHandle() {
+    setPhase('handle');
     setPin('');
     setError(null);
   }
@@ -62,13 +78,13 @@ export default function Login() {
   }
 
   async function signInWithPin(entered: string) {
-    if (submitting) return;
+    if (submitting || !normalized) return;
     setSubmitting(true);
     setError(null);
     try {
       const res = await authClient.$fetch('/sign-in/pin', {
         method: 'POST',
-        body: { email: email.trim().toLowerCase(), pin: entered },
+        body: { email: normalized.email, pin: entered },
       });
       const errorBody = (res?.error ?? null) as
         | { code?: string; status?: number; message?: string }
@@ -130,27 +146,27 @@ export default function Login() {
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top + 20, paddingHorizontal: 26, paddingBottom: Math.max(insets.bottom, 28) }}>
-      <Pressable onPress={() => (phase === 'pin' ? backToEmail() : router.back())} style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4 }}>
+      <Pressable onPress={() => (phase === 'pin' ? backToHandle() : router.back())} style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4 }}>
         <Icon name="arrowL" size={20} color={idnTokens.green} />
-        <Text style={{ color: idnTokens.green, fontWeight: '500' }}>{phase === 'pin' ? 'Modifier l\'email' : 'Retour'}</Text>
+        <Text style={{ color: idnTokens.green, fontWeight: '500' }}>{phase === 'pin' ? 'Modifier l\'identifiant' : 'Retour'}</Text>
       </Pressable>
 
-      {phase === 'email' ? (
+      {phase === 'handle' ? (
         <>
           <View style={{ marginTop: 26 }}>
             <Text style={{ fontSize: 26, fontWeight: '700', color: t.ink, letterSpacing: -0.5 }}>Connexion</Text>
-            <Text style={{ fontSize: 13, color: t.muted, marginTop: 8 }}>Saisissez votre adresse email pour continuer.</Text>
+            <Text style={{ fontSize: 13, color: t.muted, marginTop: 8 }}>Saisissez votre identifiant IDN pour continuer.</Text>
           </View>
 
           <View style={{ marginTop: 26, gap: 14 }}>
             <IdnInput
               t={t}
-              label="Email"
-              value={email}
-              onChangeText={setEmail}
-              type="email"
-              placeholder="vous@example.ga"
-              leadIcon={<Icon name="mail" size={20} color={t.muted} />}
+              label="Identifiant IDN"
+              value={identifier}
+              onChangeText={(v) => setIdentifier(v.toLowerCase())}
+              placeholder="prenom.nom"
+              hint="Avec ou sans @idn.ga"
+              leadIcon={<Icon name="user" size={20} color={t.muted} />}
               autoFocus
             />
           </View>
@@ -163,7 +179,7 @@ export default function Login() {
 
           <View style={{ flex: 1 }} />
 
-          <IdnButton t={t} variant="primary" size="lg" full onPress={goToPin} disabled={!emailValid}>
+          <IdnButton t={t} variant="primary" size="lg" full onPress={goToPin} disabled={!handleValid}>
             Continuer
           </IdnButton>
 
@@ -185,7 +201,7 @@ export default function Login() {
           <View style={{ marginTop: 22, alignItems: 'center' }}>
             <Text style={{ fontSize: 24, fontWeight: '700', color: t.ink, letterSpacing: -0.4 }}>Votre code PIN</Text>
             <Text style={{ fontSize: 13, color: t.muted, marginTop: 8, textAlign: 'center' }}>6 chiffres pour accéder à votre compte.</Text>
-            <Text style={{ fontSize: 12, color: t.muted, marginTop: 4 }}>{email.trim().toLowerCase()}</Text>
+            <Text style={{ fontSize: 12, color: t.muted, marginTop: 4 }}>{normalized?.email ?? ''}</Text>
           </View>
 
           <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16, paddingVertical: 22 }}>

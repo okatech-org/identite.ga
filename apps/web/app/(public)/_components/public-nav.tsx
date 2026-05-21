@@ -14,7 +14,7 @@ import { UserMenu } from "@/app/_components/user-menu"
 import { navActions, navTabs } from "../_content/fr"
 
 const SIGN_IN_URL = "/sign-in"
-const SIGN_UP_URL = "/sign-up/profile"
+const SIGN_UP_URL = "/sign-up"
 
 export function PublicNav({ className }: { className?: string }) {
   const pathname = usePathname()

@@ -68,7 +68,7 @@ export default function SignupPin() {
   return (
     <NStepShell
       t={t}
-      step={5}
+      step={4}
       total={5}
       title={phase === 'enter' ? 'Créez votre code PIN' : 'Confirmez votre PIN'}
       sub={phase === 'enter'

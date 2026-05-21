@@ -235,11 +235,13 @@ export const createAuth = (
         })(),
       }),
 
-      // OTP 6 chiffres pour vérification email, reset password, changement email
+      // OTP 6 chiffres — utilisé pour reset password / changement email côté
+      // admin/web ; l'inscription IDN ne déclenche pas d'OTP (l'adresse
+      // @idn.ga est vérifiée par construction via `onboarding.completeSignup`).
       emailOTP({
         otpLength: 6,
         expiresIn: 60 * 15, // 15 min (§3.2)
-        sendVerificationOnSignUp: true, // OTP envoyé automatiquement au sign-up
+        sendVerificationOnSignUp: false,
         sendVerificationOTP: async ({ email, otp, type }) => {
           await sendOtpEmail(ctx as any, {
             to: email,

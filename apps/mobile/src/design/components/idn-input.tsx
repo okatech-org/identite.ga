@@ -7,7 +7,7 @@ type Props = {
   value?: string;
   onChangeText?: (v: string) => void;
   placeholder?: string;
-  type?: 'text' | 'email' | 'password' | 'number';
+  type?: 'text' | 'email' | 'password' | 'number' | 'tel';
   t: IdnTheme;
   hint?: string;
   error?: string;
@@ -19,7 +19,11 @@ type Props = {
 
 export function IdnInput({ label, value, onChangeText, placeholder, type = 'text', t, hint, error, leadIcon, suffix, autoFocus, editable = true }: Props) {
   const [focused, setFocused] = useState(false);
-  const keyboardType: KeyboardTypeOptions = type === 'email' ? 'email-address' : type === 'number' ? 'numeric' : 'default';
+  const keyboardType: KeyboardTypeOptions =
+    type === 'email' ? 'email-address'
+    : type === 'number' ? 'numeric'
+    : type === 'tel' ? 'phone-pad'
+    : 'default';
   return (
     <View>
       {label ? <Text style={{ fontSize: 13, fontWeight: '500', color: t.ink, marginBottom: 6 }}>{label}</Text> : null}

@@ -22,10 +22,12 @@ type PinPadProps = {
 }
 
 /**
- * Tick audio court (~30 ms) joué à chaque tap. Synthétisé à la volée via
- * WebAudio pour éviter d'embarquer un asset ; le contexte audio est lazy
- * (créé au premier tap pour respecter la politique "user gesture" des
- * navigateurs) et partagé entre les instances du composant.
+ * Tick audio court joué à chaque tap. Synthétisé via WebAudio pour
+ * éviter un asset, contexte lazy (politique "user gesture") et partagé.
+ *
+ * Profil sonore : sinusoïde grave (~440 Hz → 280 Hz) filtrée passe-bas,
+ * attaque rapide + décroissance douce. Donne un "pock" feutré plutôt
+ * qu'un bip carré aigu.
  */
 let sharedAudioCtx: AudioContext | null = null
 function playTick(): void {
@@ -44,15 +46,19 @@ function playTick(): void {
     const now = ctx.currentTime
     const osc = ctx.createOscillator()
     const gain = ctx.createGain()
-    osc.type = "square"
-    osc.frequency.setValueAtTime(880, now)
-    osc.frequency.exponentialRampToValueAtTime(660, now + 0.04)
+    const filter = ctx.createBiquadFilter()
+    osc.type = "sine"
+    osc.frequency.setValueAtTime(440, now)
+    osc.frequency.exponentialRampToValueAtTime(280, now + 0.08)
+    filter.type = "lowpass"
+    filter.frequency.setValueAtTime(1200, now)
+    filter.Q.setValueAtTime(0.7, now)
     gain.gain.setValueAtTime(0.0001, now)
-    gain.gain.exponentialRampToValueAtTime(0.18, now + 0.005)
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.06)
-    osc.connect(gain).connect(ctx.destination)
+    gain.gain.exponentialRampToValueAtTime(0.12, now + 0.008)
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.1)
+    osc.connect(filter).connect(gain).connect(ctx.destination)
     osc.start(now)
-    osc.stop(now + 0.07)
+    osc.stop(now + 0.12)
   } catch {
     /* WebAudio indisponible — silencieux */
   }

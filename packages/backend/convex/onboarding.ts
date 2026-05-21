@@ -1,8 +1,9 @@
 import { ConvexError, v } from "convex/values"
 
-import { internal } from "./_generated/api"
-import { internalQuery } from "./_generated/server"
+import { components, internal } from "./_generated/api"
+import { internalQuery, query } from "./_generated/server"
 import { mutation } from "./functions"
+import { authComponent } from "./auth"
 import { requireAuth, requireVerifiedAuth } from "./lib/auth"
 import { generateIdnId } from "./lib/idnId"
 import { PROFILE_TYPES } from "./schema"
@@ -91,12 +92,9 @@ export const selectProfile = mutation({
       metadata: { profileType: args.profileType, idnId },
     })
 
-    // Seed iCarte + iBoîte + iCV (idempotent — n'écrit que si vide).
-    // iDocument démarre sans données (le vault est activé manuellement par
-    // le citoyen depuis l'UI, ce qui pose la `vaultKey`).
-    await ctx.runMutation(internal.wallet.seedDefaultsForUser, {
-      userId: user.userId,
-    })
+    // iBoîte + iCV (idempotent — n'écrit que si vide). Pas de pré-remplissage
+    // iCarte : l'utilisateur ajoute ses cartes lui-même. iDocument démarre
+    // sans données (le vault est activé manuellement par le citoyen).
     await ctx.runMutation(internal.iboite.accounts.ensurePersonal, {
       userId: user.userId,
     })
@@ -121,6 +119,7 @@ export const setIdentityPivot = mutation({
     ),
     birthPlace: v.string(),
     nationality: v.string(),
+    phone: v.optional(v.string()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -150,6 +149,7 @@ export const setIdentityPivot = mutation({
       })
     }
 
+    const phoneTrim = args.phone?.trim()
     await ctx.db.patch(profile._id, {
       pivot: {
         firstName: args.firstName.trim(),
@@ -158,6 +158,7 @@ export const setIdentityPivot = mutation({
         gender: args.gender,
         birthPlace: args.birthPlace.trim(),
         nationality: args.nationality.trim().toUpperCase(),
+        ...(phoneTrim ? { phone: phoneTrim } : {}),
       },
       updatedAt: Date.now(),
     })
@@ -289,3 +290,256 @@ export const verifyPinForUserId = internalQuery({
   },
 })
 
+// ─────────────────────────────────────────────────────────────────────────
+// Adresse IDN (@idn.ga) — création et suggestions
+// ─────────────────────────────────────────────────────────────────────────
+//
+// L'utilisateur réserve son adresse IDN pendant l'inscription. Le handle
+// devient l'email Better Auth (`<handle>@idn.ga`), vérifié par
+// construction (pas d'OTP — l'adresse est créée par l'utilisateur).
+//
+// Connexion : le client accepte indifféremment `handle` ou
+// `handle@idn.ga` et normalise avant d'appeler /sign-in/pin.
+
+export const IDN_DOMAIN = "@idn.ga"
+const HANDLE_REGEX = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/
+const HANDLE_MIN = 3
+const HANDLE_MAX = 32
+
+function normalizeAscii(input: string): string {
+  return input
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "")
+}
+
+function validateHandle(raw: string): string {
+  const handle = raw.trim().toLowerCase()
+  if (handle.length < HANDLE_MIN || handle.length > HANDLE_MAX) {
+    throw new ConvexError({
+      code: "INVALID_HANDLE",
+      message: `L'identifiant doit faire entre ${HANDLE_MIN} et ${HANDLE_MAX} caractères.`,
+    })
+  }
+  if (!HANDLE_REGEX.test(handle)) {
+    throw new ConvexError({
+      code: "INVALID_HANDLE",
+      message:
+        "Caractères autorisés : lettres minuscules, chiffres, points, tirets, soulignés.",
+    })
+  }
+  return handle
+}
+
+async function findUserByEmail(
+  ctx: Parameters<typeof requireAuth>[0],
+  email: string,
+): Promise<{ _id: string; email: string } | null> {
+  const res = (await ctx.runQuery(components.betterAuth.adapter.findOne, {
+    model: "user",
+    where: [{ field: "email", value: email, operator: "eq" }],
+  })) as { _id: string; email: string } | null
+  return res ?? null
+}
+
+export const suggestIdnHandles = query({
+  args: {
+    firstName: v.string(),
+    lastName: v.string(),
+    dateOfBirth: v.optional(v.string()),
+  },
+  returns: v.array(
+    v.object({
+      handle: v.string(),
+      format: v.string(),
+      available: v.boolean(),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const first = normalizeAscii(args.firstName)
+    const last = normalizeAscii(args.lastName)
+    if (!first || !last) return []
+    const f = first[0]!
+    const l = last[0]!
+    const year =
+      args.dateOfBirth && /^\d{4}-\d{2}-\d{2}$/.test(args.dateOfBirth)
+        ? args.dateOfBirth.slice(2, 4)
+        : null
+
+    const proposals: { handle: string; format: string }[] = [
+      { handle: `${first}.${last}`, format: "prénom.nom" },
+      { handle: `${f}.${last}`, format: "p.nom" },
+      { handle: `${first}.${l}`, format: "prénom.n" },
+      { handle: `${last}.${first}`, format: "nom.prénom" },
+    ]
+    if (year) {
+      proposals.push({
+        handle: `${first}.${last}.${year}`,
+        format: "prénom.nom.année",
+      })
+    }
+    proposals.push({ handle: `${first}_${last}`, format: "prénom_nom" })
+
+    const seen = new Set<string>()
+    const unique = proposals.filter((p) => {
+      if (p.handle.length < HANDLE_MIN || p.handle.length > HANDLE_MAX) {
+        return false
+      }
+      if (!HANDLE_REGEX.test(p.handle)) return false
+      if (seen.has(p.handle)) return false
+      seen.add(p.handle)
+      return true
+    })
+
+    const results: { handle: string; format: string; available: boolean }[] = []
+    for (const p of unique) {
+      const existing = await findUserByEmail(ctx, `${p.handle}${IDN_DOMAIN}`)
+      results.push({ ...p, available: existing === null })
+    }
+    return results
+  },
+})
+
+export const checkIdnHandleAvailability = query({
+  args: { handle: v.string() },
+  returns: v.object({ handle: v.string(), available: v.boolean() }),
+  handler: async (ctx, args) => {
+    const handle = validateHandle(args.handle)
+    const existing = await findUserByEmail(ctx, `${handle}${IDN_DOMAIN}`)
+    return { handle, available: existing === null }
+  },
+})
+
+/**
+ * Finalise l'inscription après création du compte Better Auth.
+ * Le client appelle `authClient.signUp.email({ email: handle@idn.ga, ... })`
+ * puis cette mutation pour :
+ *   1. marquer l'email comme vérifié (l'adresse @idn.ga est créée par
+ *      l'utilisateur, pas besoin d'OTP),
+ *   2. créer le userProfile + idnId + préférences,
+ *   3. seed iCarte / iBoîte / iCV.
+ */
+export const completeSignup = mutation({
+  args: {
+    profileType: v.union(...PROFILE_TYPES.map((t) => v.literal(t))),
+    pivot: v.object({
+      firstName: v.string(),
+      lastName: v.string(),
+      dateOfBirth: v.string(),
+      gender: v.union(
+        v.literal("M"),
+        v.literal("F"),
+        v.literal("O"),
+        v.literal("N"),
+      ),
+      birthPlace: v.string(),
+      nationality: v.string(),
+      phone: v.optional(v.string()),
+    }),
+  },
+  returns: v.object({
+    profileId: v.id("userProfile"),
+    idnHandle: v.string(),
+    idnId: v.string(),
+  }),
+  handler: async (ctx, args) => {
+    const user = await requireAuth(ctx)
+    const email = user.email.toLowerCase()
+    if (!email.endsWith(IDN_DOMAIN)) {
+      throw new ConvexError({
+        code: "INVALID_EMAIL",
+        message: "Le compte doit utiliser une adresse @idn.ga.",
+      })
+    }
+    const handle = email.slice(0, -IDN_DOMAIN.length)
+
+    if (args.pivot.firstName.trim().length < 1 || args.pivot.lastName.trim().length < 1) {
+      throw new ConvexError({ code: "INVALID", message: "Nom et prénom requis." })
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(args.pivot.dateOfBirth)) {
+      throw new ConvexError({ code: "INVALID", message: "Date de naissance invalide." })
+    }
+
+    // 1. Auto-vérification de l'email @idn.ga (par construction)
+    if (!user.emailVerified) {
+      await ctx.runMutation(components.betterAuth.adapter.updateOne, {
+        input: {
+          model: "user",
+          where: [{ field: "_id", value: user.userId, operator: "eq" }],
+          update: { emailVerified: true, updatedAt: Date.now() },
+        },
+      })
+    }
+
+    // 2. Profil existant ? (idempotent — si l'utilisateur retente après échec)
+    const existing = await ctx.db
+      .query("userProfile")
+      .withIndex("by_userId", (q) => q.eq("userId", user.userId))
+      .unique()
+    if (existing) {
+      throw new ConvexError({
+        code: "ALREADY_REGISTERED",
+        message: "Ce compte est déjà initialisé.",
+      })
+    }
+
+    const now = Date.now()
+    const idnId = await generateIdnId(ctx)
+    const phoneTrim = args.pivot.phone?.trim()
+    const profileId = await ctx.db.insert("userProfile", {
+      userId: user.userId,
+      profileType: args.profileType,
+      loa: 1,
+      idnId,
+      pivot: {
+        firstName: args.pivot.firstName.trim(),
+        lastName: args.pivot.lastName.trim(),
+        dateOfBirth: args.pivot.dateOfBirth,
+        gender: args.pivot.gender,
+        birthPlace: args.pivot.birthPlace.trim(),
+        nationality: args.pivot.nationality.trim().toUpperCase(),
+        ...(phoneTrim ? { phone: phoneTrim } : {}),
+      },
+      createdAt: now,
+      updatedAt: now,
+    })
+
+    await ctx.db.insert("userPreference", {
+      userId: user.userId,
+      language: "fr",
+      theme: "auto",
+      accessibility: { fontSize: "md", reducedMotion: false, highContrast: false },
+      createdAt: now,
+      updatedAt: now,
+    })
+
+    await ctx.db.insert("notificationPreference", {
+      userId: user.userId,
+      email: { security: true, kyc: true, consent: true, comms: false },
+      inApp: { security: true, kyc: true, consent: true, comms: true },
+      updatedAt: now,
+    })
+
+    await ctx.runMutation(internal.audit.recordAudit, {
+      actorId: user.userId,
+      action: "account_created",
+      targetType: "user",
+      targetId: user.userId,
+      metadata: { profileType: args.profileType, idnId, idnHandle: handle },
+    })
+
+    // iBoîte personnel — alias = adresse IDN choisie par l'utilisateur.
+    // (Pas de pré-remplissage iCarte : l'utilisateur ajoute ses cartes
+    // lui-même quand il en a besoin.)
+    await ctx.runMutation(internal.iboite.accounts.ensurePersonal, {
+      userId: user.userId,
+      idnHandle: handle,
+    })
+    await ctx.runMutation(internal.cv.cvs.ensureDefaultForUser, {
+      userId: user.userId,
+    })
+
+    return { profileId, idnHandle: handle, idnId }
+  },
+})

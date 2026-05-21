@@ -36,7 +36,7 @@ import { authClient } from "@/lib/auth-client"
 import { mobileNav, navActions, navTabs } from "../_content/fr"
 
 const SIGN_IN_URL = "/sign-in"
-const SIGN_UP_URL = "/sign-up/profile"
+const SIGN_UP_URL = "/sign-up"
 
 const CONNECTED_LINKS = [
   { href: "/dashboard", label: "Tableau de bord", icon: HomeIcon },

@@ -8,7 +8,6 @@ import { api } from "@repo/backend/convex/_generated/api";
 import { type LoALevel } from "@repo/ui/components/loa-badge";
 
 import { dashboard, modules, quickActions } from "../_content/fr";
-import { CompactWallet } from "../_components/compact-wallet";
 import { KycActiveCard } from "../_components/kyc-active-card";
 import { KycPromoCard } from "../_components/kyc-promo-card";
 import { ModuleCard } from "../_components/module-card";
@@ -79,8 +78,6 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <CompactWallet className="mt-8" />
-
         <section className="mt-8" aria-labelledby="modules">
           <div className="flex items-baseline justify-between">
             <p
@@ -142,8 +139,6 @@ export default function DashboardPage() {
         ) : loa < 2 ? (
           <KycPromoCard currentLoa={loa as 1} variant="mobile" />
         ) : null}
-
-        <CompactWallet />
 
         <section aria-labelledby="modules-mobile">
           <p

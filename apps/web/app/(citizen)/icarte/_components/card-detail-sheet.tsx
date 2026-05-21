@@ -7,6 +7,7 @@ import {
   QrCode,
   RotateCcw,
   Share2,
+  Trash2,
 } from "lucide-react"
 
 import { Button } from "@repo/ui/components/button"
@@ -45,11 +46,13 @@ export function CardDetailSheet({
   onOpenChange,
   card,
   onEdit,
+  onDelete,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   card: CardDetail | null
   onEdit?: () => void
+  onDelete?: () => void
 }) {
   const [verso, setVerso] = React.useState(false)
 
@@ -193,6 +196,12 @@ export function CardDetailSheet({
             <Button type="button" onClick={onEdit}>
               <Edit3 className="h-3.5 w-3.5" />
               {icarte.detail.actions.edit}
+            </Button>
+          ) : null}
+          {onDelete && !card.isOfficialStyle ? (
+            <Button type="button" variant="destructive" onClick={onDelete}>
+              <Trash2 className="h-3.5 w-3.5" />
+              {icarte.detail.actions.delete}
             </Button>
           ) : null}
         </DrawerFooter>

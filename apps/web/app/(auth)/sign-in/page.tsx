@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import { LockIcon, MailIcon, QrCodeIcon } from "lucide-react"
+import { LockIcon, QrCodeIcon, UserIcon } from "lucide-react"
 import { toast } from "sonner"
 import { z } from "zod"
 
@@ -22,14 +22,33 @@ import { OtpInput } from "../_components/otp-input"
 import { PinPad } from "../_components/pin-pad"
 import { safeRedirectTo } from "../_lib/redirect"
 
-const emailSchema = z.object({
-  email: z.string().trim().email("Adresse email invalide."),
+const HANDLE_REGEX = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/
+const IDN_DOMAIN = "@idn.ga"
+
+/**
+ * Accepte `handle` ou `handle@idn.ga` indifféremment.
+ * Renvoie l'email Better Auth normalisé.
+ */
+function normalizeIdnIdentifier(input: string): { handle: string; email: string } | null {
+  const raw = input.trim().toLowerCase()
+  if (!raw) return null
+  const handle = raw.endsWith(IDN_DOMAIN) ? raw.slice(0, -IDN_DOMAIN.length) : raw
+  if (handle.length < 3 || handle.length > 32) return null
+  if (!HANDLE_REGEX.test(handle)) return null
+  return { handle, email: `${handle}${IDN_DOMAIN}` }
+}
+
+const handleSchema = z.object({
+  identifier: z
+    .string()
+    .trim()
+    .refine((v) => normalizeIdnIdentifier(v) !== null, "Identifiant IDN invalide."),
 })
 const passwordSchema = z.object({
   password: z.string().min(1, "Mot de passe requis."),
 })
 
-type EmailValues = z.infer<typeof emailSchema>
+type HandleValues = z.infer<typeof handleSchema>
 type PasswordValues = z.infer<typeof passwordSchema>
 
 type Phase = "email" | "pin" | "password"
@@ -57,9 +76,9 @@ function SignInPageInner() {
   const [twoFactorRequired, setTwoFactorRequired] = React.useState(false)
   const [twoFactorCode, setTwoFactorCode] = React.useState("")
 
-  const emailForm = useForm<EmailValues>({
-    resolver: zodResolver(emailSchema),
-    defaultValues: { email: "" },
+  const emailForm = useForm<HandleValues>({
+    resolver: zodResolver(handleSchema),
+    defaultValues: { identifier: "" },
     mode: "onTouched",
   })
   const passwordForm = useForm<PasswordValues>({
@@ -69,7 +88,9 @@ function SignInPageInner() {
   })
 
   const goToPin = emailForm.handleSubmit((values) => {
-    setEmail(values.email.trim().toLowerCase())
+    const norm = normalizeIdnIdentifier(values.identifier)
+    if (!norm) return
+    setEmail(norm.email)
     setPin("")
     setPinError(null)
     setPhase("pin")
@@ -388,35 +409,45 @@ function SignInPageInner() {
 
       <form onSubmit={goToPin} noValidate className="mt-8 space-y-5">
         <div className="space-y-1.5">
-          <Label htmlFor="signin-email">{signIn.emailLabel}</Label>
+          <Label htmlFor="signin-identifier">{signIn.handleLabel}</Label>
           <div className="relative">
-            <MailIcon
+            <UserIcon
               className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
               aria-hidden="true"
             />
             <Input
-              id="signin-email"
-              type="email"
-              autoComplete="email"
+              id="signin-identifier"
+              type="text"
+              autoComplete="username"
+              autoCapitalize="off"
+              spellCheck={false}
+              placeholder={signIn.handlePlaceholder}
               required
               aria-required="true"
-              aria-invalid={Boolean(emailForm.formState.errors.email)}
+              aria-invalid={Boolean(emailForm.formState.errors.identifier)}
               aria-describedby={
-                emailForm.formState.errors.email
-                  ? "signin-email-error"
-                  : undefined
+                emailForm.formState.errors.identifier
+                  ? "signin-identifier-error"
+                  : "signin-identifier-hint"
               }
               className="h-12 pl-10 text-base"
-              {...emailForm.register("email")}
+              {...emailForm.register("identifier")}
             />
           </div>
-          {emailForm.formState.errors.email && (
+          {emailForm.formState.errors.identifier ? (
             <p
-              id="signin-email-error"
+              id="signin-identifier-error"
               role="alert"
               className="text-xs text-destructive"
             >
-              {emailForm.formState.errors.email.message}
+              {emailForm.formState.errors.identifier.message}
+            </p>
+          ) : (
+            <p
+              id="signin-identifier-hint"
+              className="text-xs text-muted-foreground"
+            >
+              {signIn.handleHint}
             </p>
           )}
         </div>
@@ -449,7 +480,7 @@ function SignInPageInner() {
       <p className="mt-6 text-center text-sm text-muted-foreground">
         {signIn.signUpPrefix}
         <Link
-          href="/sign-up/profile"
+          href="/sign-up"
           className="font-semibold text-idn-green hover:underline dark:text-idn-green-on-dark"
         >
           {signIn.signUpLink}
@@ -462,7 +493,7 @@ function SignInPageInner() {
           onApproved={(approvedEmail) => {
             setQrOpen(false)
             setEmail(approvedEmail)
-            emailForm.setValue("email", approvedEmail)
+            emailForm.setValue("identifier", approvedEmail)
             setPin("")
             setPinError(null)
             setPhase("pin")

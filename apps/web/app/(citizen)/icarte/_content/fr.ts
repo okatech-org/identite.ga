@@ -43,6 +43,7 @@ export const icarte = {
       download: "Télécharger",
       share: "Partager",
       edit: "Modifier",
+      delete: "Supprimer",
     },
     comingSoon: "Bientôt disponible",
   },

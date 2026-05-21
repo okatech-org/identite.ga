@@ -27,7 +27,7 @@ export default function SignupProfil() {
 
   async function next() {
     await setOnboardingProfile(sel);
-    router.push('/(auth)/signup/email');
+    router.push('/(auth)/signup/pivot');
   }
 
   return (

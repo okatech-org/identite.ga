@@ -69,7 +69,7 @@ export default function HomePage() {
 
         <div className="flex flex-col gap-3">
           <Button asChild size="lg" className="h-14 w-full text-base">
-            <Link href="/sign-up/profile">{welcome.ctaPrimary}</Link>
+            <Link href="/sign-up">{welcome.ctaPrimary}</Link>
           </Button>
           <Button
             asChild
@@ -109,7 +109,7 @@ export default function HomePage() {
 
             <div className="mt-7 flex flex-col gap-2.5 sm:mt-8 sm:flex-row sm:flex-wrap">
               <Button asChild size="lg" className="w-full sm:w-auto">
-                <Link href="/sign-up/profile">
+                <Link href="/sign-up">
                   <UserPlusIcon aria-hidden="true" />
                   {welcome.ctaPrimary}
                 </Link>

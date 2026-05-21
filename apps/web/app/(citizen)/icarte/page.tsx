@@ -340,6 +340,13 @@ export default function IcartePage() {
         }}
         card={detailCard}
         onEdit={handleEditFromDetail}
+        onDelete={() => {
+          if (!detailCard) return
+          void (async () => {
+            await handleRemove(detailCard._id, detailCard.name)
+            setDetailId(null)
+          })()
+        }}
       />
     </>
   )

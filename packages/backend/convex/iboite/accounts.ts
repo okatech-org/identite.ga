@@ -253,6 +253,10 @@ export const setAddress = mutation({
 export const ensurePersonal = internalMutation({
   args: {
     userId: v.string(),
+    // Handle IDN choisi par l'utilisateur lors du sign-up. Quand fourni,
+    // l'iBoîte personnel utilise `<handle>@idn.ga` comme adresse — sinon
+    // on fallback sur un alias dérivé du nom (legacy / flow admin).
+    idnHandle: v.optional(v.string()),
     firstName: v.optional(v.string()),
     lastName: v.optional(v.string()),
     idnId: v.optional(v.string()),
@@ -269,11 +273,13 @@ export const ensurePersonal = internalMutation({
     if (existing) return null
 
     const qrCode = await generateIboiteQrCode(ctx, "personal")
-    const emailAlias = await generateIboiteEmailAlias(ctx, {
-      firstName: args.firstName ?? null,
-      lastName: args.lastName ?? null,
-      idnId: args.idnId ?? null,
-    })
+    const emailAlias = args.idnHandle
+      ? `${args.idnHandle}@idn.ga`
+      : await generateIboiteEmailAlias(ctx, {
+          firstName: args.firstName ?? null,
+          lastName: args.lastName ?? null,
+          idnId: args.idnId ?? null,
+        })
 
     const displayName =
       [args.firstName, args.lastName].filter(Boolean).join(" ") || "Personnel"

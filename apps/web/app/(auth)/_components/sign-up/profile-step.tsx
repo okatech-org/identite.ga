@@ -14,9 +14,9 @@ import {
   setOnboardingProfile,
   type OnboardingProfile,
 } from "../../_hooks/use-onboarding-state"
-import { WizardShell } from "../../_components/wizard-shell"
+import { WizardShell } from "../wizard-shell"
 
-export default function ProfileSelectionPage() {
+export function ProfileStep() {
   const router = useRouter()
   const [selected, setSelected] = React.useState<OnboardingProfile | null>(null)
 
@@ -27,7 +27,7 @@ export default function ProfileSelectionPage() {
   const onSubmit = () => {
     if (!selected) return
     setOnboardingProfile(selected)
-    router.push("/sign-up")
+    router.push("/sign-up?step=identity")
   }
 
   return (

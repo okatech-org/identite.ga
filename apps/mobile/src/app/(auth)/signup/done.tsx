@@ -7,10 +7,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useIdnTheme } from '@/design/theme';
 import { idnTokens } from '@/design/tokens';
 import { IdnButton } from '@/design/components/idn-button';
-import { LoABadge } from '@/design/loa-badge';
 import { api } from '@/lib/api';
 import { clearOnboarding } from '@/hooks/use-onboarding-state';
 import { setOnboardingDone } from '@/hooks/use-app-state';
+
+const IDN_DOMAIN = '@idn.ga';
 
 export default function SignupDone() {
   const t = useIdnTheme();
@@ -23,35 +24,93 @@ export default function SignupDone() {
     router.replace(toKyc ? '/kyc/intro' : '/(tabs)/home');
   }
 
-  const idnId = user?.profile?.idnId ?? '—';
-  const loa = (user?.profile?.loa ?? 1) as 1 | 2 | 3;
+  const email = user?.email ?? '';
+  const handle = email.toLowerCase().endsWith(IDN_DOMAIN)
+    ? email.slice(0, -IDN_DOMAIN.length)
+    : email;
+  const pivot = user?.profile?.pivot;
+  const fullName = pivot ? `${pivot.firstName} ${pivot.lastName}` : '';
+  const firstName = pivot?.firstName ?? '';
+  const idnId = user?.profile?.idnId ?? '';
+  const phone = pivot?.phone ?? '';
 
   return (
-    <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top + 40, paddingHorizontal: 26, paddingBottom: Math.max(insets.bottom, 26) }}>
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 22 }}>
-        <View style={{ width: 96, height: 96, borderRadius: 9999, backgroundColor: idnTokens.green, alignItems: 'center', justifyContent: 'center' }}>
-          <Svg width={44} height={44} viewBox="0 0 24 24" fill="none">
+    <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top + 30, paddingHorizontal: 22, paddingBottom: Math.max(insets.bottom, 22) }}>
+      <View style={{ alignItems: 'center' }}>
+        <View style={{ width: 60, height: 60, borderRadius: 9999, backgroundColor: idnTokens.green, alignItems: 'center', justifyContent: 'center' }}>
+          <Svg width={28} height={28} viewBox="0 0 24 24" fill="none">
             <Path d="M5 12l5 5 9-11" stroke="#fff" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
           </Svg>
         </View>
-        <View style={{ alignItems: 'center' }}>
-          <Text style={{ fontSize: 26, fontWeight: '700', color: t.ink, letterSpacing: -0.4 }}>Compte créé !</Text>
-          <Text style={{ fontSize: 14, color: t.muted, lineHeight: 22, marginTop: 12, textAlign: 'center', maxWidth: 280 }}>
-            Votre identité numérique est active. Vérifiez votre identité pour débloquer plus de services.
+      </View>
+
+      <View style={{ alignItems: 'center', marginTop: 16 }}>
+        <Text style={{ fontSize: 22, fontWeight: '700', color: t.ink, letterSpacing: -0.4 }}>
+          {firstName ? `Bienvenue, ${firstName}.` : 'Bienvenue.'}
+        </Text>
+        <Text style={{ fontSize: 13, color: t.muted, marginTop: 6, lineHeight: 20, textAlign: 'center', maxWidth: 280 }}>
+          Votre identité numérique est active.
+        </Text>
+      </View>
+
+      {/* Carte IDN — adresse souveraine */}
+      <View
+        style={{
+          marginTop: 22,
+          backgroundColor: idnTokens.green,
+          padding: 20,
+          borderRadius: 16,
+          shadowColor: idnTokens.green,
+          shadowOpacity: 0.18,
+          shadowRadius: 24,
+          shadowOffset: { width: 0, height: 8 },
+        }}
+      >
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <View style={{ flexDirection: 'row', gap: 2, height: 3 }}>
+            <View style={{ width: 9, backgroundColor: '#3B9C58' }} />
+            <View style={{ width: 9, backgroundColor: '#FCD34D' }} />
+            <View style={{ width: 9, backgroundColor: '#2563EB' }} />
+          </View>
+          <Text style={{ color: '#fff', fontFamily: idnTokens.mono, fontSize: 9, letterSpacing: 1, opacity: 0.75 }}>
+            IDN ID · {idnId || '—'}
           </Text>
         </View>
-        <View style={{
-          padding: 16, backgroundColor: t.surface,
-          borderWidth: 1, borderColor: t.border, borderRadius: 14,
-          width: '100%', maxWidth: 280, alignItems: 'flex-start',
-        }}>
-          <Text style={{ color: t.muted, fontSize: 10, letterSpacing: 1.2, fontWeight: '600', fontFamily: idnTokens.mono }}>VOTRE ID IDN</Text>
-          <Text style={{ fontSize: 16, color: t.ink, fontWeight: '600', marginTop: 6, fontFamily: idnTokens.mono }}>{idnId}</Text>
-          <View style={{ marginTop: 10 }}><LoABadge level={loa} t={t} compact /></View>
+        <Text style={{ color: '#fff', marginTop: 22, fontSize: 9.5, letterSpacing: 1.3, fontWeight: '700', opacity: 0.75 }}>
+          VOTRE ADRESSE IDN
+        </Text>
+        <Text style={{ color: '#fff', fontFamily: idnTokens.mono, fontSize: 17, fontWeight: '600', marginTop: 6, letterSpacing: -0.3 }}>
+          {handle}
+          <Text style={{ color: '#fff', opacity: 0.85 }}>{IDN_DOMAIN}</Text>
+        </Text>
+        <View style={{ marginTop: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+          <View>
+            <Text style={{ color: '#fff', fontSize: 9, letterSpacing: 1, opacity: 0.6 }}>TITULAIRE</Text>
+            <Text style={{ color: '#fff', fontSize: 12, fontWeight: '500', marginTop: 2 }}>{fullName || '—'}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 9999, backgroundColor: 'rgba(255,255,255,0.18)' }}>
+            <View style={{ width: 6, height: 6, borderRadius: 9999, backgroundColor: '#fff' }} />
+            <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>Niveau 1</Text>
+          </View>
         </View>
       </View>
-      <IdnButton t={t} variant="primary" size="lg" full onPress={() => finish(true)}>Vérifier mon identité</IdnButton>
-      <Pressable style={{ alignItems: 'center', padding: 16 }} onPress={() => finish(false)}>
+
+      {/* Récap utile */}
+      <View style={{ marginTop: 16, paddingHorizontal: 14, paddingVertical: 12, backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 12, gap: 10 }}>
+        {[
+          { l: 'Téléphone', v: phone || '—' },
+          { l: 'Code PIN', v: '••••••' },
+        ].map((r, i) => (
+          <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <Text style={{ fontSize: 12, color: t.muted }}>{r.l}</Text>
+            <Text style={{ fontSize: 12, color: t.ink, fontFamily: idnTokens.mono, fontWeight: '500' }}>{r.v}</Text>
+          </View>
+        ))}
+      </View>
+
+      <View style={{ flex: 1 }} />
+      <IdnButton t={t} variant="primary" size="lg" full onPress={() => finish(true)}>Vérifier mon identité · Niveau 2</IdnButton>
+      <Pressable style={{ alignItems: 'center', padding: 14 }} onPress={() => finish(false)}>
         <Text style={{ color: t.muted, fontSize: 13, fontWeight: '500' }}>Continuer vers l'accueil</Text>
       </Pressable>
     </View>

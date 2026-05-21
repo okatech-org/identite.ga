@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, Pressable, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useConvexAuth, useQuery } from 'convex/react';
+import { useConvexAuth, useMutation, useQuery } from 'convex/react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useIdnTheme } from '@/design/theme';
 import { idnTokens } from '@/design/tokens';
@@ -27,7 +27,34 @@ export default function ICarteCardDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { isAuthenticated } = useConvexAuth();
   const wallet = useQuery(api.wallet.listMine, isAuthenticated ? {} : 'skip');
+  const removeCard = useMutation(api.wallet.remove);
   const [verso, setVerso] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  function confirmDelete() {
+    if (!raw || deleting) return;
+    Alert.alert(
+      'Supprimer cette carte ?',
+      `« ${raw.name} » sera retirée de votre portefeuille. Cette action est irréversible.`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              await removeCard({ cardId: raw._id });
+              router.back();
+            } catch {
+              setDeleting(false);
+              Alert.alert('Erreur', 'Suppression impossible. Réessayez.');
+            }
+          },
+        },
+      ],
+    );
+  }
 
   const raw = wallet?.cards.find((c) => c._id === id);
 
@@ -134,6 +161,15 @@ export default function ICarteCardDetail() {
         <View style={{ marginTop: 10 }}>
           <IdnButton t={t} variant="primary" size="lg" full leadIcon={<Icon name="share" size={16} color="#fff" />}>Partager</IdnButton>
         </View>
+        <Pressable
+          onPress={confirmDelete}
+          disabled={deleting}
+          style={{ marginTop: 12, padding: 12, alignItems: 'center', opacity: deleting ? 0.5 : 1 }}
+        >
+          <Text style={{ color: '#B83A3A', fontSize: 13, fontWeight: '600' }}>
+            {deleting ? 'Suppression…' : 'Supprimer cette carte'}
+          </Text>
+        </Pressable>
       </View>
     </View>
   );

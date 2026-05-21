@@ -3,12 +3,10 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useMutation } from "convex/react"
 import { Controller, useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
 
-import { api } from "@repo/backend/convex/_generated/api"
 import { Button } from "@repo/ui/components/button"
 import { Input } from "@repo/ui/components/input"
 import { Label } from "@repo/ui/components/label"
@@ -21,7 +19,12 @@ import {
 } from "@repo/ui/components/select"
 
 import { identity, onboardingHeader, STEP_TOTAL } from "../../_content/fr"
-import { WizardShell } from "../../_components/wizard-shell"
+import { WizardShell } from "../wizard-shell"
+import {
+  getOnboardingPivot,
+  getOnboardingProfile,
+  setOnboardingPivot,
+} from "../../_hooks/use-onboarding-state"
 
 const TODAY_ISO = new Date().toISOString().slice(0, 10)
 
@@ -32,16 +35,29 @@ const schema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, identity.validation.dateInvalid)
     .refine((d) => d < TODAY_ISO, identity.validation.dateFuture),
-  gender: z.enum(["F", "M", "O", "N"]),
+  gender: z.enum(["F", "M"]),
   birthPlace: z.string().trim().min(1, identity.validation.required),
   nationality: z.string().trim().min(2, identity.validation.required),
+  phone: z.string().trim().optional(),
 })
 
 type FormValues = z.infer<typeof schema>
 
-export default function IdentityPage() {
+export function IdentityStep() {
   const router = useRouter()
-  const setIdentityPivot = useMutation(api.onboarding.setIdentityPivot)
+  const profile = React.useMemo(() => getOnboardingProfile(), [])
+
+  React.useEffect(() => {
+    if (!profile) {
+      router.replace("/sign-up?step=profile")
+    }
+  }, [profile, router])
+
+  const saved = React.useMemo(() => getOnboardingPivot(), [])
+  // Pré-remplit la nationalité gabonaise pour les citoyens — modifiable.
+  const defaultNationality =
+    saved?.nationality ?? (profile === "citizen" ? "GA" : "")
+  const savedGender = saved?.gender === "F" || saved?.gender === "M" ? saved.gender : undefined
 
   const {
     register,
@@ -51,20 +67,29 @@ export default function IdentityPage() {
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      firstName: "",
-      lastName: "",
-      dateOfBirth: "",
-      gender: undefined,
-      birthPlace: "",
-      nationality: "",
+      firstName: saved?.firstName ?? "",
+      lastName: saved?.lastName ?? "",
+      dateOfBirth: saved?.dateOfBirth ?? "",
+      gender: savedGender,
+      birthPlace: saved?.birthPlace ?? "",
+      nationality: defaultNationality,
+      phone: saved?.phone ?? "",
     },
     mode: "onTouched",
   })
 
-  const onSubmit = handleSubmit(async (values) => {
+  const onSubmit = handleSubmit((values) => {
     try {
-      await setIdentityPivot(values)
-      router.push("/sign-up/pin")
+      setOnboardingPivot({
+        firstName: values.firstName.trim(),
+        lastName: values.lastName.trim(),
+        dateOfBirth: values.dateOfBirth,
+        gender: values.gender,
+        birthPlace: values.birthPlace.trim(),
+        nationality: values.nationality.trim(),
+        phone: values.phone?.trim() || undefined,
+      })
+      router.push("/sign-up?step=idn")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erreur")
     }
@@ -76,8 +101,8 @@ export default function IdentityPage() {
       total={STEP_TOTAL}
       title={identity.title}
       sub={identity.sub}
-      backHref="/sign-up/verify"
-      backLabel={onboardingHeader.backToVerify}
+      backHref="/sign-up?step=profile"
+      backLabel={onboardingHeader.backToProfile}
       footer={
         <Button
           type="submit"
@@ -261,6 +286,17 @@ export default function IdentityPage() {
           )}
         </div>
 
+        <div className="space-y-1.5">
+          <Label htmlFor="id-phone">{identity.fields.phone.label}</Label>
+          <Input
+            id="id-phone"
+            type="tel"
+            autoComplete="tel"
+            placeholder={identity.fields.phone.placeholder}
+            className="h-12 text-base"
+            {...register("phone")}
+          />
+        </div>
       </form>
     </WizardShell>
   )

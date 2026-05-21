@@ -9,8 +9,8 @@ import { api } from "@repo/backend/convex/_generated/api"
 import { Button } from "@repo/ui/components/button"
 
 import { onboardingHeader, pin, STEP_TOTAL } from "../../_content/fr"
-import { PinPad } from "../../_components/pin-pad"
-import { WizardShell } from "../../_components/wizard-shell"
+import { PinPad } from "../pin-pad"
+import { WizardShell } from "../wizard-shell"
 import { clearOnboardingState } from "../../_hooks/use-onboarding-state"
 
 const FORBIDDEN_PINS = new Set([
@@ -49,7 +49,7 @@ function pinMatchesDob(pin: string, dob?: string): boolean {
 
 type Phase = "enter" | "confirm"
 
-export default function PinCreationPage() {
+export function PinStep() {
   const router = useRouter()
   const createPin = useMutation(api.onboarding.createPin)
   const me = useQuery(api.profile.getCurrentUser)
@@ -117,10 +117,10 @@ export default function PinCreationPage() {
       total={STEP_TOTAL}
       title={isEnter ? pin.enterTitle : pin.confirmTitle}
       sub={isEnter ? pin.enterSub : pin.confirmSub}
-      backHref={isEnter ? "/sign-up/identity" : undefined}
+      backHref={isEnter ? "/sign-up?step=idn" : undefined}
       onBack={isEnter ? undefined : backToEnter}
       backLabel={
-        isEnter ? onboardingHeader.backToIdentity : onboardingHeader.backToEnter
+        isEnter ? onboardingHeader.backToIdn : onboardingHeader.backToEnter
       }
       footer={
         <Button

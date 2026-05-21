@@ -4,14 +4,13 @@
  * migration future vers next-intl.
  */
 
-export const STEP_TOTAL = 5
+export const STEP_TOTAL = 4
 
 export const onboardingHeader = {
   backToHome: "Retour à l'accueil",
   backToProfile: "Retour à la sélection du profil",
-  backToSignUp: "Modifier l'email",
-  backToVerify: "Retour à la vérification",
   backToIdentity: "Retour à l'identité",
+  backToIdn: "Retour au choix de l'adresse",
   backToEnter: "Re-saisir le PIN",
 } as const
 
@@ -39,64 +38,14 @@ export const profile = {
       sub: "Passeport + visa — Niveau 1",
       loa: 1 as const,
     },
-    {
-      value: "developer" as const,
-      label: "Développeur",
-      sub: "Entité morale, accès API",
-      loa: null,
-    },
   ],
   primary: "Continuer",
   back: "← Retour",
 } as const
 
-export const signUp = {
-  meta: { title: "Créer un compte", description: "Créez votre compte IDN avec un email et un mot de passe sécurisé." },
-  step: 2,
-  title: "Créer un compte",
-  sub: "Étape 2 sur 5 — vos identifiants de connexion.",
-  emailLabel: "Adresse email",
-  emailPlaceholder: "vous@example.ga",
-  passwordLabel: "Mot de passe",
-  passwordHint: "Minimum 12 caractères. Mélangez lettres, chiffres et symboles.",
-  termsPrefix: "J'accepte les ",
-  termsLink: "conditions d'utilisation et la politique de confidentialité",
-  primary: "Recevoir le code de vérification",
-  errorEmailTaken: "Cet email est déjà utilisé.",
-  errorPasswordCompromised:
-    "Ce mot de passe figure dans une fuite de données publique. Choisissez-en un autre.",
-  errorPasswordWeak:
-    "Mot de passe trop faible. Combinez plusieurs mots, chiffres et symboles.",
-  errorGeneric:
-    "Création de compte impossible pour le moment. Réessayez dans un instant.",
-  signInPrefix: "Vous avez déjà un compte ? ",
-  signInLink: "Se connecter",
-  validation: {
-    emailInvalid: "Adresse email invalide.",
-    passwordTooShort: "Le mot de passe doit contenir au moins 12 caractères.",
-    termsRequired: "Vous devez accepter les conditions d'utilisation.",
-  },
-} as const
-
-export const verify = {
-  meta: { title: "Vérifier mon email", description: "Saisissez le code à 6 chiffres reçu par email pour confirmer votre adresse." },
-  step: 3,
-  title: "Vérifiez votre adresse email",
-  subPrefix: "Code à 6 chiffres envoyé à ",
-  expiresIn: "Le code est valable 15 minutes.",
-  resend: "Renvoyer le code",
-  resendCooldown: (s: number) => `Renvoyer le code (${s}s)`,
-  resentToast: "Nouveau code envoyé.",
-  primary: "Vérifier",
-  back: "← Modifier l'email",
-  errorInvalid: "Code incorrect ou expiré.",
-  errorTooManyAttempts: "Trop de tentatives. Réessayez plus tard.",
-  successToast: "Email vérifié.",
-} as const
-
 export const identity = {
   meta: { title: "Mon identité", description: "Saisissez votre identité pivot." },
-  step: 4,
+  step: 2,
   title: "Vos informations",
   sub: "Identité pivot — telles qu'elles figurent sur vos documents officiels.",
   fields: {
@@ -108,11 +57,10 @@ export const identity = {
       options: [
         { value: "F" as const, label: "Féminin" },
         { value: "M" as const, label: "Masculin" },
-        { value: "O" as const, label: "Autre" },
-        { value: "N" as const, label: "Préfère ne pas dire" },
       ],
     },
     birthPlace: { label: "Lieu de naissance", placeholder: "Libreville" },
+    phone: { label: "Numéro de téléphone", placeholder: "+241 06 22 14 89" },
     nationality: {
       label: "Nationalité",
       options: [
@@ -147,9 +95,35 @@ export const identity = {
   },
 } as const
 
+export const idnSignup = {
+  meta: { title: "Votre adresse IDN", description: "Choisissez votre adresse @idn.ga." },
+  step: 3,
+  title: "Votre adresse IDN",
+  sub: "Choisissez l'adresse qui vous identifiera auprès de l'administration.",
+  inputLabel: "Identifiant",
+  inputPlaceholder: "prenom.nom",
+  suggestionsLabel: "SUGGESTIONS",
+  suggestionsTakenLabel: "DISPONIBLES POUR VOUS",
+  badgeRecommended: "Recommandé",
+  statusChecking: "Vérification…",
+  statusAvailable: "Disponible — vous pouvez la réserver",
+  statusTaken: "Cette adresse est déjà attribuée à un autre citoyen",
+  statusInvalid: "Caractères autorisés : lettres minuscules, chiffres, points, tirets.",
+  info: "L'adresse @idn.ga est hébergée sur le sol gabonais. Elle est définitive et reste valide à vie.",
+  primary: "Réserver cette adresse",
+  primarySubmitting: "Réservation…",
+  errorTaken: "Cette adresse est déjà attribuée à un autre citoyen.",
+  errorGeneric: "Impossible de créer le compte. Réessayez.",
+  termsPrefix: "J'accepte les ",
+  termsLink: "conditions d'utilisation et la politique de confidentialité",
+  validation: {
+    termsRequired: "Vous devez accepter les conditions d'utilisation.",
+  },
+} as const
+
 export const pin = {
   meta: { title: "Créer mon PIN", description: "Créez votre PIN à 6 chiffres pour l'accès rapide à votre compte IDN." },
-  step: 5,
+  step: 4,
   enterTitle: "Créer votre PIN",
   enterSub: "Un code à 6 chiffres pour les actions sensibles : signature, validation, accès rapide.",
   confirmTitle: "Confirmer votre PIN",
@@ -176,7 +150,10 @@ export const signIn = {
   meta: { title: "Connexion", description: "Connectez-vous à votre compte IDN." },
   title: "Connectez-vous",
   sub: "à votre compte Identité Numérique",
-  emailLabel: "Email",
+  handleLabel: "Identifiant IDN",
+  handleHint: "Avec ou sans @idn.ga",
+  handlePlaceholder: "prenom.nom",
+  handleInvalid: "Identifiant IDN invalide.",
   passwordLabel: "Mot de passe",
   forgotLink: "Mot de passe oublié ?",
   primary: "Se connecter",
@@ -206,13 +183,13 @@ export const signIn = {
   // Étape PIN (sign-in)
   pinTitle: "Entrez votre PIN",
   pinSub: "Saisissez votre code à 6 chiffres pour vous connecter.",
-  pinBack: "Modifier l'email",
+  pinBack: "Modifier l'identifiant",
   pinPrimary: "Se connecter",
   pinUsePassword: "Utiliser mon mot de passe à la place",
   pinErrorInvalid: "PIN incorrect. Réessayez.",
   pinErrorTooMany: "Trop de tentatives. Réessayez dans une minute.",
   emailStepTitle: "Connectez-vous",
-  emailStepSub: "Saisissez l'adresse email associée à votre compte IDN.",
+  emailStepSub: "Saisissez votre identifiant IDN pour vous connecter.",
   passwordBack: "Utiliser mon PIN",
   // Aria du pavé numérique (réutilisés depuis l'onboarding)
   pinNumpadAria: "Pavé numérique",

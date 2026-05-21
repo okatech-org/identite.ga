@@ -239,6 +239,9 @@ export default defineSchema({
         ),
         birthPlace: v.string(),
         nationality: v.string(), // ISO 3166-1 alpha-2
+        // Numéro de téléphone du citoyen — informatif (pas de vérification SMS
+        // en V1). Stocké sous forme libre, format conseillé +241XXXXXXXX.
+        phone: v.optional(v.string()),
       }),
     ),
 
