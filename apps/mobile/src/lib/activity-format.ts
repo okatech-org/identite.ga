@@ -1,0 +1,68 @@
+/**
+ * Helpers de formatage pour la liste d'activité (audit logs).
+ * Aligné sur apps/web/app/(citizen)/_content/fr.ts — duplication
+ * volontaire pour éviter d'imposer un import cross-app au mobile.
+ */
+
+export const AUDIT_ACTION_LABELS: Record<string, string> = {
+  login_success: "Connexion réussie",
+  login_failure: "Échec de connexion",
+  login_lockout: "Compte temporairement verrouillé",
+  otp_sent: "Code OTP envoyé",
+  otp_verified: "Code OTP vérifié",
+  otp_expired: "Code OTP expiré",
+  account_created: "Compte IDN créé",
+  account_modified: "Profil modifié",
+  account_disabled: "Compte désactivé",
+  password_changed: "Mot de passe modifié",
+  email_changed: "Adresse email modifiée",
+  pin_changed: "PIN modifié",
+  kyc_submitted: "Vérification d'identité envoyée",
+  kyc_under_review: "Vérification en cours d'examen",
+  kyc_approved: "Niveau de garantie augmenté",
+  kyc_rejected: "Vérification refusée",
+  consent_granted: "Consentement accordé",
+  consent_revoked: "Consentement révoqué",
+  oauth_app_created: "Application OAuth créée",
+  oauth_app_modified: "Application OAuth modifiée",
+  oauth_app_disabled: "Application OAuth désactivée",
+  session_revoked: "Session révoquée",
+  session_revoked_global: "Toutes les autres sessions révoquées",
+  admin_action: "Action administrateur",
+  role_assigned: "Rôle attribué",
+  role_revoked: "Rôle révoqué",
+  identity_check_performed: "Vérification d'identité effectuée",
+  signature_verified: "Signature vérifiée",
+  presentation_minted: "Présentation d'identité émise",
+};
+
+const SHORT_MONTHS_FR = [
+  "janv.", "févr.", "mars", "avril", "mai", "juin",
+  "juil.", "août", "sept.", "oct.", "nov.", "déc.",
+];
+
+function pad(n: number): string {
+  return n.toString().padStart(2, "0");
+}
+
+/**
+ * "Aujourd'hui HH:mm" / "Hier HH:mm" / "JJ mois"
+ */
+export function formatRelativeDate(timestamp: number): string {
+  const d = new Date(timestamp);
+  const now = new Date();
+  const sameDay =
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const isYesterday =
+    d.getFullYear() === yesterday.getFullYear() &&
+    d.getMonth() === yesterday.getMonth() &&
+    d.getDate() === yesterday.getDate();
+  const time = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  if (sameDay) return `Aujourd'hui ${time}`;
+  if (isYesterday) return `Hier ${time}`;
+  return `${pad(d.getDate())} ${SHORT_MONTHS_FR[d.getMonth()]}`;
+}

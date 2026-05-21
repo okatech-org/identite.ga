@@ -11,7 +11,8 @@ import { IdnFlagBars } from '@/design/mark';
 import { Icon, type IconName } from '@/design/icons';
 import { api } from '@/lib/api';
 import { SectionH } from '@/components/chrome/section-header';
-import { HOME_MODULES, HOME_TODOS, HOME_ACTIVITY, HOME_RECOS } from '@/data/dashboard';
+import { HOME_MODULES } from '@/data/dashboard';
+import { AUDIT_ACTION_LABELS, formatRelativeDate } from '@/lib/activity-format';
 
 const LOA_LABEL = ['', '· Faible', '· Substantiel', '· Élevé'];
 
@@ -46,6 +47,7 @@ export default function Home() {
   const { isAuthenticated } = useConvexAuth();
   const user = useQuery(api.profile.getCurrentUser, isAuthenticated ? {} : 'skip');
   const unread = useQuery(api.notifications.unreadCount, isAuthenticated ? {} : 'skip');
+  const activity = useQuery(api.activity.listMine, isAuthenticated ? { limit: 5 } : 'skip');
 
   if (isAuthenticated && user === undefined) {
     return (
@@ -155,9 +157,9 @@ export default function Home() {
           </Pressable>
         ) : null}
 
-        {/* Mes services — grille 2x2 modules */}
-        <SectionH t={t} title="Mes services" right="Voir tout" />
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+        {/* Modules — grille 2x2 (sans en-tête : ce sont les fonctionnalités
+            de l'app, pas des "services" administratifs externes). */}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 20 }}>
           {HOME_MODULES.map(m => (
             <Pressable
               key={m.id}
@@ -170,7 +172,6 @@ export default function Home() {
                 borderRadius: 14,
                 padding: 14,
                 gap: 10,
-                position: 'relative',
               }}
             >
               <View style={{ width: 38, height: 38, borderRadius: 10, backgroundColor: t.dark ? m.bgDark : m.bgLight, alignItems: 'center', justifyContent: 'center' }}>
@@ -180,93 +181,49 @@ export default function Home() {
                 <Text style={{ fontSize: 13, fontWeight: '600', color: t.ink }}>{m.label}</Text>
                 <Text style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>{m.sub}</Text>
               </View>
-              {m.badge ? (
-                <View style={{ position: 'absolute', top: 12, right: 12, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 9999, backgroundColor: m.color }}>
-                  <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>{m.badge}</Text>
-                </View>
-              ) : null}
             </Pressable>
           ))}
         </View>
 
-        {/* À traiter */}
-        <SectionH t={t} title="À traiter" right={`${HOME_TODOS.length} en attente`} />
-        <View style={{ gap: 8 }}>
-          {HOME_TODOS.map((it, i) => (
-            <View key={i} style={{ backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 12, padding: 12 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <View style={{ width: 36, height: 36, borderRadius: 9, backgroundColor: t.surface2, alignItems: 'center', justifyContent: 'center' }}>
-                  <Icon name={it.icon} size={18} color={it.kind === 'mail' ? '#B83A3A' : t.ink2} />
-                </View>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: '600', color: t.ink }}>{it.label}</Text>
-                  <Text numberOfLines={1} style={{ fontSize: 11, color: t.muted, marginTop: 1 }}>{it.sub}</Text>
-                </View>
-                <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 9999, backgroundColor: it.tagColor === '#B83A3A' ? '#FEE2E2' : t.surface2 }}>
-                  <Text style={{ fontSize: 10, fontWeight: '700', color: it.tagColor, letterSpacing: 0.4 }}>{it.tagLabel}</Text>
-                </View>
-              </View>
-              {typeof it.pct === 'number' ? (
-                <View style={{ marginTop: 10, height: 3, backgroundColor: t.surface2, borderRadius: 9999, overflow: 'hidden' }}>
-                  <View style={{ width: `${it.pct}%`, height: '100%', backgroundColor: it.tagColor }} />
-                </View>
-              ) : null}
-            </View>
-          ))}
-        </View>
-
-        {/* Activité récente */}
+        {/* Activité récente — branchée sur api.activity.listMine. */}
         <SectionH t={t} title="Activité récente" right="Tout voir" onRightPress={() => router.push('/activity')} />
-        <View style={{ backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 12, paddingHorizontal: 14 }}>
-          {HOME_ACTIVITY.map((a, i) => (
-            <View
-              key={i}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 12,
-                paddingVertical: 12,
-                borderBottomWidth: i === HOME_ACTIVITY.length - 1 ? 0 : 1,
-                borderBottomColor: t.borderSoft,
-              }}
-            >
-              <View style={{ width: 28, height: 28, borderRadius: 9999, backgroundColor: t.surface2, alignItems: 'center', justifyContent: 'center' }}>
-                <Icon name={a.icon} size={14} color={a.col} />
-              </View>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={{ fontSize: 12, color: t.ink, fontWeight: '500' }}>
-                  <Text style={{ fontWeight: '700' }}>{a.e}</Text>
-                  <Text style={{ color: t.muted, fontWeight: '400' }}> {a.a}</Text>
-                </Text>
-                <Text style={{ fontSize: 10, color: t.muted, fontFamily: idnTokens.mono, marginTop: 2 }}>{a.t}</Text>
-              </View>
-              {a.warn ? (
-                <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, backgroundColor: t.dark ? '#3A2D14' : idnTokens.yellowSoft }}>
-                  <Text style={{ fontSize: 9, fontWeight: '700', color: '#9b6a00', letterSpacing: 0.4 }}>INHAB.</Text>
+        {activity === undefined ? (
+          <View style={{ backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 12, padding: 18 }}>
+            <View style={{ height: 14, backgroundColor: t.surface2, borderRadius: 4, marginBottom: 10 }} />
+            <View style={{ height: 14, backgroundColor: t.surface2, borderRadius: 4, width: '70%' }} />
+          </View>
+        ) : activity.length === 0 ? (
+          <View style={{ backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 12, padding: 18, alignItems: 'center' }}>
+            <Text style={{ fontSize: 12, color: t.muted }}>Aucune activité récente.</Text>
+          </View>
+        ) : (
+          <View style={{ backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 12, paddingHorizontal: 14 }}>
+            {activity.map((a, i) => {
+              const label = AUDIT_ACTION_LABELS[a.action] ?? a.action;
+              return (
+                <View
+                  key={a._id}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 12,
+                    paddingVertical: 12,
+                    borderBottomWidth: i === activity.length - 1 ? 0 : 1,
+                    borderBottomColor: t.borderSoft,
+                  }}
+                >
+                  <View style={{ width: 28, height: 28, borderRadius: 9999, backgroundColor: t.surface2, alignItems: 'center', justifyContent: 'center' }}>
+                    <Icon name="shield" size={14} color={idnTokens.green} />
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text numberOfLines={1} style={{ fontSize: 12, color: t.ink, fontWeight: '600' }}>{label}</Text>
+                    <Text style={{ fontSize: 10, color: t.muted, fontFamily: idnTokens.mono, marginTop: 2 }}>{formatRelativeDate(a.createdAt)}</Text>
+                  </View>
                 </View>
-              ) : null}
-            </View>
-          ))}
-        </View>
-
-        {/* Pour vous */}
-        <SectionH t={t} title="Pour vous" />
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -22 }} contentContainerStyle={{ paddingHorizontal: 22, gap: 10 }}>
-          {HOME_RECOS.map((c, i) => (
-            <View key={i} style={{ minWidth: 160, backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 14, padding: 12, position: 'relative' }}>
-              {c.tag ? (
-                <View style={{ position: 'absolute', top: 8, right: 8, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, backgroundColor: idnTokens.green }}>
-                  <Text style={{ fontSize: 9, fontWeight: '700', color: '#fff', letterSpacing: 0.4 }}>{c.tag}</Text>
-                </View>
-              ) : null}
-              <View style={{ height: 70, borderRadius: 10, backgroundColor: c.col, marginBottom: 10, alignItems: 'flex-start', justifyContent: 'flex-end', padding: 10 }}>
-                <Text style={{ color: '#3a2c10', fontSize: 28, fontWeight: '700', fontFamily: idnTokens.mono, lineHeight: 28 }}>{c.l[0]}</Text>
-              </View>
-              <Text style={{ fontSize: 12, fontWeight: '600', color: t.ink }}>{c.l}</Text>
-              <Text style={{ fontSize: 10, color: t.muted, marginTop: 2 }}>{c.sub}</Text>
-            </View>
-          ))}
-        </ScrollView>
+              );
+            })}
+          </View>
+        )}
       </ScrollView>
     </View>
   );
