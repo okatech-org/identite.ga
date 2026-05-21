@@ -105,9 +105,15 @@ export default function DashboardPage() {
                 bgDark={m.bgDark}
                 variant="desktop"
                 href={"href" in m ? m.href : undefined}
-                disabled={"disabled" in m ? m.disabled : undefined}
+                disabled={
+                  "disabled" in m
+                    ? (m.disabled as boolean | undefined)
+                    : undefined
+                }
                 disabledTooltip={
-                  "disabledTooltip" in m ? m.disabledTooltip : undefined
+                  "disabledTooltip" in m
+                    ? (m.disabledTooltip as string | undefined)
+                    : undefined
                 }
                 badge={"badge" in m ? m.badge : undefined}
               />
@@ -158,9 +164,15 @@ export default function DashboardPage() {
                 bgDark={m.bgDark}
                 variant="desktop"
                 href={"href" in m ? m.href : undefined}
-                disabled={"disabled" in m ? m.disabled : undefined}
+                disabled={
+                  "disabled" in m
+                    ? (m.disabled as boolean | undefined)
+                    : undefined
+                }
                 disabledTooltip={
-                  "disabledTooltip" in m ? m.disabledTooltip : undefined
+                  "disabledTooltip" in m
+                    ? (m.disabledTooltip as string | undefined)
+                    : undefined
                 }
                 badge={"badge" in m ? m.badge : undefined}
               />

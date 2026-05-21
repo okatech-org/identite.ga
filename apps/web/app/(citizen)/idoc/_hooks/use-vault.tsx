@@ -77,7 +77,7 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     if (restoreAttempted) return
     if (isLoading || !isAuthenticated || keyStatus === undefined) return
-    if (!keyStatus.activated || envelope === undefined) {
+    if (!keyStatus.activated || !envelope) {
       // Pas de vault à restaurer — on marque tenté pour ne pas bloquer en "loading".
       if (!keyStatus.activated || envelope === null) setRestoreAttempted(true)
       return
