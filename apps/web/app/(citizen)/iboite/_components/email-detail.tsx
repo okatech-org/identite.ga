@@ -5,6 +5,7 @@ import { useMutation, useQuery } from "convex/react"
 import {
   Building2Icon,
   PaperclipIcon,
+  ReplyIcon,
   StarIcon,
   UserIcon,
 } from "lucide-react"
@@ -19,8 +20,11 @@ import { formatDateTime } from "../_lib/format"
 
 export function EmailDetail({
   messageId,
+  onReply,
 }: {
   messageId: Id<"iboiteMessage">
+  /** Déclenche l'ouverture du compose en mode réponse à ce message. */
+  onReply: () => void
 }) {
   const email = useQuery(api.iboite.messages.get, { messageId })
   const markRead = useMutation(api.iboite.messages.markRead)
@@ -92,25 +96,36 @@ export function EmailDetail({
             {iboite.emails.toLine(email.recipientEmail, date)}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onToggleStar}
-          className={cn(
-            "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-            email.isStarred
-              ? "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300"
-              : "border-border bg-card text-foreground/80 hover:bg-secondary",
-          )}
-        >
-          <StarIcon
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={onReply}
+            aria-label={iboite.emails.actions.reply}
+            className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground/80 transition-colors hover:bg-secondary"
+          >
+            <ReplyIcon className="h-3.5 w-3.5" aria-hidden="true" />
+            {iboite.emails.actions.reply}
+          </button>
+          <button
+            type="button"
+            onClick={onToggleStar}
             className={cn(
-              "h-3.5 w-3.5",
-              email.isStarred ? "fill-amber-400 text-amber-400" : "",
+              "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+              email.isStarred
+                ? "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300"
+                : "border-border bg-card text-foreground/80 hover:bg-secondary",
             )}
-            aria-hidden="true"
-          />
-          {email.isStarred ? iboite.emails.removeStar : iboite.emails.addStar}
-        </button>
+          >
+            <StarIcon
+              className={cn(
+                "h-3.5 w-3.5",
+                email.isStarred ? "fill-amber-400 text-amber-400" : "",
+              )}
+              aria-hidden="true"
+            />
+            {email.isStarred ? iboite.emails.removeStar : iboite.emails.addStar}
+          </button>
+        </div>
       </header>
 
       <div className="px-5 pb-3 pt-5">

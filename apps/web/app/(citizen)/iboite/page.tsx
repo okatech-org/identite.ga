@@ -71,6 +71,12 @@ export default function IBoitePage() {
   const account = accounts.find((a) => a._id === accountId) ?? firstAccount
   const itemOpen = Boolean(state.selectedId)
 
+  // Ouvre le compose en mode réponse au message courant. `selectedId`
+  // est garanti non-null par les conditions d'affichage des actions.
+  const replyToCurrent = () => {
+    if (state.selectedId) state.openCompose(state.selectedId)
+  }
+
   return (
     <>
       <div className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col gap-3 px-3 py-4 md:flex-row md:px-4 md:py-5 lg:px-6">
@@ -122,13 +128,14 @@ export default function IBoitePage() {
                 active={state.emailFolder}
                 counters={account.counters}
                 onChange={state.setEmailFolder}
-                onCompose={state.openCompose}
+                onCompose={() => state.openCompose()}
               />
               {state.selectedId ? (
                 <EmailActionsPanel
                   messageId={state.selectedId as Id<"iboiteMessage">}
                   onBack={() => state.selectItem(null)}
-                  onCompose={state.openCompose}
+                  onCompose={() => state.openCompose()}
+                  onReply={replyToCurrent}
                 />
               ) : null}
             </>
@@ -191,6 +198,7 @@ export default function IBoitePage() {
               {state.selectedId ? (
                 <EmailDetail
                   messageId={state.selectedId as Id<"iboiteMessage">}
+                  onReply={replyToCurrent}
                 />
               ) : (
                 <EmailList
@@ -203,7 +211,8 @@ export default function IBoitePage() {
                 <EmailActionsBar
                   messageId={state.selectedId as Id<"iboiteMessage">}
                   onBack={() => state.selectItem(null)}
-                  onCompose={state.openCompose}
+                  onCompose={() => state.openCompose()}
+                  onReply={replyToCurrent}
                 />
               ) : null}
             </>
@@ -213,7 +222,7 @@ export default function IBoitePage() {
           {state.section === "emails" && !itemOpen ? (
             <button
               type="button"
-              onClick={state.openCompose}
+              onClick={() => state.openCompose()}
               aria-label={iboite.emails.newMessage}
               className="absolute bottom-4 right-4 inline-flex h-13 w-13 items-center justify-center rounded-full bg-idn-green text-white shadow-lg shadow-idn-green/40 hover:bg-idn-green/90 md:hidden"
               style={{ height: 52, width: 52 }}
@@ -240,6 +249,11 @@ export default function IBoitePage() {
         <ComposeModal
           accountId={account._id}
           onClose={state.closeCompose}
+          replyToId={
+            state.replyToId
+              ? (state.replyToId as Id<"iboiteMessage">)
+              : undefined
+          }
         />
       ) : null}
 

@@ -33,6 +33,8 @@ export type IBoiteState = {
   emailFolder: EmailFolder
   selectedId: string | null
   composeOpen: boolean
+  /** Si renseigné, le compose s'ouvre en mode réponse au message d'id donné. */
+  replyToId: string | null
 }
 
 function readSection(value: string | null): SectionKey {
@@ -73,6 +75,7 @@ export function useIBoiteState() {
     emailFolder: readEmailFolder(searchParams.get("efolder")),
     selectedId: searchParams.get("id"),
     composeOpen: searchParams.get("compose") === "1",
+    replyToId: searchParams.get("reply"),
   }
 
   const replace = React.useCallback(
@@ -90,11 +93,13 @@ export function useIBoiteState() {
       else params.delete("id")
       if (next.composeOpen) params.set("compose", "1")
       else params.delete("compose")
+      if (next.replyToId) params.set("reply", next.replyToId)
+      else params.delete("reply")
       const qs = params.toString()
       router.replace(qs ? `/iboite?${qs}` : "/iboite", { scroll: false })
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [searchParams, router, state.section, state.courrierFolder, state.emailFolder, state.selectedId, state.composeOpen],
+    [searchParams, router, state.section, state.courrierFolder, state.emailFolder, state.selectedId, state.composeOpen, state.replyToId],
   )
 
   return {
@@ -106,7 +111,13 @@ export function useIBoiteState() {
     setEmailFolder: (folder: EmailFolder) =>
       replace({ emailFolder: folder, selectedId: null }),
     selectItem: (id: string | null) => replace({ selectedId: id }),
-    openCompose: () => replace({ composeOpen: true }),
-    closeCompose: () => replace({ composeOpen: false }),
+    /**
+     * Ouvre le compose. Si `replyToId` est fourni, le ComposeModal pré-remplit
+     * destinataire + sujet en lisant le message original via Convex.
+     */
+    openCompose: (replyToId?: string) =>
+      replace({ composeOpen: true, replyToId: replyToId ?? null }),
+    closeCompose: () =>
+      replace({ composeOpen: false, replyToId: null }),
   }
 }

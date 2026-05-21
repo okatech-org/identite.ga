@@ -26,11 +26,19 @@ import { useEmailActions } from "../_hooks/use-email-actions"
 type Props = {
   messageId: Id<"iboiteMessage">
   onBack: () => void
+  /** Ouvre le compose en mode nouveau message (cas Forward, FAB). */
   onCompose: () => void
+  /** Ouvre le compose pré-rempli en réponse au message courant. */
+  onReply: () => void
 }
 
 /** Panneau d'actions vertical — uniquement desktop (md+). */
-export function EmailActionsPanel({ messageId, onBack, onCompose }: Props) {
+export function EmailActionsPanel({
+  messageId,
+  onBack,
+  onCompose,
+  onReply,
+}: Props) {
   const actions = useEmailActions({ messageId, onAfterMove: onBack })
 
   return (
@@ -55,11 +63,11 @@ export function EmailActionsPanel({ messageId, onBack, onCompose }: Props) {
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
-            <DropdownMenuItem onSelect={onCompose}>
+            <DropdownMenuItem onSelect={onReply}>
               <ReplyIcon className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
               {iboite.emails.actions.reply}
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={onCompose}>
+            <DropdownMenuItem onSelect={onReply}>
               <ReplyAllIcon className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
               {iboite.emails.actions.replyAll}
             </DropdownMenuItem>
@@ -108,7 +116,12 @@ export function EmailActionsPanel({ messageId, onBack, onCompose }: Props) {
 }
 
 /** Toolbar horizontale en bas — uniquement mobile (<md). */
-export function EmailActionsBar({ messageId, onBack, onCompose }: Props) {
+export function EmailActionsBar({
+  messageId,
+  onBack,
+  onCompose,
+  onReply,
+}: Props) {
   const actions = useEmailActions({ messageId, onAfterMove: onBack })
 
   const items: Array<{
@@ -123,7 +136,7 @@ export function EmailActionsBar({ messageId, onBack, onCompose }: Props) {
       key: "reply",
       icon: ReplyIcon,
       label: iboite.emails.actions.reply,
-      onClick: onCompose,
+      onClick: onReply,
       primary: true,
     },
     {

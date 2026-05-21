@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useMutation } from "convex/react"
+import { useMutation, useQuery } from "convex/react"
 import { ConvexError } from "convex/values"
 import { PaperclipIcon, SendIcon } from "lucide-react"
 import { toast } from "sonner"
@@ -26,15 +26,50 @@ import { iboite } from "../_content/fr"
 export function ComposeModal({
   accountId,
   onClose,
+  replyToId,
 }: {
   accountId: Id<"iboiteAccount">
   onClose: () => void
+  /**
+   * Si fourni, le modal s'ouvre en mode réponse : on charge le message
+   * original via Convex et on pré-remplit destinataire + sujet (« Re: … »).
+   * L'`inReplyTo` est passé au backend pour hériter du `threadId`.
+   */
+  replyToId?: Id<"iboiteMessage">
 }) {
   const send = useMutation(api.iboite.messages.send)
+
+  // Charge le message d'origine quand on est en mode réponse. `"skip"` évite
+  // un fetch inutile en mode nouveau message.
+  const original = useQuery(
+    api.iboite.messages.get,
+    replyToId ? { messageId: replyToId } : "skip",
+  )
+
   const [to, setTo] = React.useState("")
   const [subject, setSubject] = React.useState("")
   const [body, setBody] = React.useState("")
   const [submitting, setSubmitting] = React.useState(false)
+
+  // Pré-remplit destinataire + sujet une seule fois quand le message
+  // original arrive. On utilise un ref pour ne pas écraser ce que
+  // l'utilisateur aurait commencé à éditer.
+  const didPrefillRef = React.useRef(false)
+  React.useEffect(() => {
+    if (didPrefillRef.current) return
+    if (!replyToId) return
+    if (original === undefined) return // en cours de chargement
+    if (original === null) {
+      // Message introuvable (probablement supprimé) — on bascule en
+      // mode nouveau message vide plutôt que de bloquer l'utilisateur.
+      didPrefillRef.current = true
+      return
+    }
+    setTo(original.senderEmail)
+    const base = original.subject
+    setSubject(/^re:\s*/i.test(base) ? base : `Re: ${base}`)
+    didPrefillRef.current = true
+  }, [replyToId, original])
 
   async function submit(e?: React.FormEvent) {
     e?.preventDefault()
@@ -70,6 +105,10 @@ export function ComposeModal({
         recipientName: normalizedTo.split("@")[0] ?? normalizedTo,
         subject: subject.trim(),
         body: body.trim(),
+        // En mode réponse, on transmet l'id du message d'origine — le
+        // backend en déduit le `threadId` et rattache la nouvelle entrée
+        // à la conversation existante.
+        inReplyTo: replyToId,
       })
       toast.success(iboite.toasts.sent)
       onClose()
@@ -97,13 +136,15 @@ export function ComposeModal({
     }
   }
 
+  const title = replyToId ? iboite.compose.replyTitle : iboite.compose.title
+
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{iboite.compose.title}</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
           <DialogDescription className="sr-only">
-            {iboite.compose.title}
+            {title}
           </DialogDescription>
         </DialogHeader>
 
