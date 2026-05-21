@@ -8,6 +8,8 @@ export default function IBoiteLayout() {
       <Stack.Screen name="courrier/[id]" />
       <Stack.Screen name="email/[id]" />
       <Stack.Screen name="compose" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.95] }} />
+      <Stack.Screen name="address-setup" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.95] }} />
+      <Stack.Screen name="courrier/compose" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.95] }} />
     </Stack>
   );
 }

@@ -82,7 +82,13 @@ export default function IBoiteHome() {
       <View style={{ paddingHorizontal: 22 }}>
         <AccountPill acc={accUi} onPress={() => router.push('/iboite/accounts' as never)} />
       </View>
-      <AddressStrip acc={accUi} t={t} />
+      <AddressStrip
+        acc={accUi}
+        t={t}
+        onConfigure={() =>
+          router.push({ pathname: '/iboite/address-setup', params: { accountId: account._id } } as never)
+        }
+      />
       <IBoiteTabs t={t} active={tab} onChange={setTab} />
 
       {tab === 'courriers' ? (

@@ -10,7 +10,11 @@ export function iboiteAccountToUi(a: {
   street: string;
   city: string;
   postalCode: string;
+  country?: string;
   qrCode: string;
+  isAddressConfigured?: boolean;
+  district?: string | null;
+  addressLine?: string | null;
 }): MailAccount & { _id: string } {
   const grad = ((): [string, string] => {
     switch (a.type) {
@@ -35,6 +39,10 @@ export function iboiteAccountToUi(a: {
       ville: a.city,
       bp: a.postalCode,
       qr: a.qrCode,
+      district: a.district ?? undefined,
+      addressLine: a.addressLine ?? undefined,
+      country: a.country ?? undefined,
+      isConfigured: a.isAddressConfigured === true,
     },
   };
 }
@@ -50,4 +58,20 @@ export function formatRelativeTime(ts: number): string {
   if (d < 2) return 'Hier';
   if (d < 7) return `Il y a ${d} j`;
   return new Date(ts).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+}
+
+/**
+ * Construit la première ligne d'adresse affichable. Priorité :
+ *   1. quartier + ville
+ *   2. ville seule
+ *   3. addressLine
+ *   4. null (= non configuré)
+ */
+export function formatAddressLine(addr: MailAccount['addr']): string | null {
+  if (!addr.isConfigured) return null;
+  const parts = [addr.district, addr.ville].filter((s): s is string => Boolean(s && s.trim()));
+  if (parts.length > 0) return parts.join(', ');
+  if (addr.addressLine && addr.addressLine.trim()) return addr.addressLine;
+  if (addr.rue && addr.rue.trim()) return addr.rue;
+  return null;
 }

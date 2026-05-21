@@ -5,7 +5,20 @@ export type MailAccount = {
   label: string;
   icon: IconName;
   grad: [string, string];
-  addr: { rue: string; ville: string; bp: string; qr: string };
+  addr: {
+    rue: string;
+    ville: string;
+    bp: string;
+    qr: string;
+    /** Quartier (ex. Akanda, Glass, Nzeng-Ayong). Vide tant que non configuré. */
+    district?: string;
+    /** Ligne d'adresse formatée (résolue par geocoder ou saisie manuelle). */
+    addressLine?: string;
+    /** Pays — par défaut Gabon. */
+    country?: string;
+    /** `true` une fois l'adresse configurée par le citoyen (GPS ou manuel). */
+    isConfigured: boolean;
+  };
   email: string;
 };
 
@@ -15,7 +28,7 @@ export const MAIL_ACCOUNTS: MailAccount[] = [
     label: 'Personnel',
     icon: 'home',
     grad: ['#3b82f6', '#4338ca'],
-    addr: { rue: 'Avenue du Colonel Parant', ville: 'Libreville', bp: 'BP 1000', qr: 'IDNGA-12345' },
+    addr: { rue: 'Avenue du Colonel Parant', ville: 'Libreville', bp: 'BP 1000', qr: 'IDNGA-12345', isConfigured: true },
     email: 'jean.dupont@idn.ga',
   },
   {
@@ -23,7 +36,7 @@ export const MAIL_ACCOUNTS: MailAccount[] = [
     label: 'Professionnel',
     icon: 'briefcase',
     grad: ['#10b981', '#0d9488'],
-    addr: { rue: 'Boulevard Triomphal', ville: 'Libreville', bp: 'BP 5000', qr: 'IDNGA-PRO-5000' },
+    addr: { rue: 'Boulevard Triomphal', ville: 'Libreville', bp: 'BP 5000', qr: 'IDNGA-PRO-5000', isConfigured: true },
     email: 'contact@abc-sarl.ga',
   },
   {
@@ -31,7 +44,7 @@ export const MAIL_ACCOUNTS: MailAccount[] = [
     label: 'Association',
     icon: 'users',
     grad: ['#a855f7', '#ec4899'],
-    addr: { rue: 'Rue de la Solidarité', ville: 'Libreville', bp: 'BP 2500', qr: 'IDNGA-ASSO-2500' },
+    addr: { rue: 'Rue de la Solidarité', ville: 'Libreville', bp: 'BP 2500', qr: 'IDNGA-ASSO-2500', isConfigured: true },
     email: 'asso.jeunesse@idn.ga',
   },
 ];
