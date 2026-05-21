@@ -11,9 +11,8 @@ import { IdnButton } from '@/design/components/idn-button';
 import { Icon } from '@/design/icons';
 import { DOC_FOLDERS } from '@/data/documents';
 import { api } from '@/lib/api';
-import { useDecryptedItems } from '@/hooks/use-vault';
 
-type VaultFolderId =
+type DocFolderId =
   | 'identity' | 'civil_status' | 'residence' | 'education'
   | 'work' | 'health' | 'vehicle' | 'other';
 
@@ -22,10 +21,9 @@ export default function FolderDetail() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const folderId = (id ?? 'identity') as VaultFolderId;
-  const items = useQuery(api.vault.items.listByFolder, { folderId });
-  const removeItem = useMutation(api.vault.items.remove);
-  const decoded = useDecryptedItems(items);
+  const folderId = (id ?? 'identity') as DocFolderId;
+  const items = useQuery(api.idoc.listByFolder, { folderId });
+  const removeItem = useMutation(api.idoc.remove);
 
   const folder = DOC_FOLDERS.find((f) => f.id === folderId) ?? DOC_FOLDERS[0];
 
@@ -46,7 +44,7 @@ export default function FolderDetail() {
     ]);
   }
 
-  if (decoded === undefined) {
+  if (items === undefined) {
     return (
       <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top, alignItems: 'center', justifyContent: 'center' }}>
         <Text style={{ color: t.muted, fontSize: 13 }}>Chargement…</Text>
@@ -54,7 +52,7 @@ export default function FolderDetail() {
     );
   }
 
-  if (decoded.length === 0) {
+  if (items.length === 0) {
     return (
       <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top }}>
         <NLargeHeader t={t} title={folder.label} sub="0 document" onBack={() => router.back()} />
@@ -63,7 +61,7 @@ export default function FolderDetail() {
             <Icon name="folderO" size={48} color={t.mutedSoft} />
             <Text style={{ fontSize: 14, color: t.ink2, fontWeight: '600', marginTop: 12 }}>Aucun document</Text>
             <Text style={{ fontSize: 12, color: t.muted, marginTop: 4, lineHeight: 18, textAlign: 'center' }}>
-              Ajoutez votre premier document à ce dossier. Il sera chiffré sur votre appareil avant l'envoi.
+              Ajoutez votre premier document à ce dossier.
             </Text>
             <View style={{ alignSelf: 'stretch', marginTop: 18 }}>
               <IdnButton
@@ -87,14 +85,13 @@ export default function FolderDetail() {
       <NLargeHeader
         t={t}
         title={folder.label}
-        sub={`${decoded.length} document${decoded.length > 1 ? 's' : ''}`}
+        sub={`${items.length} document${items.length > 1 ? 's' : ''}`}
         onBack={() => router.back()}
       />
       <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingBottom: insets.bottom + 86 }} showsVerticalScrollIndicator={false}>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-          {decoded.map((d) => {
-            const meta = d.metadata as { name?: string; expiresIn?: string } | null;
-            const name = meta?.name ?? '—';
+          {items.map((d) => {
+            const name = d.name || '—';
             return (
               <Pressable
                 key={d._id}

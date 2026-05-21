@@ -106,8 +106,19 @@ export function VaultGate({ children }: { children: React.ReactNode }) {
           ) : null}
 
           <IdnButton t={t} variant="primary" size="lg" full onPress={submit} disabled={submitting}>
-            {submitting ? '…' : activating ? 'Activer' : 'Déverrouiller'}
+            {submitting
+              ? activating
+                ? 'Activation en cours…'
+                : 'Déverrouillage en cours…'
+              : activating
+                ? 'Activer'
+                : 'Déverrouiller'}
           </IdnButton>
+          {submitting ? (
+            <Text style={{ fontSize: 11, color: t.muted, textAlign: 'center', marginTop: -4 }}>
+              Cela peut prendre quelques secondes — l'app reste réactive.
+            </Text>
+          ) : null}
 
           {activating ? (
             <Pressable style={{ paddingVertical: 8 }}>

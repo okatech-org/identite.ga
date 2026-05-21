@@ -24,11 +24,8 @@ import {
   SheetTitle,
 } from "@repo/ui/components/sheet"
 
-import { encryptFile } from "@/lib/vault-crypto"
-
 import { FOLDERS, type VaultFolderId } from "../_content/folders"
 import { idoc } from "../_content/fr"
-import { useVault } from "../_hooks/use-vault"
 
 type AddDocumentSheetProps = {
   open: boolean
@@ -60,9 +57,8 @@ export function AddDocumentSheet({
   initialFolder,
   onClose,
 }: AddDocumentSheetProps) {
-  const { status } = useVault()
-  const generateUploadUrl = useMutation(api.vault.items.generateUploadUrl)
-  const createItem = useMutation(api.vault.items.create)
+  const generateUploadUrl = useMutation(api.idoc.generateUploadUrl)
+  const createItem = useMutation(api.idoc.create)
 
   const [step, setStep] = React.useState<Step>("select")
   const [file, setFile] = React.useState<File | null>(null)
@@ -117,10 +113,6 @@ export function AddDocumentSheet({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (submitting) return
-    if (status.phase !== "unlocked") {
-      setError(idoc.add.errors.vaultLocked)
-      return
-    }
     if (!file) {
       setError(idoc.add.errors.pickRequired)
       return
@@ -139,19 +131,11 @@ export function AddDocumentSheet({
     setSubmitting(true)
     setError(null)
     try {
-      const bytes = new Uint8Array(await file.arrayBuffer())
-      const encrypted = await encryptFile(status.mvk, bytes, {
-        name: trimmedName,
-        originalName: file.name,
-        mime: file.type,
-        addedAt: new Date().toISOString(),
-      })
-
       const uploadUrl = await generateUploadUrl()
       const uploadRes = await fetch(uploadUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/octet-stream" },
-        body: encrypted.ciphertext as BodyInit,
+        headers: { "Content-Type": file.type || "application/octet-stream" },
+        body: file,
       })
       if (!uploadRes.ok) throw new Error("upload failed")
       const { storageId } = (await uploadRes.json()) as { storageId: string }
@@ -159,10 +143,9 @@ export function AddDocumentSheet({
       await createItem({
         folderId,
         contentRef: storageId as never,
-        encryptedMetadata: encrypted.encryptedMetadata,
-        wrappedDek: encrypted.wrappedDek,
-        iv: encrypted.iv,
-        metaIv: encrypted.metaIv,
+        name: trimmedName,
+        originalName: file.name,
+        mimeType: file.type || "application/octet-stream",
         fileType: detectFileType(file.type),
         fileSize: file.size,
         expirationDate: trimmedExp || undefined,

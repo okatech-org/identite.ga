@@ -21,14 +21,13 @@ import {
   NEVER_EXPIRES,
   type VaultFolderId,
 } from "../_content/folders"
-import { useDecryptedItems } from "../_hooks/use-vault"
 
 type FolderViewProps = {
   slug: VaultFolderId
   confidential: boolean
   onBack: () => void
   onOpenAdd: () => void
-  onOpenDoc: (itemId: Id<"vaultItem">) => void
+  onOpenDoc: (itemId: Id<"documentItem">) => void
 }
 
 /**
@@ -49,8 +48,7 @@ export function FolderView({
 }: FolderViewProps) {
   const folder = getFolder(slug)
   const Icon = folder.icon
-  const items = useQuery(api.vault.items.listByFolder, { folderId: slug })
-  const decoded = useDecryptedItems(items)
+  const items = useQuery(api.idoc.listByFolder, { folderId: slug })
 
   const loading = items === undefined
   const count = items?.length ?? 0
@@ -109,7 +107,7 @@ export function FolderView({
           <EmptyState onOpenAdd={onOpenAdd} />
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-4">
-            {decoded?.map((item) => (
+            {items?.map((item) => (
               <DocumentCard
                 key={item._id}
                 item={item}
@@ -147,13 +145,13 @@ function EmptyState({ onOpenAdd }: { onOpenAdd: () => void }) {
 
 // ─────────────────────────────────────────────────────────────────────────
 
-type DecodedItem = {
-  _id: Id<"vaultItem">
+type DocItem = {
+  _id: Id<"documentItem">
+  name: string
   status: "pending" | "verified" | "rejected" | "expired"
   fileType: "pdf" | "image" | "other"
   expirationDate?: string
   side?: "front" | "back"
-  metadata: Record<string, unknown> | null
 }
 
 function DocumentCard({
@@ -163,16 +161,13 @@ function DocumentCard({
   neverExpires,
   onOpen,
 }: {
-  item: DecodedItem
+  item: DocItem
   folderGradient: string
   confidential: boolean
   neverExpires: boolean
   onOpen: () => void
 }) {
-  const name =
-    typeof item.metadata?.name === "string" && item.metadata.name.trim()
-      ? (item.metadata.name as string)
-      : "—"
+  const name = item.name?.trim() ? item.name : "—"
   const statusInfo = STATUS_STYLES[item.status]
 
   return (
@@ -245,7 +240,7 @@ function DocumentCard({
 
 // ─────────────────────────────────────────────────────────────────────────
 
-function DocPreview({ fileType }: { fileType: DecodedItem["fileType"] }) {
+function DocPreview({ fileType }: { fileType: DocItem["fileType"] }) {
   if (fileType === "pdf") {
     return (
       <span className="flex h-14 w-12 items-center justify-center rounded-sm bg-white text-[10px] font-bold tracking-wider text-foreground shadow-sm">
@@ -262,7 +257,7 @@ function DocPreview({ fileType }: { fileType: DecodedItem["fileType"] }) {
 // ─────────────────────────────────────────────────────────────────────────
 
 const STATUS_STYLES: Record<
-  DecodedItem["status"],
+  DocItem["status"],
   {
     label: string | null
     badgeClass: string

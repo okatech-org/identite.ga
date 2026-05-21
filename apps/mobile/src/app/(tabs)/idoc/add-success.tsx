@@ -16,7 +16,7 @@ export default function DocAddSuccess() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { isAuthenticated } = useConvexAuth();
-  const summary = useQuery(api.vault.folders.summary, isAuthenticated ? {} : 'skip');
+  const summary = useQuery(api.idoc.summary, isAuthenticated ? {} : 'skip');
 
   // Le dossier le plus récemment ajouté n'est pas exposé par add.tsx ;
   // on affiche celui qui a la plus grosse population — heuristique

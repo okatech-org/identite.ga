@@ -15,7 +15,7 @@ export default function IDocHome() {
   const t = useIdnTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const summary = useQuery(api.vault.folders.summary, {});
+  const summary = useQuery(api.idoc.summary, {});
   const [confidential, setConfidential] = useState(false);
   const [search, setSearch] = useState('');
 

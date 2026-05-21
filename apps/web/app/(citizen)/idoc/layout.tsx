@@ -1,12 +1,10 @@
 import * as React from "react"
 
-import { VaultProvider } from "./_hooks/use-vault"
-import { VaultGate } from "./_components/vault-gate"
-
+/**
+ * iDocument — layout simple, sans coffre-fort. Le code E2E
+ * (VaultProvider / VaultGate) reste disponible pour réactivation
+ * future mais n'est plus monté.
+ */
 export default function IdocLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <VaultProvider>
-      <VaultGate>{children}</VaultGate>
-    </VaultProvider>
-  )
+  return <>{children}</>
 }

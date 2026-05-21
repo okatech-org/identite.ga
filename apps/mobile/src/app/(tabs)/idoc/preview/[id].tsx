@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Alert, ScrollView, Text, View } from 'react-native';
+import React from 'react';
+import { Alert, Linking, ScrollView, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useConvexAuth, useMutation, useQuery } from 'convex/react';
@@ -10,8 +10,6 @@ import { IdnButton } from '@/design/components/idn-button';
 import { Icon } from '@/design/icons';
 import { DOC_FOLDERS } from '@/data/documents';
 import { api } from '@/lib/api';
-import { useVault } from '@/hooks/use-vault';
-import { decryptMetadata } from '@/lib/vault-crypto';
 
 export default function DocPreview() {
   const t = useIdnTheme();
@@ -19,30 +17,15 @@ export default function DocPreview() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { isAuthenticated } = useConvexAuth();
-  const { status } = useVault();
-  const item = useQuery(api.vault.items.get, isAuthenticated && id ? { itemId: id as never } : 'skip');
-  const removeItem = useMutation(api.vault.items.remove);
-  const [meta, setMeta] = useState<Record<string, unknown> | null>(null);
-
-  useEffect(() => {
-    if (status.phase !== 'unlocked' || !item) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const m = await decryptMetadata(status.mvk, item.wrappedDek, item.metaIv, item.encryptedMetadata);
-        if (!cancelled) setMeta(m);
-      } catch {
-        if (!cancelled) setMeta(null);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [item, status]);
+  const item = useQuery(api.idoc.get, isAuthenticated && id ? { itemId: id as never } : 'skip');
+  const downloadUrl = useQuery(
+    api.idoc.getDownloadUrl,
+    isAuthenticated && id ? { itemId: id as never } : 'skip',
+  );
+  const removeItem = useMutation(api.idoc.remove);
 
   const folder = item ? DOC_FOLDERS.find((f) => f.id === item.folderId) ?? DOC_FOLDERS[0] : DOC_FOLDERS[0];
-  const m = meta as { name?: string; originalName?: string; mimeType?: string } | null;
-  const name = m?.name ?? m?.originalName ?? '—';
+  const name = item?.name ?? item?.originalName ?? '—';
 
   async function onDelete() {
     Alert.alert('Supprimer', `Confirmer la suppression de « ${name} » ?`, [
@@ -124,10 +107,6 @@ export default function DocPreview() {
                 <Text style={{ fontSize: 10, fontWeight: '700', color: '#fff', letterSpacing: 0.5 }}>{item.side === 'front' ? 'RECTO' : 'VERSO'}</Text>
               </View>
             ) : null}
-            <View style={{ position: 'absolute', bottom: 10, left: 10, right: 10, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 8 }}>
-              <Icon name="shield" size={12} color="#22c55e" />
-              <Text style={{ fontSize: 10, fontWeight: '600', color: '#fff', letterSpacing: 0.8 }}>CHIFFRÉ E2E</Text>
-            </View>
           </LinearGradient>
         </View>
 
@@ -145,7 +124,18 @@ export default function DocPreview() {
       </ScrollView>
       <View style={{ paddingHorizontal: 22, paddingTop: 12, paddingBottom: Math.max(insets.bottom, 22), borderTopWidth: 1, borderTopColor: t.borderSoft, flexDirection: 'row', gap: 8 }}>
         <View style={{ flex: 1 }}>
-          <IdnButton t={t} variant="ghost" full leadIcon={<Icon name="download" size={16} color={t.ink} />}>Télécharger</IdnButton>
+          <IdnButton
+            t={t}
+            variant="ghost"
+            full
+            leadIcon={<Icon name="download" size={16} color={t.ink} />}
+            disabled={!downloadUrl}
+            onPress={() => {
+              if (downloadUrl) void Linking.openURL(downloadUrl);
+            }}
+          >
+            Télécharger
+          </IdnButton>
         </View>
         <View style={{ flex: 1 }}>
           <IdnButton t={t} variant="danger" full leadIcon={<Icon name="trash" size={16} color="#B83A3A" />} onPress={onDelete}>

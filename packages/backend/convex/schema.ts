@@ -698,6 +698,49 @@ export default defineSchema({
     .index("by_expiration", ["expirationDate"]),
 
   /**
+   * iDocument — version sans chiffrement E2E (en place actuellement).
+   * Les blobs et métadonnées sont stockés en clair côté serveur ; l'accès
+   * est gardé par l'auth Convex + check d'ownership. À ne pas confondre
+   * avec `vaultItem` (E2E, dormante pour réactivation future).
+   *
+   * Le schéma reste compatible avec les colonnes utiles de `vaultItem`
+   * (folderId, fileType, fileSize, status, expirationDate, side) afin
+   * de pouvoir migrer entre les deux modes sans changer l'UI.
+   */
+  documentItem: defineTable({
+    userId: v.string(),
+    folderId: v.union(...VAULT_FOLDERS.map((f) => v.literal(f))),
+    // Storage Convex — blob en clair
+    contentRef: v.id("_storage"),
+    // Métadonnées en clair (nom, mime, nom original…)
+    name: v.string(),
+    originalName: v.optional(v.string()),
+    mimeType: v.string(),
+    fileType: v.union(
+      v.literal("pdf"),
+      v.literal("image"),
+      v.literal("other"),
+    ),
+    fileSize: v.number(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("verified"),
+      v.literal("rejected"),
+      v.literal("expired"),
+    ),
+    expirationDate: v.optional(v.string()),
+    side: v.optional(v.union(v.literal("front"), v.literal("back"))),
+    pairedItemId: v.optional(v.id("documentItem")),
+    deletedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_folder", ["userId", "folderId", "createdAt"])
+    .index("by_userId_expiration", ["userId", "expirationDate"])
+    .index("by_userId_deletedAt", ["userId", "deletedAt"]),
+
+  /**
    * Trace de notification d'expiration vault — utilisée par le cron pour
    * dédupliquer (on ne re-notifie pas deux fois le même item dans la fenêtre
    * « < 30 jours »). Une ligne par (item, palier) ; palier = 30 / 7 / 0.

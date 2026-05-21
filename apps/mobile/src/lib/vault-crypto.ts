@@ -1,5 +1,5 @@
 import { gcm } from '@noble/ciphers/aes.js';
-import { pbkdf2 } from '@noble/hashes/pbkdf2.js';
+import { hmac } from '@noble/hashes/hmac.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { getRandomBytes } from 'expo-crypto';
 
@@ -49,11 +49,50 @@ export function base64ToBytes(b64: string): Uint8Array {
   return out;
 }
 
-function deriveKek(password: string, salt: Uint8Array, iterations: number): Uint8Array {
-  return pbkdf2(sha256, new TextEncoder().encode(password), salt, {
-    c: iterations,
-    dkLen: 32,
-  });
+/**
+ * Dérive la KEK par PBKDF2-HMAC-SHA256, sortie 32 octets (= un bloc).
+ *
+ * Implémentation custom chunkée : on fait 1 000 itérations sync, puis
+ * on yield via `setTimeout(0)` (vrai macrotask) avant de continuer.
+ * Sur Hermes (et V8), `await Promise.resolve()` ne suffit PAS — c'est
+ * un microtask, le scheduler n'en profite pas pour rendre l'UI. Sans
+ * `setTimeout`, l'app paraît figée plusieurs secondes pendant les
+ * 250 000 itérations (cf. nextTick vide dans @noble/hashes 1.8).
+ */
+async function deriveKek(
+  password: string,
+  salt: Uint8Array,
+  iterations: number,
+): Promise<Uint8Array> {
+  const pwd = new TextEncoder().encode(password);
+  const DK_LEN = 32; // = sha256.outputLen — un seul bloc T
+
+  // U1 = HMAC(password, salt || INT_32_BE(1))
+  const block1Salt = new Uint8Array(salt.length + 4);
+  block1Salt.set(salt, 0);
+  block1Salt[salt.length + 3] = 1;
+
+  let u = hmac(sha256, pwd, block1Salt);
+  const T = new Uint8Array(DK_LEN);
+  T.set(u);
+
+  // Boucle U2..Uc, en chunks pour libérer l'event loop régulièrement.
+  const CHUNK = 1000;
+  for (let i = 1; i < iterations; ) {
+    const end = Math.min(i + CHUNK, iterations);
+    for (let j = i; j < end; j++) {
+      u = hmac(sha256, pwd, u);
+      for (let k = 0; k < DK_LEN; k++) T[k] ^= u[k];
+    }
+    i = end;
+    if (i < iterations) {
+      // Vrai macrotask — laisse Hermes rendre l'UI / traiter les
+      // touches. `Promise.resolve()` ne marcherait pas ici.
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    }
+  }
+  return T;
 }
 
 function aesGcmEncrypt(key: Uint8Array, iv: Uint8Array, plaintext: Uint8Array): Uint8Array {
@@ -80,7 +119,7 @@ export type ActivationOutput = {
 export async function activateVault(password: string): Promise<ActivationOutput> {
   const mvk = randomBytes(MVK_LEN);
   const salt = randomBytes(SALT_LEN);
-  const kek = deriveKek(password, salt, PBKDF2_ITERATIONS);
+  const kek = await deriveKek(password, salt, PBKDF2_ITERATIONS);
   const iv = randomBytes(IV_LEN);
   const wrapped = aesGcmEncrypt(kek, iv, mvk);
 
@@ -111,7 +150,7 @@ export async function unlockVault(
   },
 ): Promise<Uint8Array> {
   const salt = base64ToBytes(envelope.passwordSalt);
-  const kek = deriveKek(password, salt, envelope.kdfIterations);
+  const kek = await deriveKek(password, salt, envelope.kdfIterations);
   const packed = base64ToBytes(envelope.wrappedMvk);
   const iv = packed.slice(0, IV_LEN);
   const ct = packed.slice(IV_LEN);

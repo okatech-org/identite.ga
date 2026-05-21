@@ -2,12 +2,7 @@
 
 import * as React from "react"
 import { useMutation, useQuery } from "convex/react"
-import {
-  Download,
-  FileText,
-  Lock,
-  Trash2,
-} from "lucide-react"
+import { Download, FileText, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
 import { api } from "@repo/backend/convex/_generated/api"
@@ -19,135 +14,54 @@ import {
   SheetTitle,
 } from "@repo/ui/components/sheet"
 
-import { decryptFile, decryptMetadata } from "@/lib/vault-crypto"
-
 import {
   getFolder,
   NEVER_EXPIRES,
   type VaultFolderId,
 } from "../_content/folders"
 import { idoc } from "../_content/fr"
-import { useVault } from "../_hooks/use-vault"
 
 type DocumentPreviewSheetProps = {
   open: boolean
-  itemId: Id<"vaultItem"> | null
+  itemId: Id<"documentItem"> | null
   onClose: () => void
 }
 
 /**
- * Bottom-sheet de prévisualisation d'un document du coffre.
+ * Bottom-sheet de prévisualisation d'un document.
  *
- * - Fetch le ciphertext via une URL signée Convex Storage.
- * - Déchiffre la DEK avec la MVK en mémoire, puis le payload + les
- *   métadonnées avec la DEK. Tout reste côté client.
- * - Affiche un aperçu inline (image / PDF) ou un placeholder selon le
- *   `fileType`. Le téléchargement réutilise l'object-URL généré pour
- *   l'aperçu.
- * - Suppression : confirmation in-sheet, puis mutation `vault.items.remove`
- *   (soft-delete serveur + suppression du blob Convex Storage).
+ * Le blob est stocké en clair dans Convex Storage, on utilise l'URL
+ * signée pour l'aperçu inline (image/PDF) et le download. La suppression
+ * passe par `idoc.remove` (soft delete).
  */
 export function DocumentPreviewSheet({
   open,
   itemId,
   onClose,
 }: DocumentPreviewSheetProps) {
-  const { status } = useVault()
-  const item = useQuery(
-    api.vault.items.get,
+  const item = useQuery(api.idoc.get, itemId ? { itemId } : "skip")
+  const downloadUrl = useQuery(
+    api.idoc.getDownloadUrl,
     itemId ? { itemId } : "skip",
   )
-  const contentUrl = useQuery(
-    api.vault.items.contentUrl,
-    itemId ? { itemId } : "skip",
-  )
-  const removeItem = useMutation(api.vault.items.remove)
+  const removeItem = useMutation(api.idoc.remove)
 
-  const [metadata, setMetadata] =
-    React.useState<Record<string, unknown> | null>(null)
-  const [objectUrl, setObjectUrl] = React.useState<string | null>(null)
-  const [decryptError, setDecryptError] = React.useState<string | null>(null)
   const [confirming, setConfirming] = React.useState(false)
   const [deleting, setDeleting] = React.useState(false)
 
-  // Reset du buffer déchiffré quand on change d'item ou qu'on ferme.
   React.useEffect(() => {
-    setMetadata(null)
-    setObjectUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev)
-      return null
-    })
-    setDecryptError(null)
     setConfirming(false)
   }, [itemId])
-
-  // Déchiffrement : metadata + payload. S'exécute dès que l'item, l'URL
-  // signée et la MVK sont disponibles.
-  React.useEffect(() => {
-    if (!open || !item || !contentUrl || status.phase !== "unlocked") return
-    let cancelled = false
-    void (async () => {
-      try {
-        const meta = await decryptMetadata(
-          status.mvk,
-          item.wrappedDek,
-          item.metaIv,
-          item.encryptedMetadata,
-        )
-        if (cancelled) return
-        setMetadata(meta)
-
-        const res = await fetch(contentUrl)
-        if (!res.ok) throw new Error("fetch failed")
-        const ciphertext = new Uint8Array(await res.arrayBuffer())
-        const plaintext = await decryptFile(
-          status.mvk,
-          ciphertext,
-          item.wrappedDek,
-          item.iv,
-        )
-        if (cancelled) return
-
-        const mime =
-          typeof meta.mime === "string" && meta.mime
-            ? (meta.mime as string)
-            : guessMime(item.fileType)
-        // Copie dans un ArrayBuffer dédié pour éviter les soucis de
-        // SharedArrayBuffer sur les TypedArray retournés par WebCrypto.
-        const buf = new ArrayBuffer(plaintext.byteLength)
-        new Uint8Array(buf).set(plaintext)
-        const blob = new Blob([buf], { type: mime })
-        const url = URL.createObjectURL(blob)
-        setObjectUrl(url)
-      } catch (err) {
-        if (!cancelled) {
-          console.warn("[idoc] decrypt failed:", err)
-          setDecryptError(idoc.preview.notFound)
-        }
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [open, item, contentUrl, status])
-
-  // Cleanup à l'unmount.
-  React.useEffect(() => {
-    return () => {
-      if (objectUrl) URL.revokeObjectURL(objectUrl)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   const handleOpenChange = (next: boolean) => {
     if (!next) onClose()
   }
 
   const handleDownload = () => {
-    if (!objectUrl) return
+    if (!downloadUrl || !item) return
     const a = document.createElement("a")
-    a.href = objectUrl
-    a.download = pickDownloadName(metadata)
+    a.href = downloadUrl
+    a.download = item.originalName || item.name || "document"
     document.body.appendChild(a)
     a.click()
     a.remove()
@@ -168,16 +82,10 @@ export function DocumentPreviewSheet({
     }
   }
 
-  // ───────────────────────────────────────────────────────────────────────
-  // Rendu
-
   const loading = item === undefined
   const notFound = item === null
-  const ready = !!item && !!objectUrl && !decryptError
-  const name =
-    typeof metadata?.name === "string" && metadata.name.trim()
-      ? (metadata.name as string)
-      : "—"
+  const ready = !!item
+  const name = item?.name?.trim() ? item.name : "—"
 
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
@@ -185,7 +93,7 @@ export function DocumentPreviewSheet({
         side="bottom"
         className="max-h-[92vh] overflow-y-auto sm:mx-auto sm:max-w-3xl"
       >
-        {loading || (!notFound && !ready && !decryptError) ? (
+        {loading ? (
           <div className="px-6 py-12 text-center">
             <SheetTitle className="sr-only">{idoc.preview.loading}</SheetTitle>
             <p className="text-sm text-muted-foreground">
@@ -194,7 +102,7 @@ export function DocumentPreviewSheet({
           </div>
         ) : null}
 
-        {notFound || decryptError ? (
+        {notFound ? (
           <div className="px-6 py-12 text-center">
             <SheetTitle className="text-base">
               {idoc.preview.notFound}
@@ -213,8 +121,7 @@ export function DocumentPreviewSheet({
           ) : (
             <PreviewView
               item={item}
-              metadata={metadata}
-              objectUrl={objectUrl}
+              downloadUrl={downloadUrl ?? null}
               name={name}
               onDownload={handleDownload}
               onDelete={() => setConfirming(true)}
@@ -228,9 +135,12 @@ export function DocumentPreviewSheet({
 
 // ─────────────────────────────────────────────────────────────────────────
 
-type VaultItem = {
-  _id: Id<"vaultItem">
+type DocItem = {
+  _id: Id<"documentItem">
   folderId: VaultFolderId
+  name: string
+  originalName?: string
+  mimeType: string
   fileType: "pdf" | "image" | "other"
   fileSize: number
   status: "pending" | "verified" | "rejected" | "expired"
@@ -241,15 +151,13 @@ type VaultItem = {
 
 function PreviewView({
   item,
-  metadata,
-  objectUrl,
+  downloadUrl,
   name,
   onDownload,
   onDelete,
 }: {
-  item: VaultItem
-  metadata: Record<string, unknown> | null
-  objectUrl: string | null
+  item: DocItem
+  downloadUrl: string | null
   name: string
   onDownload: () => void
   onDelete: () => void
@@ -258,14 +166,9 @@ function PreviewView({
     <div className="flex flex-col gap-5 px-6 pb-6">
       <SheetTitle className="pr-10 text-lg leading-tight">{name}</SheetTitle>
 
-      <PreviewArea fileType={item.fileType} objectUrl={objectUrl} name={name} />
+      <PreviewArea fileType={item.fileType} url={downloadUrl} name={name} />
 
-      <div className="flex items-center gap-2 self-start rounded-full border border-idn-green/40 bg-idn-green-soft px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-idn-green dark:bg-[#0F2A18] dark:text-idn-green-on-dark">
-        <Lock className="h-3 w-3" />
-        {idoc.preview.e2eBadge}
-      </div>
-
-      <DetailsSection item={item} metadata={metadata} />
+      <DetailsSection item={item} />
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <Button
@@ -277,7 +180,7 @@ function PreviewView({
           <Trash2 className="h-4 w-4" />
           {idoc.preview.delete}
         </Button>
-        <Button type="button" onClick={onDownload}>
+        <Button type="button" onClick={onDownload} disabled={!downloadUrl}>
           <Download className="h-4 w-4" />
           {idoc.preview.download}
         </Button>
@@ -290,20 +193,20 @@ function PreviewView({
 
 function PreviewArea({
   fileType,
-  objectUrl,
+  url,
   name,
 }: {
-  fileType: VaultItem["fileType"]
-  objectUrl: string | null
+  fileType: DocItem["fileType"]
+  url: string | null
   name: string
 }) {
-  if (!objectUrl) return null
+  if (!url) return null
   if (fileType === "image") {
     return (
       <div className="overflow-hidden rounded-2xl border border-border bg-muted">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={objectUrl}
+          src={url}
           alt={name}
           className="mx-auto max-h-[55vh] w-auto"
         />
@@ -313,11 +216,7 @@ function PreviewArea({
   if (fileType === "pdf") {
     return (
       <div className="overflow-hidden rounded-2xl border border-border bg-muted">
-        <embed
-          src={objectUrl}
-          type="application/pdf"
-          className="h-[55vh] w-full"
-        />
+        <embed src={url} type="application/pdf" className="h-[55vh] w-full" />
       </div>
     )
   }
@@ -330,13 +229,7 @@ function PreviewArea({
 
 // ─────────────────────────────────────────────────────────────────────────
 
-function DetailsSection({
-  item,
-  metadata,
-}: {
-  item: VaultItem
-  metadata: Record<string, unknown> | null
-}) {
+function DetailsSection({ item }: { item: DocItem }) {
   const folder = getFolder(item.folderId)
   const neverExpires = NEVER_EXPIRES.has(item.folderId)
 
@@ -347,22 +240,13 @@ function DetailsSection({
       </p>
       <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
         <Row label={idoc.preview.fieldFolder} value={folder.label} />
-        <Row
-          label={idoc.preview.fieldType}
-          value={humanizeFileType(item.fileType, metadata)}
-        />
-        <Row
-          label={idoc.preview.fieldSize}
-          value={formatBytes(item.fileSize)}
-        />
+        <Row label={idoc.preview.fieldType} value={humanizeFileType(item)} />
+        <Row label={idoc.preview.fieldSize} value={formatBytes(item.fileSize)} />
         <Row
           label={idoc.preview.fieldCreatedAt}
           value={formatDateLong(item.createdAt)}
         />
-        <Row
-          label={idoc.preview.fieldStatus}
-          value={STATUS_LABEL[item.status]}
-        />
+        <Row label={idoc.preview.fieldStatus} value={STATUS_LABEL[item.status]} />
         <Row
           label={idoc.preview.fieldExpiration}
           value={
@@ -449,31 +333,19 @@ function ConfirmDeleteView({
 
 // ─────────────────────────────────────────────────────────────────────────
 
-const STATUS_LABEL: Record<VaultItem["status"], string> = {
+const STATUS_LABEL: Record<DocItem["status"], string> = {
   verified: idoc.folder.status.verified,
   pending: idoc.folder.status.pending,
   rejected: idoc.folder.status.rejected,
   expired: idoc.folder.status.expired,
 }
 
-function guessMime(fileType: VaultItem["fileType"]): string {
-  if (fileType === "pdf") return "application/pdf"
-  if (fileType === "image") return "image/png"
-  return "application/octet-stream"
-}
-
-function humanizeFileType(
-  fileType: VaultItem["fileType"],
-  metadata: Record<string, unknown> | null,
-): string {
-  const mime =
-    typeof metadata?.mime === "string"
-      ? (metadata.mime as string).toLowerCase()
-      : ""
-  if (mime === "application/pdf" || fileType === "pdf") return "PDF"
+function humanizeFileType(item: DocItem): string {
+  const mime = item.mimeType?.toLowerCase() ?? ""
+  if (mime === "application/pdf" || item.fileType === "pdf") return "PDF"
   if (mime === "image/png") return "PNG"
   if (mime === "image/jpeg") return "JPEG"
-  if (fileType === "image") return "Image"
+  if (item.fileType === "image") return "Image"
   return "Fichier"
 }
 
@@ -493,17 +365,4 @@ function formatDateLong(timestamp: number): string {
   } catch {
     return new Date(timestamp).toISOString().slice(0, 10)
   }
-}
-
-function pickDownloadName(metadata: Record<string, unknown> | null): string {
-  const original =
-    typeof metadata?.originalName === "string"
-      ? (metadata.originalName as string).trim()
-      : ""
-  if (original) return original
-  const name =
-    typeof metadata?.name === "string"
-      ? (metadata.name as string).trim()
-      : ""
-  return name || "document"
 }

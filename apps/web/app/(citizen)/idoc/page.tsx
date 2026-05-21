@@ -35,7 +35,7 @@ function isVaultFolderId(value: string | null): value is VaultFolderId {
 export default function IdocHomePage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const summary = useQuery(api.vault.folders.summary, {})
+  const summary = useQuery(api.idoc.summary, {})
   const { enabled: confidential, toggle: toggleConfidential } =
     useConfidentialMode()
   const { isOpened, markOpened } = useOpenedFolders()
@@ -48,8 +48,8 @@ export default function IdocHomePage() {
     : null
   const addOpen = searchParams.get("add") === "1"
   const docParam = searchParams.get("doc")
-  const activeDocId: Id<"vaultItem"> | null = docParam
-    ? (docParam as Id<"vaultItem">)
+  const activeDocId: Id<"documentItem"> | null = docParam
+    ? (docParam as Id<"documentItem">)
     : null
 
   // Navigation centralisée via search params (préserve les autres params).
@@ -87,7 +87,7 @@ export default function IdocHomePage() {
   }, [setParams])
 
   const handleOpenDoc = React.useCallback(
-    (itemId: Id<"vaultItem">) => {
+    (itemId: Id<"documentItem">) => {
       setParams({ doc: itemId })
     },
     [setParams],

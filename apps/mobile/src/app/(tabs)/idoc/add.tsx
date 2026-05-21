@@ -14,14 +14,12 @@ import { IdnInput } from '@/design/components/idn-input';
 import { Icon } from '@/design/icons';
 import { DOC_FOLDERS } from '@/data/documents';
 import { api } from '@/lib/api';
-import { useVault } from '@/hooks/use-vault';
-import { encryptFile } from '@/lib/vault-crypto';
 
-type VaultFolderId =
+type DocFolderId =
   | 'identity' | 'civil_status' | 'residence' | 'education'
   | 'work' | 'health' | 'vehicle' | 'other';
 
-const FOLDERS: VaultFolderId[] = [
+const FOLDERS: DocFolderId[] = [
   'identity', 'civil_status', 'residence', 'education',
   'work', 'health', 'vehicle', 'other',
 ];
@@ -110,12 +108,11 @@ export default function DocAddSelect() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ folder?: string }>();
-  const { status } = useVault();
-  const generateUrl = useMutation(api.vault.items.generateUploadUrl);
-  const createItem = useMutation(api.vault.items.create);
+  const generateUrl = useMutation(api.idoc.generateUploadUrl);
+  const createItem = useMutation(api.idoc.create);
 
-  const initialFolder = (params.folder as VaultFolderId) || 'identity';
-  const [selected, setSelected] = useState<VaultFolderId>(initialFolder);
+  const initialFolder = (params.folder as DocFolderId) || 'identity';
+  const [selected, setSelected] = useState<DocFolderId>(initialFolder);
   const [name, setName] = useState('');
   const [expiration, setExpiration] = useState('');
   const [picked, setPicked] = useState<PickedFile | null>(null);
@@ -149,10 +146,6 @@ export default function DocAddSelect() {
 
   async function submit() {
     if (submitting) return;
-    if (status.phase !== 'unlocked') {
-      Alert.alert('Vault verrouillé', 'Déverrouillez le coffre-fort d\'abord.');
-      return;
-    }
     if (!picked) {
       Alert.alert('Aucun fichier', 'Sélectionnez un fichier à ajouter.');
       return;
@@ -167,17 +160,11 @@ export default function DocAddSelect() {
     }
     setSubmitting(true);
     try {
-      const enc = await encryptFile(status.mvk, picked.bytes, {
-        name: name.trim(),
-        originalName: picked.name,
-        mimeType: picked.mime,
-      });
-
       const uploadUrl = await generateUrl({});
-      const blob = new Blob([enc.ciphertext as unknown as BlobPart], { type: 'application/octet-stream' });
+      const blob = new Blob([picked.bytes as unknown as BlobPart], { type: picked.mime });
       const uploadRes = await fetch(uploadUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/octet-stream' },
+        headers: { 'Content-Type': picked.mime },
         body: blob,
       });
       if (!uploadRes.ok) throw new Error(`Upload échoué (${uploadRes.status})`);
@@ -186,10 +173,9 @@ export default function DocAddSelect() {
       await createItem({
         folderId: selected,
         contentRef: storageId as never,
-        encryptedMetadata: enc.encryptedMetadata,
-        wrappedDek: enc.wrappedDek,
-        iv: enc.iv,
-        metaIv: enc.metaIv,
+        name: name.trim(),
+        originalName: picked.name,
+        mimeType: picked.mime,
         fileType: picked.fileType,
         fileSize: picked.bytes.length,
         expirationDate: expiration || undefined,
@@ -302,7 +288,7 @@ export default function DocAddSelect() {
           disabled={submitting || !picked}
           leadIcon={<Icon name="plus" size={16} color="#fff" />}
         >
-          {submitting ? 'Chiffrement & envoi…' : 'Ajouter'}
+          {submitting ? 'Envoi…' : 'Ajouter'}
         </IdnButton>
       </View>
     </View>

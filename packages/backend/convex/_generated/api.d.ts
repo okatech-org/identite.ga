@@ -59,6 +59,7 @@ import type * as iboite_admin from "../iboite/admin.js";
 import type * as iboite_letters from "../iboite/letters.js";
 import type * as iboite_messages from "../iboite/messages.js";
 import type * as iboite_packages from "../iboite/packages.js";
+import type * as idoc from "../idoc.js";
 import type * as kyc from "../kyc.js";
 import type * as kyc_actions from "../kyc/actions.js";
 import type * as kyc_mutations from "../kyc/mutations.js";
@@ -152,6 +153,7 @@ declare const fullApi: ApiFromModules<{
   "iboite/letters": typeof iboite_letters;
   "iboite/messages": typeof iboite_messages;
   "iboite/packages": typeof iboite_packages;
+  idoc: typeof idoc;
   kyc: typeof kyc;
   "kyc/actions": typeof kyc_actions;
   "kyc/mutations": typeof kyc_mutations;
