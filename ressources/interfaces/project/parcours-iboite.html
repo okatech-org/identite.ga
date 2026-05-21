@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<title>Parcours iBoîte — IDN</title>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  html, body { margin: 0; padding: 0; font-family: "IBM Plex Sans", system-ui, sans-serif; }
+  body { background: #f0eee9; min-height: 100vh; }
+  body.idn-dark { background: #0a0d0a; }
+  * { box-sizing: border-box; }
+  #root { min-height: 100vh; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="idn-tokens.jsx"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="idn-mobile.jsx"></script>
+<script type="text/babel" src="idn-desktop.jsx"></script>
+<script type="text/babel" src="idn-citizen-web.jsx"></script>
+<script type="text/babel" src="idn-citizen-extras.jsx"></script>
+<script type="text/babel" src="idn-mobile-icarte.jsx"></script>
+<script type="text/babel" src="idn-mobile-iboite.jsx"></script>
+<script type="text/babel" src="idn-mobile-idocument.jsx"></script>
+<script type="text/babel" src="idn-mobile-notif.jsx"></script>
+<script type="text/babel" src="idn-mobile-icv.jsx"></script>
+<script type="text/babel" src="idn-web-icarte.jsx"></script>
+<script type="text/babel" src="idn-web-iboite.jsx"></script>
+<script type="text/babel" src="idn-web-idoc.jsx"></script>
+<script type="text/babel" src="idn-web-notif.jsx"></script>
+<script type="text/babel" src="idn-web-icv.jsx"></script>
+<script type="text/babel" src="idn-native-app.jsx"></script>
+<script type="text/babel" src="idn-signup-idn.jsx"></script>
+<script type="text/babel" src="parcours-shell.jsx"></script>
+
+<script type="text/babel">
+const STEPS = [
+  { id: '01', label: 'Courriers · liste',            desc: 'Courriers physiques numérisés et reçus dans la boîte souveraine. Filtres par expéditeur, état.',                          mobile: 'iboite-courriers',  web: 'courriers' },
+  { id: '02', label: 'Courrier · A4',                desc: 'Aperçu d\'un courrier à l\'échelle papier (A4). Actions : signer, transférer, archiver, demander un retrait.',          mobile: 'iboite-courrier',   web: 'courrier' },
+  { id: '03', label: 'Switch de compte',             desc: 'Trois comptes : Personnel · Pro · Asso. Switch rapide depuis la sidebar.',                                                 mobile: 'iboite-accounts',   web: null },
+  { id: '04', label: 'Colis',                        desc: 'Colis adressés au point relais idn.ga. QR de retrait + état logistique en temps réel.',                                   mobile: 'iboite-colis',      web: 'colis' },
+  { id: '05', label: 'eMails · liste',               desc: 'Inbox classique style Gmail pour les emails @idn.ga, intégrée au même client.',                                            mobile: 'iboite-emails',     web: 'emails' },
+  { id: '06', label: 'Email · détail',               desc: 'Conversation déroulée, pièces jointes, actions classiques (répondre, transférer, archiver).',                              mobile: 'iboite-email',      web: 'email' },
+  { id: '07', label: 'Nouveau message',              desc: 'Composeur multi-canal : email, courrier physique signé, déclencher un envoi de colis.',                                   mobile: 'iboite-compose',    web: 'compose' },
+];
+
+function App() {
+  return (
+    <ParcoursShell
+      title="iBoîte"
+      subtitle="Boîte aux lettres souveraine"
+      storageKey="idn-parcours-iboite"
+      steps={STEPS}
+      renderMobile={(screen, t) => <NativeApp t={t} screen={screen}/>}
+      renderWeb={(screen, t) => <IBoiteWeb t={t} screen={screen}/>}
+    />
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App/>);
+</script>
+</body>
+</html>

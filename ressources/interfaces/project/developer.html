@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<title>IDN — Documentation & portail développeur</title>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  html, body { margin: 0; padding: 0; font-family: "IBM Plex Sans", system-ui, sans-serif; }
+  body { background: #f0eee9; }
+  body.idn-dark { background: #0a0d0a; }
+  * { box-sizing: border-box; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="idn-tokens.jsx"></script>
+<script type="text/babel" src="idn-desktop.jsx"></script>
+<script type="text/babel" src="idn-docs.jsx"></script>
+
+<script type="text/babel">
+function App() {
+  const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+    "dark": false
+  }/*EDITMODE-END*/;
+  const [tweaks, setTweak] = window.useTweaks(TWEAK_DEFAULTS);
+  const t = window.idnTheme(tweaks.dark);
+
+  React.useEffect(() => {
+    document.body.classList.toggle('idn-dark', tweaks.dark);
+  }, [tweaks.dark]);
+
+  return (
+    <>
+      <DesignCanvas>
+        <DCSection id="docs" title="Documentation développeur (docs.identite.ga)" subtitle="Site public. Quick start, référence API @idn/core et @idn/react, guides LoA et sécurité, migration depuis providers tiers, playground OIDC.">
+          <DCArtboard id="docs-home"        label="Landing"                  width={1180} height={760}><DocsSite t={t} screen="home"/></DCArtboard>
+          <DCArtboard id="docs-register"    label="Enregistrer une app"      width={1180} height={760}><DocsSite t={t} screen="register-app"/></DCArtboard>
+          <DCArtboard id="docs-qs-better"   label="QS · Better Auth"         width={1180} height={760}><DocsSite t={t} screen="quickstart-better-auth"/></DCArtboard>
+          <DCArtboard id="docs-qs-next"     label="QS · NextAuth"            width={1180} height={760}><DocsSite t={t} screen="quickstart-nextauth"/></DCArtboard>
+          <DCArtboard id="docs-qs-react"    label="QS · React"               width={1180} height={760}><DocsSite t={t} screen="quickstart-react"/></DCArtboard>
+          <DCArtboard id="docs-qs-vanilla"  label="QS · vanilla JS"          width={1180} height={760}><DocsSite t={t} screen="quickstart-vanilla"/></DCArtboard>
+          <DCArtboard id="docs-core"        label="@idn/core · présentation" width={1180} height={760}><DocsSite t={t} screen="core-overview"/></DCArtboard>
+          <DCArtboard id="docs-core-api"    label="@idn/core · API"          width={1180} height={760}><DocsSite t={t} screen="core-api"/></DCArtboard>
+          <DCArtboard id="docs-react-hooks" label="@idn/react · hooks"       width={1180} height={760}><DocsSite t={t} screen="react-hooks"/></DCArtboard>
+          <DCArtboard id="docs-react-comps" label="@idn/react · composants"  width={1180} height={760}><DocsSite t={t} screen="react-components"/></DCArtboard>
+          <DCArtboard id="docs-loa"         label="Guide · LoA"              width={1180} height={760}><DocsSite t={t} screen="loa"/></DCArtboard>
+          <DCArtboard id="docs-security"    label="Guide · Sécurité"         width={1180} height={760}><DocsSite t={t} screen="security"/></DCArtboard>
+          <DCArtboard id="docs-migration"   label="Migration"                width={1180} height={760}><DocsSite t={t} screen="migration-clerk"/></DCArtboard>
+          <DCArtboard id="docs-playground"  label="Playground OIDC"          width={1180} height={760}><DocsSite t={t} screen="playground"/></DCArtboard>
+        </DCSection>
+
+        <DCSection id="dev" title="Portail Développeur" subtitle="Pour les intégrateurs tiers consommant @idn/* ou l'OIDC standard.">
+          <DCArtboard id="dev-apps"  label="01 · Mes applications"  width={1180} height={760}><DevPortal t={t} initialTab="apps"/></DCArtboard>
+          <DCArtboard id="dev-keys"  label="02 · Clés & secrets"    width={1180} height={760}><DevPortal t={t} initialTab="keys"/></DCArtboard>
+          <DCArtboard id="dev-docs"  label="03 · Documentation"     width={1180} height={760}><DevPortal t={t} initialTab="docs"/></DCArtboard>
+          <DCArtboard id="dev-usage" label="04 · Quotas & usage"    width={1180} height={760}><DevPortal t={t} initialTab="usage"/></DCArtboard>
+        </DCSection>
+      </DesignCanvas>
+
+      <TweaksPanel title="Tweaks">
+        <TweakSection title="Apparence">
+          <TweakToggle label="Mode sombre" value={tweaks.dark} onChange={(v) => setTweak('dark', v)}
+            description="Inverse les neutres pour la documentation et le portail développeur."/>
+        </TweakSection>
+        <TweakSection title="Retour au hub">
+          <a href="idn.html" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9999, background: '#0E7C3A', color: '#fff', textDecoration: 'none', fontSize: 12, fontWeight: 600 }}>← Tous les parcours</a>
+        </TweakSection>
+      </TweaksPanel>
+    </>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App/>);
+</script>
+</body>
+</html>

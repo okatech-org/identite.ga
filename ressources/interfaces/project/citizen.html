@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<title>IDN — Citoyen</title>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  html, body { margin: 0; padding: 0; font-family: "IBM Plex Sans", system-ui, sans-serif; }
+  body { background: #f0eee9; }
+  body.idn-dark { background: #0a0d0a; }
+  * { box-sizing: border-box; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="idn-tokens.jsx"></script>
+<script type="text/babel" src="idn-mobile.jsx"></script>
+<script type="text/babel" src="idn-desktop.jsx"></script>
+<script type="text/babel" src="idn-citizen-web.jsx"></script>
+<script type="text/babel" src="idn-citizen-extras.jsx"></script>
+<script type="text/babel" src="idn-mobile-icarte.jsx"></script>
+<script type="text/babel" src="idn-mobile-iboite.jsx"></script>
+<script type="text/babel" src="idn-mobile-idocument.jsx"></script>
+<script type="text/babel" src="idn-mobile-notif.jsx"></script>
+<script type="text/babel" src="idn-web-icarte.jsx"></script>
+<script type="text/babel" src="idn-web-iboite.jsx"></script>
+<script type="text/babel" src="idn-web-idoc.jsx"></script>
+<script type="text/babel" src="idn-web-notif.jsx"></script>
+<script type="text/babel" src="idn-mobile-icv.jsx"></script>
+<script type="text/babel" src="idn-web-icv.jsx"></script>
+<script type="text/babel" src="idn-native-app.jsx"></script>
+<script type="text/babel" src="idn-signup-idn.jsx"></script>
+
+<script type="text/babel">
+function App() {
+  const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+    "dark": false
+  }/*EDITMODE-END*/;
+  const [tweaks, setTweak] = window.useTweaks(TWEAK_DEFAULTS);
+  const t = window.idnTheme(tweaks.dark);
+
+  React.useEffect(() => {
+    document.body.classList.toggle('idn-dark', tweaks.dark);
+  }, [tweaks.dark]);
+
+  return (
+    <>
+      <DesignCanvas>
+        <DCSection id="native-launch" title="App mobile — Lancement & onboarding" subtitle="Splash biométrique, carousel 4 slides, hub d'authentification.">
+          <DCArtboard id="n-launcher" label="Splash · Face ID"     width={360} height={740}><NativeApp t={t} screen="launcher"/></DCArtboard>
+          <DCArtboard id="n-onb-1"    label="Carousel 1/4"          width={360} height={740}><NativeApp t={t} screen="onboarding-1"/></DCArtboard>
+          <DCArtboard id="n-onb-2"    label="Carousel 2/4"          width={360} height={740}><NativeApp t={t} screen="onboarding-2"/></DCArtboard>
+          <DCArtboard id="n-onb-3"    label="Carousel 3/4"          width={360} height={740}><NativeApp t={t} screen="onboarding-3"/></DCArtboard>
+          <DCArtboard id="n-onb-4"    label="Carousel 4/4"          width={360} height={740}><NativeApp t={t} screen="onboarding-4"/></DCArtboard>
+          <DCArtboard id="n-auth-hub" label="Hub d'authentification" width={360} height={740}><NativeApp t={t} screen="auth-hub"/></DCArtboard>
+          <DCArtboard id="n-login"    label="Connexion"             width={360} height={740}><NativeApp t={t} screen="login"/></DCArtboard>
+        </DCSection>
+
+        <DCSection id="native-signup-idn" title="App mobile — Inscription · adresse @idn.ga" subtitle="L'identifiant @idn.ga est généré à partir de l'identité pivot, avec 3 variations à comparer pour l'écran central (suggestions chips · builder format · carte preview).">
+          <DCArtboard id="n-si-a"       label="03 · Variation A · Suggestions" width={360} height={740}><NativeApp t={t} screen="signup-idn-a"/></DCArtboard>
+          <DCArtboard id="n-si-b"       label="03 · Variation B · Builder"     width={360} height={740}><NativeApp t={t} screen="signup-idn-b"/></DCArtboard>
+          <DCArtboard id="n-si-c"       label="03 · Variation C · Carte preview" width={360} height={740}><NativeApp t={t} screen="signup-idn-c"/></DCArtboard>
+          <DCArtboard id="n-si-taken"   label="03 · État · adresse prise"      width={360} height={740}><NativeApp t={t} screen="signup-idn-taken"/></DCArtboard>
+          <DCArtboard id="n-si-pwd"     label="04 · Mot de passe"             width={360} height={740}><NativeApp t={t} screen="signup-pwd-idn"/></DCArtboard>
+          <DCArtboard id="n-si-phone"   label="05 · Téléphone"               width={360} height={740}><NativeApp t={t} screen="signup-phone"/></DCArtboard>
+          <DCArtboard id="n-si-otp"     label="06 · Vérification numéro"     width={360} height={740}><NativeApp t={t} screen="signup-sms-otp"/></DCArtboard>
+          <DCArtboard id="n-si-done"    label="07 · Bienvenue · carte IDN"    width={360} height={740}><NativeApp t={t} screen="signup-idn-done"/></DCArtboard>
+        </DCSection>
+
+        <DCSection id="citizen-web-signup-idn" title="Citoyen desktop — Inscription · adresse @idn.ga" subtitle="Mêmes écrans côté navigateur. Variation A : suggestions dans une grille deux colonnes. Variation B : split-screen avec carte IDN qui se met à jour en temps réel à côté du builder de format.">
+          <DCArtboard id="cw-si-a"     label="03 · Variation A · Suggestions"     width={1180} height={760}><CitizenWeb t={t} screen="signup-idn-a"/></DCArtboard>
+          <DCArtboard id="cw-si-b"     label="03 · Variation B · Split + carte"   width={1180} height={760}><CitizenWeb t={t} screen="signup-idn-b"/></DCArtboard>
+          <DCArtboard id="cw-si-phone" label="05 · Téléphone"                    width={1180} height={760}><CitizenWeb t={t} screen="signup-phone"/></DCArtboard>
+          <DCArtboard id="cw-si-otp"   label="06 · Vérification numéro"          width={1180} height={760}><CitizenWeb t={t} screen="signup-sms-otp"/></DCArtboard>
+          <DCArtboard id="cw-si-done"  label="07 · Bienvenue · carte IDN"         width={1180} height={760}><CitizenWeb t={t} screen="signup-idn-done"/></DCArtboard>
+        </DCSection>
+
+        <DCSection id="native-signup" title="App mobile — Inscription (ancien parcours)" subtitle="Conservé pour comparaison. Stepper natif, claviers PIN, écrans d'opt-in biométrie et d'arrivée.">
+          <DCArtboard id="n-s-profil" label="01 · Profil"           width={360} height={740}><NativeApp t={t} screen="signup-profil"/></DCArtboard>
+          <DCArtboard id="n-s-email"  label="02 · Email + mot de passe" width={360} height={740}><NativeApp t={t} screen="signup-email"/></DCArtboard>
+          <DCArtboard id="n-s-otp"    label="03 · OTP email"        width={360} height={740}><NativeApp t={t} screen="signup-otp"/></DCArtboard>
+          <DCArtboard id="n-s-pivot"  label="04 · Identité pivot"   width={360} height={740}><NativeApp t={t} screen="signup-pivot"/></DCArtboard>
+          <DCArtboard id="n-s-pin"    label="05 · Création PIN"     width={360} height={740}><NativeApp t={t} screen="signup-pin"/></DCArtboard>
+          <DCArtboard id="n-s-bio"    label="Opt-in Face ID"        width={360} height={740}><NativeApp t={t} screen="signup-bio"/></DCArtboard>
+          <DCArtboard id="n-s-done"   label="Compte créé"           width={360} height={740}><NativeApp t={t} screen="signup-done"/></DCArtboard>
+        </DCSection>
+
+        <DCSection id="native-home" title="App mobile — Accueil & carte d'identité" subtitle="Bottom tabs (Accueil · Services · Activité · Profil), carte IDN avec QR plein écran. 3 personas — Niveau 3, 2, 1.">
+          <DCArtboard id="n-home-3"   label="Accueil · Niveau 3"    width={360} height={740}><NativeApp t={t} screen="home" user={DEMO_USERS.citoyen}/></DCArtboard>
+          <DCArtboard id="n-home-2"   label="Accueil · Niveau 2"    width={360} height={740}><NativeApp t={t} screen="home" user={DEMO_USERS.resident}/></DCArtboard>
+          <DCArtboard id="n-home-1"   label="Accueil · Niveau 1"    width={360} height={740}><NativeApp t={t} screen="home" user={DEMO_USERS.visiteur}/></DCArtboard>
+          <DCArtboard id="n-id-card"  label="Carte IDN · QR plein écran" width={360} height={740}><NativeApp t={t} screen="id-card"/></DCArtboard>
+          <DCArtboard id="n-scan"     label="Scanner un QR"         width={360} height={740}><NativeApp t={t} screen="scan"/></DCArtboard>
+          <DCArtboard id="n-notif"    label="Notifications (legacy)" width={360} height={740}><NativeApp t={t} screen="notifications"/></DCArtboard>
+        </DCSection>
+
+        <DCSection id="native-services" title="App mobile — Services & activité" subtitle="Annuaire des services avec recherche et catégories, fiche de service, timeline d'activité filtrable.">
+          <DCArtboard id="n-services"   label="Annuaire des services" width={360} height={740}><NativeApp t={t} screen="services"/></DCArtboard>
+          <DCArtboard id="n-srv-detail" label="Fiche · e-Visa"        width={360} height={740}><NativeApp t={t} screen="service-detail"/></DCArtboard>
+          <DCArtboard id="n-activity"   label="Activité · timeline"   width={360} height={740}><NativeApp t={t} screen="activity"/></DCArtboard>
+          <DCArtboard id="n-consent"    label="Consentement OIDC"     width={360} height={740}><NativeApp t={t} screen="consent"/></DCArtboard>
+        </DCSection>
+
+        <DCSection id="native-kyc" title="App mobile — KYC vidéo" subtitle="Intro 3 étapes, capture document avec cadrage live, selfie liveness avec progress ring.">
+          <DCArtboard id="n-kyc-intro"  label="01 · Intro"            width={360} height={740}><NativeApp t={t} screen="kyc-intro"/></DCArtboard>
+          <DCArtboard id="n-kyc-doc"    label="02 · Capture CNI"      width={360} height={740}><NativeApp t={t} screen="kyc-doc"/></DCArtboard>
+          <DCArtboard id="n-kyc-self"   label="03 · Selfie liveness"  width={360} height={740}><NativeApp t={t} screen="kyc-selfie"/></DCArtboard>
+          <DCArtboard id="n-kyc-rev"    label="04 · Vérification en cours" width={360} height={740}><NativeApp t={t} screen="kyc-review"/></DCArtboard>
+        </DCSection>
+
+        <DCSection id="native-icarte" title="App mobile — iCarte (portefeuille)" subtitle="Cartes numériques (CNI, permis, transport, CNAMGS, bancaire…). Drag pour réordonner, max 6 dans le profil, carte personnalisée.">
+          <DCArtboard id="ica-home"   label="Liste"              width={360} height={740}><NativeApp t={t} screen="icarte-home"/></DCArtboard>
+          <DCArtboard id="ica-empty"  label="Vide"               width={360} height={740}><NativeApp t={t} screen="icarte-empty"/></DCArtboard>
+          <DCArtboard id="ica-card"   label="CNI · recto"        width={360} height={740}><NativeApp t={t} screen="icarte-card"/></DCArtboard>
+          <DCArtboard id="ica-back"   label="CNI · verso"        width={360} height={740}><NativeApp t={t} screen="icarte-card-back"/></DCArtboard>
+          <DCArtboard id="ica-stack"  label="Stack Wallet"       width={360} height={740}><NativeApp t={t} screen="icarte-stack"/></DCArtboard>
+          <DCArtboard id="ica-add"    label="Ajouter (sheet)"    width={360} height={740}><NativeApp t={t} screen="icarte-add"/></DCArtboard>
+          <DCArtboard id="ica-form"   label="Formulaire"         width={360} height={740}><NativeApp t={t} screen="icarte-add-form"/></DCArtboard>
+          <DCArtboard id="ica-edit"   label="Modifier"           width={360} height={740}><NativeApp t={t} screen="icarte-edit"/></DCArtboard>
+          <DCArtboard id="ica-custom" label="Personnalisée"      width={360} height={740}><NativeApp t={t} screen="icarte-custom"/></DCArtboard>
+        </DCSection>
+
+        <DCSection id="native-iboite" title="App mobile — iBoîte (boîte aux lettres souveraine)" subtitle="3 comptes (Personnel/Pro/Asso), 3 sections (Courriers/Colis/eMails). Courriers physiques numérisés avec rendu A4, point relais idn.ga avec QR.">
+          <DCArtboard id="ibo-cou"  label="Courriers"         width={360} height={740}><NativeApp t={t} screen="iboite-courriers"/></DCArtboard>
+          <DCArtboard id="ibo-det"  label="Courrier (A4)"     width={360} height={740}><NativeApp t={t} screen="iboite-courrier"/></DCArtboard>
+          <DCArtboard id="ibo-acc"  label="Switch compte"     width={360} height={740}><NativeApp t={t} screen="iboite-accounts"/></DCArtboard>
+          <DCArtboard id="ibo-col"  label="Colis"             width={360} height={740}><NativeApp t={t} screen="iboite-colis"/></DCArtboard>
+          <DCArtboard id="ibo-em"   label="eMails"            width={360} height={740}><NativeApp t={t} screen="iboite-emails"/></DCArtboard>
+          <DCArtboard id="ibo-mail" label="Email · détail"    width={360} height={740}><NativeApp t={t} screen="iboite-email"/></DCArtboard>
+          <DCArtboard id="ibo-comp" label="Nouveau message"   width={360} height={740}><NativeApp t={t} screen="iboite-compose"/></DCArtboard>
+        </DCSection>
+
+        <DCSection id="native-idoc" title="App mobile — iDocument (coffre-fort)" subtitle="8 dossiers, détection IA, mode confidentiel, parcours d'ajout 3 étapes, demande de documents officiels.">
+          <DCArtboard id="ido-home"    label="Dossiers"           width={360} height={740}><NativeApp t={t} screen="idoc-home"/></DCArtboard>
+          <DCArtboard id="ido-conf"    label="Confidentiel"       width={360} height={740}><NativeApp t={t} screen="idoc-home-conf"/></DCArtboard>
+          <DCArtboard id="ido-fold"    label="Dossier Identité"   width={360} height={740}><NativeApp t={t} screen="idoc-folder"/></DCArtboard>
+          <DCArtboard id="ido-fb"      label="Dossier · blur"     width={360} height={740}><NativeApp t={t} screen="idoc-folder-conf"/></DCArtboard>
+          <DCArtboard id="ido-empty"   label="Dossier vide"       width={360} height={740}><NativeApp t={t} screen="idoc-folder-empty"/></DCArtboard>
+          <DCArtboard id="ido-prev"    label="Aperçu document"    width={360} height={740}><NativeApp t={t} screen="idoc-preview"/></DCArtboard>
+          <DCArtboard id="ido-add1"    label="Ajout 1/3 · choix"  width={360} height={740}><NativeApp t={t} screen="idoc-add-select"/></DCArtboard>
+          <DCArtboard id="ido-add2"    label="Ajout 2/3 · confirm" width={360} height={740}><NativeApp t={t} screen="idoc-add-preview"/></DCArtboard>
+          <DCArtboard id="ido-add3"    label="Ajout 3/3 · succès" width={360} height={740}><NativeApp t={t} screen="idoc-add-success"/></DCArtboard>
+          <DCArtboard id="ido-req"     label="Demander"           width={360} height={740}><NativeApp t={t} screen="idoc-request"/></DCArtboard>
+        </DCSection>
+
+        <DCSection id="native-notif-v2" title="App mobile — Centre de notifications" subtitle="Filtres Tout / Non lu / Sécurité / Documents. Groupes Aujourd'hui & Hier. CTA par notification.">
+          <DCArtboard id="nf-all"  label="Toutes"            width={360} height={740}><NativeApp t={t} screen="notif-center"/></DCArtboard>
+          <DCArtboard id="nf-un"   label="Non lues"          width={360} height={740}><NativeApp t={t} screen="notif-unread"/></DCArtboard>
+          <DCArtboard id="nf-sec"  label="Sécurité"          width={360} height={740}><NativeApp t={t} screen="notif-security"/></DCArtboard>
+          <DCArtboard id="nf-doc"  label="Documents"         width={360} height={740}><NativeApp t={t} screen="notif-document"/></DCArtboard>
+          <DCArtboard id="nf-read" label="Tout lu"           width={360} height={740}><NativeApp t={t} screen="notif-allread"/></DCArtboard>
+        </DCSection>
+
+        <DCSection id="native-icv" title="App mobile — iCV (Constructeur de CV citoyen)" subtitle="Vue principale (thèmes + IA + aperçu), tableau de bord score, galerie 12 thèmes, aperçu A4 plein écran, éditeurs (expérience, compétence, langue) avec assistance IA inline, import, score ATS.">
+          <DCArtboard id="icv-empty"     label="01 · CV vide (onboarding)"   width={360} height={740}><NativeApp t={t} screen="icv-empty"/></DCArtboard>
+          <DCArtboard id="icv-home"      label="02 · Accueil iCV"            width={360} height={740}><NativeApp t={t} screen="icv-home"/></DCArtboard>
+          <DCArtboard id="icv-themes"    label="03 · Galerie 12 thèmes"      width={360} height={740}><NativeApp t={t} screen="icv-themes"/></DCArtboard>
+          <DCArtboard id="icv-preview"   label="04 · Aperçu A4 plein écran"  width={360} height={740}><NativeApp t={t} screen="icv-preview"/></DCArtboard>
+          <DCArtboard id="icv-dashboard" label="05 · Tableau de bord · 78"   width={360} height={740}><NativeApp t={t} screen="icv-dashboard"/></DCArtboard>
+          <DCArtboard id="icv-edit-exp"  label="06 · Édition · expérience"   width={360} height={740}><NativeApp t={t} screen="icv-edit-exp"/></DCArtboard>
+          <DCArtboard id="icv-edit-load" label="07 · IA · génération…"       width={360} height={740}><NativeApp t={t} screen="icv-edit-ai-load"/></DCArtboard>
+          <DCArtboard id="icv-edit-sugg" label="08 · IA · suggestion"        width={360} height={740}><NativeApp t={t} screen="icv-edit-ai-sugg"/></DCArtboard>
+          <DCArtboard id="icv-edit-sk"   label="09 · Édition · compétence"   width={360} height={740}><NativeApp t={t} screen="icv-edit-skill"/></DCArtboard>
+          <DCArtboard id="icv-edit-lg"   label="10 · Édition · langue"       width={360} height={740}><NativeApp t={t} screen="icv-edit-lang"/></DCArtboard>
+          <DCArtboard id="icv-import"    label="11 · Importer un CV"         width={360} height={740}><NativeApp t={t} screen="icv-import"/></DCArtboard>
+          <DCArtboard id="icv-ats"       label="12 · Score ATS · 87 %"       width={360} height={740}><NativeApp t={t} screen="icv-ats"/></DCArtboard>
+        </DCSection>
+
+        <DCSection id="native-settings" title="App mobile — Profil & paramètres" subtitle="Hub Profil + sous-pages : sécurité (2FA, codes), sessions, langue, confidentialité, à propos.">
+          <DCArtboard id="n-prof"       label="Profil (hub)"          width={360} height={740}><NativeApp t={t} screen="profile-tab"/></DCArtboard>
+          <DCArtboard id="n-set-sec"    label="Sécurité"              width={360} height={740}><NativeApp t={t} screen="set-security"/></DCArtboard>
+          <DCArtboard id="n-set-sess"   label="Appareils & sessions"  width={360} height={740}><NativeApp t={t} screen="set-sessions"/></DCArtboard>
+          <DCArtboard id="n-set-lang"   label="Langue"                width={360} height={740}><NativeApp t={t} screen="set-language"/></DCArtboard>
+          <DCArtboard id="n-set-priv"   label="Confidentialité"       width={360} height={740}><NativeApp t={t} screen="set-privacy"/></DCArtboard>
+          <DCArtboard id="n-about"      label="À propos"              width={360} height={740}><NativeApp t={t} screen="about"/></DCArtboard>
+        </DCSection>
+
+        <DCSection id="mobile-onboarding" title="Citoyen mobile — Onboarding (legacy)" subtitle="Parcours mobile cliquable. Cliquez les CTA pour avancer.">
+          <DCArtboard id="m-welcome"  label="01 · Accueil"           width={360} height={740}><MobilePrototype t={t} initial="welcome"/></DCArtboard>
+          <DCArtboard id="m-profil"   label="02 · Sélection profil"  width={360} height={740}><MobilePrototype t={t} fixedScreen="profil"/></DCArtboard>
+          <DCArtboard id="m-signup"   label="03 · Inscription"       width={360} height={740}><MobilePrototype t={t} fixedScreen="signup"/></DCArtboard>
+          <DCArtboard id="m-otp"      label="04 · Vérification OTP"  width={360} height={740}><MobilePrototype t={t} fixedScreen="otp"/></DCArtboard>
+          <DCArtboard id="m-pivot"    label="05 · Identité pivot"    width={360} height={740}><MobilePrototype t={t} fixedScreen="pivot"/></DCArtboard>
+          <DCArtboard id="m-pin"      label="06 · PIN"               width={360} height={740}><MobilePrototype t={t} fixedScreen="pin"/></DCArtboard>
+        </DCSection>
+
+        <DCSection id="mobile-citizen" title="Citoyen mobile — Connecté (legacy)" subtitle="Trois personas Niveau 3 / 2 / 1.">
+          <DCArtboard id="m-home-3" label="Citoyen · Niveau 3"       width={360} height={740}><MobilePrototype t={t} initial="home" user={DEMO_USERS.citoyen}/></DCArtboard>
+          <DCArtboard id="m-home-2" label="Résident · Niveau 2"      width={360} height={740}><MobilePrototype t={t} initial="home" user={DEMO_USERS.resident}/></DCArtboard>
+          <DCArtboard id="m-home-1" label="Visiteur · Niveau 1"      width={360} height={740}><MobilePrototype t={t} initial="home" user={DEMO_USERS.visiteur}/></DCArtboard>
+          <DCArtboard id="m-profile" label="Profil détaillé"          width={360} height={740}><MobilePrototype t={t} fixedScreen="profile" user={DEMO_USERS.citoyen}/></DCArtboard>
+          <DCArtboard id="m-consents" label="Consentements"           width={360} height={740}><MobilePrototype t={t} fixedScreen="consents"/></DCArtboard>
+          <DCArtboard id="m-login"   label="Connexion rapide"         width={360} height={740}><MobilePrototype t={t} fixedScreen="login"/></DCArtboard>
+        </DCSection>
+
+        <DCSection id="mobile-kyc" title="KYC Niveau 2 — Vérification (legacy)">
+          <DCArtboard id="m-kyc-doc"    label="Pièce d'identité"     width={360} height={740}><MobilePrototype t={t} fixedScreen="kyc-doc"/></DCArtboard>
+          <DCArtboard id="m-kyc-selfie" label="Selfie vivant"         width={360} height={740}><MobilePrototype t={t} fixedScreen="kyc-selfie"/></DCArtboard>
+          <DCArtboard id="m-kyc-status" label="Demande envoyée"       width={360} height={740}><MobilePrototype t={t} fixedScreen="kyc-status"/></DCArtboard>
+          <DCArtboard id="m-oidc"       label="Consentement OIDC"     width={360} height={740}><MobilePrototype t={t} fixedScreen="oidc"/></DCArtboard>
+        </DCSection>
+
+        <DCSection id="citizen-web-onboarding" title="Citoyen desktop — Onboarding" subtitle="Le même parcours vu depuis idn.ga sur navigateur.">
+          <DCArtboard id="cw-welcome" label="01 · Page d'accueil"      width={1180} height={760}><CitizenWeb t={t} screen="welcome"/></DCArtboard>
+          <DCArtboard id="cw-profil"  label="02 · Sélection profil"    width={1180} height={760}><CitizenWeb t={t} screen="profil"/></DCArtboard>
+          <DCArtboard id="cw-signup"  label="03 · Email / mot de passe" width={1180} height={760}><CitizenWeb t={t} screen="signup"/></DCArtboard>
+          <DCArtboard id="cw-otp"     label="04 · Vérification email"  width={1180} height={760}><CitizenWeb t={t} screen="otp"/></DCArtboard>
+          <DCArtboard id="cw-pivot"   label="05 · Identité pivot"      width={1180} height={760}><CitizenWeb t={t} screen="pivot"/></DCArtboard>
+          <DCArtboard id="cw-pin"     label="06 · Création du PIN"     width={1180} height={760}><CitizenWeb t={t} screen="pin"/></DCArtboard>
+        </DCSection>
+
+        <DCSection id="citizen-web-connected" title="Citoyen desktop — Connecté" subtitle="Tableau de bord, profil, consentements, connexion. Personas Niveau 3 / 2 / 1.">
+          <DCArtboard id="cw-home-3"   label="Dashboard · Niveau 3"    width={1180} height={760}><CitizenWeb t={t} screen="home" user={DEMO_USERS.citoyen}/></DCArtboard>
+          <DCArtboard id="cw-home-2"   label="Dashboard · Niveau 2"    width={1180} height={760}><CitizenWeb t={t} screen="home" user={DEMO_USERS.resident}/></DCArtboard>
+          <DCArtboard id="cw-home-1"   label="Dashboard · Niveau 1"    width={1180} height={760}><CitizenWeb t={t} screen="home" user={DEMO_USERS.visiteur}/></DCArtboard>
+          <DCArtboard id="cw-profile"  label="Mon profil"              width={1180} height={760}><CitizenWeb t={t} screen="profile"/></DCArtboard>
+          <DCArtboard id="cw-consents" label="Consentements"           width={1180} height={760}><CitizenWeb t={t} screen="consents"/></DCArtboard>
+          <DCArtboard id="cw-login"    label="Connexion"               width={1180} height={760}><CitizenWeb t={t} screen="login"/></DCArtboard>
+        </DCSection>
+
+        <DCSection id="citizen-web-kyc" title="Citoyen desktop — KYC Niveau 2" subtitle="Mise à niveau du LoA depuis le navigateur, avec invitation à continuer sur mobile.">
+          <DCArtboard id="cw-kyc"        label="Démarrer la vérification" width={1180} height={760}><CitizenWeb t={t} screen="kyc"/></DCArtboard>
+          <DCArtboard id="cw-kyc-status" label="Demande envoyée"          width={1180} height={760}><CitizenWeb t={t} screen="kyc-status"/></DCArtboard>
+        </DCSection>
+
+        <DCSection id="settings" title="Citoyen desktop — Paramètres" subtitle="Sécurité, sessions, documents, notifications, historique, données & confidentialité, langue.">
+          <DCArtboard id="set-security"      label="Sécurité"               width={1180} height={760}><CitizenSettings t={t} screen="security"/></DCArtboard>
+          <DCArtboard id="set-sessions"      label="Appareils & sessions"   width={1180} height={760}><CitizenSettings t={t} screen="sessions"/></DCArtboard>
+          <DCArtboard id="set-documents"     label="Mes documents"          width={1180} height={760}><CitizenSettings t={t} screen="documents"/></DCArtboard>
+          <DCArtboard id="set-notifications" label="Notifications"          width={1180} height={760}><CitizenSettings t={t} screen="notifications"/></DCArtboard>
+          <DCArtboard id="set-activity"      label="Historique d'activité"  width={1180} height={760}><CitizenSettings t={t} screen="activity"/></DCArtboard>
+          <DCArtboard id="set-privacy"       label="Données & confidentialité" width={1180} height={760}><CitizenSettings t={t} screen="privacy"/></DCArtboard>
+          <DCArtboard id="set-preferences"   label="Langue & accessibilité" width={1180} height={760}><CitizenSettings t={t} screen="preferences"/></DCArtboard>
+        </DCSection>
+
+        <DCSection id="citizen-web-icarte" title="Citoyen desktop — iCarte (portefeuille)" subtitle="Layout 2 colonnes : cartes du profil à gauche, autres + ajout à droite. Modals pour ajout, formulaire, édition et carte personnalisée. Détail recto/verso avec flip.">
+          <DCArtboard id="cw-ica-home"     label="Liste"                width={1180} height={760}><ICarteWeb t={t} screen="home"/></DCArtboard>
+          <DCArtboard id="cw-ica-empty"    label="Vide (0 favoris)"     width={1180} height={760}><ICarteWeb t={t} screen="empty"/></DCArtboard>
+          <DCArtboard id="cw-ica-add"      label="Modal · Ajouter"       width={1180} height={760}><ICarteWeb t={t} screen="modal-add"/></DCArtboard>
+          <DCArtboard id="cw-ica-form"     label="Modal · Formulaire"    width={1180} height={760}><ICarteWeb t={t} screen="modal-form"/></DCArtboard>
+          <DCArtboard id="cw-ica-edit"     label="Modal · Modifier"      width={1180} height={760}><ICarteWeb t={t} screen="modal-edit"/></DCArtboard>
+          <DCArtboard id="cw-ica-custom"   label="Modal · Personnalisée"  width={1180} height={760}><ICarteWeb t={t} screen="modal-custom"/></DCArtboard>
+          <DCArtboard id="cw-ica-detail"   label="Modal · Détail (flip)"  width={1180} height={760}><ICarteWeb t={t} screen="modal-detail"/></DCArtboard>
+        </DCSection>
+
+        <DCSection id="citizen-web-iboite" title="Citoyen desktop — iBoîte (boîte aux lettres)" subtitle="Sidebar 288px (compte, sections, dossiers, action) + main (liste ou prévisualisation A4). Modèles de courriers stylisés papier, emails type Gmail, colis avec QR Point Relais.">
+          <DCArtboard id="cw-ibo-cou"   label="Courriers · liste"  width={1180} height={760}><IBoiteWeb t={t} screen="courriers"/></DCArtboard>
+          <DCArtboard id="cw-ibo-det"   label="Courrier · A4"      width={1180} height={760}><IBoiteWeb t={t} screen="courrier"/></DCArtboard>
+          <DCArtboard id="cw-ibo-col"   label="Colis"               width={1180} height={760}><IBoiteWeb t={t} screen="colis"/></DCArtboard>
+          <DCArtboard id="cw-ibo-em"    label="eMails · liste"      width={1180} height={760}><IBoiteWeb t={t} screen="emails"/></DCArtboard>
+          <DCArtboard id="cw-ibo-mail"  label="Email · détail"      width={1180} height={760}><IBoiteWeb t={t} screen="email"/></DCArtboard>
+          <DCArtboard id="cw-ibo-comp"  label="Nouveau message"     width={1180} height={760}><IBoiteWeb t={t} screen="compose"/></DCArtboard>
+        </DCSection>
+
+        <DCSection id="citizen-web-idoc" title="Citoyen desktop — iDocument (coffre-fort)" subtitle="Grille de 8 dossiers, mode confidentiel (blur), ouverture dossier en 5 colonnes, modals preview/ajout, page de demande de documents officiels.">
+          <DCArtboard id="cw-ido-home"  label="Dossiers"            width={1180} height={760}><IDocWeb t={t} screen="home"/></DCArtboard>
+          <DCArtboard id="cw-ido-conf"  label="Confidentiel"        width={1180} height={760}><IDocWeb t={t} screen="home-conf"/></DCArtboard>
+          <DCArtboard id="cw-ido-fold"  label="Dossier Identité"    width={1180} height={760}><IDocWeb t={t} screen="folder"/></DCArtboard>
+          <DCArtboard id="cw-ido-fb"    label="Dossier · blur"      width={1180} height={760}><IDocWeb t={t} screen="folder-conf"/></DCArtboard>
+          <DCArtboard id="cw-ido-empty" label="Dossier vide"        width={1180} height={760}><IDocWeb t={t} screen="folder-empty"/></DCArtboard>
+          <DCArtboard id="cw-ido-prev"  label="Aperçu document"     width={1180} height={760}><IDocWeb t={t} screen="modal-preview"/></DCArtboard>
+          <DCArtboard id="cw-ido-add"   label="Modal · Ajouter"     width={1180} height={760}><IDocWeb t={t} screen="modal-add"/></DCArtboard>
+          <DCArtboard id="cw-ido-req"   label="Demander"            width={1180} height={760}><IDocWeb t={t} screen="request"/></DCArtboard>
+        </DCSection>
+
+        <DCSection id="citizen-web-notif" title="Citoyen desktop — Centre de notifications" subtitle="Page centrée max-w-2xl. Filtres Tout / Non lu / Sécurité / Documents. Groupes Aujourd'hui & Hier.">
+          <DCArtboard id="cw-nf-all"  label="Toutes"     width={1180} height={760}><NotifWeb t={t} screen="all"/></DCArtboard>
+          <DCArtboard id="cw-nf-un"   label="Non lues"   width={1180} height={760}><NotifWeb t={t} screen="unread"/></DCArtboard>
+          <DCArtboard id="cw-nf-sec"  label="Sécurité"   width={1180} height={760}><NotifWeb t={t} screen="security"/></DCArtboard>
+          <DCArtboard id="cw-nf-doc"  label="Documents"  width={1180} height={760}><NotifWeb t={t} screen="document"/></DCArtboard>
+        </DCSection>
+
+        <DCSection id="citizen-web-icv" title="Citoyen desktop — iCV (Constructeur de CV citoyen)" subtitle="Vue principale 2 panneaux (thèmes + outils IA + profil à gauche, aperçu A4 à droite), tableau de bord, édition d'expérience (centrée), galerie complète des 12 thèmes, import PDF/DOCX, score ATS.">
+          <DCArtboard id="cw-icv-empty"   label="01 · Onboarding · CV vide"   width={1180} height={760}><ICVWeb t={t} screen="empty"/></DCArtboard>
+          <DCArtboard id="cw-icv-home"    label="02 · Vue principale"         width={1180} height={760}><ICVWeb t={t} screen="home"/></DCArtboard>
+          <DCArtboard id="cw-icv-themes"  label="03 · Galerie 12 thèmes"      width={1180} height={760}><ICVWeb t={t} screen="themes-gallery"/></DCArtboard>
+          <DCArtboard id="cw-icv-dash"    label="04 · Tableau de bord"        width={1180} height={760}><ICVWeb t={t} screen="dashboard"/></DCArtboard>
+          <DCArtboard id="cw-icv-edit"    label="05 · Édition · expérience"   width={1180} height={760}><ICVWeb t={t} screen="edit-exp"/></DCArtboard>
+          <DCArtboard id="cw-icv-edit-ai" label="06 · Édition · suggestion IA" width={1180} height={760}><ICVWeb t={t} screen="edit-ai"/></DCArtboard>
+          <DCArtboard id="cw-icv-import"  label="07 · Modal · Importer"       width={1180} height={760}><ICVWeb t={t} screen="import"/></DCArtboard>
+          <DCArtboard id="cw-icv-ats"     label="08 · Modal · Score ATS"      width={1180} height={760}><ICVWeb t={t} screen="ats"/></DCArtboard>
+        </DCSection>
+
+        <DCSection id="oidc-web" title="Authentification OIDC — web" subtitle="Écran de consentement vu depuis une app tierce sur desktop.">
+          <DCArtboard id="oidc-d" label="Consentement OIDC · web" width={1080} height={700}><OidcDesktop t={t}/></DCArtboard>
+        </DCSection>
+      </DesignCanvas>
+
+      <TweaksPanel title="Tweaks">
+        <TweakSection title="Apparence">
+          <TweakToggle label="Mode sombre" value={tweaks.dark} onChange={(v) => setTweak('dark', v)}
+            description="Inverse les neutres pour tous les écrans citoyen (mobile + desktop)."/>
+        </TweakSection>
+        <TweakSection title="Navigation" subtitle="• Mobile : cliquez les CTA pour avancer dans les flows.&#10;• Canvas : maintenez espace pour panner, molette pour zoomer, double-clic sur une carte pour la mettre en plein écran.">
+        </TweakSection>
+        <TweakSection title="Retour au hub">
+          <a href="idn.html" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9999, background: '#0E7C3A', color: '#fff', textDecoration: 'none', fontSize: 12, fontWeight: 600 }}>← Tous les parcours</a>
+        </TweakSection>
+      </TweaksPanel>
+    </>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App/>);
+</script>
+</body>
+</html>

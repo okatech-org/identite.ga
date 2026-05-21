@@ -13,8 +13,13 @@
       "bundleIdentifier": "ga.idn.mobile",
       "associatedDomains": [
         "webcredentials:idn.ga",
+        "webcredentials:auth.idn.ga",
+        "webcredentials:idn.ga",
         "webcredentials:auth.idn.ga"
-      ]
+      ],
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "ga.idn.mobile",
@@ -45,6 +50,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "47a93b32-a2fe-406f-a5b5-8b639aeceece"
+      }
     }
   }
 }

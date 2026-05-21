@@ -18,6 +18,12 @@ function CitizenWeb({ t, screen = 'welcome', user = DEMO_USERS.citoyen }) {
           {screen === 'consents' && <CWConsents t={t}/>}
           {screen === 'kyc' && <CWKyc t={t}/>}
           {screen === 'kyc-status' && <CWKycStatus t={t}/>}
+          {/* Nouveau parcours souverain @idn.ga */}
+          {screen === 'signup-idn-a' && <CWSignupIdnA t={t}/>}
+          {screen === 'signup-idn-b' && <CWSignupIdnB t={t}/>}
+          {screen === 'signup-phone' && <CWSignupPhone t={t}/>}
+          {screen === 'signup-sms-otp' && <CWSignupSmsOtp t={t}/>}
+          {screen === 'signup-idn-done' && <CWSignupIdnDone t={t}/>}
         </div>
       </div>
     </BrowserChrome>
@@ -295,7 +301,37 @@ function CWHome({ t, user }) {
         )}
       </div>
 
-      <div style={{ marginTop: 24, fontSize: 12, color: t.muted, letterSpacing: 1, fontWeight: 600 }}>SERVICES</div>
+      <div style={{ marginTop: 24, display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+        <div style={{ fontSize: 12, color: t.muted, letterSpacing: 1, fontWeight: 600 }}>MON ESPACE PERSONNEL</div>
+        <div style={{ fontSize: 12, color: t.muted }}>Vos modules IDN</div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginTop: 12 }}>
+        {[
+          { id: 'icarte', label: 'iCarte', sub: '6 cartes dans le wallet', color: idnTokens.green,
+            bg: t.dark ? '#0F2A18' : idnTokens.greenSoft,
+            icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7a2 2 0 0 1 2-2h14l2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M16 14h4v-4h-4a2 2 0 0 0 0 4z"/></svg> },
+          { id: 'iboite', label: 'iBoîte', sub: '2 courriers à traiter', color: '#3b82f6', badge: '2',
+            bg: t.dark ? '#10243A' : idnTokens.blueSoft,
+            icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg> },
+          { id: 'idoc', label: 'iDocument', sub: '17 documents archivés', color: '#a855f7',
+            bg: t.dark ? '#2A1542' : '#F3E8FF',
+            icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg> },
+          { id: 'icv', label: 'iCV', sub: 'CV professionnel · 78 %', color: '#EC4899', badge: 'Nouveau',
+            bg: t.dark ? '#2A1426' : '#FCE7F3',
+            icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3h9l3 3v15a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><circle cx="12" cy="11" r="2.2"/><path d="M8.5 17c.7-1.6 2-2.3 3.5-2.3s2.8.7 3.5 2.3"/></svg> },
+        ].map(m => (
+          <div key={m.id} style={{ background: t.surface, border: `1px solid ${t.border}`, borderRadius: 12, padding: 18, cursor: 'pointer', position: 'relative' }}>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: m.bg, color: m.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{m.icon}</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: t.ink, marginTop: 14 }}>{m.label}</div>
+            <div style={{ fontSize: 12, color: t.muted, marginTop: 2 }}>{m.sub}</div>
+            {m.badge && (
+              <span style={{ position: 'absolute', top: 14, right: 14, padding: '2px 8px', borderRadius: 9999, background: m.color, color: '#fff', fontSize: 10, fontWeight: 700, letterSpacing: 0.4 }}>{m.badge}</span>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div style={{ marginTop: 24, fontSize: 12, color: t.muted, letterSpacing: 1, fontWeight: 600 }}>SERVICES ADMINISTRATIFS</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginTop: 12 }}>
         {services.map((s, i) => (
           <div key={i} style={{ background: t.surface, border: `1px solid ${t.border}`, borderRadius: 12, padding: 18, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 12 }}>

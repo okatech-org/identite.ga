@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<title>Parcours Onboarding — IDN</title>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  html, body { margin: 0; padding: 0; font-family: "IBM Plex Sans", system-ui, sans-serif; }
+  body { background: #f0eee9; min-height: 100vh; }
+  body.idn-dark { background: #0a0d0a; }
+  * { box-sizing: border-box; }
+  #root { min-height: 100vh; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="idn-tokens.jsx"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="idn-mobile.jsx"></script>
+<script type="text/babel" src="idn-desktop.jsx"></script>
+<script type="text/babel" src="idn-citizen-web.jsx"></script>
+<script type="text/babel" src="idn-citizen-extras.jsx"></script>
+<script type="text/babel" src="idn-mobile-icarte.jsx"></script>
+<script type="text/babel" src="idn-mobile-iboite.jsx"></script>
+<script type="text/babel" src="idn-mobile-idocument.jsx"></script>
+<script type="text/babel" src="idn-mobile-notif.jsx"></script>
+<script type="text/babel" src="idn-mobile-icv.jsx"></script>
+<script type="text/babel" src="idn-web-icarte.jsx"></script>
+<script type="text/babel" src="idn-web-iboite.jsx"></script>
+<script type="text/babel" src="idn-web-idoc.jsx"></script>
+<script type="text/babel" src="idn-web-notif.jsx"></script>
+<script type="text/babel" src="idn-web-icv.jsx"></script>
+<script type="text/babel" src="idn-native-app.jsx"></script>
+<script type="text/babel" src="idn-signup-idn.jsx"></script>
+<script type="text/babel" src="parcours-shell.jsx"></script>
+
+<script type="text/babel">
+const STEPS = [
+  { id: '01', label: 'Splash · Face ID',             desc: 'Écran de lancement avec déverrouillage biométrique. Le citoyen pose son doigt ou son visage.',                              mobile: 'launcher',          web: null },
+  { id: '02', label: 'Onboarding · 1/4',             desc: 'Premier slide du carousel d\'introduction : ce qu\'est l\'IDN.',                                                        mobile: 'onboarding-1',      web: null },
+  { id: '03', label: 'Onboarding · 2/4',             desc: 'Deuxième slide : la souveraineté numérique gabonaise.',                                                                    mobile: 'onboarding-2',      web: null },
+  { id: '04', label: 'Onboarding · 3/4',             desc: 'Troisième slide : les services intégrés (iCarte, iBoîte, iDocument…).',                                                    mobile: 'onboarding-3',      web: null },
+  { id: '05', label: 'Onboarding · 4/4',             desc: 'Dernier slide : le citoyen au centre, contrôle de ses données.',                                                            mobile: 'onboarding-4',      web: null },
+  { id: '06', label: 'Hub d\'authentification',      desc: 'Choix : se connecter (compte existant) ou s\'inscrire (nouveau compte @idn.ga).',                                         mobile: 'auth-hub',          web: null },
+  { id: '07', label: 'Connexion',                     desc: 'Saisie de l\'adresse @idn.ga et mot de passe. Bouton Face ID en option.',                                                 mobile: 'login',             web: 'login' },
+];
+
+function App() {
+  return (
+    <ParcoursShell
+      title="Onboarding"
+      subtitle="Lancement & authentification"
+      storageKey="idn-parcours-onboarding"
+      steps={STEPS}
+      renderMobile={(screen, t) => <NativeApp t={t} screen={screen}/>}
+      renderWeb={(screen, t) => <CitizenWeb t={t} screen={screen}/>}
+    />
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App/>);
+</script>
+</body>
+</html>

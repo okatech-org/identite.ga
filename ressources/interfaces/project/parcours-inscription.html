@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<title>Parcours Inscription IDN — IDN</title>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  html, body { margin: 0; padding: 0; font-family: "IBM Plex Sans", system-ui, sans-serif; }
+  body { background: #f0eee9; min-height: 100vh; }
+  body.idn-dark { background: #0a0d0a; }
+  * { box-sizing: border-box; }
+  #root { min-height: 100vh; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="idn-tokens.jsx"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="idn-mobile.jsx"></script>
+<script type="text/babel" src="idn-desktop.jsx"></script>
+<script type="text/babel" src="idn-citizen-web.jsx"></script>
+<script type="text/babel" src="idn-citizen-extras.jsx"></script>
+<script type="text/babel" src="idn-mobile-icarte.jsx"></script>
+<script type="text/babel" src="idn-mobile-iboite.jsx"></script>
+<script type="text/babel" src="idn-mobile-idocument.jsx"></script>
+<script type="text/babel" src="idn-mobile-notif.jsx"></script>
+<script type="text/babel" src="idn-mobile-icv.jsx"></script>
+<script type="text/babel" src="idn-web-icarte.jsx"></script>
+<script type="text/babel" src="idn-web-iboite.jsx"></script>
+<script type="text/babel" src="idn-web-idoc.jsx"></script>
+<script type="text/babel" src="idn-web-notif.jsx"></script>
+<script type="text/babel" src="idn-web-icv.jsx"></script>
+<script type="text/babel" src="idn-native-app.jsx"></script>
+<script type="text/babel" src="idn-signup-idn.jsx"></script>
+<script type="text/babel" src="parcours-shell.jsx"></script>
+
+<script type="text/babel">
+const STEPS = [
+  { id: '01', label: 'Hub d\'authentification',        desc: 'Point d\'entrée de l\'app : se connecter avec un compte existant ou en créer un nouveau.',                                              mobile: 'auth-hub',          web: null },
+  { id: '02', label: 'Identité pivot · CNI',            desc: 'Saisie des données régaliennes (CNI). Pré-requis : l\'identifiant @idn.ga est dérivé de ces données.',                                  mobile: 'signup-pivot',      web: 'pivot' },
+  { id: '03a', label: 'Adresse @idn.ga · suggestions',  desc: 'Variation A : 6 suggestions auto-générées à partir du nom + prénom. Le citoyen pioche directement.',                                       mobile: 'signup-idn-a',      web: 'signup-idn-a' },
+  { id: '03b', label: 'Adresse @idn.ga · builder',      desc: 'Variation B : builder personnalisé avec carte IDN qui se met à jour en temps réel à droite (desktop).',                                  mobile: 'signup-idn-b',      web: 'signup-idn-b' },
+  { id: '03c', label: 'Adresse @idn.ga · carte preview', desc: 'Variation C : aperçu plein écran de la carte IDN générée pour comparer les options.',                                                   mobile: 'signup-idn-c',      web: null },
+  { id: '03!', label: 'Adresse déjà prise',             desc: 'État d\'erreur : l\'adresse souhaitée est indisponible, propositions alternatives.',                                                    mobile: 'signup-idn-taken',  web: null },
+  { id: '04', label: 'Mot de passe',                    desc: 'Création du mot de passe avec critères de robustesse en direct.',                                                                       mobile: 'signup-pwd-idn',    web: null },
+  { id: '05', label: 'Téléphone',                       desc: 'Saisie du numéro mobile avec indicatif Gabon (+241) par défaut.',                                                                       mobile: 'signup-phone',      web: 'signup-phone' },
+  { id: '06', label: 'Vérification SMS',                desc: 'Saisie du code OTP à 6 chiffres reçu par SMS.',                                                                                          mobile: 'signup-sms-otp',    web: 'signup-sms-otp' },
+  { id: '07', label: 'Bienvenue · carte IDN',           desc: 'Compte créé, la carte IDN officielle est révélée avec animation. CTA vers l\'app.',                                                     mobile: 'signup-idn-done',   web: 'signup-idn-done' },
+];
+
+function App() {
+  return (
+    <ParcoursShell
+      title="Inscription IDN"
+      subtitle="Création de l'adresse @idn.ga"
+      storageKey="idn-parcours-inscription"
+      steps={STEPS}
+      renderMobile={(screen, t) => <NativeApp t={t} screen={screen}/>}
+      renderWeb={(screen, t) => <CitizenWeb t={t} screen={screen}/>}
+    />
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App/>);
+</script>
+</body>
+</html>

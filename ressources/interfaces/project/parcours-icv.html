@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<title>Parcours iCV — IDN</title>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  html, body { margin: 0; padding: 0; font-family: "IBM Plex Sans", system-ui, sans-serif; }
+  body { background: #f0eee9; min-height: 100vh; }
+  body.idn-dark { background: #0a0d0a; }
+  * { box-sizing: border-box; }
+  #root { min-height: 100vh; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="idn-tokens.jsx"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="idn-mobile.jsx"></script>
+<script type="text/babel" src="idn-desktop.jsx"></script>
+<script type="text/babel" src="idn-citizen-web.jsx"></script>
+<script type="text/babel" src="idn-citizen-extras.jsx"></script>
+<script type="text/babel" src="idn-mobile-icarte.jsx"></script>
+<script type="text/babel" src="idn-mobile-iboite.jsx"></script>
+<script type="text/babel" src="idn-mobile-idocument.jsx"></script>
+<script type="text/babel" src="idn-mobile-notif.jsx"></script>
+<script type="text/babel" src="idn-mobile-icv.jsx"></script>
+<script type="text/babel" src="idn-web-icarte.jsx"></script>
+<script type="text/babel" src="idn-web-iboite.jsx"></script>
+<script type="text/babel" src="idn-web-idoc.jsx"></script>
+<script type="text/babel" src="idn-web-notif.jsx"></script>
+<script type="text/babel" src="idn-web-icv.jsx"></script>
+<script type="text/babel" src="idn-native-app.jsx"></script>
+<script type="text/babel" src="idn-signup-idn.jsx"></script>
+<script type="text/babel" src="parcours-shell.jsx"></script>
+
+<script type="text/babel">
+const ICV_STEPS = [
+  { id: '01', label: 'CV vide · onboarding',         desc: 'Premier contact : aucun CV créé. Choix entre repartir de zéro ou importer un PDF/DOCX existant.',                                mobile: 'icv-empty',         web: 'empty' },
+  { id: '02', label: 'Accueil iCV',                  desc: 'Vue principale : sélection de thème en haut, outils IA au milieu, profil et aperçu en bas. Sur desktop, deux panneaux avec l\'aperçu A4 à droite.', mobile: 'icv-home',          web: 'home' },
+  { id: '03', label: 'Galerie des 12 thèmes',        desc: 'Trois groupes — Classique & Pro, Créatif & Moderne, Spécialisé. L\'utilisateur compare visuellement avant d\'appliquer.',         mobile: 'icv-themes',        web: 'themes-gallery' },
+  { id: '04', label: 'Aperçu A4 plein écran',        desc: 'Le CV rendu en A4 portrait, sans chrome. Sur desktop, c\'est déjà l\'aperçu de droite de l\'accueil.',                            mobile: 'icv-preview',       web: null },
+  { id: '05', label: 'Tableau de bord · score 78',   desc: 'Score de complétion, sections détaillées, suggestions IA d\'amélioration. Le score guide les actions.',                          mobile: 'icv-dashboard',     web: 'dashboard' },
+  { id: '06', label: 'Édition · expérience',         desc: 'Formulaire structuré : poste, entreprise, dates, missions. Bouton IA pour générer une description percutante.',                  mobile: 'icv-edit-exp',      web: 'edit-exp' },
+  { id: '07', label: 'IA · génération en cours',     desc: 'État de chargement après clic sur "Améliorer avec l\'IA". Le service distille les missions en un paragraphe.',                   mobile: 'icv-edit-ai-load',  web: null },
+  { id: '08', label: 'IA · suggestion proposée',     desc: 'Le paragraphe généré est proposé en card distincte. L\'utilisateur accepte, retouche ou refuse.',                                mobile: 'icv-edit-ai-sugg',  web: 'edit-ai' },
+  { id: '09', label: 'Édition · compétence',         desc: 'Niveau Beginner → Expert sur une échelle visuelle à 4 paliers. Tag de catégorie.',                                              mobile: 'icv-edit-skill',    web: null },
+  { id: '10', label: 'Édition · langue',             desc: 'Cadre européen CECRL : A1 à C2 + Natif. Sélection visuelle, équivalent compétence.',                                            mobile: 'icv-edit-lang',     web: null },
+  { id: '11', label: 'Importer un CV',               desc: 'Modale d\'import PDF/DOCX. L\'OCR + parsing extrait les sections automatiquement.',                                              mobile: 'icv-import',        web: 'import' },
+  { id: '12', label: 'Score ATS · 87 %',             desc: 'Audit du CV face aux systèmes de tracking de candidatures (ATS). Détail des 4 critères + recommandations.',                    mobile: 'icv-ats',           web: 'ats' },
+];
+
+function App() {
+  return (
+    <ParcoursShell
+      title="iCV"
+      subtitle="Constructeur de CV citoyen"
+      storageKey="idn-parcours-icv"
+      steps={ICV_STEPS}
+      renderMobile={(screen, t) => <NativeApp t={t} screen={screen}/>}
+      renderWeb={(screen, t) => <ICVWeb t={t} screen={screen}/>}
+    />
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App/>);
+</script>
+</body>
+</html>

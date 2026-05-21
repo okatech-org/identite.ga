@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<title>IDN — Identité Numérique du Gabon</title>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #f0eee9;
+    --surface: #FFFFFF;
+    --surface2: #F4F3EE;
+    --border: #E6E4DD;
+    --borderSoft: #EFEEE9;
+    --ink: #16170F;
+    --ink2: #3A3D2E;
+    --muted: #74766B;
+    --green: #0E7C3A;
+    --greenDk: #0A5C2C;
+    --greenSoft: #E6F2EA;
+    --yellow: #F2C811;
+    --blue: #2563AC;
+  }
+  body.dark {
+    --bg: #0a0d0a;
+    --surface: #181C16;
+    --surface2: #22271F;
+    --border: #2C3128;
+    --borderSoft: #232820;
+    --ink: #F2F0E8;
+    --ink2: #D4D2C7;
+    --muted: #9A9C8E;
+    --greenSoft: #0F2A18;
+  }
+  html, body { margin: 0; padding: 0; font-family: "IBM Plex Sans", system-ui, sans-serif; background: var(--bg); color: var(--ink); min-height: 100vh; }
+  * { box-sizing: border-box; }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+
+  .page { max-width: 1100px; margin: 0 auto; padding: 56px 28px 80px; }
+
+  .top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 56px; }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-text { line-height: 1; white-space: nowrap; }
+  .eyebrow { font-size: 10px; font-weight: 600; letter-spacing: 1.6px; color: var(--muted); text-transform: uppercase; white-space: nowrap; }
+  .brand-name { font-size: 17px; font-weight: 700; color: var(--ink); margin-top: 4px; letter-spacing: -0.2px; }
+  .theme-toggle {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 9999px;
+    padding: 8px 14px; font-size: 12px; color: var(--ink2); cursor: pointer; font-family: inherit;
+    font-weight: 500;
+  }
+  .theme-toggle:hover { background: var(--surface2); }
+
+  .hero { margin-bottom: 56px; max-width: 720px; }
+  .hero h1 { font-size: 52px; font-weight: 700; letter-spacing: -1.2px; line-height: 1.05; margin: 0; color: var(--ink); }
+  .hero p { font-size: 17px; line-height: 1.55; color: var(--muted); margin: 18px 0 0; max-width: 580px; }
+
+  .flag-bars { display: flex; gap: 3px; height: 3px; width: 44px; margin-bottom: 22px; }
+  .flag-bars > div { flex: 1; border-radius: 2px; }
+  .fb-g { background: var(--green); }
+  .fb-y { background: var(--yellow); }
+  .fb-b { background: var(--blue); }
+
+  .section-label { font-size: 11px; letter-spacing: 1.4px; font-weight: 600; color: var(--muted); text-transform: uppercase; margin: 0 0 18px; display: flex; align-items: center; gap: 10px; }
+  .section-label::before { content: ''; width: 6px; height: 6px; border-radius: 9999px; background: var(--green); }
+
+  .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 28px 26px; text-decoration: none; color: inherit; cursor: pointer;
+    display: flex; flex-direction: column; min-height: 240px; position: relative;
+    transition: transform .15s, border-color .15s, box-shadow .15s;
+  }
+  .card:hover { transform: translateY(-2px); border-color: var(--green); box-shadow: 0 12px 28px rgba(14,124,58,0.10); }
+  .card .index { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--muted); letter-spacing: 1px; font-weight: 500; }
+  .card .icon { width: 44px; height: 44px; border-radius: 11px; background: var(--greenSoft); color: var(--green); display: flex; align-items: center; justify-content: center; margin: 18px 0 16px; }
+  .card .name { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; color: var(--ink); margin: 0; }
+  .card .desc { font-size: 13px; color: var(--muted); line-height: 1.55; margin: 8px 0 0; }
+  .card .meta { margin-top: auto; padding-top: 18px; display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--muted); font-family: "IBM Plex Mono", monospace; letter-spacing: 0.4px; }
+  .card .arrow { color: var(--green); transition: transform .15s; }
+  .card:hover .arrow { transform: translateX(3px); }
+
+  .card.featured { grid-column: span 12; min-height: 200px; flex-direction: row; align-items: center; padding: 32px; gap: 28px; }
+  .card.featured .icon { margin: 0; width: 56px; height: 56px; flex-shrink: 0; }
+  .card.featured .body { flex: 1; }
+  .card.featured .name { font-size: 24px; }
+  .card.featured .desc { margin-top: 6px; max-width: 540px; }
+  .card.featured .arrow-big { color: var(--green); font-size: 22px; }
+  .card.span-6 { grid-column: span 6; }
+  .card.span-4 { grid-column: span 4; }
+
+  @media (max-width: 880px) {
+    .card.span-6, .card.span-4 { grid-column: span 12; }
+    .hero h1 { font-size: 38px; }
+    .page { padding: 32px 20px 60px; }
+    .card.featured { flex-direction: column; align-items: flex-start; }
+  }
+
+  footer { margin-top: 80px; padding-top: 24px; border-top: 1px solid var(--borderSoft); display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--muted); font-family: "IBM Plex Mono", monospace; letter-spacing: 0.4px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="top">
+    <div class="brand">
+      <svg width="36" height="36" viewBox="0 0 32 32" fill="none">
+        <rect x="2" y="2" width="28" height="28" rx="7" fill="#0E7C3A"/>
+        <path d="M11 9v14M16 13v10M21 17v6" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
+      </svg>
+      <div class="brand-text">
+        <div class="eyebrow">République Gabonaise</div>
+        <div class="brand-name">Identité Numérique</div>
+      </div>
+    </div>
+    <button class="theme-toggle" id="theme-toggle" aria-label="Basculer le thème">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10z"/></svg>
+      <span id="theme-label">Mode sombre</span>
+    </button>
+  </div>
+
+  <section class="hero">
+    <div class="flag-bars"><div class="fb-g"></div><div class="fb-y"></div><div class="fb-b"></div></div>
+    <h1>L'infrastructure de confiance numérique du&nbsp;Gabon.</h1>
+    <p>Maquettes interactives des cinq parcours de l'IDN. Chaque fichier regroupe les écrans d'un audience — citoyens, administrations, agents de contrôle, intégrateurs tiers — avec mode clair et sombre pilotables via les Tweaks.</p>
+  </section>
+
+  <h2 class="section-label">Parcours</h2>
+
+  <div class="grid">
+    <!-- Citoyen — featured -->
+    <a class="card featured" href="citizen.html">
+      <div class="icon">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>
+      </div>
+      <div class="body">
+        <div class="index">01 / Citoyen</div>
+        <h3 class="name">Application mobile native + portail web</h3>
+        <p class="desc">Onboarding, KYC vidéo, services administratifs, iCarte (portefeuille), iBoîte (boîte aux lettres souveraine), iDocument (coffre-fort), centre de notifications, paramètres. ≈ 80 écrans mobile + desktop.</p>
+        <div class="meta">
+          <span>citizen.html</span>
+          <span class="arrow-big">→</span>
+        </div>
+      </div>
+    </a>
+
+    <!-- Public + Admin -->
+    <a class="card span-6" href="public.html">
+      <span class="index">02 / Public</span>
+      <div class="icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>
+      </div>
+      <h3 class="name">Pages publiques</h3>
+      <p class="desc">À propos, annuaire des services, intégration administrations, aide & FAQ, mentions légales, état du service, contact.</p>
+      <div class="meta"><span>public.html</span><span class="arrow">→</span></div>
+    </a>
+
+    <a class="card span-6" href="admin.html">
+      <span class="index">03 / Admin</span>
+      <div class="icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3l8 3v5c0 5-3.5 9-8 10-4.5-1-8-5-8-10V6l8-3z"/></svg>
+      </div>
+      <h3 class="name">Console d'administration</h3>
+      <p class="desc">Tableau de bord, applications OAuth, comptes IDN, logs & audit, rôles & habilitations, providers email/SMS.</p>
+      <div class="meta"><span>admin.html</span><span class="arrow">→</span></div>
+    </a>
+
+    <!-- Developer + Controller -->
+    <a class="card span-6" href="developer.html">
+      <span class="index">04 / Développeur</span>
+      <div class="icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 8l-5 4 5 4M16 8l5 4-5 4M14 4l-4 16"/></svg>
+      </div>
+      <h3 class="name">Documentation &amp; portail développeur</h3>
+      <p class="desc">Quickstart Better Auth / NextAuth / React, référence API @idn/core et @idn/react, guides LoA et sécurité, playground OIDC, gestion des clés.</p>
+      <div class="meta"><span>developer.html</span><span class="arrow">→</span></div>
+    </a>
+
+    <a class="card span-6" href="controller.html">
+      <span class="index">05 / Contrôleur</span>
+      <div class="icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3M21 14v7M14 21h3"/></svg>
+      </div>
+      <h3 class="name">Espace contrôleur d'identité</h3>
+      <p class="desc">File de demandes KYC, scanner identité, vérifier signature, historique des contrôles. Pour les agents assermentés.</p>
+      <div class="meta"><span>controller.html</span><span class="arrow">→</span></div>
+    </a>
+  </div>
+
+  <footer>
+    <span>v1.2.0 · MVP · build 2026.05.18</span>
+    <span style="display: inline-flex; align-items: center; gap: 10px;">
+      <div class="flag-bars" style="margin: 0;"><div class="fb-g"></div><div class="fb-y"></div><div class="fb-b"></div></div>
+      ANINF · Ministère de l'Économie Numérique
+    </span>
+  </footer>
+</div>
+
+<script>
+  const KEY = 'idn-hub-theme';
+  const body = document.body;
+  const label = document.getElementById('theme-label');
+  const btn = document.getElementById('theme-toggle');
+  function apply(dark) {
+    body.classList.toggle('dark', dark);
+    label.textContent = dark ? 'Mode clair' : 'Mode sombre';
+  }
+  apply(localStorage.getItem(KEY) === 'dark');
+  btn.addEventListener('click', () => {
+    const dark = !body.classList.contains('dark');
+    localStorage.setItem(KEY, dark ? 'dark' : 'light');
+    apply(dark);
+  });
+</script>
+</body>
+</html>

@@ -472,9 +472,9 @@ function ScrHome({ t, user = DEMO_USERS.citoyen }) {
     { id: 'idoc',    label: 'iDocument',  sub: '17 documents',       badge: null,         color: '#a855f7',
       bg: t.dark ? '#2A1542' : '#F3E8FF',
       icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg> },
-    { id: 'notif',   label: 'Notifications', sub: 'Centre alertes', badge: '3 non lues', color: '#dc2626',
-      bg: t.dark ? '#2A1414' : '#FEE2E2',
-      icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M6 9a6 6 0 1 1 12 0v4l2 3H4l2-3V9zM10 19a2 2 0 0 0 4 0"/></svg> },
+    { id: 'icv',     label: 'iCV',         sub: 'CV professionnel', badge: 'Nouveau',  color: '#EC4899',
+      bg: t.dark ? '#2A1426' : '#FCE7F3',
+      icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3h9l3 3v15a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><circle cx="12" cy="11" r="2.2"/><path d="M8.5 17c.7-1.6 2-2.3 3.5-2.3s2.8.7 3.5 2.3"/></svg> },
   ];
 
   // À faire : mix de courriers urgents + démarches en cours
@@ -1400,6 +1400,15 @@ function NativeApp({ t, screen, user, statusInk }) {
       {screen === 'signup-pin' && <ScrSignupPin t={t}/>}
       {screen === 'signup-bio' && <ScrSignupBio t={t}/>}
       {screen === 'signup-done' && <ScrSignupDone t={t}/>}
+      {/* Nouveau parcours souverain @idn.ga */}
+      {screen === 'signup-idn-a' && <ScrSignupIdnA t={t}/>}
+      {screen === 'signup-idn-b' && <ScrSignupIdnB t={t}/>}
+      {screen === 'signup-idn-c' && <ScrSignupIdnC t={t}/>}
+      {screen === 'signup-idn-taken' && <ScrSignupIdnTaken t={t}/>}
+      {screen === 'signup-pwd-idn' && <ScrSignupPasswordIdn t={t}/>}
+      {screen === 'signup-phone' && <ScrSignupPhone t={t}/>}
+      {screen === 'signup-sms-otp' && <ScrSignupSmsOtp t={t}/>}
+      {screen === 'signup-idn-done' && <ScrSignupIdnDone t={t}/>}
       {screen === 'home' && <><ScrHome t={t} user={user}/><NTabBar t={t} active="home"/></>}
       {screen === 'id-card' && <ScrIdCard t={t}/>}
       {screen === 'services' && <><ScrServices t={t}/><NTabBar t={t} active="services"/></>}
@@ -1450,6 +1459,20 @@ function NativeApp({ t, screen, user, statusInk }) {
       {screen === 'idoc-add-preview'  && <ScrIDocAddPreview t={t}/>}
       {screen === 'idoc-add-success'  && <ScrIDocAddSuccess t={t}/>}
       {screen === 'idoc-request'      && <ScrIDocRequest t={t}/>}
+
+      {/* ─── iCV ─── */}
+      {screen === 'icv-empty'         && <ScrICVEmpty t={t}/>}
+      {screen === 'icv-home'          && <ScrICVHome t={t}/>}
+      {screen === 'icv-themes'        && <ScrICVThemes t={t}/>}
+      {screen === 'icv-preview'       && <ScrICVPreview t={t}/>}
+      {screen === 'icv-dashboard'     && <ScrICVDashboard t={t}/>}
+      {screen === 'icv-edit-exp'      && <ScrICVEditExp t={t}/>}
+      {screen === 'icv-edit-ai-load'  && <ScrICVEditExp t={t} aiState="loading"/>}
+      {screen === 'icv-edit-ai-sugg'  && <ScrICVEditExp t={t} aiState="suggestion"/>}
+      {screen === 'icv-edit-skill'    && <ScrICVEditSkill t={t}/>}
+      {screen === 'icv-edit-lang'     && <ScrICVEditLang t={t}/>}
+      {screen === 'icv-import'        && <ScrICVImport t={t}/>}
+      {screen === 'icv-ats'           && <ScrICVAts t={t}/>}
 
       {/* ─── Notifications ─── */}
       {screen === 'notif-center'      && <ScrNotifCenter t={t}/>}

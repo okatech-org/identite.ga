@@ -8,173 +8,371 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <style>
-  html, body { margin: 0; padding: 0; font-family: "IBM Plex Sans", system-ui, sans-serif; }
-  body { background: #f0eee9; }
-  body.idn-dark { background: #0a0d0a; }
+  :root {
+    --bg: #f0eee9;
+    --surface: #FFFFFF;
+    --surface2: #F4F3EE;
+    --border: #E6E4DD;
+    --borderSoft: #EFEEE9;
+    --ink: #16170F;
+    --ink2: #3A3D2E;
+    --muted: #74766B;
+    --green: #0E7C3A;
+    --greenDk: #0A5C2C;
+    --greenSoft: #E6F2EA;
+    --yellow: #F2C811;
+    --blue: #2563AC;
+  }
+  body.dark {
+    --bg: #0a0d0a;
+    --surface: #181C16;
+    --surface2: #22271F;
+    --border: #2C3128;
+    --borderSoft: #232820;
+    --ink: #F2F0E8;
+    --ink2: #D4D2C7;
+    --muted: #9A9C8E;
+    --greenSoft: #0F2A18;
+  }
+  html, body { margin: 0; padding: 0; font-family: "IBM Plex Sans", system-ui, sans-serif; background: var(--bg); color: var(--ink); min-height: 100vh; }
   * { box-sizing: border-box; }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+
+  .page { max-width: 1180px; margin: 0 auto; padding: 56px 28px 80px; }
+
+  .top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 56px; }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-text { line-height: 1; white-space: nowrap; }
+  .eyebrow { font-size: 10px; font-weight: 600; letter-spacing: 1.6px; color: var(--muted); text-transform: uppercase; white-space: nowrap; }
+  .brand-name { font-size: 17px; font-weight: 700; color: var(--ink); margin-top: 4px; letter-spacing: -0.2px; }
+  .theme-toggle {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 9999px;
+    padding: 8px 14px; font-size: 12px; color: var(--ink2); cursor: pointer; font-family: inherit;
+    font-weight: 500;
+  }
+  .theme-toggle:hover { background: var(--surface2); }
+
+  .hero { margin-bottom: 56px; max-width: 720px; }
+  .hero h1 { font-size: 52px; font-weight: 700; letter-spacing: -1.2px; line-height: 1.05; margin: 0; color: var(--ink); }
+  .hero p { font-size: 17px; line-height: 1.55; color: var(--muted); margin: 18px 0 0; max-width: 580px; }
+
+  .flag-bars { display: flex; gap: 3px; height: 3px; width: 44px; margin-bottom: 22px; }
+  .flag-bars > div { flex: 1; border-radius: 2px; }
+  .fb-g { background: var(--green); }
+  .fb-y { background: var(--yellow); }
+  .fb-b { background: var(--blue); }
+
+  .section-label { font-size: 11px; letter-spacing: 1.4px; font-weight: 600; color: var(--muted); text-transform: uppercase; margin: 0 0 18px; display: flex; align-items: center; gap: 10px; }
+  .section-label::before { content: ''; width: 6px; height: 6px; border-radius: 9999px; background: var(--green); }
+  .section-label .count { font-family: "IBM Plex Mono", monospace; color: var(--muted); font-weight: 500; letter-spacing: 0.4px; }
+
+  .section-row { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin: 0 0 18px; }
+  .section-row .section-label { margin: 0; }
+  .section-row .section-hint { font-size: 12px; color: var(--muted); }
+
+  /* Parcours grid */
+  .parcours-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 72px; }
+  .pcard {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 22px 22px 18px; text-decoration: none; color: inherit; cursor: pointer;
+    display: flex; flex-direction: column; min-height: 200px; position: relative;
+    transition: transform .15s, border-color .15s, box-shadow .15s;
+  }
+  .pcard:hover { transform: translateY(-2px); border-color: var(--green); box-shadow: 0 12px 28px rgba(14,124,58,0.10); }
+  .pcard-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
+  .pcard-icon { width: 38px; height: 38px; border-radius: 10px; background: var(--greenSoft); color: var(--green); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .pcard-tags { display: flex; gap: 4px; }
+  .pcard-tag { font-family: "IBM Plex Mono", monospace; font-size: 9px; letter-spacing: 0.8px; font-weight: 600; color: var(--muted); padding: 3px 7px; border-radius: 4px; background: var(--surface2); border: 1px solid var(--border); text-transform: uppercase; }
+  .pcard-tag.web { background: rgba(37,99,172,0.08); color: #2563AC; border-color: rgba(37,99,172,0.20); }
+  body.dark .pcard-tag.web { background: rgba(96,165,250,0.10); color: #93C5FD; border-color: rgba(96,165,250,0.20); }
+  .pcard-num { font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: 1px; color: var(--muted); font-weight: 500; margin-bottom: 6px; }
+  .pcard-name { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; color: var(--ink); margin: 0; }
+  .pcard-desc { font-size: 12px; color: var(--muted); line-height: 1.5; margin: 6px 0 0; }
+  .pcard-meta { margin-top: auto; padding-top: 16px; display: flex; align-items: center; justify-content: space-between; font-size: 10px; color: var(--muted); font-family: "IBM Plex Mono", monospace; letter-spacing: 0.4px; }
+  .pcard-arrow { color: var(--green); transition: transform .15s; }
+  .pcard:hover .pcard-arrow { transform: translateX(3px); }
+  .pcard-steps { font-size: 10px; }
+
+  /* Audience grid */
+  .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; }
+  .acard {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 22px; text-decoration: none; color: inherit; cursor: pointer;
+    display: flex; flex-direction: column; min-height: 170px; position: relative;
+    transition: transform .15s, border-color .15s, box-shadow .15s;
+  }
+  .acard:hover { transform: translateY(-2px); border-color: var(--ink2); }
+  .acard .pcard-num { margin-top: 14px; }
+  .acard .pcard-name { font-size: 16px; }
+  .acard .pcard-desc { font-size: 12px; }
+  .acard.span-6 { grid-column: span 6; }
+  .acard.span-3 { grid-column: span 3; }
+
+  @media (max-width: 1000px) {
+    .parcours-grid { grid-template-columns: repeat(2, 1fr); }
+    .acard.span-3 { grid-column: span 6; }
+  }
+  @media (max-width: 680px) {
+    .parcours-grid { grid-template-columns: 1fr; }
+    .acard.span-6, .acard.span-3 { grid-column: span 12; }
+    .hero h1 { font-size: 38px; }
+    .page { padding: 32px 20px 60px; }
+  }
+
+  footer { margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--borderSoft); display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--muted); font-family: "IBM Plex Mono", monospace; letter-spacing: 0.4px; }
 </style>
 </head>
 <body>
-<div id="root"></div>
+<div class="page">
 
-<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <div class="top">
+    <div class="brand">
+      <svg width="36" height="36" viewBox="0 0 32 32" fill="none">
+        <rect x="2" y="2" width="28" height="28" rx="7" fill="#0E7C3A"/>
+        <path d="M11 9v14M16 13v10M21 17v6" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
+      </svg>
+      <div class="brand-text">
+        <div class="eyebrow">République Gabonaise</div>
+        <div class="brand-name">Identité Numérique</div>
+      </div>
+    </div>
+    <button class="theme-toggle" id="theme-toggle" aria-label="Basculer le thème">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10z"/></svg>
+      <span id="theme-label">Mode sombre</span>
+    </button>
+  </div>
 
-<script type="text/babel" src="design-canvas.jsx"></script>
-<script type="text/babel" src="tweaks-panel.jsx"></script>
-<script type="text/babel" src="idn-tokens.jsx"></script>
-<script type="text/babel" src="idn-mobile.jsx"></script>
-<script type="text/babel" src="idn-desktop.jsx"></script>
-<script type="text/babel" src="idn-citizen-web.jsx"></script>
-<script type="text/babel" src="idn-citizen-extras.jsx"></script>
-<script type="text/babel" src="idn-docs.jsx"></script>
+  <section class="hero">
+    <div class="flag-bars"><div class="fb-g"></div><div class="fb-y"></div><div class="fb-b"></div></div>
+    <h1>L'infrastructure de confiance numérique du&nbsp;Gabon.</h1>
+    <p>Chaque parcours citoyen est désormais un fichier dédié, en plein écran, avec navigation pas-à-pas entre les écrans mobile et desktop. Les inventaires d'écrans par audience restent disponibles plus bas.</p>
+  </section>
 
-<script type="text/babel">
-function App() {
-  const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
-    "dark": false
-  }/*EDITMODE-END*/;
-  const [tweaks, setTweak] = window.useTweaks(TWEAK_DEFAULTS);
-  const t = window.idnTheme(tweaks.dark);
+  <!-- ─── Parcours dédiés ─── -->
+  <div class="section-row">
+    <h2 class="section-label">Parcours citoyens <span class="count">— 8 parcours</span></h2>
+    <span class="section-hint">Un parcours = un fichier · navigation pas-à-pas · mobile + desktop</span>
+  </div>
 
-  React.useEffect(() => {
-    document.body.classList.toggle('idn-dark', tweaks.dark);
-  }, [tweaks.dark]);
+  <div class="parcours-grid">
 
-  return (
-    <>
-      <DesignCanvas>
-        <DCSection id="public" title="Pages publiques (idn.ga)" subtitle="Pages accessibles sans connexion : à propos, annuaire des services, intégration administrations, FAQ, mentions légales, état du service.">
-          <DCArtboard id="pub-about"    label="À propos"          width={1180} height={760}><CitizenPublic t={t} screen="about"/></DCArtboard>
-          <DCArtboard id="pub-services" label="Annuaire services" width={1180} height={760}><CitizenPublic t={t} screen="services"/></DCArtboard>
-          <DCArtboard id="pub-admins"   label="Pour administrations" width={1180} height={760}><CitizenPublic t={t} screen="admins"/></DCArtboard>
-          <DCArtboard id="pub-help"     label="Aide & FAQ"        width={1180} height={760}><CitizenPublic t={t} screen="help"/></DCArtboard>
-          <DCArtboard id="pub-legal"    label="Mentions légales"  width={1180} height={760}><CitizenPublic t={t} screen="legal"/></DCArtboard>
-          <DCArtboard id="pub-status"   label="État du service"   width={1180} height={760}><CitizenPublic t={t} screen="status"/></DCArtboard>
-          <DCArtboard id="pub-contact"  label="Contact"           width={1180} height={760}><CitizenPublic t={t} screen="contact"/></DCArtboard>
-        </DCSection>
+    <a class="pcard" href="parcours-onboarding.html">
+      <div class="pcard-head">
+        <div class="pcard-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+        </div>
+        <div class="pcard-tags"><span class="pcard-tag">Mobile</span></div>
+      </div>
+      <div class="pcard-num">01 / Onboarding</div>
+      <h3 class="pcard-name">Lancement &amp; authentification</h3>
+      <p class="pcard-desc">Splash Face ID, carousel d'introduction, hub d'authentification, connexion rapide.</p>
+      <div class="pcard-meta"><span class="pcard-steps">7 étapes</span><span class="pcard-arrow">→</span></div>
+    </a>
 
-        <DCSection id="settings" title="Gestion du compte & paramètres" subtitle="Sécurité, sessions, documents, notifications, historique d'activité, données & confidentialité, langue.">
-          <DCArtboard id="set-security"      label="Sécurité"               width={1180} height={760}><CitizenSettings t={t} screen="security"/></DCArtboard>
-          <DCArtboard id="set-sessions"      label="Appareils & sessions"   width={1180} height={760}><CitizenSettings t={t} screen="sessions"/></DCArtboard>
-          <DCArtboard id="set-documents"     label="Mes documents"          width={1180} height={760}><CitizenSettings t={t} screen="documents"/></DCArtboard>
-          <DCArtboard id="set-notifications" label="Notifications"          width={1180} height={760}><CitizenSettings t={t} screen="notifications"/></DCArtboard>
-          <DCArtboard id="set-activity"      label="Historique d'activité"  width={1180} height={760}><CitizenSettings t={t} screen="activity"/></DCArtboard>
-          <DCArtboard id="set-privacy"       label="Données & confidentialité" width={1180} height={760}><CitizenSettings t={t} screen="privacy"/></DCArtboard>
-          <DCArtboard id="set-preferences"   label="Langue & accessibilité" width={1180} height={760}><CitizenSettings t={t} screen="preferences"/></DCArtboard>
-        </DCSection>
+    <a class="pcard" href="parcours-inscription.html">
+      <div class="pcard-head">
+        <div class="pcard-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM4 21c1.5-4 4.5-6 8-6M17 14v6M14 17h6"/></svg>
+        </div>
+        <div class="pcard-tags"><span class="pcard-tag">Mobile</span><span class="pcard-tag web">Web</span></div>
+      </div>
+      <div class="pcard-num">02 / Inscription</div>
+      <h3 class="pcard-name">Création de l'adresse @idn.ga</h3>
+      <p class="pcard-desc">Identité pivot, choix de l'adresse souveraine (3 variations), mot de passe, vérification SMS, révélation de la carte IDN.</p>
+      <div class="pcard-meta"><span class="pcard-steps">9 étapes</span><span class="pcard-arrow">→</span></div>
+    </a>
 
-        <DCSection id="mobile-onboarding" title="Citoyen — Onboarding (mobile)" subtitle="Création de compte, vérification email, identité pivot, PIN. Cliquez les CTA pour avancer.">
-          <DCArtboard id="m-welcome"  label="01 · Accueil"           width={360} height={740}><MobilePrototype t={t} initial="welcome"/></DCArtboard>
-          <DCArtboard id="m-profil"   label="02 · Sélection profil"  width={360} height={740}><MobilePrototype t={t} fixedScreen="profil"/></DCArtboard>
-          <DCArtboard id="m-signup"   label="03 · Inscription"       width={360} height={740}><MobilePrototype t={t} fixedScreen="signup"/></DCArtboard>
-          <DCArtboard id="m-otp"      label="04 · Vérification OTP"  width={360} height={740}><MobilePrototype t={t} fixedScreen="otp"/></DCArtboard>
-          <DCArtboard id="m-pivot"    label="05 · Identité pivot"    width={360} height={740}><MobilePrototype t={t} fixedScreen="pivot"/></DCArtboard>
-          <DCArtboard id="m-pin"      label="06 · PIN"               width={360} height={740}><MobilePrototype t={t} fixedScreen="pin"/></DCArtboard>
-        </DCSection>
+    <a class="pcard" href="parcours-kyc.html">
+      <div class="pcard-head">
+        <div class="pcard-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="12" r="2.5"/><path d="M14 10h4M14 14h4"/></svg>
+        </div>
+        <div class="pcard-tags"><span class="pcard-tag">Mobile</span><span class="pcard-tag web">Web</span></div>
+      </div>
+      <div class="pcard-num">03 / KYC vidéo</div>
+      <h3 class="pcard-name">Vérification niveau 2</h3>
+      <p class="pcard-desc">Capture CNI, selfie liveness, attente de validation par un contrôleur humain.</p>
+      <div class="pcard-meta"><span class="pcard-steps">4 étapes</span><span class="pcard-arrow">→</span></div>
+    </a>
 
-        <DCSection id="mobile-citizen" title="Citoyen — Connecté (mobile)" subtitle="Trois personas : Niveau 3 (citoyen), Niveau 2 (résident), Niveau 1 (visiteur). Cliquez l'avatar pour le profil.">
-          <DCArtboard id="m-home-3" label="Citoyen · Niveau 3"       width={360} height={740}><MobilePrototype t={t} initial="home" user={DEMO_USERS.citoyen}/></DCArtboard>
-          <DCArtboard id="m-home-2" label="Résident · Niveau 2"      width={360} height={740}><MobilePrototype t={t} initial="home" user={DEMO_USERS.resident}/></DCArtboard>
-          <DCArtboard id="m-home-1" label="Visiteur · Niveau 1"      width={360} height={740}><MobilePrototype t={t} initial="home" user={DEMO_USERS.visiteur}/></DCArtboard>
-          <DCArtboard id="m-profile" label="Profil détaillé"          width={360} height={740}><MobilePrototype t={t} fixedScreen="profile" user={DEMO_USERS.citoyen}/></DCArtboard>
-          <DCArtboard id="m-consents" label="Consentements"           width={360} height={740}><MobilePrototype t={t} fixedScreen="consents"/></DCArtboard>
-          <DCArtboard id="m-login"   label="Connexion rapide"         width={360} height={740}><MobilePrototype t={t} fixedScreen="login"/></DCArtboard>
-        </DCSection>
+    <a class="pcard" href="parcours-icarte.html">
+      <div class="pcard-head">
+        <div class="pcard-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 11h20M6 15.5h4"/></svg>
+        </div>
+        <div class="pcard-tags"><span class="pcard-tag">Mobile</span><span class="pcard-tag web">Web</span></div>
+      </div>
+      <div class="pcard-num">04 / iCarte</div>
+      <h3 class="pcard-name">Portefeuille de cartes</h3>
+      <p class="pcard-desc">CNI, permis, transport, CNAMGS, cartes bancaires et personnalisées. Drag pour réordonner, recto/verso, QR signé.</p>
+      <div class="pcard-meta"><span class="pcard-steps">9 étapes</span><span class="pcard-arrow">→</span></div>
+    </a>
 
-        <DCSection id="mobile-kyc" title="KYC Niveau 2 — Vérification d'identité (mobile)" subtitle="Document → selfie liveness → statut. Cliquez les CTA pour avancer.">
-          <DCArtboard id="m-kyc-doc"    label="Pièce d'identité"     width={360} height={740}><MobilePrototype t={t} fixedScreen="kyc-doc"/></DCArtboard>
-          <DCArtboard id="m-kyc-selfie" label="Selfie vivant"         width={360} height={740}><MobilePrototype t={t} fixedScreen="kyc-selfie"/></DCArtboard>
-          <DCArtboard id="m-kyc-status" label="Demande envoyée"       width={360} height={740}><MobilePrototype t={t} fixedScreen="kyc-status"/></DCArtboard>
-          <DCArtboard id="m-oidc"       label="Consentement OIDC"     width={360} height={740}><MobilePrototype t={t} fixedScreen="oidc"/></DCArtboard>
-        </DCSection>
+    <a class="pcard" href="parcours-iboite.html">
+      <div class="pcard-head">
+        <div class="pcard-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l9-5 9 5v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8z"/><path d="M3 8l9 6 9-6"/></svg>
+        </div>
+        <div class="pcard-tags"><span class="pcard-tag">Mobile</span><span class="pcard-tag web">Web</span></div>
+      </div>
+      <div class="pcard-num">05 / iBoîte</div>
+      <h3 class="pcard-name">Boîte aux lettres souveraine</h3>
+      <p class="pcard-desc">Courriers physiques numérisés, colis au point relais idn.ga, emails @idn.ga. 3 comptes (Personnel · Pro · Asso).</p>
+      <div class="pcard-meta"><span class="pcard-steps">7 étapes</span><span class="pcard-arrow">→</span></div>
+    </a>
 
-        <DCSection id="citizen-web-onboarding" title="Citoyen — Onboarding (desktop)" subtitle="Le même parcours que sur mobile, vu depuis idn.ga sur navigateur. Wizard centré, flag républicain en accent.">
-          <DCArtboard id="cw-welcome" label="01 · Page d'accueil"      width={1180} height={760}><CitizenWeb t={t} screen="welcome"/></DCArtboard>
-          <DCArtboard id="cw-profil"  label="02 · Sélection profil"    width={1180} height={760}><CitizenWeb t={t} screen="profil"/></DCArtboard>
-          <DCArtboard id="cw-signup"  label="03 · Email / mot de passe" width={1180} height={760}><CitizenWeb t={t} screen="signup"/></DCArtboard>
-          <DCArtboard id="cw-otp"     label="04 · Vérification email"  width={1180} height={760}><CitizenWeb t={t} screen="otp"/></DCArtboard>
-          <DCArtboard id="cw-pivot"   label="05 · Identité pivot"      width={1180} height={760}><CitizenWeb t={t} screen="pivot"/></DCArtboard>
-          <DCArtboard id="cw-pin"     label="06 · Création du PIN"     width={1180} height={760}><CitizenWeb t={t} screen="pin"/></DCArtboard>
-        </DCSection>
+    <a class="pcard" href="parcours-idocument.html">
+      <div class="pcard-head">
+        <div class="pcard-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg>
+        </div>
+        <div class="pcard-tags"><span class="pcard-tag">Mobile</span><span class="pcard-tag web">Web</span></div>
+      </div>
+      <div class="pcard-num">06 / iDocument</div>
+      <h3 class="pcard-name">Coffre-fort numérique</h3>
+      <p class="pcard-desc">8 dossiers thématiques, détection IA, mode confidentiel, ajout en 3 étapes, demande de documents officiels.</p>
+      <div class="pcard-meta"><span class="pcard-steps">10 étapes</span><span class="pcard-arrow">→</span></div>
+    </a>
 
-        <DCSection id="citizen-web-connected" title="Citoyen — Connecté (desktop)" subtitle="Tableau de bord, profil, consentements, connexion. Personas Niveau 3 / 2 / 1.">
-          <DCArtboard id="cw-home-3"   label="Dashboard · Niveau 3"    width={1180} height={760}><CitizenWeb t={t} screen="home" user={DEMO_USERS.citoyen}/></DCArtboard>
-          <DCArtboard id="cw-home-2"   label="Dashboard · Niveau 2"    width={1180} height={760}><CitizenWeb t={t} screen="home" user={DEMO_USERS.resident}/></DCArtboard>
-          <DCArtboard id="cw-home-1"   label="Dashboard · Niveau 1"    width={1180} height={760}><CitizenWeb t={t} screen="home" user={DEMO_USERS.visiteur}/></DCArtboard>
-          <DCArtboard id="cw-profile"  label="Mon profil"              width={1180} height={760}><CitizenWeb t={t} screen="profile"/></DCArtboard>
-          <DCArtboard id="cw-consents" label="Consentements"           width={1180} height={760}><CitizenWeb t={t} screen="consents"/></DCArtboard>
-          <DCArtboard id="cw-login"    label="Connexion"               width={1180} height={760}><CitizenWeb t={t} screen="login"/></DCArtboard>
-        </DCSection>
+    <a class="pcard" href="parcours-icv.html">
+      <div class="pcard-head">
+        <div class="pcard-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
+        </div>
+        <div class="pcard-tags"><span class="pcard-tag">Mobile</span><span class="pcard-tag web">Web</span></div>
+      </div>
+      <div class="pcard-num">07 / iCV</div>
+      <h3 class="pcard-name">Constructeur de CV citoyen</h3>
+      <p class="pcard-desc">12 thèmes, outils IA, score ATS, import PDF/DOCX, édition expérience/compétence/langue, aperçu A4.</p>
+      <div class="pcard-meta"><span class="pcard-steps">12 étapes</span><span class="pcard-arrow">→</span></div>
+    </a>
 
-        <DCSection id="citizen-web-kyc" title="Citoyen — KYC Niveau 2 (desktop)" subtitle="Mise à niveau du LoA depuis le navigateur, avec invitation à continuer sur mobile pour la caméra.">
-          <DCArtboard id="cw-kyc"        label="Démarrer la vérification" width={1180} height={760}><CitizenWeb t={t} screen="kyc"/></DCArtboard>
-          <DCArtboard id="cw-kyc-status" label="Demande envoyée"          width={1180} height={760}><CitizenWeb t={t} screen="kyc-status"/></DCArtboard>
-        </DCSection>
+    <a class="pcard" href="parcours-notifications.html">
+      <div class="pcard-head">
+        <div class="pcard-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+        </div>
+        <div class="pcard-tags"><span class="pcard-tag">Mobile</span><span class="pcard-tag web">Web</span></div>
+      </div>
+      <div class="pcard-num">08 / Notifications</div>
+      <h3 class="pcard-name">Centre de notifications</h3>
+      <p class="pcard-desc">Filtres Tout / Non lu / Sécurité / Documents. Groupes par jour, CTA par notification.</p>
+      <div class="pcard-meta"><span class="pcard-steps">5 étapes</span><span class="pcard-arrow">→</span></div>
+    </a>
 
-        <DCSection id="oidc-web" title="Authentification OIDC — web" subtitle="Écran de consentement vu depuis une app tierce sur desktop.">
-          <DCArtboard id="oidc-d" label="Consentement OIDC · web" width={1080} height={700}><OidcDesktop t={t}/></DCArtboard>
-        </DCSection>
+  </div>
 
-        <DCSection id="admin" title="Console d'administration" subtitle="Pour les Administrateurs Système. Toutes les pages sont aussi navigables via la barre latérale.">
-          <DCArtboard id="adm-dash"      label="01 · Tableau de bord"     width={1180} height={760}><AdminConsole t={t} initialTab="dashboard"/></DCArtboard>
-          <DCArtboard id="adm-apps"      label="02 · Applications OAuth"  width={1180} height={760}><AdminConsole t={t} initialTab="apps"/></DCArtboard>
-          <DCArtboard id="adm-app-det"   label="03 · Détail d'une app"    width={1180} height={760}><AdminConsole t={t} initialTab="app-detail"/></DCArtboard>
-          <DCArtboard id="adm-users"     label="04 · Comptes IDN"         width={1180} height={760}><AdminConsole t={t} initialTab="users"/></DCArtboard>
-          <DCArtboard id="adm-logs"      label="05 · Logs & audit"        width={1180} height={760}><AdminConsole t={t} initialTab="logs"/></DCArtboard>
-          <DCArtboard id="adm-roles"     label="06 · Rôles & habilitations" width={1180} height={760}><AdminConsole t={t} initialTab="roles"/></DCArtboard>
-          <DCArtboard id="adm-providers" label="07 · Providers email/SMS" width={1180} height={760}><AdminConsole t={t} initialTab="providers"/></DCArtboard>
-        </DCSection>
+  <!-- ─── Audiences (legacy canvas) ─── -->
+  <div class="section-row">
+    <h2 class="section-label">Inventaires par audience</h2>
+    <span class="section-hint">Tous les écrans d'une audience, vue canvas zoomable</span>
+  </div>
 
-        <DCSection id="controller" title="Espace Contrôleur d'Identité" subtitle="Pour les agents assermentés (police, douanes, administrations).">
-          <DCArtboard id="ctrl-queue"   label="01 · File de demandes KYC" width={1180} height={760}><ControllerConsole t={t} initialTab="queue"/></DCArtboard>
-          <DCArtboard id="ctrl-scan"    label="02 · Scanner identité"    width={1180} height={760}><ControllerConsole t={t} initialTab="scan"/></DCArtboard>
-          <DCArtboard id="ctrl-verify"  label="03 · Vérifier signature"  width={1180} height={760}><ControllerConsole t={t} initialTab="verify"/></DCArtboard>
-          <DCArtboard id="ctrl-history" label="04 · Historique contrôles" width={1180} height={760}><ControllerConsole t={t} initialTab="history"/></DCArtboard>
-        </DCSection>
+  <div class="grid">
+    <a class="acard span-6" href="citizen.html">
+      <div class="pcard-head">
+        <div class="pcard-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>
+        </div>
+        <div class="pcard-tags"><span class="pcard-tag">Canvas</span></div>
+      </div>
+      <div class="pcard-num">01 / Citoyen</div>
+      <h3 class="pcard-name">Inventaire complet citoyen</h3>
+      <p class="pcard-desc">≈ 80 écrans mobile + desktop dans un seul canvas pannable/zoomable, regroupés par section.</p>
+      <div class="pcard-meta"><span>citizen.html</span><span class="pcard-arrow">→</span></div>
+    </a>
 
-        <DCSection id="docs" title="Documentation développeur (docs.identite.ga)" subtitle="Site public, accessible avec ou sans compte. Quick start, référence API @idn/core et @idn/react, guides LoA et sécurité, migration depuis Clerk, playground OIDC.">
-          <DCArtboard id="docs-home"        label="Landing"                width={1180} height={760}><DocsSite t={t} screen="home"/></DCArtboard>
-          <DCArtboard id="docs-register"    label="Enregistrer une app"    width={1180} height={760}><DocsSite t={t} screen="register-app"/></DCArtboard>
-          <DCArtboard id="docs-qs-better"   label="QS · Better Auth"       width={1180} height={760}><DocsSite t={t} screen="quickstart-better-auth"/></DCArtboard>
-          <DCArtboard id="docs-qs-next"     label="QS · NextAuth"          width={1180} height={760}><DocsSite t={t} screen="quickstart-nextauth"/></DCArtboard>
-          <DCArtboard id="docs-qs-react"    label="QS · React"             width={1180} height={760}><DocsSite t={t} screen="quickstart-react"/></DCArtboard>
-          <DCArtboard id="docs-qs-vanilla"  label="QS · vanilla JS"        width={1180} height={760}><DocsSite t={t} screen="quickstart-vanilla"/></DCArtboard>
-          <DCArtboard id="docs-core"        label="@idn/core · présentation" width={1180} height={760}><DocsSite t={t} screen="core-overview"/></DCArtboard>
-          <DCArtboard id="docs-core-api"    label="@idn/core · API"        width={1180} height={760}><DocsSite t={t} screen="core-api"/></DCArtboard>
-          <DCArtboard id="docs-react-hooks" label="@idn/react · hooks"     width={1180} height={760}><DocsSite t={t} screen="react-hooks"/></DCArtboard>
-          <DCArtboard id="docs-react-comps" label="@idn/react · composants" width={1180} height={760}><DocsSite t={t} screen="react-components"/></DCArtboard>
-          <DCArtboard id="docs-loa"         label="Guide · LoA"            width={1180} height={760}><DocsSite t={t} screen="loa"/></DCArtboard>
-          <DCArtboard id="docs-security"    label="Guide · Sécurité"       width={1180} height={760}><DocsSite t={t} screen="security"/></DCArtboard>
-          <DCArtboard id="docs-migration"   label="Migration · Clerk"      width={1180} height={760}><DocsSite t={t} screen="migration-clerk"/></DCArtboard>
-          <DCArtboard id="docs-playground"  label="Playground OIDC"        width={1180} height={760}><DocsSite t={t} screen="playground"/></DCArtboard>
-        </DCSection>
+    <a class="acard span-6" href="public.html">
+      <div class="pcard-head">
+        <div class="pcard-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>
+        </div>
+        <div class="pcard-tags"><span class="pcard-tag">Canvas</span></div>
+      </div>
+      <div class="pcard-num">02 / Public</div>
+      <h3 class="pcard-name">Pages publiques idn.ga</h3>
+      <p class="pcard-desc">À propos, annuaire des services, intégration administrations, aide, mentions légales, état du service.</p>
+      <div class="pcard-meta"><span>public.html</span><span class="pcard-arrow">→</span></div>
+    </a>
 
-        <DCSection id="dev" title="Portail Développeur" subtitle="Pour les intégrateurs tiers consommant @idn/* ou l'OIDC standard.">
-          <DCArtboard id="dev-apps"  label="01 · Mes applications"  width={1180} height={760}><DevPortal t={t} initialTab="apps"/></DCArtboard>
-          <DCArtboard id="dev-keys"  label="02 · Clés & secrets"    width={1180} height={760}><DevPortal t={t} initialTab="keys"/></DCArtboard>
-          <DCArtboard id="dev-docs"  label="03 · Documentation"     width={1180} height={760}><DevPortal t={t} initialTab="docs"/></DCArtboard>
-          <DCArtboard id="dev-usage" label="04 · Quotas & usage"    width={1180} height={760}><DevPortal t={t} initialTab="usage"/></DCArtboard>
-        </DCSection>
-      </DesignCanvas>
+    <a class="acard span-3" href="admin.html">
+      <div class="pcard-head">
+        <div class="pcard-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3l8 3v5c0 5-3.5 9-8 10-4.5-1-8-5-8-10V6l8-3z"/></svg>
+        </div>
+        <div class="pcard-tags"><span class="pcard-tag">Canvas</span></div>
+      </div>
+      <div class="pcard-num">03 / Admin</div>
+      <h3 class="pcard-name">Console admin</h3>
+      <p class="pcard-desc">OAuth, comptes, logs, rôles, providers.</p>
+      <div class="pcard-meta"><span>admin.html</span><span class="pcard-arrow">→</span></div>
+    </a>
 
-      <TweaksPanel title="Tweaks">
-        <TweakSection title="Apparence">
-          <TweakToggle label="Mode sombre" value={tweaks.dark} onChange={(v) => setTweak('dark', v)}
-            description="Inverse les neutres pour le portail citoyen et toutes les consoles. Vert/jaune/bleu inchangés."/>
-        </TweakSection>
-        <TweakSection title="Personas démo" subtitle="Les trois cartes Citoyen — Connecté montrent un Niveau 3 / 2 / 1 ; les écrans de KYC, profil et consentements utilisent le Citoyen Niveau 3.">
-        </TweakSection>
-        <TweakSection title="Navigation" subtitle="• Mobile : cliquez les CTA pour avancer dans les flows. Cliquez l'avatar (en haut à gauche du Home) pour revenir à l'accueil.&#10;• Consoles desktop : cliquez les items de la barre latérale.&#10;• Canvas : maintenez espace pour panner, molette pour zoomer, double-clic sur une carte pour la mettre en plein écran.">
-        </TweakSection>
-      </TweaksPanel>
-    </>
-  );
-}
+    <a class="acard span-3" href="developer.html">
+      <div class="pcard-head">
+        <div class="pcard-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 8l-5 4 5 4M16 8l5 4-5 4M14 4l-4 16"/></svg>
+        </div>
+        <div class="pcard-tags"><span class="pcard-tag">Canvas</span></div>
+      </div>
+      <div class="pcard-num">04 / Dev</div>
+      <h3 class="pcard-name">Portail développeur</h3>
+      <p class="pcard-desc">SDK, API, playground OIDC, gestion clés.</p>
+      <div class="pcard-meta"><span>developer.html</span><span class="pcard-arrow">→</span></div>
+    </a>
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<App/>);
+    <a class="acard span-3" href="controller.html">
+      <div class="pcard-head">
+        <div class="pcard-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3M21 14v7M14 21h3"/></svg>
+        </div>
+        <div class="pcard-tags"><span class="pcard-tag">Canvas</span></div>
+      </div>
+      <div class="pcard-num">05 / Contrôleur</div>
+      <h3 class="pcard-name">Espace contrôleur</h3>
+      <p class="pcard-desc">File KYC, scanner identité, historique.</p>
+      <div class="pcard-meta"><span>controller.html</span><span class="pcard-arrow">→</span></div>
+    </a>
+
+    <a class="acard span-3" href="idn-v1.html">
+      <div class="pcard-head">
+        <div class="pcard-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+        </div>
+        <div class="pcard-tags"><span class="pcard-tag">Archive</span></div>
+      </div>
+      <div class="pcard-num">— Archive</div>
+      <h3 class="pcard-name">Hub v1</h3>
+      <p class="pcard-desc">Ancienne version du hub, à titre de comparaison.</p>
+      <div class="pcard-meta"><span>idn-v1.html</span><span class="pcard-arrow">→</span></div>
+    </a>
+  </div>
+
+  <footer>
+    <span>v2.0.0 · MVP · build 2026.05.19</span>
+    <span style="display: inline-flex; align-items: center; gap: 10px;">
+      <div class="flag-bars" style="margin: 0;"><div class="fb-g"></div><div class="fb-y"></div><div class="fb-b"></div></div>
+      ANINF · Ministère de l'Économie Numérique
+    </span>
+  </footer>
+</div>
+
+<script>
+  const KEY = 'idn-hub-theme';
+  const body = document.body;
+  const label = document.getElementById('theme-label');
+  const btn = document.getElementById('theme-toggle');
+  function apply(dark) {
+    body.classList.toggle('dark', dark);
+    label.textContent = dark ? 'Mode clair' : 'Mode sombre';
+  }
+  apply(localStorage.getItem(KEY) === 'dark');
+  btn.addEventListener('click', () => {
+    const dark = !body.classList.contains('dark');
+    localStorage.setItem(KEY, dark ? 'dark' : 'light');
+    apply(dark);
+  });
 </script>
 </body>
 </html>

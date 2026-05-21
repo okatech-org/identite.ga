@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<title>Parcours iDocument — IDN</title>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  html, body { margin: 0; padding: 0; font-family: "IBM Plex Sans", system-ui, sans-serif; }
+  body { background: #f0eee9; min-height: 100vh; }
+  body.idn-dark { background: #0a0d0a; }
+  * { box-sizing: border-box; }
+  #root { min-height: 100vh; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="idn-tokens.jsx"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="idn-mobile.jsx"></script>
+<script type="text/babel" src="idn-desktop.jsx"></script>
+<script type="text/babel" src="idn-citizen-web.jsx"></script>
+<script type="text/babel" src="idn-citizen-extras.jsx"></script>
+<script type="text/babel" src="idn-mobile-icarte.jsx"></script>
+<script type="text/babel" src="idn-mobile-iboite.jsx"></script>
+<script type="text/babel" src="idn-mobile-idocument.jsx"></script>
+<script type="text/babel" src="idn-mobile-notif.jsx"></script>
+<script type="text/babel" src="idn-mobile-icv.jsx"></script>
+<script type="text/babel" src="idn-web-icarte.jsx"></script>
+<script type="text/babel" src="idn-web-iboite.jsx"></script>
+<script type="text/babel" src="idn-web-idoc.jsx"></script>
+<script type="text/babel" src="idn-web-notif.jsx"></script>
+<script type="text/babel" src="idn-web-icv.jsx"></script>
+<script type="text/babel" src="idn-native-app.jsx"></script>
+<script type="text/babel" src="idn-signup-idn.jsx"></script>
+<script type="text/babel" src="parcours-shell.jsx"></script>
+
+<script type="text/babel">
+const STEPS = [
+  { id: '01', label: 'Coffre · dossiers',            desc: 'Grille de 8 dossiers (Identité, Diplômes, Santé, Logement, Travail, Finances, Famille, Autre). Compteurs en direct.',     mobile: 'idoc-home',         web: 'home' },
+  { id: '02', label: 'Mode confidentiel',            desc: 'Documents floutés sauf déverrouillage (Face ID / PIN). Permet de consulter en public sans révéler.',                       mobile: 'idoc-home-conf',    web: 'home-conf' },
+  { id: '03', label: 'Dossier · contenu',            desc: 'Ouverture d\'un dossier : liste de documents (PDF, JPG…) classés par date. Détection IA d\'étiquettes.',                 mobile: 'idoc-folder',       web: 'folder' },
+  { id: '04', label: 'Dossier · confidentiel',       desc: 'Vue floutée du contenu du dossier, idem mais à granularité document.',                                                     mobile: 'idoc-folder-conf',  web: 'folder-conf' },
+  { id: '05', label: 'Dossier vide',                 desc: 'État vide d\'un dossier avec invitation à scanner ou importer.',                                                          mobile: 'idoc-folder-empty', web: 'folder-empty' },
+  { id: '06', label: 'Aperçu document',              desc: 'Visionneuse plein écran avec actions : partager via QR, signer, demander un cachet officiel.',                              mobile: 'idoc-preview',      web: 'modal-preview' },
+  { id: '07', label: 'Ajout · choix source',         desc: 'Étape 1/3 : choisir la source (scanner caméra, importer fichier, capturer photo).',                                        mobile: 'idoc-add-select',   web: 'modal-add' },
+  { id: '08', label: 'Ajout · aperçu',               desc: 'Étape 2/3 : aperçu du document scanné, ajustement des bords, choix du dossier.',                                            mobile: 'idoc-add-preview',  web: null },
+  { id: '09', label: 'Ajout · succès',               desc: 'Étape 3/3 : confirmation, options de partage immédiat.',                                                                   mobile: 'idoc-add-success',  web: null },
+  { id: '10', label: 'Demander · officiel',          desc: 'Demande de documents officiels (acte de naissance, casier, etc.) à l\'administration compétente.',                       mobile: 'idoc-request',      web: 'request' },
+];
+
+function App() {
+  return (
+    <ParcoursShell
+      title="iDocument"
+      subtitle="Coffre-fort de documents"
+      storageKey="idn-parcours-idoc"
+      steps={STEPS}
+      renderMobile={(screen, t) => <NativeApp t={t} screen={screen}/>}
+      renderWeb={(screen, t) => <IDocWeb t={t} screen={screen}/>}
+    />
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App/>);
+</script>
+</body>
+</html>
