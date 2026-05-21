@@ -9,6 +9,7 @@ import { NSheetHeader } from '@/components/chrome/sheet-header';
 import { IdnButton } from '@/design/components/idn-button';
 import { Icon } from '@/design/icons';
 import { api } from '@/lib/api';
+import { iboiteFr } from '@/data/iboite-fr';
 
 /**
  * Composition d'un courrier physique iBoîte (équivalent mobile du
@@ -73,7 +74,7 @@ export default function IBoiteCourrierCompose() {
     <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top }}>
       <NSheetHeader
         t={t}
-        title="Nouveau courrier"
+        title={iboiteFr.compose.titleLetter}
         onBack={() => router.back()}
         right={
           <Pressable onPress={submit} disabled={submitting} style={{ padding: 4 }}>

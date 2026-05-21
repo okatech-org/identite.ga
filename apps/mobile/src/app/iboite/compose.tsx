@@ -9,6 +9,7 @@ import { NSheetHeader } from '@/components/chrome/sheet-header';
 import { IdnButton } from '@/design/components/idn-button';
 import { Icon } from '@/design/icons';
 import { api } from '@/lib/api';
+import { iboiteFr } from '@/data/iboite-fr';
 
 export default function IBoiteCompose() {
   const t = useIdnTheme();
@@ -19,7 +20,7 @@ export default function IBoiteCompose() {
     subject?: string;
     body?: string;
     replyToId?: string;
-    mode?: 'reply' | 'forward';
+    mode?: 'reply' | 'replyAll' | 'forward';
   }>();
   const { isAuthenticated } = useConvexAuth();
   const accounts = useQuery(api.iboite.accounts.listMine, isAuthenticated ? {} : 'skip');
@@ -28,7 +29,10 @@ export default function IBoiteCompose() {
   // pré-remplir proprement destinataire / objet / citation (au lieu de
   // tout passer en query params).
   const replyToId = (params.replyToId as string | undefined) ?? null;
-  const mode = (params.mode as 'reply' | 'forward' | undefined) ?? 'reply';
+  // Note V1 : 'replyAll' = 'reply' au pré-remplissage tant que le modèle
+  // `iboiteMessage` n'a pas de champ `cc[]`. Comportement identique côté UX
+  // — sera précisé quand la conv supportera plusieurs destinataires.
+  const mode = (params.mode as 'reply' | 'replyAll' | 'forward' | undefined) ?? 'reply';
   const original = useQuery(
     api.iboite.messages.get,
     isAuthenticated && replyToId ? { messageId: replyToId as never } : 'skip',
@@ -72,7 +76,7 @@ export default function IBoiteCompose() {
   async function submit() {
     if (submitting) return;
     if (!accountId) {
-      Alert.alert('Aucun compte', 'Aucun compte iBoîte actif.');
+      Alert.alert('Aucun compte', iboiteFr.compose.errors.noAccount);
       return;
     }
     if (!toEmail.trim() || !toEmail.includes('@')) {
@@ -107,7 +111,7 @@ export default function IBoiteCompose() {
     <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top }}>
       <NSheetHeader
         t={t}
-        title="Nouveau message"
+        title={iboiteFr.compose.titleMessage}
         onBack={() => router.back()}
         right={
           <Pressable onPress={submit} disabled={submitting} style={{ padding: 4 }}>

@@ -5,6 +5,7 @@ import { idnTokens } from '@/design/tokens';
 import type { IdnTheme } from '@/design/tokens';
 import { Icon } from '@/design/icons';
 import type { MailAccount } from '@/data/mailbox';
+import { iboiteFr } from '@/data/iboite-fr';
 import { formatAddressLine } from '@/lib/iboite-adapter';
 
 /**
@@ -63,10 +64,10 @@ export function AddressStrip({
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={{ fontSize: 12, color: idnTokens.green, fontWeight: '600' }}>
-            Configurer mon adresse
+            {iboiteFr.account.configurePrompt}
           </Text>
           <Text style={{ fontSize: 10, color: t.muted, marginTop: 1 }}>
-            Aucune adresse renseignée
+            {iboiteFr.account.configureHint}
           </Text>
         </View>
       </Pressable>
@@ -92,7 +93,7 @@ export function AddressStrip({
       <Icon name="pinLoc" size={14} color={idnTokens.green} />
       <Pressable
         onPress={onConfigure}
-        accessibilityLabel="Modifier mon adresse"
+        accessibilityLabel={iboiteFr.account.editAddress}
         style={{ flex: 1, minWidth: 0 }}
       >
         <Text numberOfLines={1} style={{ fontSize: 11, color: t.ink, fontWeight: '500' }}>
@@ -108,7 +109,7 @@ export function AddressStrip({
             /* silent */
           }
         }}
-        accessibilityLabel="Copier l'adresse"
+        accessibilityLabel={iboiteFr.account.copyAddress}
         style={{
           width: 26,
           height: 26,

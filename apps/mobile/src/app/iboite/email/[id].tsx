@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActionSheetIOS, Alert, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useConvexAuth, useMutation, useQuery } from 'convex/react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,7 +9,14 @@ import { NSheetHeader } from '@/components/chrome/sheet-header';
 import { Icon, type IconName } from '@/design/icons';
 import { api } from '@/lib/api';
 
-type Action = { icon: IconName; l: string; primary?: boolean; danger?: boolean; onPress: () => void };
+type Action = {
+  icon: IconName;
+  l: string;
+  primary?: boolean;
+  danger?: boolean;
+  onPress: () => void;
+  onLongPress?: () => void;
+};
 
 export default function EmailDetail() {
   const t = useIdnTheme();
@@ -63,7 +70,32 @@ export default function EmailDetail() {
   // Plus de bricolage URL : on passe `replyToId` au compose qui ira lire le
   // message d'origine via Convex et pré-remplira destinataire/objet/citation.
   const replyHref = `/iboite/compose?replyToId=${id}`;
+  const replyAllHref = `/iboite/compose?replyToId=${id}&mode=replyAll`;
   const fwdHref = `/iboite/compose?replyToId=${id}&mode=forward`;
+
+  /**
+   * Bouton Répondre : tap court = Répondre. Long press / iOS = menu
+   * Répondre / Répondre à tous. Pas de dropdown custom — on s'appuie sur
+   * `ActionSheetIOS` natif (iOS) et `Alert.alert` (Android), pour rester
+   * sans dépendance externe.
+   */
+  function openReplyMenu() {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: ['Annuler', 'Répondre', 'Répondre à tous'], cancelButtonIndex: 0 },
+        (idx) => {
+          if (idx === 1) router.push(replyHref as never);
+          else if (idx === 2) router.push(replyAllHref as never);
+        },
+      );
+    } else {
+      Alert.alert('Répondre', undefined, [
+        { text: 'Répondre', onPress: () => router.push(replyHref as never) },
+        { text: 'Répondre à tous', onPress: () => router.push(replyAllHref as never) },
+        { text: 'Annuler', style: 'cancel' },
+      ]);
+    }
+  }
 
   async function onArchive() {
     Alert.alert(
@@ -73,7 +105,13 @@ export default function EmailDetail() {
   }
 
   const actions: Action[] = [
-    { icon: 'reply', l: 'Répondre', primary: true, onPress: () => router.push(replyHref as never) },
+    {
+      icon: 'reply',
+      l: 'Répondre',
+      primary: true,
+      onPress: () => router.push(replyHref as never),
+      onLongPress: openReplyMenu,
+    },
     { icon: 'forward', l: 'Transférer', onPress: () => router.push(fwdHref as never) },
     { icon: 'archive', l: 'Archiver', onPress: onArchive },
     { icon: 'trash', l: 'Suppr.', danger: true, onPress: onDelete },
@@ -111,7 +149,13 @@ export default function EmailDetail() {
       </ScrollView>
       <View style={{ borderTopWidth: 1, borderTopColor: t.borderSoft, backgroundColor: t.surface, paddingHorizontal: 14, paddingTop: 10, paddingBottom: Math.max(insets.bottom, 10), flexDirection: 'row', gap: 4 }}>
         {actions.map((a, i) => (
-          <Pressable key={i} onPress={a.onPress} style={{ flex: 1, paddingVertical: 8, alignItems: 'center', gap: 4 }}>
+          <Pressable
+            key={i}
+            onPress={a.onPress}
+            onLongPress={a.onLongPress}
+            delayLongPress={300}
+            style={{ flex: 1, paddingVertical: 8, alignItems: 'center', gap: 4 }}
+          >
             <Icon name={a.icon} size={18} color={a.primary ? idnTokens.green : a.danger ? '#B83A3A' : t.ink2} />
             <Text style={{ fontSize: 10, fontWeight: '500', color: a.primary ? idnTokens.green : a.danger ? '#B83A3A' : t.ink2 }}>{a.l}</Text>
           </Pressable>

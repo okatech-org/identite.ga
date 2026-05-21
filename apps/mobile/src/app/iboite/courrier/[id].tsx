@@ -1,5 +1,7 @@
 import React, { useEffect } from 'react';
 import { Alert, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useConvexAuth, useMutation, useQuery } from 'convex/react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,6 +10,20 @@ import { idnTokens } from '@/design/tokens';
 import { NSheetHeader } from '@/components/chrome/sheet-header';
 import { Icon, type IconName } from '@/design/icons';
 import { api } from '@/lib/api';
+
+/** Échappement HTML basique pour les chaînes injectées dans le template PDF. */
+function esc(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/** Nettoie le sujet pour un nom de fichier safe. */
+function safeFilename(s: string): string {
+  return s.replace(/[^a-zA-Z0-9\-_ ]/g, '').replace(/\s+/g, '_').slice(0, 60) || 'Courrier';
+}
 
 type Action = { icon: IconName; l: string; primary?: boolean; danger?: boolean; onPress: () => void };
 
@@ -72,10 +88,61 @@ export default function CourrierDetail() {
     Alert.alert('Impression', 'L\'impression directe sera disponible dans une prochaine version.');
   }
 
+  /**
+   * Génère un PDF du courrier via expo-print (template HTML A4) puis ouvre
+   * la sheet de partage native. Le HTML reproduit grossièrement la mise en
+   * page de la prévisualisation papier ivoire.
+   */
+  async function onDownload() {
+    if (!letter) return;
+    try {
+      const attachmentsHtml = letter.attachments.length === 0 ? '' : `
+        <h2 style="font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; color: #6b6b6b; margin-top: 32px;">Pièces jointes</h2>
+        <ul style="font-size: 12px; color: #2a2a2a; padding-left: 18px;">
+          ${letter.attachments.map((a) => `<li>${esc(a.name)} — ${Math.max(1, Math.round(a.size / 1024))} KB</li>`).join('')}
+        </ul>
+      `;
+      const html = `
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8"><title>${esc(letter.subject)}</title></head>
+<body style="font-family: Georgia, 'Times New Roman', serif; color: #1a1a1a; background: #fffdf7; margin: 0; padding: 56px 56px;">
+  <div style="display: flex; justify-content: space-between; font-size: 11px; color: #3a3a3a;">
+    <div style="max-width: 48%;">
+      <div style="font-weight: 700; color: #1a1a1a;">${esc(letter.senderName)}</div>
+      <div style="white-space: pre-line;">${esc(letter.senderAddress)}</div>
+    </div>
+    <div style="max-width: 48%; text-align: right;">
+      <div style="font-weight: 700; color: #1a1a1a;">${esc(letter.recipientName)}</div>
+      <div style="white-space: pre-line;">${esc(letter.recipientAddress)}</div>
+    </div>
+  </div>
+  <p style="text-align: right; font-size: 11px; color: #3a3a3a; margin-top: 24px;">Libreville, le ${esc(created)}</p>
+  <h1 style="border-bottom: 1px solid #d6d2c4; padding-bottom: 8px; margin-top: 28px; font-size: 14px;">Objet : ${esc(letter.subject)}</h1>
+  <div style="white-space: pre-wrap; font-size: 13px; line-height: 1.7; margin-top: 20px; text-align: justify; color: #2a2a2a;">
+    ${esc(letter.body)}
+  </div>
+  ${attachmentsHtml}
+</body></html>`;
+      const { uri } = await Print.printToFileAsync({ html, base64: false });
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(uri, {
+          mimeType: 'application/pdf',
+          dialogTitle: `${safeFilename(letter.subject)}.pdf`,
+          UTI: 'com.adobe.pdf',
+        });
+      } else {
+        Alert.alert('PDF généré', `Fichier disponible : ${uri}`);
+      }
+    } catch (err) {
+      Alert.alert('Erreur', err instanceof Error ? err.message : 'Téléchargement impossible.');
+    }
+  }
+
   const actions: Action[] = [
     { icon: 'reply', l: 'Répondre', primary: true, onPress: () => router.push(replyHref as never) },
+    { icon: 'download', l: 'PDF', onPress: onDownload },
     { icon: 'clock', l: 'À traiter', onPress: () => move('pending') },
-    { icon: 'printer', l: 'Imprimer', onPress: onPrint },
     { icon: 'trash', l: 'Suppr.', danger: true, onPress: () => move('trash') },
   ];
 

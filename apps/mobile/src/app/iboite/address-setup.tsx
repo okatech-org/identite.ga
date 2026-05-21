@@ -18,6 +18,7 @@ import { NSheetHeader } from '@/components/chrome/sheet-header';
 import { IdnButton } from '@/design/components/idn-button';
 import { Icon } from '@/design/icons';
 import { api } from '@/lib/api';
+import { iboiteFr } from '@/data/iboite-fr';
 
 type Step = 'choose' | 'locating' | 'form';
 
@@ -158,7 +159,7 @@ export default function IBoiteAddressSetup() {
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top }}>
-      <NSheetHeader t={t} title="Configurer mon adresse" onBack={() => router.back()} />
+      <NSheetHeader t={t} title={iboiteFr.address.title} onBack={() => router.back()} />
 
       <ScrollView
         contentContainerStyle={{
