@@ -29,7 +29,14 @@ export default function ICVImport() {
 
   async function pick() {
     const res = await DocumentPicker.getDocumentAsync({
-      type: ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+      type: [
+        'application/pdf',
+        'image/png',
+        'image/jpeg',
+        'image/webp',
+        'image/heic',
+        'image/heif',
+      ],
       multiple: false,
       copyToCacheDirectory: true,
     });

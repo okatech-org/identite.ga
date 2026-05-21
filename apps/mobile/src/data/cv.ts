@@ -201,7 +201,7 @@ export const icvStrings = {
   },
   import: {
     title: 'Importer un CV',
-    desc: 'PDF ou DOCX — 5 Mo max.',
+    desc: 'PDF ou image — 5 Mo max.',
     pick: 'Choisir un fichier',
     pickedFile: (n: string) => `Sélectionné : ${n}`,
     modeLabel: 'Que faire ?',
@@ -214,7 +214,7 @@ export const icvStrings = {
     successDesc: 'Les données ont été importées.',
     failed: 'L\'import a échoué.',
     tooLarge: 'Le fichier dépasse 5 Mo.',
-    unsupported: 'Format non supporté. Utilisez un PDF ou un DOCX.',
+    unsupported: 'Format non supporté. Utilisez un PDF ou une image.',
   },
   dashboard: {
     title: 'Tableau de bord',

@@ -1,24 +1,39 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from 'convex/react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { api } from '@/lib/api';
 import type { Id } from '@repo/backend/convex/_generated/dataModel';
-import { Icon } from '@/design/icons';
+import { Icon, type IconName } from '@/design/icons';
 import { idnTokens } from '@/design/tokens';
 import { useIdnTheme } from '@/design/theme';
 import { NLargeHeader } from '@/components/chrome/large-header';
 import { useActiveCv } from '@/hooks/use-active-cv';
-import { ICV_ACCENT, icvStrings, type AiToolId, type CvThemeId } from '@/data/cv';
-import { AiResultCard } from '@/components/cv/ai-result-card';
-import { AiTools } from '@/components/cv/ai-tools';
-import { CvPreview, type PreviewCv } from '@/components/cv/cv-preview';
+import { ICV_ACCENT, icvStrings } from '@/data/cv';
 import { CvSelector } from '@/components/cv/cv-selector';
 import { PdfButton } from '@/components/cv/pdf-button';
-import { ThemePicker } from '@/components/cv/theme-picker';
+import { ScoreRing } from '@/components/cv/score-ring';
 
+type SectionKey = 'experience' | 'education' | 'skill' | 'info' | 'language' | 'hobby';
+
+const SECTION_META: Record<
+  SectionKey,
+  { label: string; icon: IconName; color: string; bgLight: string; bgDark: string }
+> = {
+  experience: { label: 'Expériences', icon: 'briefcase', color: '#f97316', bgLight: '#FFEDD5', bgDark: '#2A1A0E' },
+  education: { label: 'Formation', icon: 'cap', color: '#3b82f6', bgLight: '#DBEAFE', bgDark: '#0F2640' },
+  skill: { label: 'Compétences', icon: 'star', color: '#a855f7', bgLight: '#F3E8FF', bgDark: '#2A1542' },
+  info: { label: 'Informations', icon: 'user', color: '#22c55e', bgLight: '#DCFCE7', bgDark: '#0F2818' },
+  language: { label: 'Langues', icon: 'globe', color: '#06b6d4', bgLight: '#CFFAFE', bgDark: '#0E2A33' },
+  hobby: { label: 'Hobbies', icon: 'heart', color: '#94a3b8', bgLight: '#F1F5F9', bgDark: '#1A1F26' },
+};
+
+/**
+ * Accueil iCV — tableau de bord du CV actif (score + suggestions + sections).
+ * L'aperçu / thème / outils IA vivent désormais sur `/icv/studio`.
+ */
 export default function ICVHome() {
   const t = useIdnTheme();
   const router = useRouter();
@@ -30,16 +45,18 @@ export default function ICVHome() {
     api.cv.profile.get,
     activeCvId ? { cvId: activeCvId } : 'skip',
   );
+  const scoreData = useQuery(
+    api.cv.score.get,
+    activeCvId ? { cvId: activeCvId } : 'skip',
+  );
 
-  // Si ?cv=... en query param, bascule
+  // Si ?cv=... en query param, bascule sur ce CV.
   useEffect(() => {
     if (params.cv && cvs?.some((c) => c._id === params.cv)) {
       setActiveCvId(params.cv as Id<'citizenCv'>);
       router.setParams({ cv: undefined });
     }
   }, [params.cv, cvs, setActiveCvId, router]);
-
-  const [openResult, setOpenResult] = useState<AiToolId | null>(null);
 
   if (isLoading) {
     return (
@@ -61,18 +78,19 @@ export default function ICVHome() {
     );
   }
 
+  const fullName = fullCv
+    ? `${fullCv.firstName} ${fullCv.lastName}`.trim() || activeCv.name
+    : activeCv.name;
+
   return (
     <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top }}>
       <NLargeHeader
         t={t}
         title={icvStrings.title}
-        sub={icvStrings.subtitle}
+        sub={`Tableau de bord · ${fullName}`}
         onBack={() => router.back()}
-        right={
-          <PdfButton cvId={activeCvId} size="sm" />
-        }
+        right={<PdfButton cvId={activeCvId} size="sm" />}
       />
-
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: 18,
@@ -81,7 +99,7 @@ export default function ICVHome() {
         }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Sélecteur CV */}
+        {/* Sélecteur CV + Import */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <CvSelector
             active={activeCv}
@@ -110,144 +128,199 @@ export default function ICVHome() {
           </Pressable>
         </View>
 
-        {/* Aperçu A4 — centré et scalé */}
+        {/* Score */}
+        <ScoreRing
+          score={scoreData?.score ?? activeCv.completionScore}
+          level={scoreData?.level ?? 'Débutant'}
+        />
+
+        {/* Suggestions */}
         <View
           style={{
-            backgroundColor: t.dark ? '#181C16' : '#E5E4DE',
+            backgroundColor: t.surface,
+            borderWidth: 1,
+            borderColor: t.border,
             borderRadius: 14,
-            padding: 12,
-            alignItems: 'center',
-            justifyContent: 'flex-start',
-            minHeight: 420,
+            padding: 14,
           }}
         >
-          {fullCv ? (
-            <View style={{ width: 320, height: 452, transform: [{ scale: 0.95 }] }}>
-              <CvPreview cv={fullCv as PreviewCv} />
+          <Text
+            style={{
+              fontSize: 10,
+              fontWeight: '700',
+              letterSpacing: 1.4,
+              color: t.muted,
+              marginBottom: 10,
+            }}
+          >
+            {icvStrings.dashboard.suggestions}
+          </Text>
+          {scoreData?.suggestions && scoreData.suggestions.length > 0 ? (
+            <View style={{ gap: 8 }}>
+              {scoreData.suggestions.map((s) => (
+                <View
+                  key={s.id}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'flex-start',
+                    gap: 10,
+                    backgroundColor: t.surface2,
+                    borderRadius: 10,
+                    padding: 12,
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 12.5, fontWeight: '600', color: t.ink }}>
+                      {s.title}
+                    </Text>
+                    <Text style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>
+                      Impact :{' '}
+                      {s.impact === 'high'
+                        ? icvStrings.dashboard.impactHigh
+                        : s.impact === 'medium'
+                          ? icvStrings.dashboard.impactMedium
+                          : icvStrings.dashboard.impactLow}
+                    </Text>
+                  </View>
+                  <Icon name="sparkles" size={14} color={ICV_ACCENT} />
+                </View>
+              ))}
             </View>
           ) : (
-            <ActivityIndicator color={idnTokens.green} style={{ marginTop: 100 }} />
+            <Text style={{ fontSize: 12, color: t.muted, fontStyle: 'italic' }}>
+              Excellent ! Aucune suggestion pour l'instant.
+            </Text>
           )}
         </View>
 
-        {/* Thèmes */}
-        <ThemePicker
-          cvId={activeCvId}
-          activeTheme={activeCv.activeTheme as CvThemeId}
-          onOpenGallery={() => router.push(`/icv/themes?cv=${activeCvId}` as never)}
-        />
-
-        {/* Outils IA */}
-        <AiTools cvId={activeCvId} onResult={(tool) => {
-          if (tool === 'ats_check') {
-            router.push(`/icv/ats?cv=${activeCvId}` as never);
-          } else {
-            setOpenResult(tool);
-          }
-        }} />
-
-        {/* Résultats IA inline */}
-        {openResult === 'improve_summary' && fullCv ? (
-          <AiResultCard
+        {/* Sections */}
+        <Text
+          style={{
+            fontSize: 10,
+            fontWeight: '700',
+            letterSpacing: 1.4,
+            color: t.muted,
+            marginTop: 4,
+          }}
+        >
+          {icvStrings.dashboard.sections}
+        </Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          <SectionCard
+            kind="experience"
+            count={fullCv?.experiences.length ?? 0}
             cvId={activeCvId}
-            feature="improve_summary"
-            currentSummary={fullCv.summary}
-            onClose={() => setOpenResult(null)}
           />
-        ) : null}
-        {openResult === 'suggest_skills' ? (
-          <AiResultCard
+          <SectionCard
+            kind="education"
+            count={fullCv?.education.length ?? 0}
             cvId={activeCvId}
-            feature="suggest_skills"
-            onClose={() => setOpenResult(null)}
           />
-        ) : null}
-        {openResult === 'generate_letter' ? (
-          <AiResultCard
+          <SectionCard
+            kind="skill"
+            count={fullCv?.skills.length ?? 0}
             cvId={activeCvId}
-            feature="generate_letter"
-            onClose={() => setOpenResult(null)}
           />
-        ) : null}
+          <SectionCard
+            kind="info"
+            count={contactPercent(fullCv)}
+            hint="%"
+            cvId={activeCvId}
+          />
+          <SectionCard
+            kind="language"
+            count={fullCv?.languages.length ?? 0}
+            cvId={activeCvId}
+          />
+          <SectionCard
+            kind="hobby"
+            count={fullCv?.hobbies.length ?? 0}
+            cvId={activeCvId}
+          />
+        </View>
 
-        {/* Profil */}
-        {fullCv ? (
-          <View
-            style={{
-              backgroundColor: t.surface,
-              borderWidth: 1,
-              borderColor: t.border,
-              borderRadius: 14,
-              padding: 14,
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 10,
-                fontWeight: '700',
-                letterSpacing: 1.4,
-                color: t.muted,
-                marginBottom: 8,
-              }}
-            >
-              MON PROFIL
-            </Text>
-            <Text style={{ fontSize: 13, fontWeight: '600', color: t.ink }}>
-              {`${fullCv.firstName} ${fullCv.lastName}`.trim() || '—'}
-            </Text>
-            <Text style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>
-              {fullCv.email || '—'}
-            </Text>
-            <View style={{ flexDirection: 'row', gap: 6, marginTop: 10 }}>
-              <Pill color={ICV_ACCENT} bg={t.dark ? '#2A1426' : '#FCE7F3'}>
-                {fullCv.experiences.length} exp.
-              </Pill>
-              <Pill color="#3B82F6" bg={t.dark ? '#0F2640' : '#DBEAFE'}>
-                {fullCv.skills.length} comp.
-              </Pill>
-              <Pressable
-                onPress={() => router.push('/icv/dashboard' as never)}
-                style={{
-                  marginLeft: 'auto',
-                  paddingHorizontal: 12,
-                  paddingVertical: 6,
-                  borderRadius: 9999,
-                  backgroundColor: idnTokens.green,
-                }}
-              >
-                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>
-                  Dashboard
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        ) : null}
+        {/* Studio (aperçu + thème + outils IA) */}
+        <Pressable
+          onPress={() => router.push('/icv/studio' as never)}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            paddingVertical: 12,
+            borderRadius: 9999,
+            backgroundColor: idnTokens.green,
+            marginTop: 6,
+          }}
+        >
+          <Icon name="edit" size={14} color="#fff" />
+          <Text style={{ color: '#fff', fontWeight: '700' }}>
+            Aperçu, thème & outils IA
+          </Text>
+        </Pressable>
       </ScrollView>
     </View>
   );
 }
 
-function Pill({
-  color,
-  bg,
-  children,
+function SectionCard({
+  kind,
+  count,
+  hint,
+  cvId,
 }: {
-  color: string;
-  bg: string;
-  children: React.ReactNode;
+  kind: SectionKey;
+  count: number;
+  hint?: string;
+  cvId: Id<'citizenCv'>;
 }) {
+  const t = useIdnTheme();
+  const router = useRouter();
+  const m = SECTION_META[kind];
   return (
-    <View
+    <Pressable
+      onPress={() => router.push(`/icv/edit?section=${kind}&cv=${cvId}` as never)}
       style={{
-        paddingHorizontal: 10,
-        paddingVertical: 3,
-        backgroundColor: bg,
-        borderRadius: 9999,
+        width: '48%',
+        backgroundColor: t.surface,
+        borderWidth: 1,
+        borderColor: t.border,
+        borderRadius: 12,
+        padding: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
       }}
     >
-      <Text style={{ fontSize: 11, fontWeight: '600', color }}>{children}</Text>
-    </View>
+      <View
+        style={{
+          width: 38,
+          height: 38,
+          borderRadius: 9,
+          backgroundColor: t.dark ? m.bgDark : m.bgLight,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Icon name={m.icon} size={18} color={m.color} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontSize: 13, fontWeight: '600', color: t.ink }}>{m.label}</Text>
+        <Text style={{ fontSize: 11, color: t.muted, marginTop: 1 }}>
+          {count}
+          {hint ?? ''}
+        </Text>
+      </View>
+    </Pressable>
   );
+}
+
+function contactPercent(
+  cv: { firstName: string; lastName: string; email: string; phone: string } | null | undefined,
+): number {
+  if (!cv) return 0;
+  const filled = [cv.firstName, cv.lastName, cv.email, cv.phone].filter((s) => s.trim().length > 0).length;
+  return Math.round((filled / 4) * 100);
 }
 
 function EmptyState() {
@@ -310,7 +383,7 @@ function EmptyState() {
         </Text>
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 24 }}>
           <Pressable
-            onPress={() => router.push('/icv/dashboard' as never)}
+            onPress={() => router.push('/icv/create' as never)}
             style={{
               paddingHorizontal: 18,
               paddingVertical: 12,
