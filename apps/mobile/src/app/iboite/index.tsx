@@ -89,7 +89,7 @@ export default function IBoiteHome() {
           router.push({ pathname: '/iboite/address-setup', params: { accountId: account._id } } as never)
         }
       />
-      <IBoiteTabs t={t} active={tab} onChange={setTab} />
+      <IBoiteTabs t={t} active={tab} counters={account.counters} onChange={setTab} />
 
       {tab === 'courriers' ? (
         <CourriersTab
