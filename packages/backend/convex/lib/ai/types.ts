@@ -39,6 +39,13 @@ export interface AICompletionRequest {
   maxTokens?: number;
   /** 0..1 — défaut 0.4 pour les features iCV (équilibre créativité/cohérence). */
   temperature?: number;
+  /**
+   * Pièces jointes multimodales (PDF, images). Encodées en base64.
+   * Utilisé par l'import iCV qui envoie le fichier brut à un modèle
+   * capable de l'analyser nativement (Gemini, Claude…).
+   * Provider sans support multimodal → AIProviderError("NOT_IMPLEMENTED").
+   */
+  attachments?: Array<{ mimeType: string; data: string }>;
 }
 
 export interface AICompletionResult {

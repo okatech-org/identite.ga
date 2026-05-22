@@ -54,9 +54,17 @@ class GeminiProvider implements AIProvider {
       generationConfig.responseSchema = req.jsonSchema
     }
 
+    const userParts: Array<Record<string, unknown>> = []
+    for (const att of req.attachments ?? []) {
+      userParts.push({
+        inlineData: { mimeType: att.mimeType, data: att.data },
+      })
+    }
+    userParts.push({ text: req.prompt })
+
     const body = {
       systemInstruction: { parts: [{ text: req.system }] },
-      contents: [{ role: "user", parts: [{ text: req.prompt }] }],
+      contents: [{ role: "user", parts: userParts }],
       generationConfig,
     }
 

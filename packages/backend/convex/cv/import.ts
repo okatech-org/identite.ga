@@ -1,5 +1,3 @@
-"use node"
-
 import { ConvexError, v } from "convex/values"
 
 import { internal } from "../_generated/api"
@@ -11,33 +9,35 @@ import { AIProviderError } from "../lib/ai/types"
 import { rateLimiter } from "../rateLimiter"
 
 /**
- * iCV — Import PDF/DOCX → CV structuré.
+ * iCV — Import PDF / image → CV structuré.
  * Cf. PLAN_BACKEND_ICV.md §9.
  *
- * Pipeline (action Node) :
- *   1. Auth + rate-limit cvImport (5/jour).
+ * Pipeline (action V8, plus de `"use node"`) :
+ *   1. Auth + rate-limit cvImport check (sans consommer).
  *   2. Récupère le blob via `ctx.storage.get(storageRef)`.
- *   3. Extrait le texte (pdf-parse pour PDF, mammoth pour DOCX).
- *   4. Envoie le texte au provider IA actif avec un JSON Schema strict.
+ *   3. Encode le binaire en base64 et l'envoie tel quel au provider IA
+ *      multimodal (Gemini) via `attachments`. Pas d'extraction de texte
+ *      intermédiaire — le modèle lit directement le document.
+ *   4. Consomme le quota APRÈS un appel IA réussi (les échecs ne
+ *      pénalisent pas l'utilisateur).
  *   5. Applique le résultat :
  *      • mode `new` : crée un nouveau CV (`source = "import"`).
  *      • mode `merge` : patche les champs non vides sur le CV cible.
  *
- * Notes :
- *   • `"use node"` car pdf-parse et mammoth nécessitent les modules Node.
- *   • Pas de trace en `citizenCvAiJob` Phase 1 (table dédiée aux 5 features
- *     IA citoyen). Les exceptions remontent normalement au client.
+ * Formats acceptés : PDF + images (PNG, JPEG, WebP, HEIC, HEIF). Gemini
+ * traite ces formats nativement, plus besoin de pdf-parse / mammoth.
  */
 
-const MAX_PDF_PAGES = 20
-const MAX_TEXT_CHARS = 30_000 // ~7 500 tokens d'entrée pour le LLM
-const ACCEPTED_MIME = new Set([
+const ACCEPTED_MIMES = new Set([
   "application/pdf",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/heic",
+  "image/heif",
 ])
 
-// Note : la mutation `generateUploadUrl` est dans `cv/importInternal.ts`
-// (ce fichier est en `"use node"` et ne peut donc pas exposer de mutation).
+// Note : la mutation `generateUploadUrl` est dans `cv/importInternal.ts`.
 
 // ─────────────────────────────────────────────────────────────────────────
 // Action principale : parse + apply
@@ -114,7 +114,10 @@ const IMPORT_SCHEMA = {
 } as Record<string, unknown>
 
 const IMPORT_SYSTEM =
-  "Tu es un expert en parsing de CV. Extrais la structure du CV depuis le texte brut fourni. Réponds uniquement avec le JSON conforme au schéma, sans préambule. Si un champ n'est pas trouvé, omets-le. Pour les compétences sans niveau explicite, mets « Intermédiaire »."
+  "Tu es un expert en parsing de CV. Analyse le document fourni (PDF ou image d'un CV) et extrais la structure. Réponds uniquement avec le JSON conforme au schéma, sans préambule. Si un champ n'est pas trouvé, omets-le. Pour les compétences sans niveau explicite, mets « Intermédiaire »."
+
+const IMPORT_PROMPT =
+  "Voici un CV. Extrais toutes les informations structurées (identité, contact, résumé, expériences, formation, compétences, langues)."
 
 export const parseAndApply = action({
   args: {
@@ -129,10 +132,19 @@ export const parseAndApply = action({
   }),
   handler: async (ctx, args) => {
     const auth = await requireVerifiedAuthInAction(ctx)
-    await rateLimiter.limit(ctx, "cvImport", {
+
+    // Garde-fou (sans consommer) : bloque tôt si le quota du jour est
+    // épuisé. La consommation effective se fait après un appel IA réussi.
+    const quota = await rateLimiter.check(ctx, "cvImport", {
       key: auth.userId,
-      throws: true,
     })
+    if (!quota.ok) {
+      const hours = Math.ceil((quota.retryAfter ?? 0) / (60 * 60 * 1000))
+      throw new ConvexError({
+        code: "RATE_LIMITED",
+        message: `Quota d'imports quotidien atteint. Réessayez dans ~${hours} h.`,
+      })
+    }
 
     if (args.mode === "merge" && !args.targetCvId) {
       throw new ConvexError({
@@ -156,60 +168,28 @@ export const parseAndApply = action({
       })
     }
 
-    // 2. Extrait le texte selon le type
+    // 2. Vérifie le MIME
     const mime = blob.type
-    if (!ACCEPTED_MIME.has(mime)) {
+    if (!ACCEPTED_MIMES.has(mime)) {
       throw new ConvexError({
         code: "INVALID",
-        message: "Format non supporté. Utilisez un PDF ou un DOCX.",
+        message: "Format non supporté. Utilisez un PDF ou une image.",
       })
-    }
-    let extractedText: string
-    try {
-      const buffer = Buffer.from(await blob.arrayBuffer())
-      if (mime === "application/pdf") {
-        const { PDFParse } = await import("pdf-parse")
-        const parser = new PDFParse({ data: new Uint8Array(buffer) })
-        try {
-          const result = await parser.getText({
-            last: MAX_PDF_PAGES,
-          })
-          extractedText = String(result.text ?? "")
-        } finally {
-          await parser.destroy()
-        }
-      } else {
-        const mammoth = await import("mammoth")
-        const result = await mammoth.extractRawText({ buffer })
-        extractedText = String(result.value ?? "")
-      }
-    } catch (e) {
-      throw new ConvexError({
-        code: "PARSE_FAILED",
-        message: `Échec de l'extraction du texte : ${(e as Error).message}`,
-      })
-    }
-    extractedText = extractedText.replace(/\s+\n/g, "\n").trim()
-    if (extractedText.length < 50) {
-      throw new ConvexError({
-        code: "EMPTY_DOCUMENT",
-        message:
-          "Le document ne contient pas assez de texte exploitable. Vérifiez qu'il n'est pas scanné en image.",
-      })
-    }
-    if (extractedText.length > MAX_TEXT_CHARS) {
-      extractedText = extractedText.slice(0, MAX_TEXT_CHARS)
     }
 
-    // 3. Demande au LLM de structurer
+    // 3. Envoie directement au modèle multimodal
+    const arrayBuffer = await blob.arrayBuffer()
+    const base64 = bytesToBase64(new Uint8Array(arrayBuffer))
+
     let structured: ImportedCv
     try {
       const result = await withFallback((provider) =>
         provider.complete({
           task: "cv.import_extract",
           system: IMPORT_SYSTEM,
-          prompt: `Texte extrait :\n\n${extractedText}`,
+          prompt: IMPORT_PROMPT,
           jsonSchema: IMPORT_SCHEMA,
+          attachments: [{ mimeType: mime, data: base64 }],
         }),
       )
       if (!result.json) {
@@ -230,6 +210,13 @@ export const parseAndApply = action({
       }
       throw e
     }
+
+    // Consomme le quota MAINTENANT — l'appel Gemini a réussi, le coût est
+    // réel. Les échecs avant ce point ne consomment rien.
+    await rateLimiter.limit(ctx, "cvImport", {
+      key: auth.userId,
+      throws: true,
+    })
 
     // 4. Apply
     if (args.mode === "new") {
@@ -255,6 +242,27 @@ export const parseAndApply = action({
     }
   },
 })
+
+// ─────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * Encode un tableau d'octets en base64 (runtime V8 Convex — pas de `Buffer`).
+ * Chunks de 8KB pour rester sous la limite d'arguments de `.apply()`.
+ */
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = ""
+  const chunkSize = 0x2000
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize)
+    binary += String.fromCharCode.apply(
+      null,
+      chunk as unknown as number[],
+    )
+  }
+  return btoa(binary)
+}
 
 // ─────────────────────────────────────────────────────────────────────────
 // Types

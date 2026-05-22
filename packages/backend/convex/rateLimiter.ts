@@ -39,8 +39,10 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
   cvWrite: { kind: "token bucket", rate: 60, period: MINUTE, capacity: 60 },
   // iCV : appels IA (5 features) — borne quotidienne généreuse.
   cvAi: { kind: "fixed window", rate: 10, period: HOUR * 24 },
-  // iCV : import PDF/DOCX — borne quotidienne stricte (parse coûteux).
-  cvImport: { kind: "fixed window", rate: 5, period: HOUR * 24 },
+  // iCV : import PDF/image — borne quotidienne (chaque appel Gemini coûte).
+  // Le quota n'est consommé qu'après un appel IA réussi (cf. cv/import.ts) ;
+  // les échecs (parse, réseau) ne pénalisent pas l'utilisateur.
+  cvImport: { kind: "fixed window", rate: 20, period: HOUR * 24 },
   // iCV : export PDF serveur — cap quotidien (rendu @react-pdf coûteux).
   cvExport: { kind: "token bucket", rate: 30, period: HOUR * 24, capacity: 30 },
   // RGPD : export complet des données — 1 par 24h par utilisateur.

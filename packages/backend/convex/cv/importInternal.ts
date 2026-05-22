@@ -4,7 +4,6 @@ import { internalMutation } from "../_generated/server"
 import type { Doc } from "../_generated/dataModel"
 import { mutation } from "../functions"
 import { requireVerifiedAuth } from "../lib/auth"
-import { rateLimiter } from "../rateLimiter"
 import {
   computeCompletionScore,
   MAX_CVS_PER_USER,
@@ -13,19 +12,16 @@ import {
 } from "./shared"
 
 /**
- * Note : la mutation `generateUploadUrl` est ici (et pas dans `cv/import.ts`)
- * parce que ce dernier est en `"use node"` et ne peut donc pas exposer de
- * mutation Convex.
+ * `generateUploadUrl` reste séparé de l'action `cv/import.ts` (les actions
+ * Convex ne peuvent pas exposer de mutation). Pas de rate-limit ici — le
+ * quota cvImport est consommé par `parseAndApply` uniquement après un
+ * appel IA réussi (sinon une erreur réseau pénaliserait l'utilisateur).
  */
 export const generateUploadUrl = mutation({
   args: {},
   returns: v.string(),
   handler: async (ctx) => {
-    const user = await requireVerifiedAuth(ctx)
-    await rateLimiter.limit(ctx, "cvImport", {
-      key: user.userId,
-      throws: true,
-    })
+    await requireVerifiedAuth(ctx)
     return await ctx.storage.generateUploadUrl()
   },
 })

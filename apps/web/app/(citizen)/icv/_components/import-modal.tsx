@@ -25,8 +25,13 @@ import { icv } from "../_content/fr"
 
 const ACCEPTED_MIMES = [
   "application/pdf",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/heic",
+  "image/heif",
 ]
+const ACCEPT_ATTR = ".pdf,image/png,image/jpeg,image/webp,image/heic,image/heif"
 const MAX_SIZE = 5 * 1024 * 1024 // 5 Mo
 
 /**
@@ -68,7 +73,7 @@ export function ImportModal({
     if (!f) return
     if (!ACCEPTED_MIMES.includes(f.type)) {
       toast.error("Format non supporté.", {
-        description: "Utilisez un PDF ou un DOCX.",
+        description: "Utilisez un PDF ou une image (PNG, JPEG, WebP).",
       })
       return
     }
@@ -171,7 +176,7 @@ export function ImportModal({
                 <input
                   type="file"
                   className="sr-only"
-                  accept=".pdf,.docx"
+                  accept={ACCEPT_ATTR}
                   onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
                   disabled={pending}
                 />
