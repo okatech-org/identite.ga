@@ -1,3 +1,5 @@
+import Link from "next/link"
+
 import { pageMetadata } from "../../../lib/seo"
 import { PageHero } from "../_components/page-hero"
 import { legal } from "../_content/fr"
@@ -8,7 +10,7 @@ export const metadata = pageMetadata({
   path: "/legal",
 })
 
-export default function LegalPage() {
+export default function LegalIndexPage() {
   return (
     <>
       <PageHero
@@ -18,21 +20,23 @@ export default function LegalPage() {
       />
 
       <section className="mx-auto w-full max-w-[1180px] px-4 pb-15 md:px-7">
-        <ol className="max-w-[760px] space-y-6">
-          {legal.sections.map((section, idx) => (
-            <li key={section.title} className="border-t border-border pt-6">
-              <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-idn-green dark:text-idn-green-on-dark">
-                § {idx + 1}
-              </p>
-              <h2 className="mt-1.5 text-[17px] font-semibold text-foreground">
-                {section.title}
-              </h2>
-              <p className="mt-2 text-[13px] leading-relaxed text-foreground/80">
-                {section.body}
-              </p>
+        <ul className="grid max-w-[920px] grid-cols-1 gap-4 sm:grid-cols-2">
+          {legal.items.map((item) => (
+            <li key={item.href}>
+              <Link
+                href={item.href}
+                className="block h-full rounded-lg border border-border bg-card p-5 transition-colors hover:border-foreground/40 hover:bg-accent"
+              >
+                <h2 className="text-base font-semibold text-foreground">
+                  {item.title}
+                </h2>
+                <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
+                  {item.description}
+                </p>
+              </Link>
             </li>
           ))}
-        </ol>
+        </ul>
       </section>
     </>
   )

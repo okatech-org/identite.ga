@@ -41,3 +41,11 @@ app-example
 # generated native folders
 /ios
 /android
+
+# EAS credentials (service account, etc.)
+/credentials/
+
+# Local builds
+*.ipa
+*.aab
+*.apk

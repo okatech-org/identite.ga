@@ -248,15 +248,28 @@ export default defineSchema({
     photoStorageRef: v.optional(v.id("_storage")),
     pinHash: v.optional(v.string()), // PBKDF2-SHA256, 600k itérations
 
+    /**
+     * Suppression de compte RGPD (§3.4 + Apple Guideline 5.1.1(v)).
+     * `deletionRequestedAt` : timestamp de la demande (modale `Supprimer
+     * mon compte`).
+     * `deletionScheduledAt` : timestamp à partir duquel l'anonymisation
+     * effective sera exécutée par le cron (= requestedAt + 30j).
+     * Annulable en se reconnectant pendant la fenêtre (cf.
+     * `privacy.cancelAccountDeletion`).
+     */
+    deletionRequestedAt: v.optional(v.number()),
+    deletionScheduledAt: v.optional(v.number()),
+
     createdAt: v.number(),
     updatedAt: v.number(),
-    deletedAt: v.optional(v.number()), // soft delete RGPD
+    deletedAt: v.optional(v.number()), // soft delete RGPD — set par le cron après anonymisation
   })
     .index("by_userId", ["userId"])
     .index("by_idnId", ["idnId"])
     .index("by_loa", ["loa"])
     .index("by_profileType", ["profileType"])
-    .index("by_deletedAt", ["deletedAt"]),
+    .index("by_deletedAt", ["deletedAt"])
+    .index("by_deletionScheduledAt", ["deletionScheduledAt"]),
 
   /**
    * Demande KYC (L2 / L3).

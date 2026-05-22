@@ -1,56 +1,81 @@
-# Welcome to your Expo app 👋
+# `@idn/mobile` — Identité Numérique (Expo)
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+App mobile React Native / Expo SDK 55. Cible : iOS 16+ et Android 9+
+(API 28). Distribution prévue via TestFlight + Google Play Open Testing.
 
-## Get started
+## Stack
 
-1. Install dependencies
+- Expo SDK 55 · React 19.2 · React Native 0.83 (new arch + react-compiler)
+- expo-router (typed routes), expo-updates (OTA, fingerprint runtime)
+- Convex (`@repo/backend/convex/_generated/api`)
+- Better Auth + `@better-auth/expo` + `expo-better-auth-passkey`
 
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Démarrage local
 
 ```bash
-npm run reset-project
+# Depuis la racine du monorepo
+bun install
+
+# Configurer l'environnement
+cp apps/mobile/.env.local.example apps/mobile/.env.local
+# Renseigner EXPO_PUBLIC_CONVEX_URL et EXPO_PUBLIC_SENTRY_DSN (optionnel)
+
+# Lancer Convex en parallèle
+cd packages/backend && bunx convex dev
+# (laisser tourner)
+
+# Démarrer Expo
+cd apps/mobile
+bunx expo start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Pour tester sur device réel avec passkey natif (Face ID / Credential
+Manager), un dev client est requis (Expo Go ne supporte pas
+`expo-better-auth-passkey`). Voir [PASSKEY_SETUP.md](./PASSKEY_SETUP.md).
 
-### Other setup steps
+```bash
+bunx expo prebuild --clean
+bunx expo run:ios     # ou run:android
+```
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+## Build production (TestFlight + Play Open Testing)
 
-## Learn more
+Configuré via `eas.json` :
 
-To learn more about developing your project with Expo, look at the following resources:
+```bash
+# Build sur EAS, profile preview (TestFlight External + Play Open)
+bunx eas build --profile preview --platform all
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+# Submit après build
+bunx eas submit --profile preview --platform all --latest
+```
 
-## Join the community
+Le workflow GitHub Actions `.github/workflows/deploy-mobile.yml` automatise
+ce flux. Trigger manuel (`workflow_dispatch`) ou via tag `mobile-vX.Y.Z`.
 
-Join our community of developers creating universal apps.
+## Secrets requis
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+### GitHub Actions
+- `EXPO_TOKEN` — depuis https://expo.dev/accounts/<org>/settings/access-tokens
+- `EXPO_APPLE_APP_SPECIFIC_PASSWORD` — depuis https://appleid.apple.com/account/manage
+- `GOOGLE_PLAY_SERVICE_ACCOUNT_KEY` — JSON encodé base64, depuis Play
+  Console → Configuration → API Access
+
+### Local
+- `apps/mobile/.env.local` (non commité) — Convex URLs (cf. `.env.local.example`)
+- `apps/mobile/credentials/play-service-account.json` (non commité) — pour
+  `eas submit android` en local
+
+### Convex (à fixer une fois prod déployé)
+```bash
+bunx convex env set PASSKEY_RP_ID identite.ga
+bunx convex env set PASSKEY_RP_ORIGINS "https://identite.ga,https://connect.identite.ga,android:apk-key-hash:<BASE64_SHA256>"
+```
+
+## Domaines
+
+- `identite.ga` et `connect.identite.ga` doivent servir
+  `/.well-known/apple-app-site-association` et `/.well-known/assetlinks.json`
+  (cf. `apps/web/app/.well-known/`).
+- Bundle iOS : `ga.idn.mobile` · Team ID : `5Y39TTNCM7`
+- Package Android : `ga.idn.mobile`

@@ -27,28 +27,28 @@ export default function RootLayout() {
     <StrictMode>
       <ConvexBetterAuthProvider client={convex} authClient={authClient}>
         <VaultProvider>
-        <GestureHandlerRootView style={{ flex: 1 }}>
-          <SafeAreaProvider>
-            <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
-            <Stack screenOptions={{ headerShown: false, animation: 'default' }}>
-              <Stack.Screen name="index" />
-              <Stack.Screen name="launcher" options={{ animation: 'fade' }} />
-              <Stack.Screen name="onboarding" />
-              <Stack.Screen name="(auth)" />
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="id-card" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="scanner" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="consent" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.95] }} />
-              <Stack.Screen name="notifications" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.95] }} />
-              <Stack.Screen name="service/[id]" />
-              <Stack.Screen name="kyc" />
-              <Stack.Screen name="settings" />
-              <Stack.Screen name="icarte" />
-              <Stack.Screen name="iboite" />
-              <Stack.Screen name="activity" />
-            </Stack>
-          </SafeAreaProvider>
-        </GestureHandlerRootView>
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <SafeAreaProvider>
+              <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+              <Stack screenOptions={{ headerShown: false, animation: 'default' }}>
+                <Stack.Screen name="index" />
+                <Stack.Screen name="launcher" options={{ animation: 'fade' }} />
+                <Stack.Screen name="onboarding" />
+                <Stack.Screen name="(auth)" />
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="id-card" options={{ presentation: 'modal' }} />
+                <Stack.Screen name="scanner" options={{ presentation: 'modal' }} />
+                <Stack.Screen name="consent" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.95] }} />
+                <Stack.Screen name="notifications" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.95] }} />
+                <Stack.Screen name="service/[id]" />
+                <Stack.Screen name="kyc" />
+                <Stack.Screen name="settings" />
+                <Stack.Screen name="icarte" />
+                <Stack.Screen name="iboite" />
+                <Stack.Screen name="activity" />
+              </Stack>
+            </SafeAreaProvider>
+          </GestureHandlerRootView>
         </VaultProvider>
       </ConvexBetterAuthProvider>
     </StrictMode>

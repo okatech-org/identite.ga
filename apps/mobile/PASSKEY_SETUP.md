@@ -13,8 +13,8 @@ recevoir une erreur `NotAllowedError`.
 "ios": {
   "bundleIdentifier": "ga.idn.mobile",
   "associatedDomains": [
-    "webcredentials:idn.ga",
-    "webcredentials:auth.idn.ga"
+    "webcredentials:identite.ga",
+    "webcredentials:connect.identite.ga"
   ]
 }
 ```
@@ -24,8 +24,8 @@ Pour que iOS valide le lien app ↔ domaine, **servir** un fichier
 `application/json`) sur chaque domaine listé :
 
 ```
-https://idn.ga/.well-known/apple-app-site-association
-https://auth.idn.ga/.well-known/apple-app-site-association
+https://identite.ga/.well-known/apple-app-site-association
+https://connect.identite.ga/.well-known/apple-app-site-association
 ```
 
 Contenu :
@@ -39,13 +39,16 @@ Contenu :
 }
 ```
 
-`<TEAM_ID>` = Apple Developer Team ID (10 chars). Le fichier doit être
-servi **en HTTPS valide** (pas de redirection, pas de cert auto-signé).
+`<TEAM_ID>` = Apple Developer Team ID, soit `5Y39TTNCM7` pour le
+compte IDN. Le fichier doit être servi **en HTTPS valide** (pas de
+redirection, pas de cert auto-signé). Le repo expose déjà la route
+`apps/web/app/.well-known/apple-app-site-association/route.ts` —
+remplir `APPLE_TEAM_ID` côté env si besoin de surcharger.
 
 Vérification :
 
 ```bash
-curl -i https://idn.ga/.well-known/apple-app-site-association | head
+curl -i https://identite.ga/.well-known/apple-app-site-association | head
 ```
 
 ## 2. Android — Credential Manager + APK key hash
@@ -84,8 +87,8 @@ Sur device : Android 9+ (API 28) + Google Play Services 23.30+.
 ## 3. Variables d'environnement Convex
 
 ```bash
-bunx convex env set PASSKEY_RP_ID idn.ga
-bunx convex env set PASSKEY_RP_ORIGINS "https://idn.ga,https://auth.idn.ga,android:apk-key-hash:<BASE64_SHA256>"
+bunx convex env set PASSKEY_RP_ID identite.ga
+bunx convex env set PASSKEY_RP_ORIGINS "https://identite.ga,https://connect.identite.ga,android:apk-key-hash:<BASE64_SHA256>"
 ```
 
 - `PASSKEY_RP_ID` : hostname (sans schéma ni port). Doit matcher la

@@ -15,6 +15,12 @@ const ROUTES: RouteConfig[] = [
   { path: "/admins", changeFrequency: "monthly", priority: 0.7 },
   { path: "/help", changeFrequency: "monthly", priority: 0.8 },
   { path: "/legal", changeFrequency: "yearly", priority: 0.5 },
+  { path: "/legal/privacy", changeFrequency: "yearly", priority: 0.6 },
+  { path: "/legal/terms", changeFrequency: "yearly", priority: 0.5 },
+  { path: "/legal/mentions", changeFrequency: "yearly", priority: 0.4 },
+  { path: "/legal/accessibilite", changeFrequency: "yearly", priority: 0.4 },
+  { path: "/legal/delete-account", changeFrequency: "yearly", priority: 0.5 },
+  { path: "/legal/licenses", changeFrequency: "yearly", priority: 0.3 },
   { path: "/contact", changeFrequency: "yearly", priority: 0.6 },
   { path: "/status", changeFrequency: "hourly", priority: 0.4 },
 ]

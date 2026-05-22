@@ -1,35 +1,56 @@
 {
   "expo": {
     "name": "Identité Numérique",
-    "slug": "idn-mobile",
+    "slug": "identite-ga",
     "version": "1.0.0",
+    "description": "Identité Numérique du Gabon — un compte unique pour accéder à tous les services administratifs en ligne de la République Gabonaise. Authentification, vérification d'identité, portefeuille de cartes, courrier officiel et documents archivés.",
+    "primaryColor": "#0E7C3A",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "idn",
     "userInterfaceStyle": "automatic",
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/24b9c3f8-aefc-46ef-bf46-6615b83d0254",
+      "fallbackToCacheTimeout": 0
+    },
     "ios": {
       "icon": "./assets/expo.icon",
       "supportsTablet": false,
       "bundleIdentifier": "ga.idn.mobile",
+      "buildNumber": "1",
       "associatedDomains": [
-        "webcredentials:idn.ga",
-        "webcredentials:auth.idn.ga",
-        "webcredentials:idn.ga",
-        "webcredentials:auth.idn.ga"
+        "webcredentials:identite.ga",
+        "webcredentials:connect.identite.ga"
       ],
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "Identité Numérique utilise l'appareil photo pour scanner les QR codes de connexion et photographier vos pièces d'identité lors de la vérification KYC.",
+        "NSPhotoLibraryUsageDescription": "Identité Numérique a besoin d'accéder à votre photothèque pour importer une pièce d'identité ou un document existant.",
+        "NSLocationWhenInUseUsageDescription": "Identité Numérique utilise votre position pour pré-remplir l'adresse postale de votre iBoîte avec votre localisation actuelle.",
+        "NSFaceIDUsageDescription": "Identité Numérique utilise Face ID pour vous authentifier rapidement et créer un passkey sécurisé attaché à votre compte."
       }
     },
     "android": {
       "package": "ga.idn.mobile",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#0E7C3A",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "CAMERA",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "READ_MEDIA_IMAGES",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT"
+      ]
     },
     "web": {
       "output": "static",
@@ -38,6 +59,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-updates",
       [
         "expo-splash-screen",
         {
@@ -45,6 +67,32 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 160,
           "resizeMode": "contain"
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Identité Numérique utilise l'appareil photo pour scanner les QR codes de connexion et photographier vos pièces d'identité lors de la vérification KYC.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Identité Numérique a besoin d'accéder à votre photothèque pour importer une pièce d'identité ou un document existant."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Identité Numérique utilise votre position pour pré-remplir l'adresse postale de votre iBoîte avec votre localisation actuelle."
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Identité Numérique utilise Face ID pour vous authentifier rapidement et créer un passkey sécurisé attaché à votre compte."
         }
       ],
       "expo-sharing"
@@ -56,8 +104,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "47a93b32-a2fe-406f-a5b5-8b639aeceece"
+        "projectId": "24b9c3f8-aefc-46ef-bf46-6615b83d0254"
       }
-    }
+    },
+    "owner": "okatechs-organization"
   }
 }

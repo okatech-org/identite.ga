@@ -84,6 +84,8 @@ import type * as onboarding from "../onboarding.js";
 import type * as preferences from "../preferences.js";
 import type * as presentation from "../presentation.js";
 import type * as privacy from "../privacy.js";
+import type * as privacy_deletion from "../privacy/deletion.js";
+import type * as privacy_exportRun from "../privacy/exportRun.js";
 import type * as profile from "../profile.js";
 import type * as rateLimiter from "../rateLimiter.js";
 import type * as scripts_createAdminUser from "../scripts/createAdminUser.js";
@@ -179,6 +181,8 @@ declare const fullApi: ApiFromModules<{
   preferences: typeof preferences;
   presentation: typeof presentation;
   privacy: typeof privacy;
+  "privacy/deletion": typeof privacy_deletion;
+  "privacy/exportRun": typeof privacy_exportRun;
   profile: typeof profile;
   rateLimiter: typeof rateLimiter;
   "scripts/createAdminUser": typeof scripts_createAdminUser;

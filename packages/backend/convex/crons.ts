@@ -24,4 +24,13 @@ crons.interval(
   {},
 )
 
+// Anonymise les comptes dont la suppression demandée a passé son
+// cooldown 30j (Apple Guideline 5.1.1(v) + RGPD §3.4).
+crons.interval(
+  "Process scheduled deletions",
+  { hours: 24 },
+  internal.privacy.deletion.processScheduledDeletions,
+  {},
+)
+
 export default crons

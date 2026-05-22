@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { useConvexAuth, useMutation, useQuery } from 'convex/react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useIdnTheme } from '@/design/theme';
@@ -77,6 +78,11 @@ function DeleteAccountModal({ visible, onClose, currentEmail }: { visible: boole
           <IdnButton t={t} variant="danger" size="lg" full onPress={submit} disabled={submitting}>
             {submitting ? 'Envoi…' : 'Confirmer la suppression'}
           </IdnButton>
+          <Pressable onPress={() => WebBrowser.openBrowserAsync('https://identite.ga/legal/delete-account')}>
+            <Text style={{ textAlign: 'center', fontSize: 12, color: idnTokens.green, paddingTop: 4 }}>
+              En savoir plus sur la suppression
+            </Text>
+          </Pressable>
         </ScrollView>
       </View>
     </Modal>
@@ -89,12 +95,28 @@ export default function SettingsPrivacy() {
   const insets = useSafeAreaInsets();
   const { isAuthenticated } = useConvexAuth();
   const user = useQuery(api.profile.getCurrentUser, isAuthenticated ? {} : 'skip');
+  const deletionStatus = useQuery(api.privacy.getDeletionStatus, isAuthenticated ? {} : 'skip');
   const requestExport = useMutation(api.privacy.requestDataExport);
+  const cancelDeletion = useMutation(api.privacy.cancelAccountDeletion);
   const [stats, setStats] = useState(true);
   const [ux, setUx] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  async function handleCancelDeletion() {
+    setCancelling(true);
+    setError(null);
+    try {
+      await cancelDeletion({});
+      Alert.alert('Suppression annulée', 'Votre compte n\'est plus programmé pour la suppression.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Annulation impossible.');
+    } finally {
+      setCancelling(false);
+    }
+  }
 
   async function handleExport() {
     setExporting(true);
@@ -147,21 +169,40 @@ export default function SettingsPrivacy() {
           </View>
         ) : null}
 
-        <View style={{
-          marginTop: 18, padding: 16, borderRadius: 14,
-          backgroundColor: t.dark ? '#1F1216' : '#FBE5E5',
-          borderWidth: 1,
-          borderColor: t.dark ? '#3A1E1E' : '#F5C7C7',
-        }}>
-          <Text style={{ fontSize: 13, fontWeight: '600', color: '#B83A3A' }}>Zone sensible</Text>
-          <Text style={{ fontSize: 11, color: t.muted, marginTop: 4, lineHeight: 17 }}>
-            Suspendre ou supprimer définitivement votre compte IDN. Les logs d'audit sont conservés 5 ans (obligation légale).
-          </Text>
-          <View style={{ gap: 8, marginTop: 14 }}>
-            <IdnButton t={t} variant="ghost" size="md" full onPress={deactivate}>Désactiver temporairement</IdnButton>
-            <IdnButton t={t} variant="danger" size="md" full onPress={() => setDeleteOpen(true)}>Supprimer mon compte</IdnButton>
+        {deletionStatus ? (
+          <View style={{
+            marginTop: 18, padding: 16, borderRadius: 14,
+            backgroundColor: t.dark ? '#1F1216' : '#FBE5E5',
+            borderWidth: 1,
+            borderColor: t.dark ? '#3A1E1E' : '#F5C7C7',
+          }}>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: '#B83A3A' }}>Suppression programmée</Text>
+            <Text style={{ fontSize: 11, color: t.muted, marginTop: 4, lineHeight: 17 }}>
+              Votre compte sera supprimé dans {deletionStatus.daysRemaining} jour{deletionStatus.daysRemaining > 1 ? 's' : ''}. Annulez maintenant si vous changez d'avis.
+            </Text>
+            <View style={{ marginTop: 14 }}>
+              <IdnButton t={t} variant="primary" size="md" full onPress={handleCancelDeletion} disabled={cancelling}>
+                {cancelling ? 'Annulation…' : 'Annuler la suppression'}
+              </IdnButton>
+            </View>
           </View>
-        </View>
+        ) : (
+          <View style={{
+            marginTop: 18, padding: 16, borderRadius: 14,
+            backgroundColor: t.dark ? '#1F1216' : '#FBE5E5',
+            borderWidth: 1,
+            borderColor: t.dark ? '#3A1E1E' : '#F5C7C7',
+          }}>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: '#B83A3A' }}>Zone sensible</Text>
+            <Text style={{ fontSize: 11, color: t.muted, marginTop: 4, lineHeight: 17 }}>
+              Suspendre ou supprimer définitivement votre compte IDN. Les logs d'audit sont conservés 5 ans (obligation légale).
+            </Text>
+            <View style={{ gap: 8, marginTop: 14 }}>
+              <IdnButton t={t} variant="ghost" size="md" full onPress={deactivate}>Désactiver temporairement</IdnButton>
+              <IdnButton t={t} variant="danger" size="md" full onPress={() => setDeleteOpen(true)}>Supprimer mon compte</IdnButton>
+            </View>
+          </View>
+        )}
       </ScrollView>
       <DeleteAccountModal visible={deleteOpen} onClose={() => setDeleteOpen(false)} currentEmail={user?.email ?? ''} />
     </View>
