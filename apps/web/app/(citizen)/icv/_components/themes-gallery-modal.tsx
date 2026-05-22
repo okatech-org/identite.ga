@@ -24,6 +24,7 @@ import {
   THEME_CATEGORIES,
   getThemeById,
   type CvThemeId,
+  type ThemeCategory,
 } from "../_content/themes"
 import { icv } from "../_content/fr"
 import { CvPreviewA4, type PreviewCv } from "./cv-preview-a4"
@@ -40,11 +41,13 @@ export function ThemesGalleryModal({
   const cv = useQuery(api.cv.profile.get, cvId ? { cvId } : "skip")
   const setTheme = useMutation(api.cv.profile.setTheme)
   const [selected, setSelected] = React.useState<CvThemeId | null>(null)
+  const [filter, setFilter] = React.useState<ThemeCategory | "Tous">("Tous")
   const [pending, setPending] = React.useState(false)
 
   React.useEffect(() => {
     if (open && cv) {
       setSelected(cv.activeTheme as CvThemeId)
+      setFilter("Tous")
       setPending(false)
     }
   }, [open, cv])
@@ -71,74 +74,93 @@ export function ThemesGalleryModal({
     }
   }
 
+  const filtered =
+    filter === "Tous"
+      ? ICV_THEMES
+      : ICV_THEMES.filter((t) => t.category === filter)
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] sm:max-w-[1040px]">
+      <DialogContent className="max-h-[92vh] sm:max-w-[1100px]">
         <DialogHeader>
           <DialogTitle>{icv.themes.gallery}</DialogTitle>
           <DialogDescription>{icv.themes.galleryDesc}</DialogDescription>
         </DialogHeader>
 
-        <div className="max-h-[60vh] overflow-auto pr-1">
+        {/* Filtres horizontaux — bien plus compact que des intertitres */}
+        <div className="flex flex-wrap gap-2">
+          <FilterPill
+            label={`Tous · ${ICV_THEMES.length}`}
+            active={filter === "Tous"}
+            onClick={() => setFilter("Tous")}
+          />
           {THEME_CATEGORIES.map((cat) => {
-            const themes = ICV_THEMES.filter((t) => t.category === cat)
+            const count = ICV_THEMES.filter((t) => t.category === cat).length
             return (
-              <div key={cat} className="mb-6">
-                <h4 className="mb-2.5 text-[10px] font-bold uppercase tracking-[1.4px] text-muted-foreground">
-                  {cat}
-                </h4>
-                <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 lg:grid-cols-4">
-                  {themes.map((th) => {
-                    const sel = th.id === selected
-                    return (
-                      <button
-                        key={th.id}
-                        type="button"
-                        onClick={() => setSelected(th.id)}
-                        className={cn(
-                          "rounded-xl border-[1.5px] p-2.5 text-left transition-all",
-                          sel
-                            ? "border-pink-500 bg-pink-50/70 dark:bg-pink-950/30"
-                            : "border-border bg-card hover:border-pink-300",
-                        )}
-                      >
-                        <div className="aspect-[0.71] overflow-hidden rounded-md bg-white">
-                          <div className="origin-top-left scale-[0.7]">
-                            <CvPreviewA4 cv={cv as PreviewCv} themeId={th.id} />
-                          </div>
-                        </div>
-                        <div className="mt-2 flex items-center gap-1.5">
-                          <span
-                            className="h-2.5 w-2.5 rounded-full"
-                            style={{ background: th.color }}
-                          />
-                          <span
-                            className={cn(
-                              "text-[13px] font-bold",
-                              sel
-                                ? "text-pink-700 dark:text-pink-300"
-                                : "text-foreground",
-                            )}
-                          >
-                            {th.label}
-                          </span>
-                          {sel ? (
-                            <Check
-                              className="ml-auto h-3.5 w-3.5"
-                              style={{ color: ICV_ACCENT }}
-                            />
-                          ) : null}
-                        </div>
-                        <div className="mt-0.5 text-[11px] text-muted-foreground">
-                          {th.desc}
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
+              <FilterPill
+                key={cat}
+                label={`${cat} · ${count}`}
+                active={filter === cat}
+                onClick={() => setFilter(cat)}
+              />
             )
           })}
+        </div>
+
+        <div className="max-h-[58vh] overflow-auto pr-1">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+            {filtered.map((th) => {
+              const sel = th.id === selected
+              return (
+                <button
+                  key={th.id}
+                  type="button"
+                  onClick={() => setSelected(th.id)}
+                  className={cn(
+                    "group flex flex-col gap-2 rounded-xl border-[1.5px] p-2 text-left transition-all",
+                    sel
+                      ? "border-pink-500 bg-pink-50/70 shadow-sm dark:bg-pink-950/30"
+                      : "border-border bg-card hover:border-pink-300 hover:shadow-sm",
+                  )}
+                >
+                  <div className="relative aspect-[0.71] overflow-hidden rounded-md bg-white shadow-sm">
+                    <div className="origin-top-left scale-[0.72]">
+                      <CvPreviewA4 cv={cv as PreviewCv} themeId={th.id} />
+                    </div>
+                    {sel ? (
+                      <div
+                        className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full shadow"
+                        style={{ background: ICV_ACCENT }}
+                      >
+                        <Check className="h-3 w-3 text-white" />
+                      </div>
+                    ) : null}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className="h-2 w-2 shrink-0 rounded-full"
+                        style={{ background: th.color }}
+                      />
+                      <span
+                        className={cn(
+                          "truncate text-[13px] font-bold",
+                          sel
+                            ? "text-pink-700 dark:text-pink-300"
+                            : "text-foreground",
+                        )}
+                      >
+                        {th.label}
+                      </span>
+                    </div>
+                    <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                      {th.desc}
+                    </div>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
         </div>
 
         <DialogFooter>
@@ -158,5 +180,30 @@ export function ThemesGalleryModal({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+function FilterPill({
+  label,
+  active,
+  onClick,
+}: {
+  label: string
+  active: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "rounded-full border px-3 py-1 text-xs font-semibold transition-colors",
+        active
+          ? "border-pink-500 bg-pink-500 text-white"
+          : "border-border bg-card text-foreground/80 hover:bg-muted",
+      )}
+    >
+      {label}
+    </button>
   )
 }

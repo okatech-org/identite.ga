@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useMutation } from "convex/react"
+import { useMutation, useQuery } from "convex/react"
 import { Sparkles } from "lucide-react"
 import { toast } from "sonner"
 
@@ -9,19 +9,26 @@ import { api } from "@repo/backend/convex/_generated/api"
 import type { Id } from "@repo/backend/convex/_generated/dataModel"
 import { cn } from "@repo/ui/lib/utils"
 
-import {
-  ICV_ACCENT,
-  ICV_THEMES,
-  THEME_CATEGORIES,
-  type CvThemeId,
-} from "../_content/themes"
+import { ICV_ACCENT, ICV_THEMES, type CvThemeId } from "../_content/themes"
 import { icv } from "../_content/fr"
+import { CvPreviewA4, type PreviewCv } from "./cv-preview-a4"
 
 /**
- * Sélecteur compact de thème (panneau gauche `/icv`).
- * Affiche les 12 thèmes groupés par catégorie, met en évidence le thème
- * actif. Au clic, appelle `cv.profile.setTheme`.
+ * Sélecteur de thème compact — grille de mini-aperçus, pas une liste.
+ * Affiche les 6 thèmes vedettes ; le reste se découvre dans la galerie.
  */
+
+// Les 6 thèmes mis en avant dans le picker rapide (les autres restent
+// accessibles via "Galerie").
+const FEATURED_THEMES: CvThemeId[] = [
+  "modern",
+  "creative",
+  "minimalist",
+  "professional",
+  "executive",
+  "tech",
+]
+
 export function ThemePicker({
   cvId,
   activeTheme,
@@ -31,6 +38,7 @@ export function ThemePicker({
   activeTheme: CvThemeId
   onOpenGallery?: () => void
 }) {
+  const cv = useQuery(api.cv.profile.get, { cvId })
   const setTheme = useMutation(api.cv.profile.setTheme)
 
   async function handlePick(themeId: CvThemeId) {
@@ -44,9 +52,16 @@ export function ThemePicker({
     }
   }
 
+  // S'assure que le thème actif est dans la grille (sinon on l'ajoute en
+  // premier — l'utilisateur voit toujours son choix).
+  const themesToShow = React.useMemo<CvThemeId[]>(() => {
+    if (FEATURED_THEMES.includes(activeTheme)) return FEATURED_THEMES
+    return [activeTheme, ...FEATURED_THEMES].slice(0, 6)
+  }, [activeTheme])
+
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
-      <div className="mb-2.5 flex items-center gap-1.5">
+      <div className="mb-3 flex items-center gap-1.5">
         <Sparkles className="h-4 w-4" style={{ color: ICV_ACCENT }} />
         <h3 className="flex-1 text-sm font-bold text-foreground">
           {icv.themes.title}
@@ -55,61 +70,77 @@ export function ThemePicker({
           <button
             type="button"
             onClick={onOpenGallery}
-            className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+            className="text-xs font-medium text-pink-600 transition-colors hover:underline dark:text-pink-400"
           >
-            Galerie →
+            Voir les 12 →
           </button>
         ) : null}
       </div>
 
-      <div className="space-y-3">
-        {THEME_CATEGORIES.map((cat) => {
-          const themes = ICV_THEMES.filter((t) => t.category === cat)
-          return (
-            <div key={cat}>
-              <p className="mb-1 text-[9px] font-bold uppercase tracking-[1.2px] text-muted-foreground">
-                {cat}
-              </p>
-              <div className="space-y-0.5">
-                {themes.map((th) => {
-                  const sel = th.id === activeTheme
-                  return (
-                    <button
-                      key={th.id}
-                      type="button"
-                      onClick={() => handlePick(th.id)}
-                      className={cn(
-                        "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors",
-                        sel
-                          ? "bg-pink-50 dark:bg-pink-950/30"
-                          : "hover:bg-muted",
-                      )}
-                    >
-                      <span
-                        className="h-3.5 w-3.5 shrink-0 rounded-full shadow-sm"
-                        style={{ background: th.color }}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div
-                          className={cn(
-                            "truncate text-[12.5px] font-semibold",
-                            sel ? "text-pink-700 dark:text-pink-300" : "text-foreground",
-                          )}
-                        >
-                          {th.label}
-                        </div>
-                        <div className="truncate text-[10.5px] text-muted-foreground">
-                          {th.desc}
-                        </div>
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          )
-        })}
+      <div className="grid grid-cols-3 gap-2">
+        {themesToShow.map((themeId) => (
+          <ThemeCard
+            key={themeId}
+            themeId={themeId}
+            cv={cv as PreviewCv | undefined}
+            active={themeId === activeTheme}
+            onClick={() => handlePick(themeId)}
+          />
+        ))}
       </div>
     </div>
+  )
+}
+
+function ThemeCard({
+  themeId,
+  cv,
+  active,
+  onClick,
+}: {
+  themeId: CvThemeId
+  cv: PreviewCv | undefined
+  active: boolean
+  onClick: () => void
+}) {
+  const meta = ICV_THEMES.find((t) => t.id === themeId)!
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "group relative flex flex-col gap-1.5 rounded-lg border-2 p-1.5 transition-all",
+        active
+          ? "border-pink-500 bg-pink-50/60 shadow-sm dark:bg-pink-950/30"
+          : "border-border hover:border-pink-300 hover:bg-muted/40",
+      )}
+    >
+      {/* Mini-aperçu A4 — scale 0.22 → 70×100px */}
+      <div className="relative aspect-[0.71] overflow-hidden rounded bg-white shadow-sm">
+        {cv ? (
+          <div className="origin-top-left scale-[0.22]">
+            <CvPreviewA4 cv={cv} themeId={themeId} />
+          </div>
+        ) : (
+          <div className="h-full w-full animate-pulse bg-gradient-to-br from-stone-100 to-stone-200" />
+        )}
+      </div>
+      <div className="flex items-center gap-1 px-0.5">
+        <span
+          className="h-2 w-2 shrink-0 rounded-full"
+          style={{ background: meta.color }}
+        />
+        <span
+          className={cn(
+            "truncate text-[10.5px] font-semibold",
+            active
+              ? "text-pink-700 dark:text-pink-300"
+              : "text-foreground",
+          )}
+        >
+          {meta.label}
+        </span>
+      </div>
+    </button>
   )
 }
