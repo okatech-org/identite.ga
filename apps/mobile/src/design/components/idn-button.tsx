@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Pressable, Text, View, type ViewStyle, type StyleProp } from 'react-native';
+import { idnTokens } from '../tokens';
 import type { IdnTheme } from '../tokens';
 
 type Variant = 'primary' | 'ghost' | 'quiet' | 'danger';
@@ -17,10 +18,12 @@ type Props = {
   style?: StyleProp<ViewStyle>;
 };
 
+// Tailles dimensionnées pour des cibles tactiles confortables (Apple HIG 44pt, Material 48dp).
+// `md` reste au-dessus du minimum recommandé ; `lg` est calibré pour les CTA principaux.
 const sizes = {
-  sm: { h: 32, px: 12, fs: 13 },
-  md: { h: 40, px: 16, fs: 14 },
-  lg: { h: 48, px: 20, fs: 15 },
+  sm: { h: 40, px: 14, fs: idnTokens.text.footnote },
+  md: { h: 48, px: 18, fs: idnTokens.text.callout },
+  lg: { h: 56, px: 22, fs: idnTokens.text.body },
 } as const;
 
 export function IdnButton({ children, variant = 'primary', size = 'md', t, onPress, disabled, full, leadIcon, style }: Props) {
@@ -30,7 +33,7 @@ export function IdnButton({ children, variant = 'primary', size = 'md', t, onPre
     primary: { bg: t.green, fg: '#fff', bd: t.green, hover: t.greenDk },
     ghost:   { bg: 'transparent' as string, fg: t.ink, bd: t.border, hover: t.surface2 },
     quiet:   { bg: 'transparent' as string, fg: t.ink2, bd: 'transparent', hover: t.surface2 },
-    danger:  { bg: 'transparent' as string, fg: '#B83A3A', bd: t.border, hover: 'rgba(184,58,58,0.06)' },
+    danger:  { bg: 'transparent' as string, fg: idnTokens.danger, bd: t.border, hover: 'rgba(184,58,58,0.06)' },
   }[variant];
   return (
     <Pressable
@@ -45,12 +48,12 @@ export function IdnButton({ children, variant = 'primary', size = 'md', t, onPre
           backgroundColor: pressed && !disabled ? variants.hover : variants.bg,
           borderColor: variants.bd,
           borderWidth: 1,
-          borderRadius: 8,
+          borderRadius: 12,
           opacity: disabled ? 0.5 : 1,
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: 8,
+          gap: 10,
           alignSelf: full ? 'stretch' : 'flex-start',
           width: full ? '100%' : undefined,
         },
@@ -58,7 +61,7 @@ export function IdnButton({ children, variant = 'primary', size = 'md', t, onPre
       ]}
     >
       {leadIcon ? <View>{leadIcon}</View> : null}
-      <Text style={{ color: variants.fg, fontSize: sz.fs, fontWeight: '500' }}>{children}</Text>
+      <Text style={{ color: variants.fg, fontSize: sz.fs, fontWeight: '600' }}>{children}</Text>
     </Pressable>
   );
 }

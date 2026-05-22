@@ -19,6 +19,10 @@
       "distribution": "store",
       "channel": "preview",
       "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_CONVEX_URL": "https://pleasant-platypus-379.eu-west-1.convex.cloud",
+        "EXPO_PUBLIC_CONVEX_SITE_URL": "https://pleasant-platypus-379.eu-west-1.convex.site"
+      },
       "ios": {
         "simulator": false
       },
@@ -30,6 +34,10 @@
       "distribution": "store",
       "channel": "production",
       "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_CONVEX_URL": "https://pleasant-platypus-379.eu-west-1.convex.cloud",
+        "EXPO_PUBLIC_CONVEX_SITE_URL": "https://pleasant-platypus-379.eu-west-1.convex.site"
+      },
       "android": {
         "buildType": "app-bundle"
       }

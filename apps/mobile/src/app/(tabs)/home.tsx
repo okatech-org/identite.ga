@@ -122,10 +122,10 @@ export default function Home() {
             <Pressable
               key={i}
               onPress={() => q.route && router.push(q.route as any)}
-              style={{ flex: 1, paddingVertical: 14, paddingHorizontal: 4, backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 14, alignItems: 'center', gap: 6 }}
+              style={{ flex: 1, paddingVertical: 16, paddingHorizontal: 4, backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 14, alignItems: 'center', gap: 8 }}
             >
               <QuickIcon icon={q.icon} color={idnTokens.green} />
-              <Text style={{ fontSize: 11, fontWeight: '500', color: t.ink }}>{q.l}</Text>
+              <Text style={{ fontSize: idnTokens.text.footnote, fontWeight: '600', color: t.ink }}>{q.l}</Text>
             </Pressable>
           ))}
         </View>
@@ -150,8 +150,8 @@ export default function Home() {
               <Icon name="shield" size={20} color="#5a4a0a" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 13, fontWeight: '600', color: t.ink }}>Passez au Niveau {loa + 1}</Text>
-              <Text style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>5 min · débloquez plus de services</Text>
+              <Text style={{ fontSize: idnTokens.text.callout, fontWeight: '700', color: t.ink }}>Passez au Niveau {loa + 1}</Text>
+              <Text style={{ fontSize: idnTokens.text.footnote, color: t.muted, marginTop: 4 }}>5 min · débloquez plus de services</Text>
             </View>
             <Icon name="arrow" size={16} color={t.ink2} />
           </Pressable>
@@ -174,12 +174,12 @@ export default function Home() {
                 gap: 10,
               }}
             >
-              <View style={{ width: 38, height: 38, borderRadius: 10, backgroundColor: t.dark ? m.bgDark : m.bgLight, alignItems: 'center', justifyContent: 'center' }}>
-                <Icon name={m.icon} size={22} color={m.color} />
+              <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: t.dark ? m.bgDark : m.bgLight, alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name={m.icon} size={24} color={m.color} />
               </View>
               <View>
-                <Text style={{ fontSize: 13, fontWeight: '600', color: t.ink }}>{m.label}</Text>
-                <Text style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>{m.sub}</Text>
+                <Text style={{ fontSize: idnTokens.text.callout, fontWeight: '700', color: t.ink }}>{m.label}</Text>
+                <Text style={{ fontSize: idnTokens.text.footnote, color: t.muted, marginTop: 4, lineHeight: 18 }}>{m.sub}</Text>
               </View>
             </Pressable>
           ))}
@@ -193,8 +193,8 @@ export default function Home() {
             <View style={{ height: 14, backgroundColor: t.surface2, borderRadius: 4, width: '70%' }} />
           </View>
         ) : activity.length === 0 ? (
-          <View style={{ backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 12, padding: 18, alignItems: 'center' }}>
-            <Text style={{ fontSize: 12, color: t.muted }}>Aucune activité récente.</Text>
+          <View style={{ backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 12, padding: 20, alignItems: 'center' }}>
+            <Text style={{ fontSize: idnTokens.text.footnote, color: t.muted }}>Aucune activité récente.</Text>
           </View>
         ) : (
           <View style={{ backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 12, paddingHorizontal: 14 }}>
@@ -216,8 +216,8 @@ export default function Home() {
                     <Icon name="shield" size={14} color={idnTokens.green} />
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text numberOfLines={1} style={{ fontSize: 12, color: t.ink, fontWeight: '600' }}>{label}</Text>
-                    <Text style={{ fontSize: 10, color: t.muted, fontFamily: idnTokens.mono, marginTop: 2 }}>{formatRelativeDate(a.createdAt)}</Text>
+                    <Text numberOfLines={1} style={{ fontSize: idnTokens.text.footnote, color: t.ink, fontWeight: '600' }}>{label}</Text>
+                    <Text style={{ fontSize: idnTokens.text.caption, color: t.muted, fontFamily: idnTokens.mono, marginTop: 4 }}>{formatRelativeDate(a.createdAt)}</Text>
                   </View>
                 </View>
               );

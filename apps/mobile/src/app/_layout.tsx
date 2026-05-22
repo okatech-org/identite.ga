@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { StrictMode } from 'react';
 import { useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { authClient } from '@/lib/auth-client';
@@ -28,7 +29,8 @@ export default function RootLayout() {
       <ConvexBetterAuthProvider client={convex} authClient={authClient}>
         <VaultProvider>
           <GestureHandlerRootView style={{ flex: 1 }}>
-            <SafeAreaProvider>
+            <KeyboardProvider>
+              <SafeAreaProvider>
               <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
               <Stack screenOptions={{ headerShown: false, animation: 'default' }}>
                 <Stack.Screen name="index" />
@@ -48,6 +50,7 @@ export default function RootLayout() {
                 <Stack.Screen name="activity" />
               </Stack>
             </SafeAreaProvider>
+            </KeyboardProvider>
           </GestureHandlerRootView>
         </VaultProvider>
       </ConvexBetterAuthProvider>

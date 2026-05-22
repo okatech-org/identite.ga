@@ -59,8 +59,8 @@ export default function SignupProfil() {
                 <Icon name="user" size={20} color={isSel ? '#fff' : t.muted} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: t.ink }}>{p.label}</Text>
-                <Text style={{ fontSize: 12, color: t.muted, marginTop: 2 }}>{p.sub}</Text>
+                <Text style={{ fontSize: idnTokens.text.body, fontWeight: '600', color: t.ink }}>{p.label}</Text>
+                <Text style={{ fontSize: idnTokens.text.footnote, color: t.muted, marginTop: 4, lineHeight: 18 }}>{p.sub}</Text>
               </View>
               <LoABadge level={p.loa} t={t} compact />
             </Pressable>

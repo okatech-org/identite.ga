@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, Pressable, ScrollView } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
+import { KeyboardAwareScrollView, KeyboardStickyView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { idnTokens } from '@/design/tokens';
 import type { IdnTheme } from '@/design/tokens';
@@ -33,23 +34,29 @@ export function NStepShell({ t, step, total, title, sub, children, primary = 'Co
             <View key={i} style={{ flex: 1, height: 3, borderRadius: 2, backgroundColor: i < step ? idnTokens.green : t.border }} />
           ))}
         </View>
-        <Text style={{ fontSize: 11, color: t.muted, fontFamily: idnTokens.mono, fontWeight: '600' }}>{step}/{total}</Text>
+        <Text style={{ fontSize: idnTokens.text.caption, color: t.muted, fontFamily: idnTokens.mono, fontWeight: '600' }}>{step}/{total}</Text>
       </View>
-      <ScrollView contentContainerStyle={{ padding: 24, gap: 18 }} keyboardShouldPersistTaps="handled">
+      <KeyboardAwareScrollView
+        contentContainerStyle={{ padding: 24, gap: 18, paddingBottom: 120 }}
+        keyboardShouldPersistTaps="handled"
+        bottomOffset={20}
+      >
         <View>
-          <Text style={{ fontSize: 24, fontWeight: '700', color: t.ink, letterSpacing: -0.4, lineHeight: 29 }}>{title}</Text>
+          <Text style={{ fontSize: idnTokens.text.title, fontWeight: '700', color: t.ink, letterSpacing: -0.4, lineHeight: 32 }}>{title}</Text>
           {sub ? (
             typeof sub === 'string'
-              ? <Text style={{ fontSize: 13, color: t.muted, marginTop: 8, lineHeight: 20 }}>{sub}</Text>
-              : <View style={{ marginTop: 8 }}>{sub}</View>
+              ? <Text style={{ fontSize: idnTokens.text.callout, color: t.muted, marginTop: 10, lineHeight: 23 }}>{sub}</Text>
+              : <View style={{ marginTop: 10 }}>{sub}</View>
           ) : null}
         </View>
         {children}
-      </ScrollView>
-      <View style={{ paddingHorizontal: 24, paddingTop: 14, paddingBottom: Math.max(insets.bottom, 22), gap: 8 }}>
-        <IdnButton t={t} variant="primary" size="lg" full onPress={onPrimary}>{primary}</IdnButton>
-        {secondary ? <IdnButton t={t} variant="quiet" size="md" full onPress={onSecondary}>{secondary}</IdnButton> : null}
-      </View>
+      </KeyboardAwareScrollView>
+      <KeyboardStickyView offset={{ closed: 0, opened: 0 }}>
+        <View style={{ paddingHorizontal: 24, paddingTop: 14, paddingBottom: Math.max(insets.bottom, 22), gap: 10, backgroundColor: t.bg, borderTopWidth: 1, borderTopColor: t.borderSoft }}>
+          <IdnButton t={t} variant="primary" size="lg" full onPress={onPrimary}>{primary}</IdnButton>
+          {secondary ? <IdnButton t={t} variant="quiet" size="md" full onPress={onSecondary}>{secondary}</IdnButton> : null}
+        </View>
+      </KeyboardStickyView>
     </View>
   );
 }

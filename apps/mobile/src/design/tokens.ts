@@ -38,7 +38,27 @@ export const idnTokens = {
   mono: 'Menlo' as string,
 
   radius: { sm: 6, md: 10, lg: 14, xl: 20, pill: 9999 },
-};
+
+  // Typographie — calibrée pour mobile (iOS HIG body 17pt, Material 16sp minimum).
+  // Toutes les valeurs en sp/pt directs pour rester compatibles avec les styles inline.
+  text: {
+    display: 32,    // grand titre d'écran "marketing"
+    title: 26,      // titre principal d'écran
+    headline: 22,   // titre de section
+    subhead: 18,    // sous-titre / valeur mise en avant
+    body: 17,       // corps de texte par défaut (lisible adultes)
+    callout: 16,    // corps secondaire / boutons standard
+    label: 15,      // labels de champs, micro-titres
+    footnote: 13,   // hint, méta sous un champ
+    caption: 12,    // dernier recours (badges, tags) — éviter pour du contenu
+  },
+  weight: {
+    bold: '700',
+    semibold: '600',
+    medium: '500',
+    regular: '400',
+  },
+} as const;
 
 export type IdnNeutrals = {
   bg: string;

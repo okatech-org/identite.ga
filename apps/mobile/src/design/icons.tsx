@@ -13,7 +13,7 @@ export type IconName =
   | 'mail2' | 'package' | 'chat' | 'pinLoc' | 'chevDn' | 'star' | 'starO'
   | 'inbox' | 'send' | 'clock' | 'reply' | 'forward' | 'printer' | 'archive' | 'truck' | 'paper' | 'building' | 'alert'
   | 'baby' | 'cap' | 'file' | 'folderO' | 'upload' | 'sparkles' | 'scale' | 'checkCir' | 'seal'
-  | 'close' | 'minus';
+  | 'close' | 'minus' | 'calendar';
 
 type Props = { name: IconName; size?: number; color?: string };
 
@@ -546,6 +546,13 @@ export function Icon({ name, size = 20, color = '#000' }: Props) {
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
           <Path d="M5 12h14" stroke={color} strokeWidth={2} strokeLinecap="round" />
+        </Svg>
+      );
+    case 'calendar':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Rect x={3} y={5} width={18} height={16} rx={2} stroke={color} strokeWidth={sw} />
+          <Path d="M3 10h18M8 3v4M16 3v4" stroke={color} strokeWidth={sw} strokeLinecap="round" />
         </Svg>
       );
   }

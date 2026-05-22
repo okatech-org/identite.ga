@@ -86,35 +86,35 @@ export default function SignupPin() {
       }}
       onPrimary={() => phase === 'confirm' && void submit(pin, confirm)}
     >
-      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16, paddingVertical: 14 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 18, paddingVertical: 18 }}>
         {[0, 1, 2, 3, 4, 5].map((i) => (
           <View key={i} style={{
-            width: 18, height: 18, borderRadius: 9999,
+            width: 20, height: 20, borderRadius: 9999,
             backgroundColor: i < filled ? idnTokens.green : 'transparent',
             borderWidth: 2,
             borderColor: i < filled ? idnTokens.green : t.border,
           }} />
         ))}
       </View>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -5, marginTop: 8 }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -6, marginTop: 8 }}>
         {KEYS.map((k, i) => (
-          <View key={i} style={{ width: '33.3333%', padding: 5 }}>
+          <View key={i} style={{ width: '33.3333%', padding: 6 }}>
             <Pressable disabled={k === '' || submitting} onPress={() => press(k)} style={{
-              height: 56, borderRadius: 14,
+              height: 64, borderRadius: 14,
               backgroundColor: k === '' ? 'transparent' : t.surface,
               borderWidth: k === '' ? 0 : 1,
               borderColor: t.borderSoft,
               alignItems: 'center', justifyContent: 'center',
               opacity: submitting ? 0.6 : 1,
             }}>
-              <Text style={{ fontSize: 22, fontWeight: '500', color: t.ink, fontFamily: idnTokens.mono }}>{k}</Text>
+              <Text style={{ fontSize: 26, fontWeight: '500', color: t.ink, fontFamily: idnTokens.mono }}>{k}</Text>
             </Pressable>
           </View>
         ))}
       </View>
       {error ? (
-        <View style={{ backgroundColor: t.dark ? '#3A1212' : '#FBE5E5', borderRadius: 10, padding: 12, marginTop: 12 }}>
-          <Text style={{ color: '#B83A3A', fontSize: 12, lineHeight: 17 }}>{error}</Text>
+        <View style={{ backgroundColor: t.dark ? '#3A1212' : '#FBE5E5', borderRadius: 12, padding: 14, marginTop: 14 }}>
+          <Text style={{ color: idnTokens.danger, fontSize: idnTokens.text.footnote, lineHeight: 19 }}>{error}</Text>
         </View>
       ) : null}
     </NStepShell>

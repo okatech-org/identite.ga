@@ -45,10 +45,10 @@ export default function SignupDone() {
       </View>
 
       <View style={{ alignItems: 'center', marginTop: 16 }}>
-        <Text style={{ fontSize: 22, fontWeight: '700', color: t.ink, letterSpacing: -0.4 }}>
+        <Text style={{ fontSize: idnTokens.text.headline, fontWeight: '700', color: t.ink, letterSpacing: -0.4 }}>
           {firstName ? `Bienvenue, ${firstName}.` : 'Bienvenue.'}
         </Text>
-        <Text style={{ fontSize: 13, color: t.muted, marginTop: 6, lineHeight: 20, textAlign: 'center', maxWidth: 280 }}>
+        <Text style={{ fontSize: idnTokens.text.callout, color: t.muted, marginTop: 10, lineHeight: 22, textAlign: 'center', maxWidth: 300 }}>
           Votre identité numérique est active.
         </Text>
       </View>
@@ -96,22 +96,22 @@ export default function SignupDone() {
       </View>
 
       {/* Récap utile */}
-      <View style={{ marginTop: 16, paddingHorizontal: 14, paddingVertical: 12, backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 12, gap: 10 }}>
+      <View style={{ marginTop: 18, paddingHorizontal: 16, paddingVertical: 14, backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 12, gap: 12 }}>
         {[
           { l: 'Téléphone', v: phone || '—' },
           { l: 'Code PIN', v: '••••••' },
         ].map((r, i) => (
           <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Text style={{ fontSize: 12, color: t.muted }}>{r.l}</Text>
-            <Text style={{ fontSize: 12, color: t.ink, fontFamily: idnTokens.mono, fontWeight: '500' }}>{r.v}</Text>
+            <Text style={{ fontSize: idnTokens.text.footnote, color: t.muted }}>{r.l}</Text>
+            <Text style={{ fontSize: idnTokens.text.footnote, color: t.ink, fontFamily: idnTokens.mono, fontWeight: '500' }}>{r.v}</Text>
           </View>
         ))}
       </View>
 
       <View style={{ flex: 1 }} />
       <IdnButton t={t} variant="primary" size="lg" full onPress={() => finish(true)}>Vérifier mon identité · Niveau 2</IdnButton>
-      <Pressable style={{ alignItems: 'center', padding: 14 }} onPress={() => finish(false)}>
-        <Text style={{ color: t.muted, fontSize: 13, fontWeight: '500' }}>Continuer vers l'accueil</Text>
+      <Pressable style={{ alignItems: 'center', padding: 16 }} onPress={() => finish(false)}>
+        <Text style={{ color: t.muted, fontSize: idnTokens.text.callout, fontWeight: '600' }}>Continuer vers l'accueil</Text>
       </Pressable>
     </View>
   );

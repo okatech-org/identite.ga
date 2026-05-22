@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
+import { KeyboardAwareScrollView, KeyboardStickyView } from 'react-native-keyboard-controller';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
@@ -145,117 +146,187 @@ export default function Login() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top + 20, paddingHorizontal: 26, paddingBottom: Math.max(insets.bottom, 28) }}>
-      <Pressable onPress={() => (phase === 'pin' ? backToHandle() : router.back())} style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4 }}>
+    <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top + 20 }}>
+      <Pressable
+        onPress={() => (phase === 'pin' ? backToHandle() : router.back())}
+        style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 26 }}
+      >
         <Icon name="arrowL" size={20} color={idnTokens.green} />
-        <Text style={{ color: idnTokens.green, fontWeight: '500' }}>{phase === 'pin' ? 'Modifier l\'identifiant' : 'Retour'}</Text>
+        <Text style={{ color: idnTokens.green, fontSize: idnTokens.text.callout, fontWeight: '600' }}>
+          {phase === 'pin' ? "Modifier l'identifiant" : 'Retour'}
+        </Text>
       </Pressable>
 
-      {phase === 'handle' ? (
-        <>
-          <View style={{ marginTop: 26 }}>
-            <Text style={{ fontSize: 26, fontWeight: '700', color: t.ink, letterSpacing: -0.5 }}>Connexion</Text>
-            <Text style={{ fontSize: 13, color: t.muted, marginTop: 8 }}>Saisissez votre identifiant IDN pour continuer.</Text>
-          </View>
-
-          <View style={{ marginTop: 26, gap: 14 }}>
-            <IdnInput
-              t={t}
-              label="Identifiant IDN"
-              value={identifier}
-              onChangeText={(v) => setIdentifier(v.toLowerCase())}
-              placeholder="prenom.nom"
-              hint="Avec ou sans @idn.ga"
-              leadIcon={<Icon name="user" size={20} color={t.muted} />}
-              autoFocus
-            />
-          </View>
-
-          {error ? (
-            <View style={{ marginTop: 14, backgroundColor: t.dark ? '#3A1212' : '#FBE5E5', borderRadius: 10, padding: 12 }}>
-              <Text style={{ color: '#B83A3A', fontSize: 12, lineHeight: 17 }}>{error}</Text>
+      <KeyboardAwareScrollView
+        contentContainerStyle={{ paddingHorizontal: 26, paddingBottom: 24, flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
+        bottomOffset={20}
+      >
+        {phase === 'handle' ? (
+          <>
+            <View style={{ marginTop: 30 }}>
+              <Text style={{ fontSize: idnTokens.text.title, fontWeight: '700', color: t.ink, letterSpacing: -0.5 }}>
+                Connexion
+              </Text>
+              <Text style={{ fontSize: idnTokens.text.callout, color: t.muted, marginTop: 10, lineHeight: 22 }}>
+                Saisissez votre identifiant IDN pour continuer.
+              </Text>
             </View>
-          ) : null}
 
-          <View style={{ flex: 1 }} />
-
-          <IdnButton t={t} variant="primary" size="lg" full onPress={goToPin} disabled={!handleValid}>
-            Continuer
-          </IdnButton>
-
-          <Pressable
-            onPress={signInWithPasskey}
-            disabled={submitting}
-            style={{ marginTop: 12, paddingVertical: 14, borderWidth: 1, borderColor: t.border, backgroundColor: t.surface, borderRadius: 12, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8, opacity: submitting ? 0.5 : 1 }}
-          >
-            <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-              <Path d="M5 11c0-3 3-7 7-7s7 4 7 7" stroke={t.ink2} strokeWidth={1.6} strokeLinecap="round" />
-              <Path d="M9 13c.5-1.5 2-2 3-2s2.5.5 3 2v2" stroke={t.ink2} strokeWidth={1.6} strokeLinecap="round" />
-              <Path d="M12 15v5M5 16c0 3 3 4 7 4" stroke={t.ink2} strokeWidth={1.6} strokeLinecap="round" />
-            </Svg>
-            <Text style={{ color: t.ink2, fontSize: 13, fontWeight: '500' }}>Se connecter avec un passkey</Text>
-          </Pressable>
-        </>
-      ) : (
-        <>
-          <View style={{ marginTop: 22, alignItems: 'center' }}>
-            <Text style={{ fontSize: 24, fontWeight: '700', color: t.ink, letterSpacing: -0.4 }}>Votre code PIN</Text>
-            <Text style={{ fontSize: 13, color: t.muted, marginTop: 8, textAlign: 'center' }}>6 chiffres pour accéder à votre compte.</Text>
-            <Text style={{ fontSize: 12, color: t.muted, marginTop: 4 }}>{normalized?.email ?? ''}</Text>
-          </View>
-
-          <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16, paddingVertical: 22 }}>
-            {[0, 1, 2, 3, 4, 5].map((i) => (
-              <View
-                key={i}
-                style={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: 9999,
-                  backgroundColor: i < pin.length ? idnTokens.green : 'transparent',
-                  borderWidth: 2,
-                  borderColor: i < pin.length ? idnTokens.green : t.border,
-                }}
+            <View style={{ marginTop: 30, gap: 14 }}>
+              <IdnInput
+                t={t}
+                label="Identifiant IDN"
+                value={identifier}
+                onChangeText={(v) => setIdentifier(v.toLowerCase())}
+                placeholder="prenom.nom"
+                hint="Avec ou sans @idn.ga"
+                leadIcon={<Icon name="user" size={20} color={t.muted} />}
+                autoFocus
               />
-            ))}
-          </View>
-
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -5 }}>
-            {PIN_KEYS.map((k, i) => (
-              <View key={i} style={{ width: '33.3333%', padding: 5 }}>
-                <Pressable
-                  disabled={k === '' || submitting}
-                  onPress={() => pressPinKey(k)}
-                  style={{
-                    height: 56,
-                    borderRadius: 14,
-                    backgroundColor: k === '' ? 'transparent' : t.surface,
-                    borderWidth: k === '' ? 0 : 1,
-                    borderColor: t.borderSoft,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    opacity: submitting ? 0.6 : 1,
-                  }}
-                >
-                  <Text style={{ fontSize: 22, fontWeight: '500', color: t.ink, fontFamily: idnTokens.mono }}>{k}</Text>
-                </Pressable>
-              </View>
-            ))}
-          </View>
-
-          {error ? (
-            <View style={{ marginTop: 14, backgroundColor: t.dark ? '#3A1212' : '#FBE5E5', borderRadius: 10, padding: 12 }}>
-              <Text style={{ color: '#B83A3A', fontSize: 12, lineHeight: 17 }}>{error}</Text>
             </View>
-          ) : null}
 
-          <View style={{ flex: 1 }} />
+            {error ? (
+              <View
+                style={{
+                  marginTop: 14,
+                  backgroundColor: t.dark ? '#3A1212' : '#FBE5E5',
+                  borderRadius: 12,
+                  padding: 14,
+                }}
+              >
+                <Text style={{ color: idnTokens.danger, fontSize: idnTokens.text.footnote, lineHeight: 19 }}>{error}</Text>
+              </View>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <View style={{ marginTop: 26, alignItems: 'center' }}>
+              <Text style={{ fontSize: idnTokens.text.title, fontWeight: '700', color: t.ink, letterSpacing: -0.4 }}>
+                Votre code PIN
+              </Text>
+              <Text style={{ fontSize: idnTokens.text.callout, color: t.muted, marginTop: 10, textAlign: 'center' }}>
+                6 chiffres pour accéder à votre compte.
+              </Text>
+              <Text style={{ fontSize: idnTokens.text.footnote, color: t.muted, marginTop: 6 }}>
+                {normalized?.email ?? ''}
+              </Text>
+            </View>
 
-          <Text style={{ textAlign: 'center', fontSize: 12, color: t.muted, paddingVertical: 8 }}>
-            {submitting ? 'Connexion…' : 'Saisissez vos 6 chiffres pour vous connecter.'}
-          </Text>
-        </>
-      )}
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 18, paddingVertical: 26 }}>
+              {[0, 1, 2, 3, 4, 5].map((i) => (
+                <View
+                  key={i}
+                  style={{
+                    width: 20,
+                    height: 20,
+                    borderRadius: 9999,
+                    backgroundColor: i < pin.length ? idnTokens.green : 'transparent',
+                    borderWidth: 2,
+                    borderColor: i < pin.length ? idnTokens.green : t.border,
+                  }}
+                />
+              ))}
+            </View>
+
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -6 }}>
+              {PIN_KEYS.map((k, i) => (
+                <View key={i} style={{ width: '33.3333%', padding: 6 }}>
+                  <Pressable
+                    disabled={k === '' || submitting}
+                    onPress={() => pressPinKey(k)}
+                    style={{
+                      height: 64,
+                      borderRadius: 14,
+                      backgroundColor: k === '' ? 'transparent' : t.surface,
+                      borderWidth: k === '' ? 0 : 1,
+                      borderColor: t.borderSoft,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      opacity: submitting ? 0.6 : 1,
+                    }}
+                  >
+                    <Text style={{ fontSize: 26, fontWeight: '500', color: t.ink, fontFamily: idnTokens.mono }}>
+                      {k}
+                    </Text>
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+
+            {error ? (
+              <View
+                style={{
+                  marginTop: 14,
+                  backgroundColor: t.dark ? '#3A1212' : '#FBE5E5',
+                  borderRadius: 12,
+                  padding: 14,
+                }}
+              >
+                <Text style={{ color: idnTokens.danger, fontSize: idnTokens.text.footnote, lineHeight: 19 }}>{error}</Text>
+              </View>
+            ) : null}
+
+            <Text
+              style={{
+                textAlign: 'center',
+                fontSize: idnTokens.text.footnote,
+                color: t.muted,
+                paddingVertical: 14,
+                marginTop: 12,
+              }}
+            >
+              {submitting ? 'Connexion…' : 'Saisissez vos 6 chiffres pour vous connecter.'}
+            </Text>
+          </>
+        )}
+      </KeyboardAwareScrollView>
+
+      {phase === 'handle' ? (
+        <KeyboardStickyView offset={{ closed: 0, opened: 0 }}>
+          <View
+            style={{
+              paddingHorizontal: 26,
+              paddingTop: 14,
+              paddingBottom: Math.max(insets.bottom, 24),
+              gap: 12,
+              backgroundColor: t.bg,
+              borderTopWidth: 1,
+              borderTopColor: t.borderSoft,
+            }}
+          >
+            <IdnButton t={t} variant="primary" size="lg" full onPress={goToPin} disabled={!handleValid}>
+              Continuer
+            </IdnButton>
+
+            <Pressable
+              onPress={signInWithPasskey}
+              disabled={submitting}
+              style={{
+                paddingVertical: 16,
+                borderWidth: 1,
+                borderColor: t.border,
+                backgroundColor: t.surface,
+                borderRadius: 12,
+                alignItems: 'center',
+                flexDirection: 'row',
+                justifyContent: 'center',
+                gap: 10,
+                opacity: submitting ? 0.5 : 1,
+              }}
+            >
+              <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+                <Path d="M5 11c0-3 3-7 7-7s7 4 7 7" stroke={t.ink2} strokeWidth={1.6} strokeLinecap="round" />
+                <Path d="M9 13c.5-1.5 2-2 3-2s2.5.5 3 2v2" stroke={t.ink2} strokeWidth={1.6} strokeLinecap="round" />
+                <Path d="M12 15v5M5 16c0 3 3 4 7 4" stroke={t.ink2} strokeWidth={1.6} strokeLinecap="round" />
+              </Svg>
+              <Text style={{ color: t.ink2, fontSize: idnTokens.text.callout, fontWeight: '600' }}>
+                Se connecter avec un passkey
+              </Text>
+            </Pressable>
+          </View>
+        </KeyboardStickyView>
+      ) : null}
     </View>
   );
 }

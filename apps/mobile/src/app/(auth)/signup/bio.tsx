@@ -85,24 +85,24 @@ export default function SignupBio() {
           </Svg>
         </View>
         <View style={{ alignItems: 'center' }}>
-          <Text style={{ fontSize: 24, fontWeight: '700', color: t.ink, letterSpacing: -0.4, textAlign: 'center' }}>Face ID pour vous connecter ?</Text>
-          <Text style={{ fontSize: 14, color: t.muted, lineHeight: 22, marginTop: 12, textAlign: 'center', maxWidth: 280 }}>
+          <Text style={{ fontSize: idnTokens.text.title, fontWeight: '700', color: t.ink, letterSpacing: -0.4, textAlign: 'center' }}>Face ID pour vous connecter ?</Text>
+          <Text style={{ fontSize: idnTokens.text.body, color: t.muted, lineHeight: 25, marginTop: 14, textAlign: 'center', maxWidth: 320 }}>
             {available
               ? 'Déverrouillez l\'app et signez vos démarches plus rapidement. Vous pouvez toujours utiliser votre PIN.'
               : 'Aucun capteur biométrique configuré sur cet appareil. Vous pourrez l\'activer plus tard.'}
           </Text>
         </View>
         {error ? (
-          <View style={{ backgroundColor: t.dark ? '#3A1212' : '#FBE5E5', borderRadius: 10, padding: 12, alignSelf: 'stretch' }}>
-            <Text style={{ color: '#B83A3A', fontSize: 12, lineHeight: 17 }}>{error}</Text>
+          <View style={{ backgroundColor: t.dark ? '#3A1212' : '#FBE5E5', borderRadius: 12, padding: 14, alignSelf: 'stretch' }}>
+            <Text style={{ color: idnTokens.danger, fontSize: idnTokens.text.footnote, lineHeight: 19 }}>{error}</Text>
           </View>
         ) : null}
       </View>
       <IdnButton t={t} variant="primary" size="lg" full onPress={activate} disabled={activating}>
         {activating ? 'Activation…' : (available ? 'Activer Face ID' : 'Continuer')}
       </IdnButton>
-      <Pressable style={{ alignItems: 'center', padding: 16 }} onPress={skip}>
-        <Text style={{ color: t.muted, fontSize: 13, fontWeight: '500' }}>Plus tard</Text>
+      <Pressable style={{ alignItems: 'center', padding: 18 }} onPress={skip}>
+        <Text style={{ color: t.muted, fontSize: idnTokens.text.callout, fontWeight: '600' }}>Plus tard</Text>
       </Pressable>
     </View>
   );

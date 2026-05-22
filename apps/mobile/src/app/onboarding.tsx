@@ -50,8 +50,8 @@ export default function Onboarding() {
   return (
     <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top }}>
       <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 22, paddingVertical: 4 }}>
-        <Pressable onPress={skip} hitSlop={8}>
-          <Text style={{ color: t.muted, fontSize: 14, fontWeight: '500' }}>Passer</Text>
+        <Pressable onPress={skip} hitSlop={8} style={{ padding: 10 }}>
+          <Text style={{ color: t.muted, fontSize: idnTokens.text.callout, fontWeight: '600' }}>Passer</Text>
         </Pressable>
       </View>
       <View style={{ flex: 1, overflow: 'hidden' }}>
@@ -71,9 +71,9 @@ export default function Onboarding() {
                 <Art kind={item.art} t={t} />
               </View>
               <View style={{ marginTop: 28 }}>
-                <Text style={{ fontSize: 11, color: idnTokens.green, letterSpacing: 1.4, fontWeight: '600', textAlign: 'center' }}>{item.tag}</Text>
-                <Text style={{ fontSize: 24, fontWeight: '700', color: t.ink, letterSpacing: -0.4, lineHeight: 28, marginTop: 10, textAlign: 'center' }}>{item.title}</Text>
-                <Text style={{ fontSize: 14, color: t.muted, lineHeight: 22, marginTop: 12, textAlign: 'center' }}>{item.desc}</Text>
+                <Text style={{ fontSize: idnTokens.text.footnote, color: idnTokens.green, letterSpacing: 1.4, fontWeight: '700', textAlign: 'center' }}>{item.tag}</Text>
+                <Text style={{ fontSize: idnTokens.text.title, fontWeight: '700', color: t.ink, letterSpacing: -0.4, lineHeight: 32, marginTop: 12, textAlign: 'center' }}>{item.title}</Text>
+                <Text style={{ fontSize: idnTokens.text.body, color: t.muted, lineHeight: 25, marginTop: 14, textAlign: 'center', paddingHorizontal: 8 }}>{item.desc}</Text>
               </View>
             </View>
           )}

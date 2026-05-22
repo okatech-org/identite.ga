@@ -172,7 +172,7 @@ export default function SignupIdn() {
       primary={primaryLabel}
     >
       <View>
-        <Text style={{ fontSize: 13, fontWeight: '500', color: t.ink, marginBottom: 6 }}>Identifiant</Text>
+        <Text style={{ fontSize: idnTokens.text.label, fontWeight: '600', color: t.ink, marginBottom: 8 }}>Identifiant</Text>
         <View
           style={{
             flexDirection: 'row',
@@ -217,9 +217,9 @@ export default function SignupIdn() {
           />
           <Text
             style={{
-              fontSize: 12,
+              fontSize: idnTokens.text.footnote,
               fontWeight: '500',
-              color: status.neutral ? t.muted : status.ok ? idnTokens.green : '#B83A3A',
+              color: status.neutral ? t.muted : status.ok ? idnTokens.green : idnTokens.danger,
               flex: 1,
             }}
           >
@@ -229,7 +229,7 @@ export default function SignupIdn() {
       </View>
 
       <View>
-        <Text style={{ fontSize: 11, color: t.muted, letterSpacing: 1, fontWeight: '600', marginBottom: 10 }}>
+        <Text style={{ fontSize: idnTokens.text.footnote, color: t.muted, letterSpacing: 1, fontWeight: '700', marginBottom: 12 }}>
           {isTaken ? 'DISPONIBLES POUR VOUS' : 'SUGGESTIONS'}
         </Text>
         <View style={{ gap: 8 }}>
@@ -306,16 +306,16 @@ export default function SignupIdn() {
           alignItems: 'flex-start',
         }}
       >
-        <Icon name="shield" size={18} color={idnTokens.blue} />
-        <Text style={{ flex: 1, fontSize: 11.5, color: t.ink2, lineHeight: 17 }}>
+        <Icon name="shield" size={20} color={idnTokens.blue} />
+        <Text style={{ flex: 1, fontSize: idnTokens.text.footnote, color: t.ink2, lineHeight: 20 }}>
           L'adresse <Text style={{ fontFamily: idnTokens.mono, color: t.ink, fontWeight: '600' }}>@idn.ga</Text> est
           hébergée sur le sol gabonais. Elle est définitive et reste valide à vie.
         </Text>
       </View>
 
       {error ? (
-        <View style={{ backgroundColor: t.dark ? '#3A1212' : '#FBE5E5', borderRadius: 10, padding: 12 }}>
-          <Text style={{ color: '#B83A3A', fontSize: 12, lineHeight: 17 }}>{error}</Text>
+        <View style={{ backgroundColor: t.dark ? '#3A1212' : '#FBE5E5', borderRadius: 12, padding: 14 }}>
+          <Text style={{ color: idnTokens.danger, fontSize: idnTokens.text.footnote, lineHeight: 19 }}>{error}</Text>
         </View>
       ) : null}
     </NStepShell>
