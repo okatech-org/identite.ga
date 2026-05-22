@@ -289,22 +289,9 @@ function SignInPageInner() {
             onClick={() => {
               setPin("")
               setPinError(null)
-              passwordForm.reset({ password: "" })
-              setPhase("password")
-            }}
-            className="mt-4 text-center text-[13px] font-medium text-idn-green hover:underline dark:text-idn-green-on-dark"
-          >
-            {signIn.pinUsePassword}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setPin("")
-              setPinError(null)
               setPhase("email")
             }}
-            className="mt-3 text-center text-[13px] text-muted-foreground hover:underline"
+            className="mt-4 text-center text-[13px] text-muted-foreground hover:underline"
           >
             ← {signIn.pinBack}
           </button>
