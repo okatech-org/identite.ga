@@ -21,49 +21,6 @@ type PinPadProps = {
   resetKey?: string | number
 }
 
-/**
- * Tick audio court joué à chaque tap. Synthétisé via WebAudio pour
- * éviter un asset, contexte lazy (politique "user gesture") et partagé.
- *
- * Profil sonore : sinusoïde grave (~440 Hz → 280 Hz) filtrée passe-bas,
- * attaque rapide + décroissance douce. Donne un "pock" feutré plutôt
- * qu'un bip carré aigu.
- */
-let sharedAudioCtx: AudioContext | null = null
-function playTick(): void {
-  if (typeof window === "undefined") return
-  try {
-    if (!sharedAudioCtx) {
-      const Ctor =
-        window.AudioContext ||
-        (window as unknown as { webkitAudioContext?: typeof AudioContext })
-          .webkitAudioContext
-      if (!Ctor) return
-      sharedAudioCtx = new Ctor()
-    }
-    const ctx = sharedAudioCtx
-    if (ctx.state === "suspended") void ctx.resume()
-    const now = ctx.currentTime
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-    const filter = ctx.createBiquadFilter()
-    osc.type = "sine"
-    osc.frequency.setValueAtTime(440, now)
-    osc.frequency.exponentialRampToValueAtTime(280, now + 0.08)
-    filter.type = "lowpass"
-    filter.frequency.setValueAtTime(1200, now)
-    filter.Q.setValueAtTime(0.7, now)
-    gain.gain.setValueAtTime(0.0001, now)
-    gain.gain.exponentialRampToValueAtTime(0.12, now + 0.008)
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.1)
-    osc.connect(filter).connect(gain).connect(ctx.destination)
-    osc.start(now)
-    osc.stop(now + 0.12)
-  } catch {
-    /* WebAudio indisponible — silencieux */
-  }
-}
-
 function vibrate(ms = 12): void {
   if (typeof navigator === "undefined") return
   // Best-effort : Safari iOS ignore. Pas d'erreur si la fonction n'existe pas.
@@ -82,12 +39,14 @@ function vibrate(ms = 12): void {
  *
  * Feedback à chaque tap (touche ou bouton) :
  *   - visuel : `data-pressed` + transform scale(0.95) court (CSS)
- *   - sonore : tick WebAudio synthétisé (lazy AudioContext)
  *   - haptique : navigator.vibrate(12) (best-effort, Android/Chrome)
  *
+ * Le tick sonore WebAudio précédent a été retiré : son rendu sur les
+ * pavés numériques web était jugé agressif (oscillateur sinus 440→280
+ * Hz, gain 0.12). Le fallback visuel + haptique mobile suffit.
+ *
  * Les feedbacks sont désactivés si `prefers-reduced-motion: reduce`
- * est actif (uniquement la partie animation visuelle ; le tick et la
- * vibration sont aussi mutés pour cohérence).
+ * est actif.
  */
 export function PinPad({
   length = 6,
@@ -140,7 +99,6 @@ export function PinPad({
   const triggerFeedback = (key: string) => {
     flashPressed(key)
     if (!prefersReducedMotion) {
-      playTick()
       vibrate(12)
     }
   }

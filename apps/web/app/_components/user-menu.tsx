@@ -98,19 +98,17 @@ export function UserMenu({ user, className, triggerLabel }: UserMenuProps) {
             <span>iCarte</span>
           </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem disabled>
-          <InboxIcon aria-hidden="true" />
-          <span>iBoîte</span>
-          <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
-            Bientôt
-          </span>
+        <DropdownMenuItem asChild>
+          <Link href="/iboite">
+            <InboxIcon aria-hidden="true" />
+            <span>iBoîte</span>
+          </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem disabled>
-          <FolderIcon aria-hidden="true" />
-          <span>iDocument</span>
-          <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.06em] text-muted-foreground">
-            Bientôt
-          </span>
+        <DropdownMenuItem asChild>
+          <Link href="/idoc">
+            <FolderIcon aria-hidden="true" />
+            <span>iDocument</span>
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <Link href="/icv">
