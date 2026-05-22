@@ -15,8 +15,15 @@ import { IdnButton } from '@/design/components/idn-button';
 import { ICV_ACCENT, icvStrings, LANG_LEVELS, SKILL_LEVELS } from '@/data/cv';
 import { AiResultCard } from '@/components/cv/ai-result-card';
 
-type SectionKind = 'info' | 'experience' | 'education' | 'skill' | 'language';
-const VALID_SECTIONS: SectionKind[] = ['info', 'experience', 'education', 'skill', 'language'];
+type SectionKind = 'info' | 'experience' | 'education' | 'skill' | 'language' | 'hobby';
+const VALID_SECTIONS: SectionKind[] = [
+  'info',
+  'experience',
+  'education',
+  'skill',
+  'language',
+  'hobby',
+];
 
 type CvFull = NonNullable<FunctionReturnType<typeof api.cv.profile.get>>;
 
@@ -72,7 +79,10 @@ function Editor({
   }
 
   const isEditing = entryId !== null;
-  const title = computeTitle(section, isEditing);
+  // Pour les sections multi-entrées sans `?id=` : afficher la liste en haut.
+  const showList = !isEditing && section !== 'info' && section !== 'hobby'
+    && sectionItems(cv, section).length > 0;
+  const title = showList ? listTitleFor(section) : computeTitle(section, isEditing);
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top }}>
@@ -89,6 +99,21 @@ function Editor({
           gap: 14,
         }}
       >
+        {showList ? <SectionList section={section} cv={cv} cvId={cvId} /> : null}
+        {showList ? (
+          <Text
+            style={{
+              fontSize: 10,
+              fontWeight: '700',
+              letterSpacing: 1.4,
+              color: t.muted,
+              marginTop: 4,
+            }}
+          >
+            {addTitleFor(section).toUpperCase()}
+          </Text>
+        ) : null}
+
         {section === 'info' && <InfoForm cv={cv} onDone={() => router.back()} />}
         {section === 'experience' && (
           <ExperienceForm
@@ -118,9 +143,200 @@ function Editor({
             onDone={() => router.back()}
           />
         )}
+        {section === 'hobby' && <HobbyForm cv={cv} cvId={cvId} onDone={() => router.back()} />}
       </ScrollView>
     </View>
   );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Liste des entrées existantes (au-dessus du formulaire d'ajout)
+// ─────────────────────────────────────────────────────────────────────────
+
+type SectionEntry = { id: string };
+
+function sectionItems(cv: CvFull, section: SectionKind): SectionEntry[] {
+  if (section === 'experience') return cv.experiences;
+  if (section === 'education') return cv.education;
+  if (section === 'skill') return cv.skills;
+  if (section === 'language') return cv.languages;
+  return [];
+}
+
+function listTitleFor(section: SectionKind): string {
+  if (section === 'experience') return 'Mes expériences';
+  if (section === 'education') return 'Mes formations';
+  if (section === 'skill') return 'Mes compétences';
+  if (section === 'language') return 'Mes langues';
+  return '';
+}
+
+function addTitleFor(section: SectionKind): string {
+  if (section === 'experience') return 'Ajouter une expérience';
+  if (section === 'education') return 'Ajouter une formation';
+  if (section === 'skill') return 'Ajouter une compétence';
+  if (section === 'language') return 'Ajouter une langue';
+  return '';
+}
+
+function SectionList({
+  section,
+  cv,
+  cvId,
+}: {
+  section: SectionKind;
+  cv: CvFull;
+  cvId: Id<'citizenCv'>;
+}) {
+  const t = useIdnTheme();
+  const router = useRouter();
+  const removeExperience = useMutation(api.cv.experiences.remove);
+  const removeEducation = useMutation(api.cv.education.remove);
+  const removeSkill = useMutation(api.cv.skills.remove);
+  const removeLanguage = useMutation(api.cv.languages.remove);
+
+  function confirmDelete(label: string, exec: () => Promise<void>) {
+    Alert.alert(`Supprimer ${label} ?`, undefined, [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Supprimer',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await exec();
+          } catch (e) {
+            Alert.alert('Erreur', (e as Error).message ?? icvStrings.errors.saveFailed);
+          }
+        },
+      },
+    ]);
+  }
+
+  function rowPress(entryId: string) {
+    router.push(`/icv/edit?section=${section}&cv=${cvId}&id=${entryId}` as never);
+  }
+
+  return (
+    <View style={{ gap: 8 }}>
+      {section === 'experience' &&
+        cv.experiences.map((e) => (
+          <Row
+            key={e.id}
+            primary={e.title || '(sans titre)'}
+            secondary={[e.company, formatRange(e.startDate, e.endDate, e.current)]
+              .filter(Boolean)
+              .join(' · ')}
+            onPress={() => rowPress(e.id)}
+            onDelete={() =>
+              confirmDelete('cette expérience', async () => {
+                await removeExperience({ cvId, id: e.id });
+              })
+            }
+          />
+        ))}
+      {section === 'education' &&
+        cv.education.map((e) => (
+          <Row
+            key={e.id}
+            primary={e.degree || '(sans diplôme)'}
+            secondary={[e.school, e.year].filter(Boolean).join(' · ')}
+            onPress={() => rowPress(e.id)}
+            onDelete={() =>
+              confirmDelete('cette formation', async () => {
+                await removeEducation({ cvId, id: e.id });
+              })
+            }
+          />
+        ))}
+      {section === 'skill' &&
+        cv.skills.map((e) => (
+          <Row
+            key={e.id}
+            primary={e.name}
+            secondary={e.level}
+            onPress={() => rowPress(e.id)}
+            onDelete={() =>
+              confirmDelete('cette compétence', async () => {
+                await removeSkill({ cvId, id: e.id });
+              })
+            }
+          />
+        ))}
+      {section === 'language' &&
+        cv.languages.map((e) => (
+          <Row
+            key={e.id}
+            primary={e.name}
+            secondary={e.level}
+            onPress={() => rowPress(e.id)}
+            onDelete={() =>
+              confirmDelete('cette langue', async () => {
+                await removeLanguage({ cvId, id: e.id });
+              })
+            }
+          />
+        ))}
+    </View>
+  );
+}
+
+function Row({
+  primary,
+  secondary,
+  onPress,
+  onDelete,
+}: {
+  primary: string;
+  secondary?: string;
+  onPress: () => void;
+  onDelete: () => void;
+}) {
+  const t = useIdnTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        backgroundColor: t.surface,
+        borderWidth: 1,
+        borderColor: t.border,
+        borderRadius: 12,
+        padding: 12,
+      }}
+    >
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '600', color: t.ink }}>
+          {primary}
+        </Text>
+        {secondary ? (
+          <Text numberOfLines={1} style={{ fontSize: 12, color: t.muted, marginTop: 2 }}>
+            {secondary}
+          </Text>
+        ) : null}
+      </View>
+      <Pressable
+        onPress={onDelete}
+        hitSlop={8}
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: 9999,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Icon name="trash" size={16} color="#dc2626" />
+      </Pressable>
+    </Pressable>
+  );
+}
+
+function formatRange(start: string, end: string | undefined, current: boolean): string {
+  if (current) return `${start} → Aujourd'hui`;
+  if (!end) return start;
+  return `${start} → ${end}`;
 }
 
 function computeTitle(s: SectionKind, editing: boolean): string {
@@ -137,9 +353,11 @@ function computeTitle(s: SectionKind, editing: boolean): string {
     return editing
       ? icvStrings.editor.sections.skillEdit
       : icvStrings.editor.sections.skillAdd;
-  return editing
-    ? icvStrings.editor.sections.languageEdit
-    : icvStrings.editor.sections.languageAdd;
+  if (s === 'language')
+    return editing
+      ? icvStrings.editor.sections.languageEdit
+      : icvStrings.editor.sections.languageAdd;
+  return "Centres d'intérêt";
 }
 
 function findEntry<T extends { id: string }>(arr: T[], id: string | null): T | null {
@@ -556,6 +774,55 @@ function LanguageForm({
         onChange={(v) => setForm({ ...form, level: v as (typeof LANG_LEVELS)[number] })}
       />
       <SaveBar onCancel={onDone} onSave={save} onDelete={entry ? handleDelete : undefined} busy={busy} />
+    </>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// HOBBIES — édités en bloc (un par ligne)
+// ─────────────────────────────────────────────────────────────────────────
+
+function HobbyForm({
+  cv,
+  cvId,
+  onDone,
+}: {
+  cv: CvFull;
+  cvId: Id<'citizenCv'>;
+  onDone: () => void;
+}) {
+  const upsert = useMutation(api.cv.profile.upsert);
+  const [busy, setBusy] = useState(false);
+  const [value, setValue] = useState(cv.hobbies.join('\n'));
+
+  async function save() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const hobbies = value
+        .split('\n')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+      await upsert({ cvId, patch: { hobbies } });
+      onDone();
+    } catch (e) {
+      Alert.alert('Erreur', (e as Error).message ?? icvStrings.errors.saveFailed);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <FormField
+        label="Vos centres d'intérêt"
+        hint="Un par ligne (ex. Photographie, Course à pied, Échecs)"
+        value={value}
+        onChange={setValue}
+        multiline
+        placeholder={'Photographie\nCourse à pied\nÉchecs'}
+      />
+      <SaveBar onCancel={onDone} onSave={save} busy={busy} />
     </>
   );
 }

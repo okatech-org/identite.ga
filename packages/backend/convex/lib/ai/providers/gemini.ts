@@ -1,4 +1,10 @@
 import {
+  GoogleGenerativeAI,
+  type GenerateContentRequest,
+  type Part,
+} from "@google/generative-ai"
+
+import {
   AIProviderError,
   type AICompletionRequest,
   type AICompletionResult,
@@ -6,25 +12,20 @@ import {
 } from "../types"
 
 /**
- * Provider IA Gemini (Google).
+ * Provider IA Gemini (Google), via le SDK officiel `@google/generative-ai`.
  *
- * Implémentation REST directe via `fetch` plutôt que via `@google/genai` :
- *   • zéro dépendance npm supplémentaire (le SDK pèse plusieurs MB) ;
- *   • exécutable dans le runtime Convex V8 sans `"use node"`, donc
- *     utilisable depuis les `action` qui appellent ce provider sans avoir
- *     besoin de basculer en Node (cf. cv/ai.ts qui doit rester action V8).
+ * On utilisait avant un appel `fetch` direct vers l'API REST — fonctionnel
+ * mais bricolé (parsing manuel des erreurs, des usages, des parts
+ * multimodales). Le SDK officiel fait tout ça proprement et reste léger.
  *
  * Variables d'env :
  *   • `GEMINI_API_KEY` — obligatoire pour activer le provider.
  *   • `GEMINI_MODEL` — défaut `gemini-2.5-flash`.
- *   • `GEMINI_BASE_URL` — défaut `https://generativelanguage.googleapis.com/v1beta`.
  *
- * Cf. https://ai.google.dev/api/generate-content pour le contrat REST.
+ * Cf. https://ai.google.dev/api/generate-content pour le contrat.
  */
 
 const DEFAULT_MODEL = "gemini-2.5-flash"
-const DEFAULT_BASE_URL =
-  "https://generativelanguage.googleapis.com/v1beta"
 
 export function createGeminiProvider(): AIProvider | null {
   const apiKey = process.env.GEMINI_API_KEY
@@ -35,97 +36,56 @@ export function createGeminiProvider(): AIProvider | null {
 class GeminiProvider implements AIProvider {
   readonly id = "gemini" as const
   readonly defaultModel: string
+  private readonly client: GoogleGenerativeAI
 
-  constructor(private readonly apiKey: string) {
+  constructor(apiKey: string) {
     this.defaultModel = process.env.GEMINI_MODEL ?? DEFAULT_MODEL
+    this.client = new GoogleGenerativeAI(apiKey)
   }
 
   async complete(req: AICompletionRequest): Promise<AICompletionResult> {
-    const baseUrl = process.env.GEMINI_BASE_URL ?? DEFAULT_BASE_URL
-    const model = this.defaultModel
-    const url = `${baseUrl}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(this.apiKey)}`
+    const model = this.client.getGenerativeModel({
+      model: this.defaultModel,
+      systemInstruction: req.system,
+    })
 
-    const generationConfig: Record<string, unknown> = {
+    const generationConfig: GenerateContentRequest["generationConfig"] = {
       temperature: req.temperature ?? 0.4,
-      // Plafond généreux par défaut — l'extraction CV peut produire
-      // facilement > 4k tokens sur un CV touffu et la troncature côté
-      // Gemini donne un JSON cassé ("Unterminated string"). Le SDK
-      // facture aux tokens consommés, pas au plafond.
+      // Plafond généreux par défaut — extraction CV génère facilement
+      // > 4k tokens et la troncature côté Gemini donne du JSON cassé.
       maxOutputTokens: req.maxTokens ?? 16384,
     }
     if (req.jsonSchema) {
       generationConfig.responseMimeType = "application/json"
-      generationConfig.responseSchema = req.jsonSchema
+      // Le SDK type `responseSchema` comme un sous-set strict (Schema). On
+      // cast — notre IMPORT_SCHEMA est volontairement plus laxiste et le
+      // serveur Google accepte la forme JSON Schema standard.
+      ;(generationConfig as { responseSchema?: unknown }).responseSchema =
+        req.jsonSchema
     }
 
-    const userParts: Array<Record<string, unknown>> = []
+    const parts: Part[] = []
     for (const att of req.attachments ?? []) {
-      userParts.push({
+      parts.push({
         inlineData: { mimeType: att.mimeType, data: att.data },
       })
     }
-    userParts.push({ text: req.prompt })
-
-    const body = {
-      systemInstruction: { parts: [{ text: req.system }] },
-      contents: [{ role: "user", parts: userParts }],
-      generationConfig,
-    }
+    parts.push({ text: req.prompt })
 
     const started = Date.now()
-    let response: Response
+    let response
     try {
-      response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+      response = await model.generateContent({
+        contents: [{ role: "user", parts }],
+        generationConfig,
       })
     } catch (e) {
-      throw new AIProviderError(
-        `Échec réseau Gemini : ${(e as Error).message}`,
-        "NETWORK",
-        this.id,
-        true,
-      )
+      throw mapSdkError(e, this.id)
     }
     const latencyMs = Date.now() - started
 
-    if (!response.ok) {
-      const errorBody = await safeReadJson(response)
-      const code = response.status
-      const message = extractErrorMessage(errorBody) ?? `HTTP ${code}`
-      // Mapping codes
-      let mapped: AIProviderError["code"] = "UNKNOWN"
-      let retryable = false
-      if (code === 401 || code === 403) mapped = "AUTH"
-      else if (code === 429) {
-        mapped = "RATE_LIMIT"
-        retryable = true
-      } else if (code === 400) mapped = "INVALID_RESPONSE"
-      else if (code >= 500) {
-        mapped = "NETWORK"
-        retryable = true
-      }
-      throw new AIProviderError(
-        `Gemini ${code}: ${message}`,
-        mapped,
-        this.id,
-        retryable,
-      )
-    }
-
-    const payload = (await safeReadJson(response)) as GeminiResponse | null
-    if (!payload) {
-      throw new AIProviderError(
-        "Réponse Gemini invalide (JSON vide).",
-        "INVALID_RESPONSE",
-        this.id,
-        false,
-      )
-    }
-
-    const text = extractText(payload)
-    const usage = payload.usageMetadata ?? {}
+    const text = response.response.text()
+    const usage = response.response.usageMetadata
 
     if (req.jsonSchema) {
       const parsed = parseJsonResilient(text)
@@ -140,9 +100,9 @@ class GeminiProvider implements AIProvider {
       return {
         json: parsed,
         provider: this.id,
-        model,
-        tokensIn: usage.promptTokenCount ?? 0,
-        tokensOut: usage.candidatesTokenCount ?? 0,
+        model: this.defaultModel,
+        tokensIn: usage?.promptTokenCount ?? 0,
+        tokensOut: usage?.candidatesTokenCount ?? 0,
         latencyMs,
       }
     }
@@ -150,65 +110,57 @@ class GeminiProvider implements AIProvider {
     return {
       text,
       provider: this.id,
-      model,
-      tokensIn: usage.promptTokenCount ?? 0,
-      tokensOut: usage.candidatesTokenCount ?? 0,
+      model: this.defaultModel,
+      tokensIn: usage?.promptTokenCount ?? 0,
+      tokensOut: usage?.candidatesTokenCount ?? 0,
       latencyMs,
     }
   }
 }
 
-interface GeminiResponse {
-  candidates?: Array<{
-    content?: { parts?: Array<{ text?: string }> }
-    finishReason?: string
-  }>
-  usageMetadata?: {
-    promptTokenCount?: number
-    candidatesTokenCount?: number
+/**
+ * Normalise les erreurs du SDK Gemini vers `AIProviderError`.
+ * Le SDK throw des `GoogleGenerativeAIFetchError` qui exposent `status` et
+ * `statusText`, sinon des erreurs natives sur les soucis réseau.
+ */
+function mapSdkError(e: unknown, id: AIProvider["id"]): AIProviderError {
+  const err = e as { status?: number; message?: string }
+  const message = err.message ?? "Échec de l'appel Gemini."
+  const status = err.status
+
+  if (status === 401 || status === 403) {
+    return new AIProviderError(`Gemini AUTH : ${message}`, "AUTH", id, false)
   }
-  error?: { message?: string }
-}
-
-function extractText(payload: GeminiResponse): string {
-  const parts = payload.candidates?.[0]?.content?.parts ?? []
-  return parts.map((p) => p.text ?? "").join("")
-}
-
-async function safeReadJson(response: Response): Promise<unknown> {
-  try {
-    return await response.json()
-  } catch {
-    return null
+  if (status === 429) {
+    return new AIProviderError(`Gemini RATE_LIMIT : ${message}`, "RATE_LIMIT", id, true)
   }
-}
-
-function extractErrorMessage(payload: unknown): string | null {
-  if (!payload || typeof payload !== "object") return null
-  const candidate = (payload as { error?: { message?: string } }).error?.message
-  return candidate ?? null
+  if (status === 400) {
+    return new AIProviderError(`Gemini 400 : ${message}`, "INVALID_RESPONSE", id, false)
+  }
+  if (status !== undefined && status >= 500) {
+    return new AIProviderError(`Gemini ${status} : ${message}`, "NETWORK", id, true)
+  }
+  // Sans status, on suppose un échec réseau (timeout, DNS, etc.) → retryable.
+  return new AIProviderError(`Échec réseau Gemini : ${message}`, "NETWORK", id, true)
 }
 
 /**
  * Parse JSON tolérant aux artefacts de modèles génératifs :
  *   1. Parse direct (cas heureux : responseSchema renvoie du JSON pur).
- *   2. Extraction du premier bloc `{...}` via regex (si le modèle a ajouté
- *      du texte autour, ou si une fence markdown est présente).
- *   3. Si la chaîne est tronquée (réponse coupée par maxOutputTokens), on
- *      tente de "réparer" en fermant les structures ouvertes — utile pour
- *      récupérer un CV partiel plutôt que d'échouer complètement.
- *
- * Renvoie null si rien n'a pu être parsé.
+ *   2. Extraction du premier bloc `{...}` via regex (texte autour / fence
+ *      markdown).
+ *   3. Réparation de troncature : si la réponse est coupée par
+ *      maxOutputTokens, on retire la dernière clé incomplète et on ferme
+ *      les structures ouvertes — permet de récupérer un CV partiel plutôt
+ *      que d'échouer complètement.
  */
 function parseJsonResilient(raw: string): Record<string, unknown> | null {
   if (!raw || !raw.trim()) return null
-  // 1. Parse direct
   try {
     return JSON.parse(raw) as Record<string, unknown>
   } catch {
     // continue
   }
-  // 2. Extraire le premier { ... } (cas markdown / texte autour)
   const match = raw.match(/\{[\s\S]*\}/)
   if (match) {
     try {
@@ -217,8 +169,6 @@ function parseJsonResilient(raw: string): Record<string, unknown> | null {
       // continue
     }
   }
-  // 3. JSON tronqué : on coupe la dernière clé incomplète et on ferme
-  //    les accolades / crochets ouverts.
   const repaired = repairTruncatedJson(raw)
   if (repaired) {
     try {
@@ -234,11 +184,8 @@ function repairTruncatedJson(raw: string): string | null {
   const start = raw.indexOf("{")
   if (start < 0) return null
   let s = raw.slice(start)
-  // Coupe à la dernière virgule (on perd la propriété tronquée mais on
-  // garde tout ce qui précède).
   const lastComma = s.lastIndexOf(",")
   if (lastComma > 0) s = s.slice(0, lastComma)
-  // Compte les ouvertures vs fermetures, hors string.
   let depthCurly = 0
   let depthSquare = 0
   let inString = false
@@ -263,7 +210,7 @@ function repairTruncatedJson(raw: string): string | null {
     else if (c === "[") depthSquare++
     else if (c === "]") depthSquare--
   }
-  if (inString) return null // milieu de string, abandon
+  if (inString) return null
   while (depthSquare > 0) {
     s += "]"
     depthSquare--
