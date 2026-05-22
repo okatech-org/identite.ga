@@ -26,12 +26,12 @@ import { icv } from "../_content/fr"
 import { ICV_ACCENT } from "../_content/themes"
 import { useActiveCv } from "../_hooks/use-active-cv"
 
-// Dimensions naturelles du composant CvPreviewA4 (cf. cv-preview-a4.tsx)
-const CV_NATURAL_WIDTH = 320
-const CV_NATURAL_HEIGHT = 452
-const ZOOM_STEP = 0.15
-const ZOOM_MIN = 0.4
-const ZOOM_MAX = 2.5
+// Dimensions natives A4 du composant CvPreviewA4 (cf. cv-templates.tsx)
+const CV_NATURAL_WIDTH = 794
+const CV_NATURAL_HEIGHT = 1123
+const ZOOM_STEP = 0.05
+const ZOOM_MIN = 0.2
+const ZOOM_MAX = 1.5
 
 /**
  * Hook : calcule le scale auto qui fait tenir le CV (CV_NATURAL_HEIGHT)
@@ -232,14 +232,7 @@ export default function IcvStudioPage() {
             {previewLoading ? (
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             ) : fullCv ? (
-              <div
-                style={{
-                  width: CV_NATURAL_WIDTH * finalScale,
-                  height: CV_NATURAL_HEIGHT * finalScale,
-                }}
-              >
-                <CvPreviewA4 cv={fullCv as PreviewCv} scale={finalScale} />
-              </div>
+              <CvPreviewA4 cv={fullCv as PreviewCv} scale={finalScale} />
             ) : (
               <p className="text-sm text-muted-foreground">
                 {icv.errors.loadFailed}

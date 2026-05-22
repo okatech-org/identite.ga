@@ -124,9 +124,7 @@ export function ThemesGalleryModal({
                   )}
                 >
                   <div className="relative aspect-[0.71] overflow-hidden rounded-md bg-white shadow-sm">
-                    <div className="origin-top-left scale-[0.72]">
-                      <CvPreviewA4 cv={cv as PreviewCv} themeId={th.id} />
-                    </div>
+                    <CvPreviewA4 cv={cv as PreviewCv} themeId={th.id} targetWidth={210} />
                     {sel ? (
                       <div
                         className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full shadow"

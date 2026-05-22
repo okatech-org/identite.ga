@@ -147,7 +147,7 @@ export function IcvEmpty({
                 zIndex: c.z,
               }}
             >
-              <CvPreviewA4 cv={EMPTY_SAMPLE_CV} themeId={c.themeId} />
+              <CvPreviewA4 cv={EMPTY_SAMPLE_CV} themeId={c.themeId} targetWidth={320} />
             </div>
           ))}
         </div>

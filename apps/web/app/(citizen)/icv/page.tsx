@@ -539,9 +539,7 @@ function MiniPreviewCard({
     <div className="mt-4 flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 sm:flex-row sm:items-center">
       <div className="relative h-[170px] w-[120px] shrink-0 overflow-hidden rounded bg-stone-200/40 dark:bg-stone-900/40">
         {cv ? (
-          <div className="origin-top-left scale-[0.375]">
-            <CvPreviewA4 cv={cv} />
-          </div>
+          <CvPreviewA4 cv={cv} targetWidth={120} />
         ) : (
           <div className="flex h-full items-center justify-center">
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />

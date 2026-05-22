@@ -14,20 +14,10 @@ import { icv } from "../_content/fr"
 import { CvPreviewA4, type PreviewCv } from "./cv-preview-a4"
 
 /**
- * Sélecteur de thème compact — grille de mini-aperçus, pas une liste.
- * Affiche les 6 thèmes vedettes ; le reste se découvre dans la galerie.
+ * Sélecteur de thème compact — grille de mini-aperçus.
+ * On a 6 thèmes au total : on les affiche tous dans une grille 3×2.
+ * Le bouton "Plein écran" ouvre la galerie pour un aperçu plus grand.
  */
-
-// Les 6 thèmes mis en avant dans le picker rapide (les autres restent
-// accessibles via "Galerie").
-const FEATURED_THEMES: CvThemeId[] = [
-  "modern",
-  "creative",
-  "minimalist",
-  "professional",
-  "executive",
-  "tech",
-]
 
 export function ThemePicker({
   cvId,
@@ -35,7 +25,8 @@ export function ThemePicker({
   onOpenGallery,
 }: {
   cvId: Id<"citizenCv">
-  activeTheme: CvThemeId
+  /** Accepte n'importe quel string : les anciens IDs alias vers un des 6 actuels. */
+  activeTheme: string
   onOpenGallery?: () => void
 }) {
   const cv = useQuery(api.cv.profile.get, { cvId })
@@ -52,13 +43,6 @@ export function ThemePicker({
     }
   }
 
-  // S'assure que le thème actif est dans la grille (sinon on l'ajoute en
-  // premier — l'utilisateur voit toujours son choix).
-  const themesToShow = React.useMemo<CvThemeId[]>(() => {
-    if (FEATURED_THEMES.includes(activeTheme)) return FEATURED_THEMES
-    return [activeTheme, ...FEATURED_THEMES].slice(0, 6)
-  }, [activeTheme])
-
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
       <div className="mb-3 flex items-center gap-1.5">
@@ -72,19 +56,19 @@ export function ThemePicker({
             onClick={onOpenGallery}
             className="text-xs font-medium text-pink-600 transition-colors hover:underline dark:text-pink-400"
           >
-            Voir les 12 →
+            Plein écran →
           </button>
         ) : null}
       </div>
 
       <div className="grid grid-cols-3 gap-2">
-        {themesToShow.map((themeId) => (
+        {ICV_THEMES.map((th) => (
           <ThemeCard
-            key={themeId}
-            themeId={themeId}
+            key={th.id}
+            themeId={th.id}
             cv={cv as PreviewCv | undefined}
-            active={themeId === activeTheme}
-            onClick={() => handlePick(themeId)}
+            active={th.id === activeTheme}
+            onClick={() => handlePick(th.id)}
           />
         ))}
       </div>
@@ -115,12 +99,10 @@ function ThemeCard({
           : "border-border hover:border-pink-300 hover:bg-muted/40",
       )}
     >
-      {/* Mini-aperçu A4 — scale 0.22 → 70×100px */}
+      {/* Mini-aperçu A4 */}
       <div className="relative aspect-[0.71] overflow-hidden rounded bg-white shadow-sm">
         {cv ? (
-          <div className="origin-top-left scale-[0.22]">
-            <CvPreviewA4 cv={cv} themeId={themeId} />
-          </div>
+          <CvPreviewA4 cv={cv} themeId={themeId} targetWidth={70} />
         ) : (
           <div className="h-full w-full animate-pulse bg-gradient-to-br from-stone-100 to-stone-200" />
         )}
