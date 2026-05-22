@@ -38,7 +38,7 @@
   "submit": {
     "preview": {
       "ios": {
-        "appleId": "iasted@me.com",
+        "appleId": "bernyfrancois@icloud.com",
         "appleTeamId": "5Y39TTNCM7",
         "ascAppId": "6771040734"
       },
@@ -50,7 +50,7 @@
     },
     "production": {
       "ios": {
-        "appleId": "iasted@me.com",
+        "appleId": "bernyfrancois@icloud.com",
         "appleTeamId": "5Y39TTNCM7",
         "ascAppId": "6771040734"
       },

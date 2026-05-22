@@ -33,6 +33,11 @@ on:
         required: true
         default: true
         type: boolean
+      skip_build:
+        description: "Skip le build (réutilise le dernier build EAS, juste submit)"
+        required: true
+        default: false
+        type: boolean
   push:
     tags:
       - "mobile-v*.*.*"
@@ -97,6 +102,7 @@ jobs:
           fi
 
       - name: EAS Build
+        if: ${{ inputs.skip_build != true }}
         working-directory: apps/mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
