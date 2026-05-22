@@ -43,4 +43,21 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
   cvImport: { kind: "fixed window", rate: 5, period: HOUR * 24 },
   // iCV : export PDF serveur — cap quotidien (rendu @react-pdf coûteux).
   cvExport: { kind: "token bucket", rate: 30, period: HOUR * 24, capacity: 30 },
+  // Présentation d'identité (mobile id-card) — le QR se renouvelle ~toutes
+  // les 28 s côté UI, donc ~130 mints/h écran ouvert. Token bucket large
+  // pour ne pas bloquer l'usage normal, garde-fou contre le scripting.
+  presentationMint: {
+    kind: "token bucket",
+    rate: 30,
+    period: MINUTE,
+    capacity: 30,
+  },
+  // Vérification d'un token de présentation — contrôleur identité.
+  // Un contrôleur peut enchaîner les contrôles : ceiling généreux.
+  presentationVerify: {
+    kind: "token bucket",
+    rate: 60,
+    period: MINUTE,
+    capacity: 60,
+  },
 })

@@ -82,6 +82,7 @@ import type * as oauthAuthorize from "../oauthAuthorize.js";
 import type * as oauthConsents from "../oauthConsents.js";
 import type * as onboarding from "../onboarding.js";
 import type * as preferences from "../preferences.js";
+import type * as presentation from "../presentation.js";
 import type * as privacy from "../privacy.js";
 import type * as profile from "../profile.js";
 import type * as rateLimiter from "../rateLimiter.js";
@@ -176,6 +177,7 @@ declare const fullApi: ApiFromModules<{
   oauthConsents: typeof oauthConsents;
   onboarding: typeof onboarding;
   preferences: typeof preferences;
+  presentation: typeof presentation;
   privacy: typeof privacy;
   profile: typeof profile;
   rateLimiter: typeof rateLimiter;

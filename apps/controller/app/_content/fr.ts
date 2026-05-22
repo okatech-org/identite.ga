@@ -84,29 +84,41 @@ export const scan = {
   meta: { title: "Scanner une identité" },
   sub: "CONTRÔLE TERRAIN",
   title: "Scanner une identité",
-  placeholderTitle: "À développer",
-  placeholderBody:
-    "Le scanner QR / NFC sera branché sur la caméra du poste de contrôle pour lire le code IDN du titulaire, vérifier la signature côté serveur et notifier le citoyen (transparence).",
-  placeholderEta: "Disponible dans une prochaine itération.",
   reader: {
     title: "Lecteur QR / NFC",
     sub: "Demandez au titulaire de présenter son code IDN.",
   },
+  live: {
+    startCta: "Démarrer le scan",
+    stopCta: "Arrêter",
+    cameraDenied:
+      "Accès caméra refusé. Autorisez la caméra dans les paramètres du navigateur.",
+    cameraUnavailable:
+      "Caméra indisponible sur ce poste — utilisez la saisie manuelle ci-dessous.",
+    scannerUnsupported:
+      "Ce navigateur ne supporte pas la détection QR native. Utilisez Chrome, Edge ou Safari, ou collez le code manuellement.",
+    manualLabel: "Saisie manuelle du code IDN",
+    manualPlaceholder: "idn:p1:…",
+    manualSubmit: "Vérifier",
+    locationLabel: "Lieu de contrôle (optionnel)",
+    locationPlaceholder: "Ex : Préfecture Akanda — guichet 3",
+    verifying: "Vérification…",
+  },
   result: {
     title: "Identité vérifiée",
-    name: "Aïssatou Mboumba",
-    born: "14 mars 1992 · Libreville",
-    initials: "AM",
     signatureTitle: "Signature cryptographique valide",
-    signatureMeta: "JWT signé · clé jwks-2026-04 · expire 14:42",
-    docsLabel: "DOCUMENTS LIÉS",
-    docs: [
-      "· CNI n° 02-7K3-9Q2 (valide jusqu'en 2031)",
-      "· Acte de naissance n° AN-1992-0314-LIB",
-    ],
+    signatureMeta: (expiresHhMm: string) =>
+      `HMAC-SHA256 · expire ${expiresHhMm}`,
+    levelLabel: (loa: number) =>
+      loa === 3
+        ? "NIVEAU 3 · ÉLEVÉ"
+        : loa === 2
+          ? "NIVEAU 2 · SUBSTANTIEL"
+          : "NIVEAU 1 · FAIBLE",
     notice: "Le titulaire sera notifié de ce contrôle (transparence).",
     validateCta: "Valider le contrôle",
     cancelCta: "Annuler",
+    newScanCta: "Nouveau scan",
   },
 } as const
 
