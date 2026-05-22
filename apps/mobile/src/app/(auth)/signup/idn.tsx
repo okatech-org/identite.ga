@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useConvex, useMutation, useQuery } from 'convex/react';
+import * as Crypto from 'expo-crypto';
 import { useIdnTheme } from '@/design/theme';
 import { idnTokens } from '@/design/tokens';
 import { NStepShell } from '@/components/chrome/step-shell';
@@ -19,11 +20,14 @@ import {
 // Better Auth `signUp.email` exige un password. L'app ne l'expose pas à
 // l'utilisateur : on génère un secret aléatoire fort, non stocké côté
 // client. Le compte ne sera ensuite accessible que par PIN ou passkey.
+//
+// On utilise `expo-crypto` (CSPRNG natif iOS/Android) plutôt que le global
+// `crypto.getRandomValues` qui n'est pas exposé sur Hermes — il est défini
+// sur web et Node, pas en React Native par défaut.
 function generateInternalPassword(): string {
   const alphabet =
     'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=';
-  const buf = new Uint32Array(32);
-  crypto.getRandomValues(buf);
+  const buf = Crypto.getRandomBytes(32);
   let s = '';
   for (let i = 0; i < buf.length; i++) s += alphabet[buf[i] % alphabet.length];
   return s;
