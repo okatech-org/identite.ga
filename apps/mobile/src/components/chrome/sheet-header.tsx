@@ -17,6 +17,10 @@ export function NSheetHeader({ t, title, onBack, right }: { t: IdnTheme; title: 
       borderBottomColor: t.borderSoft,
       minHeight: 44,
       backgroundColor: t.bg,
+      // En `formSheet`, le wrapper parent `<View flex:1>` peut compresser
+      // ses enfants — on bloque tout shrink pour garantir que le header
+      // reste visible avec ses 44px de minHeight.
+      flexShrink: 0,
     }}>
       {onBack ? (
         <Pressable onPress={onBack} style={{ padding: 4 }}>
