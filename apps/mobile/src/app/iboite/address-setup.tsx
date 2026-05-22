@@ -14,11 +14,9 @@ import { useConvexAuth, useMutation } from 'convex/react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useIdnTheme } from '@/design/theme';
 import { idnTokens } from '@/design/tokens';
-import { NSheetHeader } from '@/components/chrome/sheet-header';
 import { IdnButton } from '@/design/components/idn-button';
 import { Icon } from '@/design/icons';
 import { api } from '@/lib/api';
-import { iboiteFr } from '@/data/iboite-fr';
 
 type Step = 'choose' | 'locating' | 'form';
 
@@ -158,12 +156,11 @@ export default function IBoiteAddressSetup() {
   }
 
   return (
-    // L'écran est présenté en `presentation: 'formSheet'` (cf. iboite/_layout)
-    // → iOS gère lui-même la safe-area en haut du sheet. Ajouter
-    // `paddingTop: insets.top` ici décalait le header vers le bas et faisait
-    // chevaucher les boutons par-dessus, le titre passait entre les options.
+    // Présenté en `formSheet` → swipe down iOS pour fermer, on n'affiche
+    // pas de titre/back en haut (l'écran s'ouvre déjà sur les deux
+    // options principales). Le bouton « Annuler » du formulaire reste
+    // disponible pour fermer après avoir basculé en saisie.
     <View style={{ flex: 1, backgroundColor: t.bg }}>
-      <NSheetHeader t={t} title={iboiteFr.address.title} onBack={() => router.back()} />
 
       <ScrollView
         contentContainerStyle={{

@@ -113,7 +113,7 @@ export default function IBoiteCompose() {
     <View style={{ flex: 1, backgroundColor: t.bg }}>
       <NSheetHeader
         t={t}
-        title={iboiteFr.compose.titleMessage}
+        title=""
         onBack={() => router.back()}
         right={
           <Pressable onPress={submit} disabled={submitting} style={{ padding: 4 }}>
