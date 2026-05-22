@@ -158,7 +158,11 @@ export default function IBoiteAddressSetup() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top }}>
+    // L'écran est présenté en `presentation: 'formSheet'` (cf. iboite/_layout)
+    // → iOS gère lui-même la safe-area en haut du sheet. Ajouter
+    // `paddingTop: insets.top` ici décalait le header vers le bas et faisait
+    // chevaucher les boutons par-dessus, le titre passait entre les options.
+    <View style={{ flex: 1, backgroundColor: t.bg }}>
       <NSheetHeader t={t} title={iboiteFr.address.title} onBack={() => router.back()} />
 
       <ScrollView

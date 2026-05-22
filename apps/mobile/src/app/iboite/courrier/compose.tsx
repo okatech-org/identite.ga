@@ -71,7 +71,9 @@ export default function IBoiteCourrierCompose() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top }}>
+    // Présenté en `formSheet` (cf. iboite/_layout) → pas de `insets.top`,
+    // iOS gère la safe area du sheet.
+    <View style={{ flex: 1, backgroundColor: t.bg }}>
       <NSheetHeader
         t={t}
         title={iboiteFr.compose.titleLetter}
