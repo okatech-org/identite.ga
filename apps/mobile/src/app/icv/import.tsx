@@ -3,7 +3,7 @@ import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useAction, useMutation } from 'convex/react';
 import { useRouter } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import { File } from 'expo-file-system';
 
 import { api } from '@/lib/api';
 import type { Id } from '@repo/backend/convex/_generated/dataModel';
@@ -224,14 +224,9 @@ function ModeChoice({
 }
 
 async function readFileAsBlob(uri: string, mime: string): Promise<Blob> {
-  // expo-file-system retourne le base64 ; on convertit en Blob pour fetch().
-  // L'enum EncodingType.Base64 n'est plus exposé en root depuis v55, mais
-  // le literal 'base64' est accepté dans l'union type.
-  const base64 = await FileSystem.readAsStringAsync(uri, {
-    encoding: 'base64',
-  });
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return new Blob([bytes], { type: mime });
+  // Nouvelle API expo-file-system v55 : `File` est un wrapper de Blob.
+  // On lit le binaire directement, sans round-trip base64.
+  const file = new File(uri);
+  const arrayBuffer = await file.arrayBuffer();
+  return new Blob([arrayBuffer], { type: mime });
 }

@@ -46,6 +46,7 @@ import type * as cv_profile from "../cv/profile.js";
 import type * as cv_score from "../cv/score.js";
 import type * as cv_shared from "../cv/shared.js";
 import type * as cv_skills from "../cv/skills.js";
+import type * as dev from "../dev.js";
 import type * as developer_apps from "../developer/apps.js";
 import type * as documents from "../documents.js";
 import type * as email_provider from "../email/provider.js";
@@ -143,6 +144,7 @@ declare const fullApi: ApiFromModules<{
   "cv/score": typeof cv_score;
   "cv/shared": typeof cv_shared;
   "cv/skills": typeof cv_skills;
+  dev: typeof dev;
   "developer/apps": typeof developer_apps;
   documents: typeof documents;
   "email/provider": typeof email_provider;

@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useQuery } from "convex/react"
 import {
   Briefcase,
@@ -129,6 +130,10 @@ const SUGGESTION_IMPACT_LABEL: Record<"high" | "medium" | "low", string> = {
 }
 
 export default function IcvPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const queryCvId = searchParams.get("cv") as Id<"citizenCv"> | null
+
   const { cvs, activeCvId, activeCv, setActiveCvId, isLoading } = useActiveCv()
   const fullCv = useQuery(
     api.cv.profile.get,
@@ -141,6 +146,16 @@ export default function IcvPage() {
   const [createOpen, setCreateOpen] = React.useState(false)
   const [importOpen, setImportOpen] = React.useState(false)
   const [galleryOpen, setGalleryOpen] = React.useState(false)
+
+  // Si ?cv=... est dans l'URL et matche un CV existant, on bascule dessus
+  // puis on nettoie l'URL. Utilisé après création / import / duplication
+  // pour ouvrir le tableau de bord sur le bon CV.
+  React.useEffect(() => {
+    if (queryCvId && cvs?.some((c) => c._id === queryCvId)) {
+      setActiveCvId(queryCvId)
+      router.replace("/icv", { scroll: false })
+    }
+  }, [queryCvId, cvs, setActiveCvId, router])
 
   // ── Loading
   if (isLoading) {

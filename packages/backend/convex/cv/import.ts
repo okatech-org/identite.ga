@@ -66,7 +66,9 @@ const IMPORT_SCHEMA = {
           current: { type: "boolean" },
           description: { type: "string" },
         },
-        required: ["title", "company", "startDate", "current", "description"],
+        // Seul `title` est requis — on tolère les CV où une entreprise ou
+        // une date manque, plutôt que de tout perdre.
+        required: ["title"],
       },
     },
     education: {
@@ -79,7 +81,7 @@ const IMPORT_SCHEMA = {
           year: { type: "string" },
           description: { type: "string" },
         },
-        required: ["degree", "school", "year"],
+        required: ["degree"],
       },
     },
     skills: {
@@ -93,7 +95,7 @@ const IMPORT_SCHEMA = {
             enum: ["Débutant", "Intermédiaire", "Avancé", "Expert"],
           },
         },
-        required: ["name", "level"],
+        required: ["name"],
       },
     },
     languages: {
@@ -107,17 +109,52 @@ const IMPORT_SCHEMA = {
             enum: ["A1", "A2", "B1", "B2", "C1", "C2", "Natif"],
           },
         },
-        required: ["name", "level"],
+        required: ["name"],
       },
     },
   },
 } as Record<string, unknown>
 
-const IMPORT_SYSTEM =
-  "Tu es un expert en parsing de CV. Analyse le document fourni (PDF ou image d'un CV) et extrais la structure. Réponds uniquement avec le JSON conforme au schéma, sans préambule. Si un champ n'est pas trouvé, omets-le. Pour les compétences sans niveau explicite, mets « Intermédiaire »."
+const IMPORT_SYSTEM = `Tu es un expert en parsing de CV. Analyse le document fourni (PDF ou image) et remplis TOUS les champs du schéma JSON quand l'information est présente. Réponds UNIQUEMENT avec le JSON conforme, sans préambule.
+
+MAPPING DES SECTIONS (les CV utilisent des intitulés très variés — sois flexible) :
+• "Expériences", "Expérience professionnelle", "Projets professionnels", "Parcours", "Career", "Work" → experiences
+• "Formation", "Éducation", "Études", "Diplômes", "Education", "Academic" → education
+• "Compétences", "Skills", "Outils", "Technologies", "Tools", "Tech stack" → skills (1 objet par compétence)
+• "Langues", "Languages" → languages
+• "Profil", "À propos", "Résumé", "Summary", "About", "Présentation" → summary
+• Téléphone, email, adresse/ville, URL portfolio, URL LinkedIn → champs racine correspondants
+
+EXPÉRIENCES (extrais TOUTES les entrées, même si la mise en page utilise une timeline ou des projets) :
+• title = poste OU nom du projet + rôle (ex. "SUITE PRO ALVO - Développeur Frontend")
+• company = entreprise / client / employeur (extrais "Chez X" → "X")
+• startDate / endDate = conserve le format du CV (ex. "Mai 2023", "01/2022", "2023")
+• current = true si "Présent", "Aujourd'hui", "En cours", sinon false
+• description = concatène la description du projet + les bullets de réalisations en un texte
+
+FORMATION :
+• degree = diplôme / certification (ex. "Master Conception Numérique", "Certification RNCP 6")
+• school = école / université
+• year = année d'obtention (ex. "Juin 2021", "2023")
+
+LANGUES — mappe le niveau vers l'enum {A1, A2, B1, B2, C1, C2, Natif} :
+• "Natif", "Native", "Maternelle" → "Natif"
+• "Courant", "Fluent", "Bilingue" → "C2"
+• "Avancé", "Advanced" → "C1"
+• "Intermédiaire+", "Upper-intermediate" → "B2"
+• "Intermédiaire", "Intermediate" → "B1"
+• "Élémentaire", "Basic" → "A2"
+• "Notions", "Beginner" → "A1"
+• Si le CV indique déjà "C1", "B2" etc. → garde tel quel
+
+COMPÉTENCES :
+• Liste TOUTES les compétences trouvées, même sans niveau explicite
+• Niveau par défaut si absent : "Intermédiaire"
+
+Ne renvoie pas de tableau vide si la section existe : extrais ce que tu trouves, quitte à laisser des champs facultatifs vides.`
 
 const IMPORT_PROMPT =
-  "Voici un CV. Extrais toutes les informations structurées (identité, contact, résumé, expériences, formation, compétences, langues)."
+  "Analyse ce CV et extrais toutes les informations structurées."
 
 export const parseAndApply = action({
   args: {

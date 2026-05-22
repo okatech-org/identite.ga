@@ -57,15 +57,17 @@ const IMPORT_DATA = v.object({
   summary: v.optional(v.string()),
   portfolioUrl: v.optional(v.string()),
   linkedinUrl: v.optional(v.string()),
+  // On reste tolérant côté validateur — seul `title` / `degree` / `name`
+  // est strictement requis. Les défauts sont appliqués par buildXxx().
   experiences: v.optional(
     v.array(
       v.object({
         title: v.string(),
-        company: v.string(),
-        startDate: v.string(),
+        company: v.optional(v.string()),
+        startDate: v.optional(v.string()),
         endDate: v.optional(v.string()),
-        current: v.boolean(),
-        description: v.string(),
+        current: v.optional(v.boolean()),
+        description: v.optional(v.string()),
       }),
     ),
   ),
@@ -73,8 +75,8 @@ const IMPORT_DATA = v.object({
     v.array(
       v.object({
         degree: v.string(),
-        school: v.string(),
-        year: v.string(),
+        school: v.optional(v.string()),
+        year: v.optional(v.string()),
         description: v.optional(v.string()),
       }),
     ),
@@ -83,7 +85,7 @@ const IMPORT_DATA = v.object({
     v.array(
       v.object({
         name: v.string(),
-        level: SKILL_LEVEL,
+        level: v.optional(SKILL_LEVEL),
       }),
     ),
   ),
@@ -91,7 +93,7 @@ const IMPORT_DATA = v.object({
     v.array(
       v.object({
         name: v.string(),
-        level: LANG_LEVEL,
+        level: v.optional(LANG_LEVEL),
       }),
     ),
   ),
@@ -108,25 +110,25 @@ type ImportData = {
   linkedinUrl?: string
   experiences?: Array<{
     title: string
-    company: string
-    startDate: string
+    company?: string
+    startDate?: string
     endDate?: string
-    current: boolean
-    description: string
+    current?: boolean
+    description?: string
   }>
   education?: Array<{
     degree: string
-    school: string
-    year: string
+    school?: string
+    year?: string
     description?: string
   }>
   skills?: Array<{
     name: string
-    level: "Débutant" | "Intermédiaire" | "Avancé" | "Expert"
+    level?: "Débutant" | "Intermédiaire" | "Avancé" | "Expert"
   }>
   languages?: Array<{
     name: string
-    level: "A1" | "A2" | "B1" | "B2" | "C1" | "C2" | "Natif"
+    level?: "A1" | "A2" | "B1" | "B2" | "C1" | "C2" | "Natif"
   }>
 }
 
@@ -135,16 +137,19 @@ function buildExperiences(
   startPos = POSITION_STEP,
 ): Doc<"citizenCv">["experiences"] {
   if (!source) return []
-  return source.map((e, i) => ({
-    id: newEntryId(),
-    position: startPos + i * POSITION_STEP,
-    title: e.title.trim(),
-    company: e.company.trim(),
-    startDate: e.startDate,
-    endDate: e.current ? undefined : e.endDate,
-    current: e.current,
-    description: e.description,
-  }))
+  return source.map((e, i) => {
+    const current = e.current ?? false
+    return {
+      id: newEntryId(),
+      position: startPos + i * POSITION_STEP,
+      title: e.title.trim(),
+      company: (e.company ?? "").trim(),
+      startDate: e.startDate ?? "",
+      endDate: current ? undefined : e.endDate,
+      current,
+      description: e.description ?? "",
+    }
+  })
 }
 
 function buildEducation(
@@ -156,8 +161,8 @@ function buildEducation(
     id: newEntryId(),
     position: startPos + i * POSITION_STEP,
     degree: e.degree.trim(),
-    school: e.school.trim(),
-    year: e.year,
+    school: (e.school ?? "").trim(),
+    year: e.year ?? "",
     description: e.description,
   }))
 }
@@ -171,7 +176,7 @@ function buildSkills(
     id: newEntryId(),
     position: startPos + i * POSITION_STEP,
     name: e.name.trim(),
-    level: e.level,
+    level: e.level ?? "Intermédiaire",
   }))
 }
 
@@ -184,7 +189,7 @@ function buildLanguages(
     id: newEntryId(),
     position: startPos + i * POSITION_STEP,
     name: e.name.trim(),
-    level: e.level,
+    level: e.level ?? "B1",
   }))
 }
 

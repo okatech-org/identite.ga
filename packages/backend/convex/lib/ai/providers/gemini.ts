@@ -47,7 +47,11 @@ class GeminiProvider implements AIProvider {
 
     const generationConfig: Record<string, unknown> = {
       temperature: req.temperature ?? 0.4,
-      maxOutputTokens: req.maxTokens ?? 4096,
+      // Plafond généreux par défaut — l'extraction CV peut produire
+      // facilement > 4k tokens sur un CV touffu et la troncature côté
+      // Gemini donne un JSON cassé ("Unterminated string"). Le SDK
+      // facture aux tokens consommés, pas au plafond.
+      maxOutputTokens: req.maxTokens ?? 16384,
     }
     if (req.jsonSchema) {
       generationConfig.responseMimeType = "application/json"
@@ -124,12 +128,10 @@ class GeminiProvider implements AIProvider {
     const usage = payload.usageMetadata ?? {}
 
     if (req.jsonSchema) {
-      let parsed: Record<string, unknown>
-      try {
-        parsed = JSON.parse(text) as Record<string, unknown>
-      } catch (e) {
+      const parsed = parseJsonResilient(text)
+      if (!parsed) {
         throw new AIProviderError(
-          `Gemini a renvoyé un JSON invalide : ${(e as Error).message}`,
+          "Gemini a renvoyé un JSON invalide (ou tronqué).",
           "INVALID_RESPONSE",
           this.id,
           false,
@@ -185,4 +187,90 @@ function extractErrorMessage(payload: unknown): string | null {
   if (!payload || typeof payload !== "object") return null
   const candidate = (payload as { error?: { message?: string } }).error?.message
   return candidate ?? null
+}
+
+/**
+ * Parse JSON tolérant aux artefacts de modèles génératifs :
+ *   1. Parse direct (cas heureux : responseSchema renvoie du JSON pur).
+ *   2. Extraction du premier bloc `{...}` via regex (si le modèle a ajouté
+ *      du texte autour, ou si une fence markdown est présente).
+ *   3. Si la chaîne est tronquée (réponse coupée par maxOutputTokens), on
+ *      tente de "réparer" en fermant les structures ouvertes — utile pour
+ *      récupérer un CV partiel plutôt que d'échouer complètement.
+ *
+ * Renvoie null si rien n'a pu être parsé.
+ */
+function parseJsonResilient(raw: string): Record<string, unknown> | null {
+  if (!raw || !raw.trim()) return null
+  // 1. Parse direct
+  try {
+    return JSON.parse(raw) as Record<string, unknown>
+  } catch {
+    // continue
+  }
+  // 2. Extraire le premier { ... } (cas markdown / texte autour)
+  const match = raw.match(/\{[\s\S]*\}/)
+  if (match) {
+    try {
+      return JSON.parse(match[0]) as Record<string, unknown>
+    } catch {
+      // continue
+    }
+  }
+  // 3. JSON tronqué : on coupe la dernière clé incomplète et on ferme
+  //    les accolades / crochets ouverts.
+  const repaired = repairTruncatedJson(raw)
+  if (repaired) {
+    try {
+      return JSON.parse(repaired) as Record<string, unknown>
+    } catch {
+      return null
+    }
+  }
+  return null
+}
+
+function repairTruncatedJson(raw: string): string | null {
+  const start = raw.indexOf("{")
+  if (start < 0) return null
+  let s = raw.slice(start)
+  // Coupe à la dernière virgule (on perd la propriété tronquée mais on
+  // garde tout ce qui précède).
+  const lastComma = s.lastIndexOf(",")
+  if (lastComma > 0) s = s.slice(0, lastComma)
+  // Compte les ouvertures vs fermetures, hors string.
+  let depthCurly = 0
+  let depthSquare = 0
+  let inString = false
+  let escape = false
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i]
+    if (escape) {
+      escape = false
+      continue
+    }
+    if (c === "\\") {
+      escape = true
+      continue
+    }
+    if (c === '"') {
+      inString = !inString
+      continue
+    }
+    if (inString) continue
+    if (c === "{") depthCurly++
+    else if (c === "}") depthCurly--
+    else if (c === "[") depthSquare++
+    else if (c === "]") depthSquare--
+  }
+  if (inString) return null // milieu de string, abandon
+  while (depthSquare > 0) {
+    s += "]"
+    depthSquare--
+  }
+  while (depthCurly > 0) {
+    s += "}"
+    depthCurly--
+  }
+  return s
 }

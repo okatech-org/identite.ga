@@ -4,7 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useMutation, useQuery } from "convex/react"
-import { ArrowLeft, Loader2, Save, Sparkles } from "lucide-react"
+import { ArrowLeft, Loader2, Pencil, Save, Sparkles, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
 import { api } from "@repo/backend/convex/_generated/api"
@@ -26,7 +26,13 @@ import { AiResultCard } from "../_components/ai-result-card"
 import { icv } from "../_content/fr"
 import { ICV_ACCENT } from "../_content/themes"
 
-type SectionKind = "info" | "experience" | "education" | "skill" | "language"
+type SectionKind =
+  | "info"
+  | "experience"
+  | "education"
+  | "skill"
+  | "language"
+  | "hobby"
 
 const VALID_SECTIONS: SectionKind[] = [
   "info",
@@ -34,6 +40,7 @@ const VALID_SECTIONS: SectionKind[] = [
   "education",
   "skill",
   "language",
+  "hobby",
 ]
 
 export default function IcvEditPage() {
@@ -95,6 +102,13 @@ function Editor({
     return <InvalidParams />
   }
 
+  // Pour les sections multi-entrées sans `?id=` : on affiche la liste
+  // existante au-dessus du formulaire d'ajout.
+  const showList =
+    !isEditing &&
+    section !== "info" &&
+    sectionItems(cv, section).length > 0
+
   return (
     <section className="mx-auto w-full max-w-3xl px-5 py-8 md:px-7 md:py-10">
       <header className="mb-6 flex items-center gap-3">
@@ -113,12 +127,21 @@ function Editor({
             {icv.editor.eyebrow}
           </p>
           <h1 className="mt-0.5 text-2xl font-bold tracking-tight">
-            {titleFor(section, isEditing)}
+            {showList ? listTitleFor(section) : titleFor(section, isEditing)}
           </h1>
         </div>
       </header>
 
+      {showList ? (
+        <SectionList section={section} cv={cv} cvId={cvId} />
+      ) : null}
+
       <div className="rounded-2xl border border-border bg-card p-6 md:p-7">
+        {showList ? (
+          <p className="mb-4 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+            {addTitleFor(section)}
+          </p>
+        ) : null}
         {section === "info" ? (
           <InfoForm cv={cv} onClose={onClose} />
         ) : section === "experience" ? (
@@ -139,16 +162,197 @@ function Editor({
             entry={findEntry(cv.skills, entryId)}
             onClose={onClose}
           />
-        ) : (
+        ) : section === "language" ? (
           <LanguageForm
             cvId={cvId}
             entry={findEntry(cv.languages, entryId)}
             onClose={onClose}
           />
+        ) : (
+          <HobbyForm cv={cv} cvId={cvId} onClose={onClose} />
         )}
       </div>
     </section>
   )
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Liste des entrées existantes (au-dessus du formulaire d'ajout)
+// ─────────────────────────────────────────────────────────────────────────
+
+type Entry = { id: string }
+
+function sectionItems(cv: CvFull, section: SectionKind): Entry[] {
+  switch (section) {
+    case "experience":
+      return cv.experiences
+    case "education":
+      return cv.education
+    case "skill":
+      return cv.skills
+    case "language":
+      return cv.languages
+    default:
+      return []
+  }
+}
+
+function listTitleFor(section: SectionKind): string {
+  switch (section) {
+    case "experience":
+      return "Mes expériences"
+    case "education":
+      return "Mes formations"
+    case "skill":
+      return "Mes compétences"
+    case "language":
+      return "Mes langues"
+    default:
+      return ""
+  }
+}
+
+function addTitleFor(section: SectionKind): string {
+  switch (section) {
+    case "experience":
+      return "Ajouter une expérience"
+    case "education":
+      return "Ajouter une formation"
+    case "skill":
+      return "Ajouter une compétence"
+    case "language":
+      return "Ajouter une langue"
+    default:
+      return ""
+  }
+}
+
+function SectionList({
+  section,
+  cv,
+  cvId,
+}: {
+  section: SectionKind
+  cv: CvFull
+  cvId: Id<"citizenCv">
+}) {
+  const removeExperience = useMutation(api.cv.experiences.remove)
+  const removeEducation = useMutation(api.cv.education.remove)
+  const removeSkill = useMutation(api.cv.skills.remove)
+  const removeLanguage = useMutation(api.cv.languages.remove)
+
+  async function handleDelete(entryId: string) {
+    if (!confirm("Supprimer cette entrée ?")) return
+    try {
+      if (section === "experience") {
+        await removeExperience({ cvId, id: entryId })
+      } else if (section === "education") {
+        await removeEducation({ cvId, id: entryId })
+      } else if (section === "skill") {
+        await removeSkill({ cvId, id: entryId })
+      } else if (section === "language") {
+        await removeLanguage({ cvId, id: entryId })
+      }
+      toast.success("Supprimé.")
+    } catch (e) {
+      toast.error("Échec.", { description: (e as Error).message })
+    }
+  }
+
+  return (
+    <ul className="mb-6 space-y-2">
+      {section === "experience" &&
+        cv.experiences.map((e) => (
+          <SectionListItem
+            key={e.id}
+            primary={e.title || "(sans titre)"}
+            secondary={[e.company, formatRange(e.startDate, e.endDate, e.current)]
+              .filter(Boolean)
+              .join(" · ")}
+            editHref={`/icv/edit?section=experience&cv=${cvId}&id=${e.id}`}
+            onDelete={() => handleDelete(e.id)}
+          />
+        ))}
+      {section === "education" &&
+        cv.education.map((e) => (
+          <SectionListItem
+            key={e.id}
+            primary={e.degree || "(sans diplôme)"}
+            secondary={[e.school, e.year].filter(Boolean).join(" · ")}
+            editHref={`/icv/edit?section=education&cv=${cvId}&id=${e.id}`}
+            onDelete={() => handleDelete(e.id)}
+          />
+        ))}
+      {section === "skill" &&
+        cv.skills.map((e) => (
+          <SectionListItem
+            key={e.id}
+            primary={e.name}
+            secondary={e.level}
+            editHref={`/icv/edit?section=skill&cv=${cvId}&id=${e.id}`}
+            onDelete={() => handleDelete(e.id)}
+          />
+        ))}
+      {section === "language" &&
+        cv.languages.map((e) => (
+          <SectionListItem
+            key={e.id}
+            primary={e.name}
+            secondary={e.level}
+            editHref={`/icv/edit?section=language&cv=${cvId}&id=${e.id}`}
+            onDelete={() => handleDelete(e.id)}
+          />
+        ))}
+    </ul>
+  )
+}
+
+function SectionListItem({
+  primary,
+  secondary,
+  editHref,
+  onDelete,
+}: {
+  primary: string
+  secondary?: string
+  editHref: string
+  onDelete: () => void
+}) {
+  return (
+    <li className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 transition-colors hover:bg-muted/40">
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold">{primary}</p>
+        {secondary ? (
+          <p className="truncate text-xs text-muted-foreground">{secondary}</p>
+        ) : null}
+      </div>
+      <Button asChild variant="ghost" size="icon" className="h-8 w-8">
+        <Link href={editHref} aria-label="Modifier">
+          <Pencil className="h-4 w-4" />
+        </Link>
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 text-destructive hover:text-destructive"
+        aria-label="Supprimer"
+        onClick={onDelete}
+      >
+        <Trash2 className="h-4 w-4" />
+      </Button>
+    </li>
+  )
+}
+
+function formatRange(
+  start: string,
+  end: string | undefined,
+  current: boolean,
+): string {
+  if (current) return `${start} → Aujourd'hui`
+  if (!end) return start
+  return `${start} → ${end}`
 }
 
 function titleFor(section: SectionKind, editing: boolean): string {
@@ -171,6 +375,8 @@ function titleFor(section: SectionKind, editing: boolean): string {
       return editing
         ? icv.editor.sections.language.editTitle
         : icv.editor.sections.language.addTitle
+    case "hobby":
+      return "Centres d'intérêt"
   }
 }
 
@@ -792,6 +998,60 @@ function LanguageForm({
         onDelete={entry ? handleDelete : undefined}
         pending={pending}
       />
+    </form>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Centres d'intérêt — édités en bloc (un par ligne dans un textarea).
+// ─────────────────────────────────────────────────────────────────────────
+
+function HobbyForm({
+  cv,
+  cvId,
+  onClose,
+}: {
+  cv: CvFull
+  cvId: Id<"citizenCv">
+  onClose: () => void
+}) {
+  const upsert = useMutation(api.cv.profile.upsert)
+  const [pending, setPending] = React.useState(false)
+  const [value, setValue] = React.useState(cv.hobbies.join("\n"))
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (pending) return
+    setPending(true)
+    try {
+      const hobbies = value
+        .split("\n")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0)
+      await upsert({ cvId, patch: { hobbies } })
+      toast.success("Centres d'intérêt mis à jour.")
+      onClose()
+    } catch (e) {
+      toast.error(icv.errors.saveFailed, { description: (e as Error).message })
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-5">
+      <Field
+        label="Vos centres d'intérêt"
+        hint="Un par ligne (ex. Photographie, Course à pied, Échecs)"
+      >
+        <Textarea
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          rows={6}
+          placeholder={"Photographie\nCourse à pied\nÉchecs"}
+        />
+      </Field>
+      <FormActions onCancel={onClose} pending={pending} />
     </form>
   )
 }
