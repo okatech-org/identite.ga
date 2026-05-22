@@ -17,8 +17,13 @@ if (!convexUrl) {
   throw new Error('Missing EXPO_PUBLIC_CONVEX_URL in apps/mobile/.env.local');
 }
 
+// `expectAuth` est volontairement omis : il suspend TOUTES les useQuery
+// jusqu'à ce que setAuth() ait été appelé, ce qui bloque les écrans
+// pre-auth comme signup/idn (vérification de handle, suggestions). Les
+// queries qui exigent l'auth utilisent déjà `requireAuth` côté backend
+// et throw si appelées non-authentifié — ce qui est le comportement
+// attendu et géré par les écrans appelants.
 const convex = new ConvexReactClient(convexUrl, {
-  expectAuth: true,
   unsavedChangesWarning: false,
 });
 
