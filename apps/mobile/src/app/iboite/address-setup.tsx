@@ -164,16 +164,11 @@ export default function IBoiteAddressSetup() {
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: 22,
-          paddingTop: 6,
+          paddingTop: 14,
           paddingBottom: insets.bottom + 24,
         }}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={{ fontSize: 12, color: t.muted, lineHeight: 18, marginBottom: 16 }}>
-          Au Gabon les adresses postales formelles sont rares. Nous utilisons votre position GPS
-          pour localiser votre logement — vous pouvez compléter manuellement si besoin.
-        </Text>
-
         {step === 'choose' ? (
           <View style={{ gap: 10 }}>
             <Pressable
@@ -242,6 +237,14 @@ export default function IBoiteAddressSetup() {
                 </Text>
               </View>
             </Pressable>
+
+            {/* Note explicative — placée *sous* les deux options pour ne
+                pas ouvrir la modal sur un bloc de texte petit et froid. */}
+            <Text style={{ fontSize: 12, color: t.muted, lineHeight: 18, marginTop: 14 }}>
+              Au Gabon les adresses postales formelles sont rares. Nous utilisons votre
+              position GPS pour localiser votre logement — vous pouvez compléter
+              manuellement si besoin.
+            </Text>
           </View>
         ) : null}
 
