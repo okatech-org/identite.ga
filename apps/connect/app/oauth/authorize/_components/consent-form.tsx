@@ -80,6 +80,12 @@ const claimsForScopes = (
       sub: "situation matrimoniale, nationalité",
     })
   }
+  if (has("idn:nip")) {
+    rows.push({
+      label: "NIP",
+      sub: "Numéro d'Identification Personnel (RBPP)",
+    })
+  }
   return rows
 }
 

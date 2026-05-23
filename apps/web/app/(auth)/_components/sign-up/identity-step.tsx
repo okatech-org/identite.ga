@@ -39,6 +39,14 @@ const schema = z.object({
   birthPlace: z.string().trim().min(1, identity.validation.required),
   nationality: z.string().trim().min(2, identity.validation.required),
   phone: z.string().trim().optional(),
+  nip: z
+    .string()
+    .trim()
+    .optional()
+    .refine(
+      (v) => !v || /^\d{14}$/.test(v),
+      identity.validation.nipInvalid,
+    ),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -74,6 +82,7 @@ export function IdentityStep() {
       birthPlace: saved?.birthPlace ?? "",
       nationality: defaultNationality,
       phone: saved?.phone ?? "",
+      nip: saved?.nip ?? "",
     },
     mode: "onTouched",
   })
@@ -88,6 +97,7 @@ export function IdentityStep() {
         birthPlace: values.birthPlace.trim(),
         nationality: values.nationality.trim(),
         phone: values.phone?.trim() || undefined,
+        nip: values.nip?.trim() || undefined,
       })
       router.push("/sign-up?step=idn")
     } catch (err) {
@@ -296,6 +306,34 @@ export function IdentityStep() {
             className="h-12 text-base"
             {...register("phone")}
           />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="id-nip">{identity.fields.nip.label}</Label>
+          <Input
+            id="id-nip"
+            inputMode="numeric"
+            autoComplete="off"
+            maxLength={14}
+            placeholder={identity.fields.nip.placeholder}
+            aria-invalid={Boolean(errors.nip)}
+            aria-describedby={errors.nip ? "id-nip-error" : "id-nip-help"}
+            className="h-12 text-base"
+            {...register("nip")}
+          />
+          {errors.nip ? (
+            <p
+              id="id-nip-error"
+              role="alert"
+              className="text-xs text-destructive"
+            >
+              {errors.nip.message}
+            </p>
+          ) : (
+            <p id="id-nip-help" className="text-xs text-muted-foreground">
+              {identity.fields.nip.help}
+            </p>
+          )}
         </div>
       </form>
     </WizardShell>

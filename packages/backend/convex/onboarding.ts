@@ -120,6 +120,7 @@ export const setIdentityPivot = mutation({
     birthPlace: v.string(),
     nationality: v.string(),
     phone: v.optional(v.string()),
+    nip: v.optional(v.string()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -150,6 +151,13 @@ export const setIdentityPivot = mutation({
     }
 
     const phoneTrim = args.phone?.trim()
+    const nipTrim = args.nip?.trim()
+    if (nipTrim && !/^\d{14}$/.test(nipTrim)) {
+      throw new ConvexError({
+        code: "INVALID_NIP",
+        message: "Le NIP doit contenir exactement 14 chiffres.",
+      })
+    }
     await ctx.db.patch(profile._id, {
       pivot: {
         firstName: args.firstName.trim(),
@@ -159,6 +167,7 @@ export const setIdentityPivot = mutation({
         birthPlace: args.birthPlace.trim(),
         nationality: args.nationality.trim().toUpperCase(),
         ...(phoneTrim ? { phone: phoneTrim } : {}),
+        ...(nipTrim ? { nip: nipTrim } : {}),
       },
       updatedAt: Date.now(),
     })
@@ -436,6 +445,7 @@ export const completeSignup = mutation({
       birthPlace: v.string(),
       nationality: v.string(),
       phone: v.optional(v.string()),
+      nip: v.optional(v.string()),
     }),
   },
   returns: v.object({
@@ -487,6 +497,13 @@ export const completeSignup = mutation({
     const now = Date.now()
     const idnId = await generateIdnId(ctx)
     const phoneTrim = args.pivot.phone?.trim()
+    const nipTrim = args.pivot.nip?.trim()
+    if (nipTrim && !/^\d{14}$/.test(nipTrim)) {
+      throw new ConvexError({
+        code: "INVALID_NIP",
+        message: "Le NIP doit contenir exactement 14 chiffres.",
+      })
+    }
     const profileId = await ctx.db.insert("userProfile", {
       userId: user.userId,
       profileType: args.profileType,
@@ -500,6 +517,7 @@ export const completeSignup = mutation({
         birthPlace: args.pivot.birthPlace.trim(),
         nationality: args.pivot.nationality.trim().toUpperCase(),
         ...(phoneTrim ? { phone: phoneTrim } : {}),
+        ...(nipTrim ? { nip: nipTrim } : {}),
       },
       createdAt: now,
       updatedAt: now,

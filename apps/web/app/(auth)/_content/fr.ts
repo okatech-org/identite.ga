@@ -61,6 +61,11 @@ export const identity = {
     },
     birthPlace: { label: "Lieu de naissance", placeholder: "Libreville" },
     phone: { label: "Numéro de téléphone", placeholder: "+241 06 22 14 89" },
+    nip: {
+      label: "NIP (Numéro d'Identification Personnel)",
+      placeholder: "14 chiffres",
+      help: "Si vous en disposez déjà — délivré par le RBPP. Sert à la vérification d'identité.",
+    },
     nationality: {
       label: "Nationalité",
       options: [
@@ -92,6 +97,7 @@ export const identity = {
     required: "Champ requis.",
     dateInvalid: "Date invalide.",
     dateFuture: "La date de naissance doit être dans le passé.",
+    nipInvalid: "Le NIP doit contenir exactement 14 chiffres.",
   },
 } as const
 

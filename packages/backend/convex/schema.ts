@@ -242,6 +242,12 @@ export default defineSchema({
         // Numéro de téléphone du citoyen — informatif (pas de vérification SMS
         // en V1). Stocké sous forme libre, format conseillé +241XXXXXXXX.
         phone: v.optional(v.string()),
+        // Numéro d'Identification Personnel (NIP) — 14 chiffres, attribué
+        // par le RBPP (Registre Biométrique des Personnes Physiques).
+        // Optionnel : tous les citoyens n'en disposent pas encore. Sert
+        // de base à la vérification d'identité et est exposable comme
+        // claim OIDC aux applications relying party.
+        nip: v.optional(v.string()),
       }),
     ),
 

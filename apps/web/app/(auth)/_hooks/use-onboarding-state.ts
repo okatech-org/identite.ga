@@ -40,6 +40,7 @@ export type OnboardingPivot = {
   birthPlace: string
   nationality: string
   phone?: string
+  nip?: string
 }
 
 function safeStorage(): Storage | null {

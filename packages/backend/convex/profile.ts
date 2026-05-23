@@ -35,6 +35,7 @@ export const getCurrentUser = query({
               birthPlace: v.string(),
               nationality: v.string(),
               phone: v.optional(v.string()),
+              nip: v.optional(v.string()),
             }),
           ),
           photoStorageRef: v.optional(v.id("_storage")),
@@ -136,8 +137,9 @@ export const updatePivot = mutation({
       })
     }
 
-    // Préserve le téléphone existant (updatePivot ne touche pas à ce champ)
+    // Préserve les champs non touchés par updatePivot (phone, nip).
     const existingPhone = profile.pivot?.phone
+    const existingNip = profile.pivot?.nip
     await ctx.db.patch(profile._id, {
       pivot: {
         firstName: args.firstName.trim(),
@@ -147,6 +149,7 @@ export const updatePivot = mutation({
         birthPlace: args.birthPlace.trim(),
         nationality: args.nationality.trim().toUpperCase(),
         ...(existingPhone ? { phone: existingPhone } : {}),
+        ...(existingNip ? { nip: existingNip } : {}),
       },
       updatedAt: Date.now(),
     })
