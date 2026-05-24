@@ -1,8 +1,8 @@
 import { ConvexError, v } from "convex/values"
 
+import { internal } from "./_generated/api"
 import { internalMutation, mutation, query } from "./_generated/server"
 import { authComponent } from "./auth"
-import { sendGenericEmail, sendKycEmail } from "./email/provider"
 import { requireAuth } from "./lib/auth"
 import { NOTIFICATION_CATEGORIES } from "./schema"
 import type { Doc } from "./_generated/dataModel"
@@ -143,7 +143,7 @@ export const dispatchKyc = internalMutation({
       const user = await authComponent.getAnyUserById(ctx, args.userId)
       if (user?.email) {
         const recipientName = (user as { name?: string }).name ?? null
-        await sendKycEmail(ctx, {
+        await ctx.scheduler.runAfter(0, internal.email.dispatch.sendKyc, {
           to: user.email,
           kind: args.kind,
           recipientName,
@@ -193,7 +193,7 @@ export const dispatch = internalMutation({
       const user = await authComponent.getAnyUserById(ctx, args.userId)
       if (user?.email) {
         const recipientName = (user as { name?: string }).name ?? null
-        await sendGenericEmail(ctx, {
+        await ctx.scheduler.runAfter(0, internal.email.dispatch.sendGeneric, {
           to: user.email,
           subject: args.emailSubject ?? args.title,
           title: args.title,

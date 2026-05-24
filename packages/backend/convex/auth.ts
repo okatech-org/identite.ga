@@ -37,7 +37,6 @@ import { components, internal } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
 import { query } from "./_generated/server";
 import authConfig from "./auth.config";
-import { sendOtpEmail } from "./email/provider";
 import { pinSignIn } from "./lib/pinSignInPlugin";
 
 const isDev = process.env.NODE_ENV !== "production";
@@ -243,11 +242,11 @@ export const createAuth = (
         expiresIn: 60 * 15, // 15 min (§3.2)
         sendVerificationOnSignUp: false,
         sendVerificationOTP: async ({ email, otp, type }) => {
-          await sendOtpEmail(ctx as any, {
-            to: email,
-            code: otp,
-            type,
-          });
+          await (ctx as any).scheduler.runAfter(
+            0,
+            internal.email.dispatch.sendOtp,
+            { to: email, code: otp, type },
+          );
         },
       }),
 

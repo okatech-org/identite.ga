@@ -49,6 +49,7 @@ import type * as cv_skills from "../cv/skills.js";
 import type * as dev from "../dev.js";
 import type * as developer_apps from "../developer/apps.js";
 import type * as documents from "../documents.js";
+import type * as email_dispatch from "../email/dispatch.js";
 import type * as email_provider from "../email/provider.js";
 import type * as email_templates_genericEmail from "../email/templates/genericEmail.js";
 import type * as email_templates_kycEmail from "../email/templates/kycEmail.js";
@@ -147,6 +148,7 @@ declare const fullApi: ApiFromModules<{
   dev: typeof dev;
   "developer/apps": typeof developer_apps;
   documents: typeof documents;
+  "email/dispatch": typeof email_dispatch;
   "email/provider": typeof email_provider;
   "email/templates/genericEmail": typeof email_templates_genericEmail;
   "email/templates/kycEmail": typeof email_templates_kycEmail;
