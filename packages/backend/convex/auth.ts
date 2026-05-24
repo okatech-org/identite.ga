@@ -279,6 +279,37 @@ export const createAuth = (
         requirePKCE: true,
         useJWTPlugin: true,
         allowPlainCodeChallengeMethod: false,
+        // Injecte le claim `env` (sandbox/production) dans l'ID token et la
+        // réponse /oauth2/userinfo. Sert aussi de filet défensif : si un
+        // utilisateur non whitelisté contourne l'UI consent en sandbox, on
+        // throw — Better Auth refuse alors l'émission du token.
+        getAdditionalUserInfoClaim: (user, _scopes, client) => {
+          const meta = (client.metadata ?? {}) as Record<string, unknown>
+          const env = meta.env === "production" ? "production" : "sandbox"
+          if (env === "sandbox") {
+            const list = Array.isArray(meta.testUsers)
+              ? (meta.testUsers as unknown[]).map((e) =>
+                  typeof e === "string" ? e.toLowerCase() : "",
+                )
+              : []
+            const email = String(
+              (user as { email?: unknown }).email ?? "",
+            ).toLowerCase()
+            const ownerId =
+              typeof meta.createdBy === "string" ? meta.createdBy : null
+            const userId = String(
+              (user as { id?: unknown }).id ?? "",
+            )
+            if (
+              email.length > 0 &&
+              !list.includes(email) &&
+              (ownerId === null || userId !== ownerId)
+            ) {
+              throw new Error("sandbox_access_denied")
+            }
+          }
+          return { env }
+        },
       }),
 
       // Émission ID tokens RS256 + JWKS publique (§6.1)

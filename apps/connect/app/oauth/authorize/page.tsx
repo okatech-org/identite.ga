@@ -127,6 +127,18 @@ function OAuthAuthorizePageInner() {
     )
   }
 
+  // En sandbox, seuls les comptes IDN ajoutés à la whitelist par le dev
+  // peuvent consentir. On bloque ici visuellement ; un filet défensif
+  // additionnel existe côté hook claims OIDC (cf. backend auth.ts).
+  if (app.env === "sandbox" && !app.userAllowed) {
+    return (
+      <ErrorScreen
+        title="Accès sandbox refusé"
+        description="Cette application est en mode test. Demandez au développeur d'ajouter votre adresse à la liste des comptes de test autorisés."
+      />
+    )
+  }
+
   const requestedScopes = (requestedScope || app.requestedScopes.join(" "))
     .split(/\s+/)
     .filter(Boolean)

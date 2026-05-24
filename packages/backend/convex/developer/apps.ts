@@ -60,7 +60,20 @@ interface AppMetadata {
   scopes: string[]
   createdBy: string
   services: AppService[]
+  /** Whitelist d'emails autorisés à consentir sur une app sandbox. Lowercased. */
+  testUsers?: string[]
+  /** Clé étrangère vers le jumeau prod (depuis la sandbox) ou sandbox (depuis le jumeau prod). */
+  linkedClientId?: string
+  /** État de la demande de production (uniquement renseigné côté sandbox). */
+  productionStatus?: "none" | "pending" | "approved" | "rejected"
+  /**
+   * Sur le jumeau prod : statut de revue admin ("pending" puis "production").
+   * Lu par admin/oauthApps.ts qui a la priorité sur `env` pour l'affichage.
+   */
+  status?: "pending" | "production"
 }
+
+const MAX_TEST_USERS = 25
 
 const parseService = (raw: unknown): AppService | null => {
   if (!raw || typeof raw !== "object") return null
@@ -91,12 +104,29 @@ const parseMetadata = (raw: string | null | undefined): AppMetadata => {
   try {
     const obj = JSON.parse(raw) as Partial<AppMetadata> & {
       services?: unknown
+      testUsers?: unknown
     }
     const services = Array.isArray(obj.services)
       ? obj.services
           .map(parseService)
           .filter((s): s is AppService => s !== null)
       : []
+    const testUsers = Array.isArray(obj.testUsers)
+      ? obj.testUsers
+          .map((e) => (typeof e === "string" ? e.trim().toLowerCase() : ""))
+          .filter((e) => e.length > 0)
+      : undefined
+    const productionStatus =
+      obj.productionStatus === "pending" ||
+      obj.productionStatus === "approved" ||
+      obj.productionStatus === "rejected" ||
+      obj.productionStatus === "none"
+        ? obj.productionStatus
+        : undefined
+    const status =
+      obj.status === "pending" || obj.status === "production"
+        ? obj.status
+        : undefined
     return {
       env: obj.env === "production" ? "production" : "sandbox",
       loa: obj.loa === 2 || obj.loa === 3 ? obj.loa : 1,
@@ -104,11 +134,33 @@ const parseMetadata = (raw: string | null | undefined): AppMetadata => {
       scopes: Array.isArray(obj.scopes) ? obj.scopes.map(String) : [],
       createdBy: typeof obj.createdBy === "string" ? obj.createdBy : "",
       services,
+      testUsers,
+      linkedClientId:
+        typeof obj.linkedClientId === "string" && obj.linkedClientId.length > 0
+          ? obj.linkedClientId
+          : undefined,
+      productionStatus,
+      status,
     }
   } catch {
     return fallback
   }
 }
+
+const credentialsForEnv = (
+  slug: string,
+  env: "sandbox" | "production",
+): { clientId: string; clientSecret: string } => {
+  const envTag = env === "production" ? "prd" : "sbx"
+  const secretTag = env === "production" ? "live" : "test"
+  return {
+    clientId: `${slug}_${envTag}_${base64Url(randomBytes(6))}`,
+    clientSecret: `idn_sk_${secretTag}_${base64Url(randomBytes(24))}`,
+  }
+}
+
+const isValidEmail = (input: string): boolean =>
+  /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/.test(input)
 
 const parseRedirectUrls = (raw: string | null | undefined): string[] => {
   if (!raw) return []
@@ -190,6 +242,9 @@ const toDto = (doc: OAuthAppDoc) => {
     services: meta.services,
     disabled: Boolean(doc.disabled),
     createdAt: tsOf(doc.createdAt),
+    testUsers: meta.testUsers ?? [],
+    linkedClientId: meta.linkedClientId ?? null,
+    productionStatus: meta.productionStatus ?? "none",
   }
 }
 
@@ -205,6 +260,14 @@ const appDtoValidator = v.object({
   services: v.array(SERVICE_VALIDATOR),
   disabled: v.boolean(),
   createdAt: v.number(),
+  testUsers: v.array(v.string()),
+  linkedClientId: v.union(v.string(), v.null()),
+  productionStatus: v.union(
+    v.literal("none"),
+    v.literal("pending"),
+    v.literal("approved"),
+    v.literal("rejected"),
+  ),
 })
 
 export const listMine = query({
@@ -264,7 +327,6 @@ export const create = mutation({
     description: v.optional(v.string()),
     redirectUris: v.array(v.string()),
     scopes: v.array(v.string()),
-    env: v.union(v.literal("production"), v.literal("sandbox")),
     loa: v.union(v.literal(1), v.literal(2), v.literal(3)),
   },
   returns: v.object({
@@ -284,33 +346,11 @@ export const create = mutation({
         message: "Au moins une redirect URI est requise.",
       })
     }
-    // Garde : un développeur non validé par le super-admin ne peut créer
-    // que des apps en sandbox. Le passage en production requiert d'avoir
-    // été approuvé manuellement (cf. admin/roles.setDeveloperVerified).
-    if (args.env === "production") {
-      const roleRow = await ctx.db
-        .query("userRole")
-        .withIndex("by_userId_role", (q) =>
-          q.eq("userId", user.userId).eq("role", "developer"),
-        )
-        .unique()
-      if (!roleRow || roleRow.revokedAt || roleRow.verified !== true) {
-        throw new ConvexError({
-          code: "DEVELOPER_NOT_VERIFIED",
-          message:
-            "Votre compte développeur doit être validé par un super-administrateur avant de publier en production.",
-        })
-      }
-    }
+    // Toute nouvelle app naît en sandbox — pas de garde verified ici (le
+    // gate verified n'intervient qu'au moment de `requestProduction`).
     for (const uri of args.redirectUris) {
       try {
-        const parsed = new URL(uri)
-        if (args.env === "production" && parsed.protocol !== "https:") {
-          throw new ConvexError({
-            code: "INVALID_INPUT",
-            message: `HTTPS requis en production : ${uri}`,
-          })
-        }
+        new URL(uri)
       } catch {
         throw new ConvexError({
           code: "INVALID_INPUT",
@@ -319,18 +359,22 @@ export const create = mutation({
       }
     }
 
-    const clientId = `${slugify(args.name)}-${base64Url(randomBytes(4))}`
-    const clientSecretPlain = `idn_sk_${base64Url(randomBytes(24))}`
+    const { clientId, clientSecret: clientSecretPlain } = credentialsForEnv(
+      slugify(args.name),
+      "sandbox",
+    )
     const clientSecretHash = await sha256Hex(clientSecretPlain)
     const now = Date.now()
 
     const metadata: AppMetadata = {
-      env: args.env,
+      env: "sandbox",
       loa: args.loa,
       description: args.description ?? "",
       scopes: args.scopes,
       createdBy: user.userId,
       services: [],
+      testUsers: [],
+      productionStatus: "none",
     }
 
     const created = (await ctx.runMutation(components.betterAuth.adapter.create, {
@@ -380,7 +424,9 @@ export const rotateSecret = mutation({
       })
     }
 
-    const newSecretPlain = `idn_sk_${base64Url(randomBytes(24))}`
+    const meta = parseMetadata(doc.metadata)
+    const secretTag = meta.env === "production" ? "live" : "test"
+    const newSecretPlain = `idn_sk_${secretTag}_${base64Url(randomBytes(24))}`
     const newSecretHash = await sha256Hex(newSecretPlain)
 
     await ctx.runMutation(components.betterAuth.adapter.updateOne, {
@@ -491,6 +537,41 @@ export const remove = mutation({
         message: "Cette application ne vous appartient pas.",
       })
     }
+    const meta = parseMetadata(doc.metadata)
+    // Nettoie la référence côté jumeau survivant si la paire existe.
+    if (meta.linkedClientId) {
+      const twinRaw = (await ctx.runQuery(
+        components.betterAuth.adapter.findMany,
+        {
+          model: MODEL,
+          where: [
+            { field: "clientId", value: meta.linkedClientId, operator: "eq" },
+          ],
+          paginationOpts: { numItems: 1, cursor: null },
+        },
+      )) as { page: OAuthAppDoc[] }
+      const twin = twinRaw.page[0]
+      if (twin) {
+        const twinMeta = parseMetadata(twin.metadata)
+        const nextTwinMeta: AppMetadata = {
+          ...twinMeta,
+          linkedClientId: undefined,
+          // Si on supprime la jumelle prod, la sandbox repasse en "none".
+          productionStatus:
+            twinMeta.env === "sandbox" ? "none" : twinMeta.productionStatus,
+        }
+        await ctx.runMutation(components.betterAuth.adapter.updateOne, {
+          input: {
+            model: MODEL,
+            where: [{ field: "_id", value: twin._id, operator: "eq" }],
+            update: {
+              metadata: JSON.stringify(nextTwinMeta),
+              updatedAt: Date.now(),
+            },
+          },
+        })
+      }
+    }
     await ctx.runMutation(components.betterAuth.adapter.deleteOne, {
       input: {
         model: MODEL,
@@ -498,6 +579,265 @@ export const remove = mutation({
       },
     })
     return null
+  },
+})
+
+/**
+ * Ajoute un email à la whitelist sandbox de l'app. Seuls les emails
+ * présents pourront consentir sur cette app (cf. oauthAuthorize.userAllowed
+ * + filet défensif dans auth.ts/getAdditionalUserInfoClaim).
+ */
+export const addTestUser = mutation({
+  args: { clientId: v.string(), email: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const user = await requireDeveloper(ctx)
+    const email = args.email.trim().toLowerCase()
+    if (!isValidEmail(email)) {
+      throw new ConvexError({
+        code: "INVALID_EMAIL",
+        message: "Adresse email invalide.",
+      })
+    }
+    const raw = (await ctx.runQuery(components.betterAuth.adapter.findMany, {
+      model: MODEL,
+      where: [{ field: "clientId", value: args.clientId, operator: "eq" }],
+      paginationOpts: { numItems: 1, cursor: null },
+    })) as { page: OAuthAppDoc[] }
+    const doc = raw.page[0]
+    if (!doc) {
+      throw new ConvexError({ code: "NOT_FOUND", message: "App introuvable." })
+    }
+    if (doc.userId !== user.userId) {
+      throw new ConvexError({
+        code: "FORBIDDEN",
+        message: "Cette application ne vous appartient pas.",
+      })
+    }
+    const meta = parseMetadata(doc.metadata)
+    if (meta.env !== "sandbox") {
+      throw new ConvexError({
+        code: "NOT_SANDBOX",
+        message:
+          "Les comptes de test ne s'appliquent qu'aux applications sandbox.",
+      })
+    }
+    const current = meta.testUsers ?? []
+    if (current.includes(email)) {
+      // Idempotent : pas d'erreur si déjà présent.
+      return null
+    }
+    if (current.length >= MAX_TEST_USERS) {
+      throw new ConvexError({
+        code: "TOO_MANY_TEST_USERS",
+        message: `Maximum ${MAX_TEST_USERS} comptes de test par application.`,
+      })
+    }
+    const nextMeta: AppMetadata = {
+      ...meta,
+      testUsers: [...current, email],
+    }
+    await ctx.runMutation(components.betterAuth.adapter.updateOne, {
+      input: {
+        model: MODEL,
+        where: [{ field: "_id", value: doc._id, operator: "eq" }],
+        update: {
+          metadata: JSON.stringify(nextMeta),
+          updatedAt: Date.now(),
+        },
+      },
+    })
+    return null
+  },
+})
+
+export const removeTestUser = mutation({
+  args: { clientId: v.string(), email: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const user = await requireDeveloper(ctx)
+    const email = args.email.trim().toLowerCase()
+    const raw = (await ctx.runQuery(components.betterAuth.adapter.findMany, {
+      model: MODEL,
+      where: [{ field: "clientId", value: args.clientId, operator: "eq" }],
+      paginationOpts: { numItems: 1, cursor: null },
+    })) as { page: OAuthAppDoc[] }
+    const doc = raw.page[0]
+    if (!doc) {
+      throw new ConvexError({ code: "NOT_FOUND", message: "App introuvable." })
+    }
+    if (doc.userId !== user.userId) {
+      throw new ConvexError({
+        code: "FORBIDDEN",
+        message: "Cette application ne vous appartient pas.",
+      })
+    }
+    const meta = parseMetadata(doc.metadata)
+    const current = meta.testUsers ?? []
+    const next = current.filter((e) => e !== email)
+    if (next.length === current.length) return null
+    const nextMeta: AppMetadata = { ...meta, testUsers: next }
+    await ctx.runMutation(components.betterAuth.adapter.updateOne, {
+      input: {
+        model: MODEL,
+        where: [{ field: "_id", value: doc._id, operator: "eq" }],
+        update: {
+          metadata: JSON.stringify(nextMeta),
+          updatedAt: Date.now(),
+        },
+      },
+    })
+    return null
+  },
+})
+
+/**
+ * Crée une app jumelle "production" en attente d'approbation admin.
+ *
+ * Garde : seul un développeur déjà validé par un super-admin
+ * (userRole.verified === true) peut soumettre une demande prod.
+ * La jumelle est créée disabled=true ; admin l'active via
+ * `admin/oauthApps.approveProductionRequest`.
+ */
+export const requestProduction = mutation({
+  args: { clientId: v.string() },
+  returns: v.object({
+    id: v.string(),
+    clientId: v.string(),
+    clientSecret: v.string(),
+  }),
+  handler: async (ctx, args) => {
+    const user = await requireDeveloper(ctx)
+
+    // Garde verified — alignée sur la garde historique du `create` pour
+    // la prod. Le compte dev doit être validé manuellement avant de
+    // publier en production.
+    const roleRow = await ctx.db
+      .query("userRole")
+      .withIndex("by_userId_role", (q) =>
+        q.eq("userId", user.userId).eq("role", "developer"),
+      )
+      .unique()
+    if (!roleRow || roleRow.revokedAt || roleRow.verified !== true) {
+      throw new ConvexError({
+        code: "DEVELOPER_NOT_VERIFIED",
+        message:
+          "Votre compte développeur doit être validé par un super-administrateur avant de publier en production.",
+      })
+    }
+
+    const raw = (await ctx.runQuery(components.betterAuth.adapter.findMany, {
+      model: MODEL,
+      where: [{ field: "clientId", value: args.clientId, operator: "eq" }],
+      paginationOpts: { numItems: 1, cursor: null },
+    })) as { page: OAuthAppDoc[] }
+    const doc = raw.page[0]
+    if (!doc) {
+      throw new ConvexError({ code: "NOT_FOUND", message: "App introuvable." })
+    }
+    if (doc.userId !== user.userId) {
+      throw new ConvexError({
+        code: "FORBIDDEN",
+        message: "Cette application ne vous appartient pas.",
+      })
+    }
+    const meta = parseMetadata(doc.metadata)
+    if (meta.env !== "sandbox") {
+      throw new ConvexError({
+        code: "NOT_SANDBOX",
+        message:
+          "La demande de production ne s'applique qu'à une app sandbox.",
+      })
+    }
+    if (
+      meta.productionStatus === "pending" ||
+      meta.productionStatus === "approved"
+    ) {
+      throw new ConvexError({
+        code: "ALREADY_REQUESTED",
+        message:
+          meta.productionStatus === "pending"
+            ? "Une demande de production est déjà en cours."
+            : "Cette application a déjà une jumelle en production.",
+      })
+    }
+
+    const redirectUris = parseRedirectUrls(doc.redirectUrls)
+    for (const uri of redirectUris) {
+      let parsed: URL
+      try {
+        parsed = new URL(uri)
+      } catch {
+        throw new ConvexError({
+          code: "INVALID_INPUT",
+          message: `Redirect URI invalide : ${uri}`,
+        })
+      }
+      if (parsed.protocol !== "https:") {
+        throw new ConvexError({
+          code: "HTTPS_REQUIRED",
+          message: `HTTPS requis en production : ${uri}`,
+        })
+      }
+    }
+
+    const baseName = doc.name ?? args.clientId
+    const { clientId: prodClientId, clientSecret: prodSecretPlain } =
+      credentialsForEnv(slugify(baseName), "production")
+    const prodSecretHash = await sha256Hex(prodSecretPlain)
+    const now = Date.now()
+
+    const prodMeta: AppMetadata = {
+      env: "production",
+      loa: meta.loa,
+      description: meta.description,
+      scopes: meta.scopes,
+      createdBy: user.userId,
+      services: meta.services,
+      linkedClientId: args.clientId,
+      status: "pending",
+    }
+
+    const created = (await ctx.runMutation(components.betterAuth.adapter.create, {
+      input: {
+        model: MODEL,
+        data: {
+          clientId: prodClientId,
+          clientSecret: prodSecretHash,
+          name: baseName,
+          userId: user.userId,
+          redirectUrls: JSON.stringify(redirectUris),
+          // Désactivée jusqu'à approbation admin.
+          disabled: true,
+          type: "web",
+          metadata: JSON.stringify(prodMeta),
+          createdAt: now,
+          updatedAt: now,
+        },
+      },
+    })) as { _id: string }
+
+    const nextSandboxMeta: AppMetadata = {
+      ...meta,
+      linkedClientId: prodClientId,
+      productionStatus: "pending",
+    }
+    await ctx.runMutation(components.betterAuth.adapter.updateOne, {
+      input: {
+        model: MODEL,
+        where: [{ field: "_id", value: doc._id, operator: "eq" }],
+        update: {
+          metadata: JSON.stringify(nextSandboxMeta),
+          updatedAt: now,
+        },
+      },
+    })
+
+    return {
+      id: created._id,
+      clientId: prodClientId,
+      clientSecret: prodSecretPlain,
+    }
   },
 })
 

@@ -23,12 +23,16 @@ type OAuthAppDoc = {
   metadata?: string | null
   redirectUrls?: string | null
   disabled?: boolean | null
+  userId?: string | null
 }
 
 interface AppMeta {
   scopes?: string[]
   loa?: 1 | 2 | 3
   description?: string
+  env?: "sandbox" | "production"
+  testUsers?: string[]
+  createdBy?: string
 }
 
 const parseMetadata = (raw: string | null | undefined): AppMeta => {
@@ -65,6 +69,10 @@ export const getAppForConsent = query({
       redirectUris: v.array(v.string()),
       requestedScopes: v.array(v.string()),
       requiredLoA: v.union(v.literal(1), v.literal(2), v.literal(3)),
+      env: v.union(v.literal("sandbox"), v.literal("production")),
+      // En sandbox : true si l'email du user est dans `testUsers` ou si le user
+      // est le propriétaire de l'app. En prod : toujours true.
+      userAllowed: v.boolean(),
     }),
   ),
   handler: async (ctx, args) => {
@@ -85,6 +93,18 @@ export const getAppForConsent = query({
     if (!doc || doc.disabled) return null
 
     const meta = parseMetadata(doc.metadata)
+    const env: "sandbox" | "production" =
+      meta.env === "production" ? "production" : "sandbox"
+
+    let userAllowed = true
+    if (env === "sandbox") {
+      const email = String(user.email ?? "").toLowerCase()
+      const list = Array.isArray(meta.testUsers) ? meta.testUsers : []
+      const inList = email.length > 0 && list.includes(email)
+      const isOwner = Boolean(doc.userId && doc.userId === user.userId)
+      userAllowed = inList || isOwner
+    }
+
     return {
       clientId: doc.clientId ?? args.clientId,
       name: doc.name ?? args.clientId,
@@ -92,6 +112,8 @@ export const getAppForConsent = query({
       redirectUris: parseRedirectUrls(doc.redirectUrls),
       requestedScopes: meta.scopes ?? ["openid", "profile", "email"],
       requiredLoA: (meta.loa ?? 1) as 1 | 2 | 3,
+      env,
+      userAllowed,
     }
   },
 })

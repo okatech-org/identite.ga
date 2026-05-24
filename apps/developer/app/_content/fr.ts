@@ -114,9 +114,11 @@ export const fr = {
     envLabel: "Environnement",
     envSandbox: "Sandbox",
     envProduction: "Production",
+    sandboxNote:
+      "Toute nouvelle application est créée en sandbox. Le passage en production se demande depuis la fiche de l'app, après ajout de redirect URIs en HTTPS.",
     redirectLabel: "Redirect URIs",
     redirectPlaceholder: "https://yourapp.com/auth/callback",
-    redirectHint: "Un par ligne. HTTPS obligatoire en production.",
+    redirectHint: "Une URI par ligne. HTTPS sera requis au moment de passer en production.",
     scopesLabel: "Scopes demandés",
     loaLabel: "Niveau de garantie minimum",
     submit: "Créer l'application",
@@ -127,9 +129,9 @@ export const fr = {
 
   appCreated: {
     sub: "APPLICATION CRÉÉE",
-    title: "Vos credentials",
+    title: "Vos credentials sandbox",
     warning:
-      "Notez votre client_secret maintenant : il ne sera plus jamais affiché en clair. Vous pourrez le régénérer si nécessaire.",
+      "Notez votre client_secret maintenant : il ne sera plus jamais affiché en clair. Vous pourrez le régénérer si nécessaire. Ces clés (préfixes idn_sk_test_ / _sbx_) ne fonctionnent qu'en mode test.",
     continue: "Voir mon application",
   },
 
@@ -145,6 +147,45 @@ export const fr = {
       clientSecret: "CLIENT_SECRET",
       redirectUris: "REDIRECT URIS",
       jwks: "JWKS",
+    },
+  },
+
+  sandbox: {
+    testUsersTitle: "Comptes de test",
+    testUsersDesc:
+      "Seules ces adresses IDN pourront se connecter à votre application tant qu'elle est en sandbox.",
+    testUsersEmpty:
+      "Aucun compte de test pour l'instant. Ajoutez les emails IDN autorisés.",
+    addEmailPlaceholder: "ex. testeur@idn.ga",
+    addBtn: "Ajouter",
+    removeAriaTemplate: "Retirer {email}",
+    productionRequest: {
+      title: "Passer en production",
+      none: "Quand votre application est prête, demandez l'approbation pour la production. Une jumelle prod sera créée avec des credentials distincts.",
+      requestBtn: "Demander la production",
+      requestSubmitting: "Demande en cours…",
+      confirm:
+        "Une application jumelle « production » sera créée avec des credentials distincts. La sandbox restera active pour vos tests. Continuer ?",
+      pendingTitle: "Demande en cours de revue",
+      pendingDesc:
+        "Notre équipe vérifie la conformité (mentions légales, RGPD, scopes, redirect URIs). Délai indicatif : 48–72h ouvrées.",
+      approvedTitle: "Production approuvée",
+      approvedDesc: "Votre application jumelle est active. Identifiant production : ",
+      rejectedTitle: "Demande refusée",
+      rejectedDesc:
+        "Votre demande de production a été refusée. Vous pouvez ajuster votre app et la soumettre à nouveau.",
+      newCredentialsTitle: "Credentials production — affichés une seule fois",
+      newCredentialsWarning:
+        "Notez le client_secret prod immédiatement. Il ne sera plus affiché en clair. Préfixes : idn_sk_live_ / _prd_.",
+    },
+    errors: {
+      invalidEmail: "Adresse email invalide.",
+      tooManyTestUsers: "Maximum 25 comptes de test par application.",
+      notVerified:
+        "Votre compte développeur doit être validé par un super-administrateur avant de publier en production.",
+      httpsRequired: "Toutes les redirect URIs doivent être en HTTPS pour la production.",
+      alreadyRequested: "Une demande de production existe déjà pour cette application.",
+      generic: "Action impossible. Réessayez.",
     },
   },
 

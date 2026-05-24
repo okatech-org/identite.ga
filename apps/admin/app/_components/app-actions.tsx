@@ -10,34 +10,73 @@ import { api } from "@repo/backend/convex/_generated/api"
 /**
  * Boutons "Désactiver" / "Approuver pour production" du détail d'application.
  * Affichage conditionnel selon `disabled` et `status`.
+ *
+ * Cas "jumelle prod en attente" (status="pending" + linkedClientId pointant
+ * vers une sandbox) : on appelle `approveProductionRequest` / `rejectProductionRequest`
+ * qui prennent le clientId de la **sandbox** (pas du jumeau). Sinon (apps
+ * créées par l'admin via createApp), on retombe sur l'ancien approveApp.
  */
 export function AppActions({
   clientId,
   status,
   disabled,
+  linkedClientId,
 }: {
   clientId: string
   status: "production" | "pending" | "sandbox" | "disabled"
   disabled: boolean
+  linkedClientId?: string | null
 }) {
   const router = useRouter()
   const approve = useMutation(api.admin.oauthApps.approveApp)
   const disableApp = useMutation(api.admin.oauthApps.disableApp)
-  const [busy, setBusy] = useState<"approve" | "disable" | null>(null)
+  const approveProductionRequest = useMutation(
+    api.admin.oauthApps.approveProductionRequest,
+  )
+  const rejectProductionRequest = useMutation(
+    api.admin.oauthApps.rejectProductionRequest,
+  )
+  const [busy, setBusy] = useState<
+    "approve" | "disable" | "reject" | null
+  >(null)
 
+  const isProdRequest = status === "pending" && Boolean(linkedClientId)
   const canApprove = status === "pending" || disabled
-  const canDisable = !disabled
+  const canDisable = !disabled && !isProdRequest
+  const canReject = isProdRequest
 
   const onApprove = async () => {
     setBusy("approve")
     try {
-      await approve({ clientId })
+      if (isProdRequest && linkedClientId) {
+        await approveProductionRequest({ clientId: linkedClientId })
+      } else {
+        await approve({ clientId })
+      }
       toast.success("Application approuvée pour la production.")
       router.refresh()
     } catch (e) {
       toast.error(
         e instanceof Error ? e.message : "Approbation impossible.",
       )
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const onReject = async () => {
+    if (!linkedClientId) return
+    const reason = window.prompt("Raison du refus (optionnel) :") ?? ""
+    setBusy("reject")
+    try {
+      await rejectProductionRequest({
+        clientId: linkedClientId,
+        reason,
+      })
+      toast.success("Demande de production refusée.")
+      router.push("/apps")
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Refus impossible.")
     } finally {
       setBusy(null)
     }
@@ -68,6 +107,16 @@ export function AppActions({
           {busy === "disable" ? "…" : "Désactiver"}
         </button>
       ) : null}
+      {canReject ? (
+        <button
+          type="button"
+          onClick={onReject}
+          disabled={busy !== null}
+          className="inline-flex h-8 items-center rounded-lg border border-destructive bg-transparent px-3 text-[13px] font-medium text-destructive outline-none hover:bg-destructive/10 focus-visible:ring-2 focus-visible:ring-destructive disabled:opacity-50"
+        >
+          {busy === "reject" ? "…" : "Refuser la demande"}
+        </button>
+      ) : null}
       {canApprove ? (
         <button
           type="button"
@@ -75,7 +124,7 @@ export function AppActions({
           disabled={busy !== null}
           className="inline-flex h-8 items-center rounded-lg border border-idn-green bg-idn-green px-3 text-[13px] font-medium text-white outline-none hover:bg-idn-green-dark focus-visible:ring-2 focus-visible:ring-idn-green focus-visible:ring-offset-2 disabled:opacity-50"
         >
-          {busy === "approve" ? "…" : "Approuver pour production"}
+          {busy === "approve" ? "…" : isProdRequest ? "Approuver la demande" : "Approuver pour production"}
         </button>
       ) : null}
     </>

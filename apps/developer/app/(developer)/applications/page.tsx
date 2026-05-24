@@ -22,6 +22,30 @@ const envLabel = (env: "production" | "sandbox") =>
     ? fr.applications.card.env.production
     : fr.applications.card.env.sandbox
 
+const prodStatusBadge = (
+  status: "none" | "pending" | "approved" | "rejected",
+): { label: string; className: string } | null => {
+  if (status === "pending") {
+    return {
+      label: "PROD : EN ATTENTE",
+      className: "bg-amber-100 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200",
+    }
+  }
+  if (status === "approved") {
+    return {
+      label: "PROD : APPROUVÉE",
+      className: "bg-idn-green-soft text-idn-green dark:bg-[#0F2A18]",
+    }
+  }
+  if (status === "rejected") {
+    return {
+      label: "PROD : REFUSÉE",
+      className: "bg-destructive/10 text-destructive",
+    }
+  }
+  return null
+}
+
 export default function ApplicationsPage() {
   const apps = useQuery(api.developer.apps.listMine, {}) ?? null
 
@@ -85,6 +109,19 @@ export default function ApplicationsPage() {
                       >
                         {envLabel(app.env)}
                       </span>
+                      {(() => {
+                        const badge =
+                          app.env === "sandbox"
+                            ? prodStatusBadge(app.productionStatus)
+                            : null
+                        return badge ? (
+                          <span
+                            className={`rounded-full px-2 py-px font-mono text-[10px] font-semibold uppercase tracking-[0.06em] ${badge.className}`}
+                          >
+                            {badge.label}
+                          </span>
+                        ) : null
+                      })()}
                       <span className="rounded-full bg-idn-surface-2 px-2 py-px font-mono text-[10px] text-idn-muted">
                         Niveau {app.loa}
                       </span>

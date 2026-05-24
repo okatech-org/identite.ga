@@ -34,6 +34,12 @@ type AppMeta = {
   loa?: 1 | 2 | 3
   // Côté UI on stocke en CSV ; côté legacy on rencontre des tableaux.
   scopes?: string | string[]
+  // Sandbox → prod : liaison réciproque + état de la demande (sandbox side).
+  linkedClientId?: string
+  productionStatus?: "none" | "pending" | "approved" | "rejected"
+  // Toutes les autres clés (description, services, testUsers, createdBy…)
+  // sont conservées telles quelles lors des updates partiels.
+  [key: string]: unknown
 }
 
 function parseMeta(raw: string | null | undefined): AppMeta {
@@ -87,8 +93,11 @@ function appView(doc: RawApp) {
     (meta.env === "production" || meta.env === "pending" || meta.env === "sandbox"
       ? (meta.env as "production" | "pending" | "sandbox")
       : "sandbox")
+  // Une jumelle prod en attente est marquée `disabled=true` jusqu'à approbation
+  // admin — on garde `status="pending"` pour qu'elle remonte dans le filtre des
+  // demandes, sinon `disabled` masquerait l'état.
   const status: "production" | "pending" | "sandbox" | "disabled" =
-    doc.disabled === true ? "disabled" : envStatus
+    doc.disabled === true && envStatus !== "pending" ? "disabled" : envStatus
   return {
     id: String(doc._id ?? ""),
     clientId: doc.clientId ?? "",
@@ -100,6 +109,14 @@ function appView(doc: RawApp) {
     status,
     disabled: doc.disabled === true,
     createdAt: doc.createdAt ?? 0,
+    linkedClientId: typeof meta.linkedClientId === "string" ? meta.linkedClientId : null,
+    productionStatus:
+      meta.productionStatus === "pending" ||
+      meta.productionStatus === "approved" ||
+      meta.productionStatus === "rejected" ||
+      meta.productionStatus === "none"
+        ? meta.productionStatus
+        : "none",
   }
 }
 
@@ -114,6 +131,13 @@ const APP_RETURN = v.object({
   status: STATUS,
   disabled: v.boolean(),
   createdAt: v.number(),
+  linkedClientId: v.union(v.string(), v.null()),
+  productionStatus: v.union(
+    v.literal("none"),
+    v.literal("pending"),
+    v.literal("approved"),
+    v.literal("rejected"),
+  ),
 })
 
 export const listApps = query({
@@ -273,6 +297,166 @@ export const disableApp = mutation({
       targetType: "app",
       targetId: args.clientId,
       metadata: { reason: args.reason ?? "" },
+    })
+    return null
+  },
+})
+
+/**
+ * Helper interne : récupère un doc par clientId.
+ */
+async function findByClientId(
+  ctx: MutationCtx,
+  clientId: string,
+): Promise<{ _id: string; metadata?: string | null } | null> {
+  const doc = (await ctx.runQuery(components.betterAuth.adapter.findOne, {
+    model: "oauthApplication",
+    where: [{ field: "clientId", value: clientId }],
+  })) as { _id: string; metadata?: string | null } | null
+  return doc
+}
+
+/**
+ * Approuve une demande de passage en production déclenchée par un dev via
+ * `developer/apps.requestProduction`. L'argument est le `clientId` de la
+ * **sandbox** — on remonte à la jumelle prod via `metadata.linkedClientId`,
+ * on l'active, puis on flip le `productionStatus` côté sandbox.
+ */
+export const approveProductionRequest = mutation({
+  args: { clientId: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const actor = await requireAdmin(ctx)
+    const sandbox = await findByClientId(ctx, args.clientId)
+    if (!sandbox) {
+      throw new ConvexError({
+        code: "APP_NOT_FOUND",
+        message: "Application sandbox introuvable.",
+      })
+    }
+    const sandboxMeta = parseMeta(sandbox.metadata)
+    if (sandboxMeta.productionStatus !== "pending") {
+      throw new ConvexError({
+        code: "NOT_PENDING",
+        message:
+          "Cette application n'a pas de demande de production en attente.",
+      })
+    }
+    const prodClientId = sandboxMeta.linkedClientId
+    if (typeof prodClientId !== "string" || prodClientId.length === 0) {
+      throw new ConvexError({
+        code: "MISSING_TWIN",
+        message:
+          "La jumelle production de cette application est introuvable.",
+      })
+    }
+    const prod = await findByClientId(ctx, prodClientId)
+    if (!prod) {
+      throw new ConvexError({
+        code: "MISSING_TWIN",
+        message: "La jumelle production de cette application est introuvable.",
+      })
+    }
+    const prodMeta = parseMeta(prod.metadata)
+    const now = Date.now()
+
+    await ctx.runMutation(components.betterAuth.adapter.updateOne, {
+      input: {
+        model: "oauthApplication",
+        where: [{ field: "_id", value: prod._id }],
+        update: {
+          metadata: JSON.stringify({ ...prodMeta, status: "production" }),
+          disabled: false,
+          updatedAt: now,
+        },
+      },
+    })
+    await ctx.runMutation(components.betterAuth.adapter.updateOne, {
+      input: {
+        model: "oauthApplication",
+        where: [{ field: "_id", value: sandbox._id }],
+        update: {
+          metadata: JSON.stringify({
+            ...sandboxMeta,
+            productionStatus: "approved",
+          }),
+          updatedAt: now,
+        },
+      },
+    })
+
+    await ctx.runMutation(internal.audit.recordAudit, {
+      actorId: actor.userId,
+      action: "oauth_app_modified",
+      targetType: "app",
+      targetId: prodClientId,
+      metadata: { sandboxClientId: args.clientId, status: "production" },
+    })
+    return null
+  },
+})
+
+/**
+ * Rejette une demande de production : supprime la jumelle prod (créée
+ * disabled=true par `requestProduction`), nettoie le lien côté sandbox et
+ * marque `productionStatus="rejected"` avec la raison archivée dans l'audit.
+ */
+export const rejectProductionRequest = mutation({
+  args: { clientId: v.string(), reason: v.optional(v.string()) },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const actor = await requireAdmin(ctx)
+    const sandbox = await findByClientId(ctx, args.clientId)
+    if (!sandbox) {
+      throw new ConvexError({
+        code: "APP_NOT_FOUND",
+        message: "Application sandbox introuvable.",
+      })
+    }
+    const sandboxMeta = parseMeta(sandbox.metadata)
+    if (sandboxMeta.productionStatus !== "pending") {
+      throw new ConvexError({
+        code: "NOT_PENDING",
+        message:
+          "Cette application n'a pas de demande de production en attente.",
+      })
+    }
+    const prodClientId = sandboxMeta.linkedClientId
+    const now = Date.now()
+    if (typeof prodClientId === "string" && prodClientId.length > 0) {
+      const prod = await findByClientId(ctx, prodClientId)
+      if (prod) {
+        await ctx.runMutation(components.betterAuth.adapter.deleteOne, {
+          input: {
+            model: "oauthApplication",
+            where: [{ field: "_id", value: prod._id }],
+          },
+        })
+      }
+    }
+    const nextMeta = { ...sandboxMeta }
+    delete nextMeta.linkedClientId
+    nextMeta.productionStatus = "rejected"
+    await ctx.runMutation(components.betterAuth.adapter.updateOne, {
+      input: {
+        model: "oauthApplication",
+        where: [{ field: "_id", value: sandbox._id }],
+        update: {
+          metadata: JSON.stringify(nextMeta),
+          updatedAt: now,
+        },
+      },
+    })
+
+    await ctx.runMutation(internal.audit.recordAudit, {
+      actorId: actor.userId,
+      action: "oauth_app_modified",
+      targetType: "app",
+      targetId: args.clientId,
+      metadata: {
+        productionStatus: "rejected",
+        reason: args.reason ?? "",
+      },
     })
     return null
   },

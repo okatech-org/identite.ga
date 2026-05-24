@@ -1,12 +1,14 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { useParams } from "next/navigation"
 import { useConvex, useQuery } from "convex/react"
 import { toast } from "sonner"
 
 import { api } from "@repo/backend/convex/_generated/api"
 import { Button } from "@repo/ui/components/button"
+import { Input } from "@repo/ui/components/input"
 
 import { fr } from "../../../../_content/fr"
 import { CredRow } from "../../../../_components/cred-row"
@@ -16,6 +18,15 @@ const ISSUER = "https://identite.ga"
 const DISCOVERY = `${ISSUER}/.well-known/openid-configuration`
 const JWKS = `${ISSUER}/.well-known/jwks.json`
 
+type ConvexErrorLike = { data?: { code?: string; message?: string } }
+
+const extractErrorMessage = (err: unknown, fallback: string): string => {
+  if (err && typeof err === "object" && "data" in err) {
+    return (err as ConvexErrorLike).data?.message ?? fallback
+  }
+  return fallback
+}
+
 export default function AppKeysPage() {
   const params = useParams<{ appId: string }>()
   const clientId = String(params?.appId ?? "")
@@ -23,6 +34,61 @@ export default function AppKeysPage() {
   const app = useQuery(api.developer.apps.get, { clientId })
   const [rotating, setRotating] = useState(false)
   const [rotatedSecret, setRotatedSecret] = useState<string | null>(null)
+  const [newTestEmail, setNewTestEmail] = useState("")
+  const [addingTestUser, setAddingTestUser] = useState(false)
+  const [requestingProd, setRequestingProd] = useState(false)
+  const [prodCreds, setProdCreds] = useState<
+    | null
+    | { clientId: string; clientSecret: string }
+  >(null)
+
+  const handleAddTestUser = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const email = newTestEmail.trim().toLowerCase()
+    if (!email) return
+    setAddingTestUser(true)
+    try {
+      await convex.mutation(api.developer.apps.addTestUser, {
+        clientId,
+        email,
+      })
+      setNewTestEmail("")
+      toast.success(`${email} ajouté.`)
+    } catch (err) {
+      toast.error(extractErrorMessage(err, fr.sandbox.errors.generic))
+    } finally {
+      setAddingTestUser(false)
+    }
+  }
+
+  const handleRemoveTestUser = async (email: string) => {
+    try {
+      await convex.mutation(api.developer.apps.removeTestUser, {
+        clientId,
+        email,
+      })
+      toast.success(`${email} retiré.`)
+    } catch (err) {
+      toast.error(extractErrorMessage(err, fr.sandbox.errors.generic))
+    }
+  }
+
+  const handleRequestProduction = async () => {
+    if (!window.confirm(fr.sandbox.productionRequest.confirm)) return
+    setRequestingProd(true)
+    try {
+      const res = (await convex.mutation(
+        api.developer.apps.requestProduction,
+        { clientId },
+      )) as { clientId: string; clientSecret: string }
+      setProdCreds({ clientId: res.clientId, clientSecret: res.clientSecret })
+      toast.success("Demande envoyée.")
+    } catch (err) {
+      toast.error(extractErrorMessage(err, fr.sandbox.errors.generic))
+    } finally {
+      setRequestingProd(false)
+    }
+  }
 
   const handleRotate = async () => {
     if (
@@ -123,6 +189,43 @@ export default function AppKeysPage() {
             <CredRow label={fr.keys.rows.jwks} value={JWKS} />
           </div>
 
+          {app.env === "sandbox" ? (
+            <>
+              <SandboxTestUsersSection
+                testUsers={app.testUsers}
+                newTestEmail={newTestEmail}
+                onChangeNewTestEmail={setNewTestEmail}
+                onAdd={handleAddTestUser}
+                onRemove={handleRemoveTestUser}
+                adding={addingTestUser}
+              />
+              <ProductionRequestSection
+                productionStatus={app.productionStatus}
+                linkedClientId={app.linkedClientId}
+                requestingProd={requestingProd}
+                prodCreds={prodCreds}
+                onRequestProduction={handleRequestProduction}
+              />
+            </>
+          ) : null}
+
+          {app.env === "production" && app.linkedClientId ? (
+            <div className="rounded-xl border border-idn-border bg-idn-surface p-6">
+              <div className="text-[13px] font-semibold text-idn-ink">
+                Application sandbox liée
+              </div>
+              <p className="mt-2 text-sm text-idn-muted">
+                Continuez à tester vos évolutions sur la jumelle sandbox :
+              </p>
+              <Link
+                href={`/applications/${app.linkedClientId}/keys`}
+                className="mt-2 inline-block font-mono text-sm text-idn-green underline-offset-2 hover:underline"
+              >
+                {app.linkedClientId}
+              </Link>
+            </div>
+          ) : null}
+
           <div className="rounded-xl border border-idn-border bg-idn-surface p-6">
             <div className="text-[13px] font-semibold text-idn-ink">
               {fr.keys.integrationTitle}
@@ -144,5 +247,191 @@ export const auth = betterAuth({
         </div>
       </div>
     </>
+  )
+}
+
+function SandboxTestUsersSection({
+  testUsers,
+  newTestEmail,
+  onChangeNewTestEmail,
+  onAdd,
+  onRemove,
+  adding,
+}: {
+  testUsers: string[]
+  newTestEmail: string
+  onChangeNewTestEmail: (v: string) => void
+  onAdd: (e: React.FormEvent) => void
+  onRemove: (email: string) => void
+  adding: boolean
+}) {
+  return (
+    <div className="rounded-xl border border-idn-border bg-idn-surface p-6">
+      <div className="text-[13px] font-semibold text-idn-ink">
+        {fr.sandbox.testUsersTitle}
+      </div>
+      <p className="mt-1.5 text-xs text-idn-muted">{fr.sandbox.testUsersDesc}</p>
+      <form onSubmit={onAdd} className="mt-4 flex gap-2">
+        <Input
+          type="email"
+          value={newTestEmail}
+          onChange={(e) => onChangeNewTestEmail(e.target.value)}
+          placeholder={fr.sandbox.addEmailPlaceholder}
+          aria-label={fr.sandbox.addEmailPlaceholder}
+          className="flex-1"
+        />
+        <Button type="submit" disabled={adding || !newTestEmail.trim()}>
+          {adding ? "…" : fr.sandbox.addBtn}
+        </Button>
+      </form>
+      <div className="mt-4">
+        {testUsers.length === 0 ? (
+          <p className="rounded-md border border-dashed border-idn-border bg-idn-surface-2 px-3 py-3 text-center text-xs text-idn-muted">
+            {fr.sandbox.testUsersEmpty}
+          </p>
+        ) : (
+          <ul className="divide-y divide-idn-border-soft overflow-hidden rounded-md border border-idn-border">
+            {testUsers.map((email) => (
+              <li
+                key={email}
+                className="flex items-center gap-2 bg-idn-surface px-3 py-2"
+              >
+                <span className="flex-1 truncate font-mono text-xs text-idn-ink">
+                  {email}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onRemove(email)}
+                  className="rounded px-2 py-1 text-[11px] text-idn-muted hover:bg-idn-surface-2 hover:text-destructive"
+                  aria-label={fr.sandbox.removeAriaTemplate.replace(
+                    "{email}",
+                    email,
+                  )}
+                >
+                  ✕
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function ProductionRequestSection({
+  productionStatus,
+  linkedClientId,
+  requestingProd,
+  prodCreds,
+  onRequestProduction,
+}: {
+  productionStatus: "none" | "pending" | "approved" | "rejected"
+  linkedClientId: string | null
+  requestingProd: boolean
+  prodCreds: { clientId: string; clientSecret: string } | null
+  onRequestProduction: () => void
+}) {
+  return (
+    <div className="rounded-xl border border-idn-border bg-idn-surface p-6">
+      <div className="text-[13px] font-semibold text-idn-ink">
+        {fr.sandbox.productionRequest.title}
+      </div>
+      {productionStatus === "none" ? (
+        <>
+          <p className="mt-1.5 text-sm text-idn-muted">
+            {fr.sandbox.productionRequest.none}
+          </p>
+          <Button
+            className="mt-4"
+            onClick={onRequestProduction}
+            disabled={requestingProd}
+          >
+            {requestingProd
+              ? fr.sandbox.productionRequest.requestSubmitting
+              : fr.sandbox.productionRequest.requestBtn}
+          </Button>
+        </>
+      ) : null}
+      {productionStatus === "pending" ? (
+        <div className="mt-3 rounded-md border border-idn-border bg-idn-surface-2 p-3 text-sm">
+          <div className="font-medium text-idn-ink">
+            {fr.sandbox.productionRequest.pendingTitle}
+          </div>
+          <div className="mt-1 text-xs text-idn-muted">
+            {fr.sandbox.productionRequest.pendingDesc}
+          </div>
+        </div>
+      ) : null}
+      {productionStatus === "approved" ? (
+        <div className="mt-3 rounded-md border border-idn-green/40 bg-idn-green-soft p-3 text-sm dark:bg-[#0F2A18]">
+          <div className="font-medium text-idn-green">
+            {fr.sandbox.productionRequest.approvedTitle}
+          </div>
+          <div className="mt-1 text-xs text-idn-ink">
+            {fr.sandbox.productionRequest.approvedDesc}
+            {linkedClientId ? (
+              <Link
+                href={`/applications/${linkedClientId}/keys`}
+                className="font-mono underline-offset-2 hover:underline"
+              >
+                {linkedClientId}
+              </Link>
+            ) : (
+              "—"
+            )}
+          </div>
+        </div>
+      ) : null}
+      {productionStatus === "rejected" ? (
+        <div className="mt-3 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm">
+          <div className="font-medium text-destructive">
+            {fr.sandbox.productionRequest.rejectedTitle}
+          </div>
+          <div className="mt-1 text-xs text-idn-ink">
+            {fr.sandbox.productionRequest.rejectedDesc}
+          </div>
+          <Button
+            className="mt-3"
+            variant="outline"
+            size="sm"
+            onClick={onRequestProduction}
+            disabled={requestingProd}
+          >
+            {requestingProd
+              ? fr.sandbox.productionRequest.requestSubmitting
+              : fr.sandbox.productionRequest.requestBtn}
+          </Button>
+        </div>
+      ) : null}
+      {prodCreds ? (
+        <div className="mt-4 rounded-md border border-amber-300 bg-amber-50 p-3 dark:border-amber-700 dark:bg-amber-950/30">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-idn-muted">
+            {fr.sandbox.productionRequest.newCredentialsTitle}
+          </div>
+          <div className="mt-1.5 text-xs text-idn-ink">
+            {fr.sandbox.productionRequest.newCredentialsWarning}
+          </div>
+          <dl className="mt-3 space-y-2">
+            <div>
+              <dt className="text-[10px] font-semibold uppercase tracking-[0.06em] text-idn-muted">
+                CLIENT_ID
+              </dt>
+              <dd className="mt-1 rounded-md border border-idn-border bg-idn-surface-2 px-2 py-1.5 font-mono text-[11px] text-idn-ink">
+                {prodCreds.clientId}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-[10px] font-semibold uppercase tracking-[0.06em] text-idn-muted">
+                CLIENT_SECRET
+              </dt>
+              <dd className="mt-1 break-all rounded-md border border-idn-border bg-idn-surface-2 px-2 py-1.5 font-mono text-[11px] text-idn-ink">
+                {prodCreds.clientSecret}
+              </dd>
+            </div>
+          </dl>
+        </div>
+      ) : null}
+    </div>
   )
 }

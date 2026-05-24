@@ -26,6 +26,8 @@ type AppDetail = {
   status: "production" | "pending" | "sandbox" | "disabled"
   disabled: boolean
   createdAt: number
+  linkedClientId: string | null
+  productionStatus: "none" | "pending" | "approved" | "rejected"
 }
 
 type AuditRow = {
@@ -111,11 +113,25 @@ export default function AppDetailPage() {
             clientId={app.clientId}
             status={app.status}
             disabled={app.disabled}
+            linkedClientId={app.linkedClientId}
           />
         }
       />
       <div className="grid flex-1 grid-cols-[1.4fr_1fr] gap-3.5 overflow-auto p-7">
         <div className="flex flex-col gap-3.5">
+          {app.status === "pending" && app.linkedClientId ? (
+            <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm dark:border-amber-700 dark:bg-amber-950/30">
+              <div className="font-semibold text-idn-ink">
+                Demande de passage en production
+              </div>
+              <p className="mt-1 text-xs text-idn-muted">
+                Cette application est la jumelle production d&apos;une sandbox.
+                Approuver l&apos;active sur l&apos;émetteur OIDC. Sandbox
+                liée :{" "}
+                <span className="font-mono">{app.linkedClientId}</span>
+              </p>
+            </div>
+          ) : null}
           <section className="rounded-xl border border-idn-border bg-idn-surface p-5">
             <h2 className="mb-3.5 text-[13px] font-semibold text-idn-ink">
               {fr.appDetail.oauthConfig}

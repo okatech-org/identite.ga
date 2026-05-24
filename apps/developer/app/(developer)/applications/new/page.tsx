@@ -43,7 +43,6 @@ const schema = z.object({
           }),
       "Une des URIs n'est pas valide.",
     ),
-  env: z.enum(["sandbox", "production"]),
   loa: z.union([z.literal(1), z.literal(2), z.literal(3)]),
   scopes: z.array(z.string()).min(1, "Au moins un scope requis."),
 })
@@ -71,7 +70,6 @@ export default function NewApplicationPage() {
       name: "",
       description: "",
       redirectUris: "",
-      env: "sandbox",
       loa: 1,
       scopes: ["openid", "profile", "email"],
     },
@@ -80,7 +78,6 @@ export default function NewApplicationPage() {
 
   const selectedScopes = watch("scopes")
   const selectedLoa = watch("loa")
-  const selectedEnv = watch("env")
 
   const onSubmit = handleSubmit(async (values) => {
     setSubmitting(true)
@@ -94,7 +91,6 @@ export default function NewApplicationPage() {
         description: values.description ?? "",
         redirectUris,
         scopes: values.scopes,
-        env: values.env,
         loa: values.loa,
       })) as { id: string; clientId: string; clientSecret: string }
       setCreated({ clientId: res.clientId, clientSecret: res.clientSecret })
@@ -186,30 +182,12 @@ export default function NewApplicationPage() {
             />
           </div>
 
-          <fieldset className="space-y-1.5">
-            <legend className="text-sm font-medium text-idn-ink">
-              {fr.newApp.envLabel}
-            </legend>
-            <div className="flex flex-wrap gap-2">
-              {(["sandbox", "production"] as const).map((env) => {
-                const checked = selectedEnv === env
-                return (
-                  <button
-                    key={env}
-                    type="button"
-                    onClick={() => setValue("env", env, { shouldValidate: true })}
-                    className={`rounded-md border px-3 py-2 text-sm transition-colors ${
-                      checked
-                        ? "border-idn-green bg-idn-green-soft text-idn-green dark:bg-[#0F2A18]"
-                        : "border-idn-border bg-idn-surface text-idn-ink hover:bg-idn-surface-2"
-                    }`}
-                  >
-                    {env === "sandbox" ? fr.newApp.envSandbox : fr.newApp.envProduction}
-                  </button>
-                )
-              })}
-            </div>
-          </fieldset>
+          <div
+            className="rounded-md border border-idn-border bg-idn-surface-2 px-3 py-2 text-xs text-idn-muted"
+            role="note"
+          >
+            {fr.newApp.sandboxNote}
+          </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="app-redirect">{fr.newApp.redirectLabel}</Label>

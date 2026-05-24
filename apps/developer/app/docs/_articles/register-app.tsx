@@ -17,6 +17,7 @@ const TOC = [
   { label: "Créer l'application" },
   { label: "Récupérer les credentials" },
   { label: "Configurer les redirect URIs" },
+  { label: "Comptes de test" },
   { label: "Demander la production" },
 ]
 
@@ -68,11 +69,11 @@ export default function RegisterApp() {
           ],
           [
             "Environnement",
-            <span key="env"><Code>sandbox</Code> par défaut, <Code>production</Code> sur approbation</span>,
+            <span key="env">Toujours <Code>sandbox</Code> à la création. Le passage en <Code>production</Code> se demande depuis la fiche de l&apos;app et crée une <strong>jumelle</strong> avec des credentials distincts.</span>,
           ],
           [
             "Redirect URIs",
-            "Une ou plusieurs URIs de callback exactes (HTTPS en production)",
+            "Une ou plusieurs URIs de callback exactes (HTTPS requis pour la demande de production)",
           ],
           [
             "Scopes demandés",
@@ -93,10 +94,20 @@ export default function RegisterApp() {
         gestionnaire de secrets.
       </P>
       <CodeBlock lang="env" title=".env.local">
-{`IDN_CLIENT_ID=bourses-etudiantes-4wuB4g
-IDN_CLIENT_SECRET=idn_sk_8H42x9Lp3Mq7WnRfGv2sZmTcUe1AhJ...
+{`# Préfixes _sbx_ + idn_sk_test_ = environnement sandbox
+IDN_CLIENT_ID=bourses-etudiantes_sbx_4wuB4g
+IDN_CLIENT_SECRET=idn_sk_test_8H42x9Lp3Mq7WnRfGv2sZmTcUe1AhJ...
 IDN_ISSUER=https://identite.ga`}
       </CodeBlock>
+      <P>
+        Les credentials suivent une convention type Stripe :{" "}
+        <Code>_sbx_</Code> / <Code>_prd_</Code> dans le <Code>client_id</Code>,{" "}
+        <Code>idn_sk_test_</Code> / <Code>idn_sk_live_</Code> dans le{" "}
+        <Code>client_secret</Code>. Impossible de confondre les deux modes par
+        construction. Les tokens émis portent en plus un claim{" "}
+        <Code>env</Code> (<Code>sandbox</Code> ou <Code>production</Code>) que
+        votre code peut vérifier après échange.
+      </P>
 
       <Callout kind="warn" title="Ne committez jamais le secret">
         Le <Code>client_secret</Code> est l&apos;équivalent d&apos;un mot de
@@ -135,17 +146,46 @@ http://localhost:3000/auth/callback`}
         immédiatement invalidé.
       </P>
 
+      <H2 id="comptes-de-test">Comptes de test</H2>
+      <P>
+        En sandbox, seules les adresses IDN que <strong>vous déclarez
+        explicitement</strong> peuvent se connecter à votre application — un
+        utilisateur hors liste qui tente d&apos;y consentir voit l&apos;écran{" "}
+        <em>« Accès sandbox refusé »</em>. C&apos;est volontaire : ça vous
+        protège d&apos;un test accidentel par un vrai citoyen, et vous évite
+        de polluer leurs traces de consentement.
+      </P>
+      <P>
+        Depuis la fiche de votre app (<strong>Mes applications</strong> →{" "}
+        ouvrir l&apos;app), la section <strong>Comptes de test</strong> permet
+        d&apos;ajouter jusqu&apos;à 25 adresses. Le propriétaire de l&apos;app
+        (vous) est toujours autorisé, même hors liste.
+      </P>
+      <Callout kind="info" title="Claim env dans vos tokens">
+        Les ID tokens et la réponse <Code>/oauth2/userinfo</Code> retournés en
+        sandbox portent <Code>env: &quot;sandbox&quot;</Code>. Vérifiez-le côté
+        serveur pour interdire le déploiement d&apos;une clé sandbox en prod
+        par erreur.
+      </Callout>
+
       <H2 id="demander-la-production">Demander la production</H2>
       <P>
-        En sandbox, vous pouvez tester sans limite, mais seuls les comptes IDN
-        de test peuvent se connecter. Pour ouvrir à de vrais utilisateurs,
-        soumettez votre app à la revue : depuis l&apos;onglet{" "}
-        <strong>Mes applications</strong>, ouvrez la fiche de l&apos;app puis
-        cliquez « Demander l&apos;approbation pour la production ».
+        Quand votre application est prête, ouvrez sa fiche dans{" "}
+        <strong>Mes applications</strong> et cliquez{" "}
+        <em>« Demander la production »</em>. Une <strong>application jumelle</strong>{" "}
+        sera créée avec un nouveau <Code>client_id</Code> (<Code>_prd_</Code>)
+        et un nouveau <Code>client_secret</Code> (<Code>idn_sk_live_</Code>).
+        Votre sandbox reste vivante en parallèle pour les tests continus.
+      </P>
+      <P>
+        Le compte développeur doit être <strong>validé par un super-administrateur</strong>{" "}
+        avant qu&apos;une demande puisse être soumise — l&apos;équipe IDN
+        vérifie d&apos;abord votre identité.
       </P>
       <Callout kind="info" title="Délai indicatif">
-        48 à 72h ouvrées. L&apos;équipe IDN vérifie la conformité (mentions
-        légales, RGPD, scope demandés justifiés, redirect URIs valides).
+        48 à 72h ouvrées pour la revue de l&apos;app. L&apos;équipe IDN vérifie
+        la conformité (mentions légales, RGPD, scopes justifiés, redirect URIs
+        en HTTPS).
       </Callout>
     </DocBody>
   )

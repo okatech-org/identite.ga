@@ -12,6 +12,7 @@ interface ConsentFormProps {
     name: string
     icon: string | null
     requiredLoA: 1 | 2 | 3
+    env: "sandbox" | "production"
   }
   user: {
     fullName: string
@@ -186,6 +187,19 @@ export function ConsentForm({
           connecté en tant qu&apos;{" "}
           <b className="font-medium text-idn-ink">{user.fullName}</b>
         </p>
+
+        {app.env === "sandbox" ? (
+          <div
+            className="mt-4 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-center text-[12px] text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200"
+            role="status"
+          >
+            <span className="mr-1 inline-block rounded bg-amber-300/80 px-1.5 py-px font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-amber-950">
+              Sandbox
+            </span>
+            Mode test — les données partagées porteront l&apos;attribut{" "}
+            <code className="font-mono">env: sandbox</code>.
+          </div>
+        ) : null}
 
         <div className="mt-6 text-[11px] font-semibold uppercase tracking-[0.08em] text-idn-muted">
           VOUS PARTAGEREZ
