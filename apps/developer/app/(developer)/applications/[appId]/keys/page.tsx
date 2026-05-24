@@ -14,9 +14,19 @@ import { fr } from "../../../../_content/fr"
 import { CredRow } from "../../../../_components/cred-row"
 import { OpHeader } from "../../../../_components/op-header"
 
-const ISSUER = "https://identite.ga"
-const DISCOVERY = `${ISSUER}/.well-known/openid-configuration`
-const JWKS = `${ISSUER}/.well-known/jwks.json`
+// Source unique : le custom domain HTTP Actions du déploiement Convex
+// (cf. Dashboard Convex → Settings → Custom Domains). En prod = site.identite.ga,
+// en dev = *.convex.site.
+//
+// @convex-dev/better-auth namespace ses routes sous /api/auth/convex/*
+// → discovery et jwks sont exposés sur ce préfixe, pas sur /api/auth/ direct.
+// L'issuer dans le JSON OIDC reste lui à la racine (site.identite.ga).
+const SITE_URL = (
+  process.env.NEXT_PUBLIC_CONVEX_SITE_URL ?? "https://site.identite.ga"
+).replace(/\/+$/, "")
+const ISSUER = SITE_URL
+const DISCOVERY = `${SITE_URL}/api/auth/convex/.well-known/openid-configuration`
+const JWKS = `${SITE_URL}/api/auth/convex/jwks`
 
 type ConvexErrorLike = { data?: { code?: string; message?: string } }
 

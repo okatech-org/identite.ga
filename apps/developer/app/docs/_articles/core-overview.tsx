@@ -84,7 +84,7 @@ export const idn = createIDNClient({
   redirectUri: "https://votre-app.ga/auth/callback",
 
   // Optionnels — valeurs par défaut affichées
-  issuer: "https://identite.ga",
+  issuer: "https://site.identite.ga",
   scopes: ["openid", "profile", "email"],
   acrValues: ["eidas2"],
   storage: "localStorage",      // ou "sessionStorage" | "memory" | custom

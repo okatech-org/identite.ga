@@ -21,7 +21,13 @@
  * ```
  */
 
-const DEFAULT_ISSUER = "https://identite.ga"
+// Custom domain HTTP Actions du déploiement Convex prod IDN
+// (cf. Dashboard Convex → Settings → Custom Domains).
+const DEFAULT_ISSUER = "https://site.identite.ga"
+// Le composant @convex-dev/better-auth namespace ses routes sous
+// /api/auth/convex/*. Discovery + JWKS sont exposés là, pas à la racine.
+const DEFAULT_DISCOVERY_PATH =
+  "/api/auth/convex/.well-known/openid-configuration"
 const DEFAULT_SCOPES = ["openid", "profile", "email"]
 const DEFAULT_PROVIDER_ID = "idn"
 
@@ -47,7 +53,7 @@ export interface IDNHelperOptions {
   clientId: string
   /** client_secret émis par identité.ga (obligatoire, serveur uniquement) */
   clientSecret: string
-  /** Issuer OIDC. Défaut : `https://identite.ga` */
+  /** Issuer OIDC. Défaut : `https://site.identite.ga` */
   issuer?: string
   /** Override de l'URL discovery (sinon dérivée de l'issuer) */
   discoveryUrl?: string
@@ -98,7 +104,7 @@ export const idn = (options: IDNHelperOptions): Record<string, unknown> => {
 
   const issuer = (options.issuer ?? DEFAULT_ISSUER).replace(/\/+$/, "")
   const discoveryUrl =
-    options.discoveryUrl ?? `${issuer}/.well-known/openid-configuration`
+    options.discoveryUrl ?? `${issuer}${DEFAULT_DISCOVERY_PATH}`
   const scopes = options.scopes ?? DEFAULT_SCOPES
   const mapProfileToUser = options.mapProfileToUser ?? defaultMapProfileToUser
 

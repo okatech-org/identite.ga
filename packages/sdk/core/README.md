@@ -18,7 +18,7 @@ import { createIDNClient } from "@idn-ga/core"
 const client = createIDNClient({
   clientId: "votre-client-id",
   redirectUri: "https://votre-app.com/callback",
-  issuer: "https://identite.ga",
+  // issuer optionnel — défaut : https://site.identite.ga
 })
 
 // Démarrer le sign-in (PKCE S256)

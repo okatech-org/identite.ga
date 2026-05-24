@@ -4,7 +4,7 @@
  */
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import { IdnIcons } from "./icons"
 
@@ -18,6 +18,23 @@ export function CredRow({
   secret?: boolean
 }) {
   const [shown, setShown] = useState(!secret)
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    if (!copied) return
+    const t = setTimeout(() => setCopied(false), 1500)
+    return () => clearTimeout(t)
+  }, [copied])
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard?.writeText(value)
+      setCopied(true)
+    } catch {
+      /* clipboard refusée — pas de feedback */
+    }
+  }
+
   return (
     <div className="flex items-center gap-2.5 border-b border-idn-border-soft py-3 last:border-b-0">
       <div className="w-[140px] text-[11px] font-semibold uppercase tracking-[0.06em] text-idn-muted">
@@ -30,7 +47,7 @@ export function CredRow({
         <button
           type="button"
           onClick={() => setShown((s) => !s)}
-          className="p-2 text-idn-muted outline-none hover:text-idn-ink focus-visible:ring-2 focus-visible:ring-idn-green"
+          className="cursor-pointer p-2 text-idn-muted outline-none transition-colors hover:text-idn-ink focus-visible:ring-2 focus-visible:ring-idn-green"
           aria-label={shown ? "Masquer" : "Afficher"}
         >
           {IdnIcons.eye}
@@ -38,10 +55,23 @@ export function CredRow({
       ) : null}
       <button
         type="button"
-        onClick={() => navigator.clipboard?.writeText(value)}
-        className="flex items-center gap-1 p-2 text-xs text-idn-muted outline-none hover:text-idn-ink focus-visible:ring-2 focus-visible:ring-idn-green"
+        onClick={handleCopy}
+        aria-live="polite"
+        className={`flex w-[88px] cursor-pointer items-center justify-center gap-1 p-2 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-idn-green ${
+          copied
+            ? "text-idn-green"
+            : "text-idn-muted hover:text-idn-ink"
+        }`}
       >
-        {IdnIcons.copy} Copier
+        {copied ? (
+          <>
+            {IdnIcons.check} Copié
+          </>
+        ) : (
+          <>
+            {IdnIcons.copy} Copier
+          </>
+        )}
       </button>
     </div>
   )

@@ -24,7 +24,7 @@ export const auth = betterAuth({
         idn({
           clientId: process.env.IDN_CLIENT_ID!,
           clientSecret: process.env.IDN_CLIENT_SECRET!,
-          // issuer optionnel — défaut: https://identite.ga
+          // issuer optionnel — défaut: https://site.identite.ga
         }),
       ],
     }),

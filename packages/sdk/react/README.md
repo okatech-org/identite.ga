@@ -20,7 +20,7 @@ export default function App() {
     <IDNProvider
       clientId="votre-client-id"
       redirectUri="https://votre-app.com/callback"
-      issuer="https://identite.ga"
+      // issuer optionnel — défaut : https://site.identite.ga
     >
       <Page />
     </IDNProvider>

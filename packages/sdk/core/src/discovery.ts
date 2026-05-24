@@ -9,9 +9,14 @@ interface CacheEntry {
 
 const memoryCache = new Map<string, CacheEntry>()
 
+// @convex-dev/better-auth namespace ses routes sous /api/auth/convex/* —
+// le discovery n'est donc pas à la racine du host.
+const DEFAULT_DISCOVERY_PATH =
+  "/api/auth/convex/.well-known/openid-configuration"
+
 export const buildDiscoveryUrl = (issuer: string, override?: string): string => {
   if (override) return override
-  return `${issuer.replace(/\/+$/, "")}/.well-known/openid-configuration`
+  return `${issuer.replace(/\/+$/, "")}${DEFAULT_DISCOVERY_PATH}`
 }
 
 export const fetchDiscovery = async (

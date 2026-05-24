@@ -22,7 +22,8 @@ import type {
   StorageAdapter,
 } from "./types.js"
 
-const DEFAULT_ISSUER = "https://identite.ga"
+// Custom domain HTTP Actions du déploiement Convex prod IDN.
+const DEFAULT_ISSUER = "https://site.identite.ga"
 const DEFAULT_SCOPES = ["openid", "profile", "email"]
 const DEFAULT_REFRESH_THRESHOLD = 60
 

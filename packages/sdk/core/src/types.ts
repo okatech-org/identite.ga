@@ -49,9 +49,9 @@ export interface IDNClientConfig {
   clientId: string
   /** URI de retour après autorisation. Doit être enregistré côté plateforme. */
   redirectUri: string
-  /** Issuer OIDC. Défaut : `https://identite.ga`. */
+  /** Issuer OIDC. Défaut : `https://site.identite.ga`. */
   issuer?: string
-  /** URL discovery override. Défaut : `${issuer}/.well-known/openid-configuration`. */
+  /** URL discovery override. Défaut : `${issuer}/api/auth/convex/.well-known/openid-configuration`. */
   discoveryUrl?: string
   /** Scopes demandés. Défaut : `["openid", "profile", "email"]`. */
   scopes?: string[]
