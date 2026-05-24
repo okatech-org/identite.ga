@@ -1,6 +1,6 @@
 import { ConvexError, v } from "convex/values"
 
-import { mutation, query } from "./_generated/server"
+import { internalQuery, mutation, query } from "./_generated/server"
 import { getCurrentAuthUser, requireAuth, requireVerifiedAuth } from "./lib/auth"
 import { internal } from "./_generated/api"
 
@@ -12,6 +12,49 @@ import { internal } from "./_generated/api"
  * - generateUploadUrl : storage pour photo de profil (signed URL Convex)
  * - setProfilePhoto : pose la ref photo après upload
  */
+
+/**
+ * Lookup du profil par userId Better Auth — utilisé par le handler HTTP
+ * /api/auth/oauth2/userinfo (http.ts) pour enrichir les claims OIDC avec
+ * les données pivot stockées dans userProfile (en plus des claims standards
+ * fournis par better-auth qui n'a accès qu'aux champs de sa propre table user).
+ */
+export const getForUserinfo = internalQuery({
+  args: { userId: v.string() },
+  returns: v.union(
+    v.object({
+      profileType: v.string(),
+      loa: v.number(),
+      idnId: v.optional(v.string()),
+      pivot: v.optional(
+        v.object({
+          firstName: v.string(),
+          lastName: v.string(),
+          dateOfBirth: v.string(),
+          gender: v.string(),
+          birthPlace: v.string(),
+          nationality: v.string(),
+          phone: v.optional(v.string()),
+          nip: v.optional(v.string()),
+        }),
+      ),
+    }),
+    v.null(),
+  ),
+  handler: async (ctx, { userId }) => {
+    const profile = await ctx.db
+      .query("userProfile")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .unique()
+    if (!profile) return null
+    return {
+      profileType: profile.profileType,
+      loa: profile.loa,
+      idnId: profile.idnId,
+      pivot: profile.pivot,
+    }
+  },
+})
 
 export const getCurrentUser = query({
   args: {},

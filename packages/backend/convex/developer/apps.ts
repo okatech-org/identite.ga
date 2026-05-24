@@ -1,7 +1,7 @@
 import { ConvexError, v } from "convex/values"
 
 import { components } from "../_generated/api"
-import { mutation, query } from "../_generated/server"
+import { internalMutation, mutation, query } from "../_generated/server"
 import { getCurrentAuthUser, requireAuth, requireDeveloper } from "../lib/auth"
 
 /**
@@ -923,5 +923,60 @@ export const me = query({
       authenticated: true,
       hasDeveloperRole: user.roles.includes("developer"),
     }
+  },
+})
+
+/**
+ * Outil admin — patch les `redirectUris` d'une app OAuth par clientId, sans
+ * auth (à lancer via `bunx convex run developer/apps:setRedirectUrisByClientId
+ * '{"clientId":"...","redirectUris":["..."]}'`). Pas exposé en mutation
+ * publique tant que le developer portal n'a pas d'UI d'édition des URIs.
+ */
+export const setRedirectUrisByClientId = internalMutation({
+  args: {
+    clientId: v.string(),
+    redirectUris: v.array(v.string()),
+  },
+  returns: v.object({ updated: v.boolean(), redirectUris: v.array(v.string()) }),
+  handler: async (ctx, args) => {
+    if (args.redirectUris.length === 0) {
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message: "Au moins une redirect URI est requise.",
+      })
+    }
+    for (const uri of args.redirectUris) {
+      try {
+        new URL(uri)
+      } catch {
+        throw new ConvexError({
+          code: "INVALID_INPUT",
+          message: `Redirect URI invalide : ${uri}`,
+        })
+      }
+    }
+    const found = (await ctx.runQuery(components.betterAuth.adapter.findMany, {
+      model: MODEL,
+      where: [{ field: "clientId", value: args.clientId, operator: "eq" }],
+      paginationOpts: { numItems: 1, cursor: null },
+    })) as { page: OAuthAppDoc[] }
+    const doc = found.page[0]
+    if (!doc) {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: `Application introuvable : ${args.clientId}`,
+      })
+    }
+    await ctx.runMutation(components.betterAuth.adapter.updateOne, {
+      input: {
+        model: MODEL,
+        update: {
+          redirectUrls: JSON.stringify(args.redirectUris),
+          updatedAt: Date.now(),
+        },
+        where: [{ field: "_id", value: doc._id, operator: "eq" }],
+      },
+    })
+    return { updated: true, redirectUris: args.redirectUris }
   },
 })
