@@ -12,18 +12,42 @@ import { IdnFlagBars } from "@repo/ui/components/idn-flag-bars"
 import { IdnMark } from "@repo/ui/components/idn-mark"
 import { Input } from "@repo/ui/components/input"
 import { Label } from "@repo/ui/components/label"
+import { PinPad } from "@repo/ui/components/pin-pad"
 
 import { authClient } from "@/lib/auth-client"
 
 import { IdnIcons } from "../_components/icons"
 import { fr } from "../_content/fr"
 
-const schema = z.object({
-  email: z.string().trim().email("Adresse email invalide."),
-  password: z.string().min(1, "Mot de passe requis."),
+const HANDLE_REGEX = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/
+const IDN_DOMAIN = "@idn.ga"
+
+/**
+ * Accepte `handle` ou `handle@idn.ga` indifféremment.
+ * Renvoie l'email Better Auth normalisé.
+ */
+function normalizeIdnIdentifier(
+  input: string,
+): { handle: string; email: string } | null {
+  const raw = input.trim().toLowerCase()
+  if (!raw) return null
+  const handle = raw.endsWith(IDN_DOMAIN) ? raw.slice(0, -IDN_DOMAIN.length) : raw
+  if (handle.length < 3 || handle.length > 32) return null
+  if (!HANDLE_REGEX.test(handle)) return null
+  return { handle, email: `${handle}${IDN_DOMAIN}` }
+}
+
+const handleSchema = z.object({
+  identifier: z
+    .string()
+    .trim()
+    .refine(
+      (v) => normalizeIdnIdentifier(v) !== null,
+      "Identifiant IDN invalide.",
+    ),
 })
 
-type FormValues = z.infer<typeof schema>
+type HandleValues = z.infer<typeof handleSchema>
 
 const safeRedirectTo = (raw: string | null): string => {
   if (!raw) return "/"
@@ -44,10 +68,10 @@ const buildPostLoginRedirect = (params: URLSearchParams): string => {
   if (!params.get("client_id") || !params.get("response_type")) {
     return safeRedirectTo(params.get("redirect_to"))
   }
-  // Forward tous les params OAuth tels quels sur /api/auth/oauth2/authorize.
-  // Le proxy Next /api/auth/* relaie vers Convex avec les cookies de session.
   return `/api/auth/oauth2/authorize?${params.toString()}`
 }
+
+type Phase = "handle" | "pin"
 
 export default function ConnectSignInPage() {
   return (
@@ -64,123 +88,187 @@ function ConnectSignInPageInner() {
   const isOAuthFlow = Boolean(
     params.get("client_id") && params.get("response_type"),
   )
+
+  const [phase, setPhase] = useState<Phase>("handle")
+  const [email, setEmail] = useState("")
+  const [pin, setPin] = useState("")
+  const [pinError, setPinError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<FormValues>({
-    resolver: zodResolver(schema),
-    defaultValues: { email: "", password: "" },
+  const handleForm = useForm<HandleValues>({
+    resolver: zodResolver(handleSchema),
+    defaultValues: { identifier: "" },
     mode: "onTouched",
   })
 
-  const onSubmit = handleSubmit(async (values) => {
-    setSubmitting(true)
+  const goToPin = handleForm.handleSubmit((values) => {
+    const norm = normalizeIdnIdentifier(values.identifier)
+    if (!norm) return
+    setEmail(norm.email)
+    setPin("")
+    setPinError(null)
+    setPhase("pin")
+  })
+
+  /**
+   * Une fois la session Better Auth posée, on relaie soit vers l'endpoint
+   * OAuth2 (le plugin oidcProvider reprend le flow consent), soit vers le
+   * `redirect_to` interne. La logique cookie/fetch est nécessaire parce
+   * que le plugin crossDomainClient stocke la session en localStorage
+   * (cross-domain), pas en cookie HTTP — on doit donc la copier sur
+   * `document.cookie` pour que le proxy /api/auth/* la transmette à
+   * Convex.
+   */
+  const finishSignIn = async () => {
+    if (!isOAuthFlow) {
+      router.push(postLoginUrl)
+      return
+    }
     try {
-      const result = await authClient.signIn.email({
-        email: values.email,
-        password: values.password,
+      const cookieStr: string | undefined = (
+        authClient as { getCookie?: () => string }
+      ).getCookie?.()
+      if (cookieStr) {
+        for (const kv of cookieStr.split(/;\s*/)) {
+          if (!kv) continue
+          // Strip `__Secure-` : le browser refuse Secure cookies sur
+          // http://localhost. Le proxy remet le préfixe au passage.
+          const stripped = kv.replace(/^__Secure-/, "")
+          document.cookie = `${stripped}; path=/; SameSite=Lax`
+        }
+      }
+    } catch (err) {
+      console.error("[idn:sign-in] failed to write document.cookie", err)
+    }
+
+    let nextUrl: string | null = null
+    try {
+      const r = await fetch(postLoginUrl, {
+        method: "GET",
+        credentials: "include",
+        headers: { Accept: "application/json" },
       })
-      if (result?.error) {
-        const code = result.error.code as string | undefined
-        toast.error(
-          code === "INVALID_EMAIL_OR_PASSWORD"
-            ? fr.signIn.errorInvalid
-            : (result.error.message ?? fr.signIn.errorGeneric),
-        )
+      if (r.redirected) {
+        nextUrl = r.url
+      } else {
+        const body = (await r.json().catch(() => null)) as
+          | { redirect?: boolean; url?: string }
+          | null
+        if (body?.url) nextUrl = body.url
+      }
+    } catch (err) {
+      console.error("[idn:sign-in] authorize fetch threw", err)
+    }
+    if (nextUrl) {
+      window.location.assign(nextUrl)
+      return
+    }
+    window.location.assign(postLoginUrl)
+  }
+
+  const submitPin = async (entered: string) => {
+    if (submitting) return
+    setSubmitting(true)
+    setPinError(null)
+    try {
+      const res = await authClient.$fetch("/sign-in/pin", {
+        method: "POST",
+        body: { email, pin: entered },
+      })
+      const errorBody = (res?.error ?? null) as
+        | { code?: string; status?: number; message?: string }
+        | null
+      if (errorBody) {
+        const code = errorBody.code
+        if (code === "EMAIL_NOT_VERIFIED") {
+          toast.error(fr.signIn.errorEmailNotVerified)
+        } else if (errorBody.status === 429) {
+          setPinError(fr.signIn.pinErrorTooMany)
+        } else {
+          setPinError(fr.signIn.pinErrorInvalid)
+        }
+        setPin("")
         setSubmitting(false)
         return
       }
-      // Flow OAuth : on appelle /api/auth/oauth2/authorize via fetch pour
-      // récupérer la prochaine étape — Better Auth retourne soit un 302
-      // avec Location (browser nav directe) soit un 200 JSON
-      // `{ redirect: true, url }` (fetch). On gère les deux et on déclenche
-      // un window.location.assign vers l'URL résolue.
-      if (isOAuthFlow) {
-        // Le plugin crossDomainClient stocke la session dans localStorage
-        // (pas en cookie HTTP). Pour que le proxy /api/auth/* la transmette
-        // à Convex, on la copie vers document.cookie. `getCookie()` renvoie
-        // un string "name=value; name=value" prêt à l'emploi. Les cookies
-        // posés ainsi sont SameSite=Lax par défaut, ce qui suffit pour la
-        // requête same-origin qui suit.
-        try {
-           
-          const cookieStr: string | undefined = (
-            authClient as { getCookie?: () => string }
-          ).getCookie?.()
-          if (cookieStr) {
-             
-            console.log(
-              "[idn:sign-in] writing localStorage session to document.cookie",
-              cookieStr.split(/;\s*/).map((kv) => kv.split("=")[0]),
-            )
-            for (const kv of cookieStr.split(/;\s*/)) {
-              if (!kv) continue
-              // Strip `__Secure-` : le browser refuse Secure cookies sur
-              // http://localhost. Le proxy remet le préfixe au passage.
-              const stripped = kv.replace(/^__Secure-/, "")
-              document.cookie = `${stripped}; path=/; SameSite=Lax`
-            }
-          } else {
-             
-            console.warn("[idn:sign-in] authClient.getCookie() returned nothing")
-          }
-        } catch (err) {
-           
-          console.error("[idn:sign-in] failed to write document.cookie", err)
-        }
-
-         
-        console.log("[idn:sign-in] OAuth flow, fetching", postLoginUrl)
-        let nextUrl: string | null = null
-        try {
-          const r = await fetch(postLoginUrl, {
-            method: "GET",
-            credentials: "include",
-            headers: { Accept: "application/json" },
-          })
-           
-          console.log("[idn:sign-in] authorize response", {
-            status: r.status,
-            ct: r.headers.get("content-type"),
-            redirected: r.redirected,
-            url: r.url,
-          })
-          if (r.redirected) {
-            nextUrl = r.url
-          } else {
-            const body = (await r.json().catch(() => null)) as
-              | { redirect?: boolean; url?: string }
-              | null
-             
-            console.log("[idn:sign-in] authorize body", body)
-            if (body?.url) nextUrl = body.url
-          }
-        } catch (err) {
-           
-          console.error("[idn:sign-in] authorize fetch threw", err)
-        }
-        if (nextUrl) {
-           
-          console.log("[idn:sign-in] navigating to", nextUrl)
-          window.location.assign(nextUrl)
-          return
-        }
-         
-        console.warn(
-          "[idn:sign-in] no nextUrl from authorize, fallback full-page nav",
-        )
-        window.location.assign(postLoginUrl)
-      } else {
-        router.push(postLoginUrl)
-      }
+      await finishSignIn()
     } catch {
-      toast.error(fr.signIn.errorGeneric)
+      setPinError(fr.signIn.pinErrorInvalid)
+      setPin("")
       setSubmitting(false)
     }
-  })
+  }
+
+  if (phase === "pin") {
+    return (
+      <main className="mx-auto flex min-h-svh w-full max-w-[460px] flex-col px-6 py-12">
+        <div className="flex flex-col items-center text-center">
+          <IdnMark size={42} />
+          <IdnFlagBars className="mt-4" width={120} height={3} />
+          <h1 className="mt-5 text-[22px] font-semibold tracking-[-0.012em] text-idn-ink">
+            {fr.signIn.pinTitle}
+          </h1>
+          <p className="mt-1.5 text-sm text-idn-muted">{fr.signIn.pinSub}</p>
+          <p className="mt-1 text-xs text-idn-muted">{email}</p>
+        </div>
+
+        <div className="mt-8 flex flex-1 flex-col">
+          <PinPad
+            length={6}
+            value={pin}
+            onChange={(v) => {
+              setPin(v)
+              if (pinError) setPinError(null)
+            }}
+            onComplete={submitPin}
+            hasError={Boolean(pinError)}
+            ariaLabel={fr.signIn.pinTitle}
+            numpadAriaLabel={fr.signIn.pinNumpadAria}
+            backspaceAriaLabel={fr.signIn.pinBackspaceAria}
+            digitAriaLabel={fr.signIn.pinDigitAria}
+            dotsAriaLabel={fr.signIn.pinDotsAria}
+            autoFocus
+            disabled={submitting}
+            resetKey={email}
+          />
+
+          <div
+            id="pin-signin-error"
+            aria-live="polite"
+            className="mt-3 min-h-[1rem]"
+          >
+            {pinError ? (
+              <p role="alert" className="text-center text-xs text-destructive">
+                {pinError}
+              </p>
+            ) : null}
+          </div>
+
+          <Button
+            type="button"
+            size="lg"
+            disabled={submitting || pin.length !== 6}
+            onClick={() => void submitPin(pin)}
+            className="mt-6 h-12 w-full text-base"
+          >
+            {submitting ? fr.signIn.submitting : fr.signIn.pinPrimary}
+          </Button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setPin("")
+              setPinError(null)
+              setPhase("handle")
+            }}
+            className="mt-4 text-center text-[13px] text-idn-muted hover:underline"
+          >
+            ← {fr.signIn.pinBack}
+          </button>
+        </div>
+      </main>
+    )
+  }
 
   return (
     <main className="mx-auto flex min-h-svh w-full max-w-[460px] flex-col justify-center px-6 py-16">
@@ -193,76 +281,56 @@ function ConnectSignInPageInner() {
         <p className="mt-2 text-sm text-idn-muted">{fr.signIn.subtitle}</p>
       </div>
 
-      <form onSubmit={onSubmit} noValidate className="mt-7 space-y-3">
+      <form onSubmit={goToPin} noValidate className="mt-7 space-y-3">
         <div className="space-y-1.5">
-          <Label htmlFor="conn-email">{fr.signIn.emailLabel}</Label>
+          <Label htmlFor="conn-identifier">{fr.signIn.handleLabel}</Label>
           <div className="relative">
             <span
               className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-idn-muted"
               aria-hidden
             >
-              {IdnIcons.mail}
+              {IdnIcons.user}
             </span>
             <Input
-              id="conn-email"
-              type="email"
-              autoComplete="email"
+              id="conn-identifier"
+              type="text"
+              autoComplete="username"
+              autoCapitalize="off"
+              spellCheck={false}
+              placeholder={fr.signIn.handlePlaceholder}
               required
               aria-required="true"
-              aria-invalid={Boolean(errors.email)}
-              aria-describedby={errors.email ? "conn-email-error" : undefined}
-              className="h-11 pl-11"
-              {...register("email")}
-            />
-          </div>
-          {errors.email ? (
-            <p id="conn-email-error" role="alert" className="text-xs text-destructive">
-              {errors.email.message}
-            </p>
-          ) : null}
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="conn-password">{fr.signIn.passwordLabel}</Label>
-          <div className="relative">
-            <span
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-idn-muted"
-              aria-hidden
-            >
-              {IdnIcons.lock}
-            </span>
-            <Input
-              id="conn-password"
-              type="password"
-              autoComplete="current-password"
-              required
-              aria-required="true"
-              aria-invalid={Boolean(errors.password)}
+              aria-invalid={Boolean(handleForm.formState.errors.identifier)}
               aria-describedby={
-                errors.password ? "conn-password-error" : undefined
+                handleForm.formState.errors.identifier
+                  ? "conn-identifier-error"
+                  : "conn-identifier-hint"
               }
               className="h-11 pl-11"
-              {...register("password")}
+              {...handleForm.register("identifier")}
             />
           </div>
-          {errors.password ? (
+          {handleForm.formState.errors.identifier ? (
             <p
-              id="conn-password-error"
+              id="conn-identifier-error"
               role="alert"
               className="text-xs text-destructive"
             >
-              {errors.password.message}
+              {handleForm.formState.errors.identifier.message}
             </p>
-          ) : null}
+          ) : (
+            <p id="conn-identifier-hint" className="text-xs text-idn-muted">
+              {fr.signIn.handleHint}
+            </p>
+          )}
         </div>
 
         <Button
           type="submit"
           size="lg"
-          disabled={submitting}
           className="h-12 w-full text-base"
         >
-          {submitting ? fr.signIn.submitting : fr.signIn.submit}
+          {fr.signIn.continue}
         </Button>
       </form>
 

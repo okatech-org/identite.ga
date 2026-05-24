@@ -23,7 +23,6 @@ type PinPadProps = {
 
 function vibrate(ms = 12): void {
   if (typeof navigator === "undefined") return
-  // Best-effort : Safari iOS ignore. Pas d'erreur si la fonction n'existe pas.
   const nav = navigator as Navigator & {
     vibrate?: (pattern: number | number[]) => boolean
   }
@@ -40,10 +39,6 @@ function vibrate(ms = 12): void {
  * Feedback à chaque tap (touche ou bouton) :
  *   - visuel : `data-pressed` + transform scale(0.95) court (CSS)
  *   - haptique : navigator.vibrate(12) (best-effort, Android/Chrome)
- *
- * Le tick sonore WebAudio précédent a été retiré : son rendu sur les
- * pavés numériques web était jugé agressif (oscillateur sinus 440→280
- * Hz, gain 0.12). Le fallback visuel + haptique mobile suffit.
  *
  * Les feedbacks sont désactivés si `prefers-reduced-motion: reduce`
  * est actif.
@@ -134,7 +129,6 @@ export function PinPad({
   }
 
   const onHiddenKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // Allow space/enter on the hidden input to focus dots only — no-op
     if (e.key === " " || e.key === "Enter") {
       e.preventDefault()
       return

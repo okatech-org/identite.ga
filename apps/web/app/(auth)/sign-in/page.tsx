@@ -13,13 +13,13 @@ import { Button } from "@repo/ui/components/button"
 import { IdnMark } from "@repo/ui/components/idn-mark"
 import { Input } from "@repo/ui/components/input"
 import { Label } from "@repo/ui/components/label"
+import { PinPad } from "@repo/ui/components/pin-pad"
 
 import { authClient } from "@/lib/auth-client"
 
 import { signIn } from "../_content/fr"
 import { CrossDeviceQr } from "../_components/cross-device-qr"
 import { OtpInput } from "../_components/otp-input"
-import { PinPad } from "../_components/pin-pad"
 import { safeRedirectTo } from "../_lib/redirect"
 
 const HANDLE_REGEX = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/

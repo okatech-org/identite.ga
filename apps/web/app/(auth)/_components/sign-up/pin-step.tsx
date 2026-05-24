@@ -7,9 +7,9 @@ import { toast } from "sonner"
 
 import { api } from "@repo/backend/convex/_generated/api"
 import { Button } from "@repo/ui/components/button"
+import { PinPad } from "@repo/ui/components/pin-pad"
 
 import { onboardingHeader, pin, STEP_TOTAL } from "../../_content/fr"
-import { PinPad } from "../pin-pad"
 import { WizardShell } from "../wizard-shell"
 import { clearOnboardingState } from "../../_hooks/use-onboarding-state"
 
