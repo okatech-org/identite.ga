@@ -385,7 +385,10 @@ export const create = mutation({
           clientSecret: clientSecretHash,
           name: args.name.trim(),
           userId: user.userId,
-          redirectUrls: JSON.stringify(args.redirectUris),
+          // Better Auth oidc-provider stocke et lit en CSV (.split(",") dans
+          // getClient). Stocker en JSON casse la validation redirect_uri du
+          // flow /oauth2/authorize.
+          redirectUrls: args.redirectUris.join(","),
           disabled: false,
           type: "web",
           metadata: JSON.stringify(metadata),
@@ -806,7 +809,8 @@ export const requestProduction = mutation({
           clientSecret: prodSecretHash,
           name: baseName,
           userId: user.userId,
-          redirectUrls: JSON.stringify(redirectUris),
+          // Voir la note sur create() : Better Auth attend du CSV.
+          redirectUrls: redirectUris.join(","),
           // Désactivée jusqu'à approbation admin.
           disabled: true,
           type: "web",
@@ -971,12 +975,70 @@ export const setRedirectUrisByClientId = internalMutation({
       input: {
         model: MODEL,
         update: {
-          redirectUrls: JSON.stringify(args.redirectUris),
+          // Better Auth oidc-provider stocke et lit en CSV (.split(",") dans
+          // getClient). Stocker en JSON casse la validation redirect_uri du
+          // flow /oauth2/authorize.
+          redirectUrls: args.redirectUris.join(","),
           updatedAt: Date.now(),
         },
         where: [{ field: "_id", value: doc._id, operator: "eq" }],
       },
     })
     return { updated: true, redirectUris: args.redirectUris }
+  },
+})
+
+/**
+ * Migration one-shot : convertit les `redirectUrls` stockés en JSON
+ * (ancien format developer/apps) vers CSV (format attendu par Better Auth
+ * oidc-provider). Lancer via :
+ *
+ *   bunx convex run developer/apps:migrateRedirectUrlsToCsv '{}'
+ *
+ * Idempotent — saute les apps déjà au bon format.
+ */
+export const migrateRedirectUrlsToCsv = internalMutation({
+  args: {},
+  returns: v.object({
+    inspected: v.number(),
+    updated: v.number(),
+  }),
+  handler: async (ctx) => {
+    let cursor: string | null = null
+    let inspected = 0
+    let updated = 0
+    // Pagination défensive — la table `oauthApplication` reste petite mais on
+    // ne fait pas l'hypothèse d'un seul lot.
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const batch = (await ctx.runQuery(components.betterAuth.adapter.findMany, {
+        model: MODEL,
+        paginationOpts: { numItems: 200, cursor },
+      })) as { page: OAuthAppDoc[]; isDone?: boolean; continueCursor?: string | null }
+      for (const doc of batch.page) {
+        inspected++
+        const raw = doc.redirectUrls ?? ""
+        if (!raw || !raw.startsWith("[")) continue // déjà en CSV
+        let parsed: unknown
+        try {
+          parsed = JSON.parse(raw)
+        } catch {
+          continue
+        }
+        if (!Array.isArray(parsed)) continue
+        const csv = parsed.map(String).map((s) => s.trim()).filter(Boolean).join(",")
+        await ctx.runMutation(components.betterAuth.adapter.updateOne, {
+          input: {
+            model: MODEL,
+            where: [{ field: "_id", value: doc._id, operator: "eq" }],
+            update: { redirectUrls: csv, updatedAt: Date.now() },
+          },
+        })
+        updated++
+      }
+      if (batch.isDone || !batch.continueCursor) break
+      cursor = batch.continueCursor
+    }
+    return { inspected, updated }
   },
 })
