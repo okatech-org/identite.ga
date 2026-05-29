@@ -100,6 +100,18 @@ export default function AppKeysPage() {
     }
   }
 
+  const handleSaveRedirectUris = async (uris: string[]) => {
+    try {
+      await convex.mutation(api.developer.apps.setRedirectUris, {
+        clientId,
+        redirectUris: uris,
+      })
+      toast.success(fr.keys.redirectUrisEditor.saved)
+    } catch (err) {
+      toast.error(extractErrorMessage(err, fr.sandbox.errors.generic))
+    }
+  }
+
   const handleRotate = async () => {
     if (
       !window.confirm(
@@ -192,12 +204,15 @@ export default function AppKeysPage() {
               value="••••••••••••••••••••••••••••"
               secret
             />
-            <CredRow
-              label={fr.keys.rows.redirectUris}
-              value={app.redirectUris.join(", ")}
-            />
             <CredRow label={fr.keys.rows.jwks} value={JWKS} />
           </div>
+
+          <RedirectUrisSection
+            key={app.redirectUris.join("|")}
+            env={app.env}
+            initialUris={app.redirectUris}
+            onSave={handleSaveRedirectUris}
+          />
 
           {app.env === "sandbox" ? (
             <>
@@ -257,6 +272,90 @@ export const auth = betterAuth({
         </div>
       </div>
     </>
+  )
+}
+
+function RedirectUrisSection({
+  env,
+  initialUris,
+  onSave,
+}: {
+  env: "production" | "sandbox"
+  initialUris: string[]
+  onSave: (uris: string[]) => Promise<void>
+}) {
+  const [uris, setUris] = useState<string[]>(
+    initialUris.length > 0 ? initialUris : [""],
+  )
+  const [saving, setSaving] = useState(false)
+
+  const update = (i: number, val: string) =>
+    setUris((prev) => prev.map((u, idx) => (idx === i ? val : u)))
+  const add = () => setUris((prev) => [...prev, ""])
+  const remove = (i: number) =>
+    setUris((prev) => prev.filter((_, idx) => idx !== i))
+
+  const handleSave = async () => {
+    const cleaned = uris.map((u) => u.trim()).filter(Boolean)
+    if (cleaned.length === 0) {
+      toast.error(fr.keys.redirectUrisEditor.atLeastOne)
+      return
+    }
+    setSaving(true)
+    try {
+      await onSave(cleaned)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-idn-border bg-idn-surface p-6">
+      <div className="text-[13px] font-semibold text-idn-ink">
+        {fr.keys.redirectUrisEditor.title}
+      </div>
+      <p className="mt-1.5 text-xs text-idn-muted">
+        {env === "production"
+          ? fr.keys.redirectUrisEditor.descProd
+          : fr.keys.redirectUrisEditor.desc}
+      </p>
+      <div className="mt-4 space-y-2">
+        {uris.map((uri, i) => (
+          <div key={i} className="flex gap-2">
+            <Input
+              type="url"
+              inputMode="url"
+              autoCapitalize="off"
+              spellCheck={false}
+              value={uri}
+              onChange={(e) => update(i, e.target.value)}
+              placeholder={fr.keys.redirectUrisEditor.placeholder}
+              aria-label={`Redirect URI ${i + 1}`}
+              className="flex-1 font-mono text-xs"
+            />
+            <button
+              type="button"
+              onClick={() => remove(i)}
+              disabled={uris.length === 1}
+              className="rounded px-2 text-idn-muted hover:bg-idn-surface-2 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label={fr.keys.redirectUrisEditor.removeAria}
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 flex items-center gap-2">
+        <Button type="button" variant="outline" size="sm" onClick={add}>
+          {fr.keys.redirectUrisEditor.addBtn}
+        </Button>
+        <Button type="button" size="sm" onClick={handleSave} disabled={saving}>
+          {saving
+            ? fr.keys.redirectUrisEditor.saving
+            : fr.keys.redirectUrisEditor.save}
+        </Button>
+      </div>
+    </div>
   )
 }
 

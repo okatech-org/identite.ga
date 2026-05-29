@@ -148,6 +148,18 @@ export const fr = {
       redirectUris: "REDIRECT URIS",
       jwks: "JWKS",
     },
+    redirectUrisEditor: {
+      title: "Redirect URIs",
+      desc: "URLs de retour autorisées après authentification. Sandbox et production ont chacune leurs propres URIs.",
+      descProd: "URLs de retour autorisées. En production, HTTPS est obligatoire.",
+      addBtn: "Ajouter une URI",
+      save: "Enregistrer",
+      saving: "Enregistrement…",
+      placeholder: "https://exemple.ga/api/auth/callback/idn",
+      removeAria: "Retirer cette URI",
+      saved: "Redirect URIs mises à jour.",
+      atLeastOne: "Au moins une redirect URI est requise.",
+    },
   },
 
   sandbox: {

@@ -931,10 +931,88 @@ export const me = query({
 })
 
 /**
- * Outil admin — patch les `redirectUris` d'une app OAuth par clientId, sans
- * auth (à lancer via `bunx convex run developer/apps:setRedirectUrisByClientId
- * '{"clientId":"...","redirectUris":["..."]}'`). Pas exposé en mutation
- * publique tant que le developer portal n'a pas d'UI d'édition des URIs.
+ * Édite les redirect URIs d'une app OAuth depuis le portail développeur.
+ *
+ * Opère par `clientId`, avec contrôle de propriété. Comme sandbox et jumeau
+ * prod sont deux records distincts, chacun s'édite indépendamment — c'est ce
+ * qui permet d'avoir des URIs propres à chaque environnement (la prod n'hérite
+ * plus définitivement des URIs sandbox copiées par `requestProduction`).
+ *
+ * En production, HTTPS est obligatoire (aligné sur `requestProduction`).
+ * Stockage en CSV — format attendu par Better Auth oidc-provider (getClient
+ * fait `(redirectUrls ?? "").split(",")`), cf. note sur `create`.
+ */
+export const setRedirectUris = mutation({
+  args: {
+    clientId: v.string(),
+    redirectUris: v.array(v.string()),
+  },
+  returns: v.object({ redirectUris: v.array(v.string()) }),
+  handler: async (ctx, args) => {
+    const user = await requireDeveloper(ctx)
+    const raw = (await ctx.runQuery(components.betterAuth.adapter.findMany, {
+      model: MODEL,
+      where: [{ field: "clientId", value: args.clientId, operator: "eq" }],
+      paginationOpts: { numItems: 1, cursor: null },
+    })) as { page: OAuthAppDoc[] }
+    const doc = raw.page[0]
+    if (!doc) {
+      throw new ConvexError({ code: "NOT_FOUND", message: "App introuvable." })
+    }
+    if (doc.userId !== user.userId) {
+      throw new ConvexError({
+        code: "FORBIDDEN",
+        message: "Cette application ne vous appartient pas.",
+      })
+    }
+    const meta = parseMetadata(doc.metadata)
+    const normalized: string[] = []
+    for (const rawUri of args.redirectUris) {
+      const uri = rawUri.trim()
+      if (!uri) continue
+      let parsed: URL
+      try {
+        parsed = new URL(uri)
+      } catch {
+        throw new ConvexError({
+          code: "INVALID_INPUT",
+          message: `Redirect URI invalide : ${uri}`,
+        })
+      }
+      if (meta.env === "production" && parsed.protocol !== "https:") {
+        throw new ConvexError({
+          code: "HTTPS_REQUIRED",
+          message: `HTTPS requis en production : ${uri}`,
+        })
+      }
+      if (!normalized.includes(uri)) normalized.push(uri)
+    }
+    if (normalized.length === 0) {
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message: "Au moins une redirect URI est requise.",
+      })
+    }
+    await ctx.runMutation(components.betterAuth.adapter.updateOne, {
+      input: {
+        model: MODEL,
+        where: [{ field: "_id", value: doc._id, operator: "eq" }],
+        update: {
+          redirectUrls: normalized.join(","),
+          updatedAt: Date.now(),
+        },
+      },
+    })
+    return { redirectUris: normalized }
+  },
+})
+
+/**
+ * Outil ops — patch les `redirectUris` d'une app par clientId, sans auth
+ * (à lancer via `bunx convex run developer/apps:setRedirectUrisByClientId
+ * '{"clientId":"...","redirectUris":["..."]}'`). Doublon assumé de la mutation
+ * publique `setRedirectUris` ci-dessus, pour intervention hors session (script,
+ * support). N'applique pas la garde HTTPS prod.
  */
 export const setRedirectUrisByClientId = internalMutation({
   args: {
