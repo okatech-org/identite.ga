@@ -47,14 +47,19 @@ async function proxyToConvex(req: NextRequest): Promise<NextResponse> {
   // `text/html` et renvoie un vrai 302.
   proxyHeaders["host"] = new URL(CONVEX_SITE_URL).host
 
-  // En dev, le plugin crossDomainClient stocke la session dans localStorage
-  // (pas dans des cookies HTTP). Le client la copie ensuite vers document.
-  // cookie pour qu'elle voyage avec la requête vers le proxy. Comme le
-  // browser refuse les cookies `__Secure-` sur http://localhost, le client
-  // strip ce préfixe à l'écriture. Ici (à l'aller vers Convex) on remet le
-  // préfixe, sinon le middleware session côté Convex (baseURL https) ne
-  // trouve pas le cookie qu'il a posé.
-  if (isDev && proxyHeaders["cookie"]) {
+  // Le plugin crossDomainClient stocke la session dans localStorage (pas dans
+  // des cookies HTTP). Le client la recopie vers document.cookie pour qu'elle
+  // voyage avec la requête vers le proxy, en strippant TOUJOURS le préfixe
+  // `__Secure-` (le browser le refuse sur http://localhost, et le bridge
+  // crossDomain le strip sans condition — cf. sign-in finishSignIn).
+  // Convex, lui, tourne en baseURL https et pose/attend des cookies `__Secure-`
+  // quel que soit l'env. On remet donc le préfixe à l'aller — en dev ET en
+  // prod —, sinon le middleware session côté Convex ne retrouve pas le cookie
+  // qu'il a posé et renvoie l'utilisateur vers /sign-in (la boucle de login
+  // observée en production sur le flow /oauth2/authorize).
+  // NB : le regex ne matche que `better-auth.*`, jamais `__Secure-better-auth.*`
+  // déjà préfixé — pas de double préfixe sur les cookies natifs.
+  if (proxyHeaders["cookie"]) {
     proxyHeaders["cookie"] = proxyHeaders["cookie"]
       .split(/;\s*/)
       .map((kv) => {
@@ -75,12 +80,6 @@ async function proxyToConvex(req: NextRequest): Promise<NextResponse> {
       cookie: proxyHeaders["cookie"] ?? "(none)",
     })
   }
-  // NB : on n'ajoute PLUS de préfixe `__Secure-` aux cookies sortants.
-  // Test direct via curl montre que Convex accepte `better-auth.session_token`
-  // tel quel (le strip à l'aller-retour est symétrique). Garder une version
-  // commentée au cas où le besoin réapparaît.
-  // if (isDev && proxyHeaders["cookie"]) { ... }
-
   try {
     const body =
       req.method !== "GET" && req.method !== "HEAD"
