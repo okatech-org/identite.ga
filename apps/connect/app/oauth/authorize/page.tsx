@@ -92,6 +92,12 @@ function OAuthAuthorizePageInner() {
     api.oauthAuthorize.getAppForConsent,
     isAuthenticated && clientId ? { clientId } : "skip",
   )
+  // Statut d'une éventuelle vérification en cours — sert à ne PAS reboucler en
+  // step-up quand l'utilisateur a déjà soumis ses documents (revue manuelle).
+  const latestKyc = useQuery(
+    api.kyc.getMyLatest,
+    isAuthenticated ? {} : "skip",
+  )
 
   // Deux entrées légitimes côté browser :
   //   A. Flow initial direct : client_id + redirect_uri en query (cas tests
@@ -109,7 +115,13 @@ function OAuthAuthorizePageInner() {
     )
   }
 
-  if (isAuthLoading || !isAuthenticated || me === undefined || app === undefined) {
+  if (
+    isAuthLoading ||
+    !isAuthenticated ||
+    me === undefined ||
+    app === undefined ||
+    latestKyc === undefined
+  ) {
     return <main className="min-h-svh bg-idn-bg" />
   }
 
@@ -162,7 +174,18 @@ function OAuthAuthorizePageInner() {
     .reduce((max, acr) => Math.max(max, acrToLoa(acr)), 0)
   const requiredLoa = Math.max(app.requiredLoA, requestedLoa)
 
-  if (userLoa < requiredLoa) {
+  // Une vérification déjà soumise (en cours de revue ou complément demandé) :
+  // l'utilisateur a fait sa part. On ne le renvoie PAS en step-up (sinon boucle
+  // infinie loa=1 → step-up → soumission → loa=1…). On laisse le consentement
+  // se faire ; le token portera loa=1 et l'app suivra l'avancement via
+  // l'endpoint /oauth2/verification (polling).
+  const verificationPending =
+    latestKyc !== null &&
+    ["submitted", "under_review", "complement_required"].includes(
+      latestKyc.status,
+    )
+
+  if (userLoa < requiredLoa && !verificationPending) {
     const absoluteContinue = `${window.location.origin}${continueUrl}`
     const verifyUrl = `${IDN_WEB_URL}/kyc?return_to=${encodeURIComponent(absoluteContinue)}`
     return (

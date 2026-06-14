@@ -86,10 +86,21 @@ export default function KycPage() {
   const backInput = React.useRef<HTMLInputElement>(null)
   const selfieInput = React.useRef<HTMLInputElement>(null)
 
+  // Step-up délégué : `return_to` valide (depuis le flux de consentement OAuth
+  // d'une app tierce) où renvoyer l'utilisateur une fois sa part faite.
+  const returnTo = React.useMemo(() => {
+    if (typeof window === "undefined") return null
+    const value = new URLSearchParams(window.location.search).get("return_to")
+    return value && isAllowedReturnTo(value) ? value : null
+  }, [])
+
   // Si une demande active existe (en cours d'examen, complément demandé,
   // refusée), on redirige vers la page de détail dédiée pour éviter de
-  // proposer le démarrage d'une nouvelle demande.
+  // proposer le démarrage d'une nouvelle demande. Sauf en flux délégué
+  // (`return_to`) : on ne hijacke pas vers /kyc/request, on renvoie l'utilisateur
+  // à l'app tierce (cf. effet de retour ci-dessous + handleSubmit).
   React.useEffect(() => {
+    if (returnTo) return
     if (
       latest &&
       ["submitted", "under_review", "complement_required", "rejected"].includes(
@@ -98,7 +109,7 @@ export default function KycPage() {
     ) {
       router.replace("/kyc/request")
     }
-  }, [latest, router])
+  }, [latest, router, returnTo])
 
   // Approuvée / expirée : on garde l'écran "status" en lecture seule.
   React.useEffect(() => {
@@ -111,15 +122,10 @@ export default function KycPage() {
     }
   }, [latest, step])
 
-  // Step-up délégué : si on arrive avec un `return_to` valide (depuis le flux
-  // de consentement OAuth d'une app tierce), on renvoie l'utilisateur dès que
-  // son identité est vérifiée (loa ≥ 2) pour qu'il poursuive sa connexion.
-  const returnTo = React.useMemo(() => {
-    if (typeof window === "undefined") return null
-    const value = new URLSearchParams(window.location.search).get("return_to")
-    return value && isAllowedReturnTo(value) ? value : null
-  }, [])
-
+  // Flux délégué : on renvoie l'utilisateur vers l'app tierce dès que son
+  // identité est vérifiée (loa ≥ 2), à l'arrivée ou après auto-approbation.
+  // Le cas « soumis mais en revue manuelle » est géré dans handleSubmit
+  // (retour immédiat avec loa=1 → l'app affiche « en cours » et poll).
   React.useEffect(() => {
     if (returnTo && me && (me.profile?.loa ?? 1) >= 2) {
       window.location.assign(returnTo)
@@ -203,6 +209,13 @@ export default function KycPage() {
     try {
       await submit({ kycRequestId: kycRequestId as never })
       toast.success("Demande envoyée.")
+      // Flux délégué : on renvoie l'utilisateur à l'app tierce dès la soumission,
+      // sans attendre la décision. L'app le récupère sur son redirect_uri (loa=1
+      // si revue manuelle) et suit l'avancement via /oauth2/verification.
+      if (returnTo) {
+        window.location.assign(returnTo)
+        return
+      }
       setStep("status")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : kyc.selfie.submitError)
