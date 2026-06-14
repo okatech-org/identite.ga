@@ -278,6 +278,14 @@ export const createAuth = (
         requirePKCE: true,
         useJWTPlugin: true,
         allowPlainCodeChallengeMethod: false,
+        // Stocke ET compare les client_secret HACHÉS (base64url(SHA-256(secret))
+        // sans padding = `defaultClientSecretHasher` de better-auth) au lieu d'en
+        // clair. Le portail développeur (developer/apps.ts → hashClientSecret) doit
+        // stocker le secret avec EXACTEMENT ce même hash. Sans cette option,
+        // oidcProvider compare le secret reçu en clair à la valeur stockée : tout
+        // client créé via le portail (qui stocke un hash) échouait alors au token
+        // endpoint avec `invalid_client`.
+        storeClientSecret: "hashed",
         // Injecte le claim `env` (sandbox/production) dans l'ID token et la
         // réponse /oauth2/userinfo. Sert aussi de filet défensif : si un
         // utilisateur non whitelisté contourne l'UI consent en sandbox, on

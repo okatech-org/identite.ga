@@ -12,8 +12,10 @@ import { getCurrentAuthUser, requireAuth, requireDeveloper } from "../lib/auth"
  * deleteOne}`. Le composant aplatit le schéma : `redirectUrls` et `metadata`
  * sont stockés en `string` (JSON sérialisé).
  *
- * `clientSecret` est stocké hashé (SHA-256). Il est retourné en clair UNE
- * seule fois à la création, puis lors d'une rotation explicite.
+ * `clientSecret` est stocké hashé via `hashClientSecret` (base64url(SHA-256)
+ * sans padding = `defaultClientSecretHasher` de better-auth ; cf.
+ * `oidcProvider({ storeClientSecret: "hashed" })` dans auth.ts). Il est retourné
+ * en clair UNE seule fois à la création, puis lors d'une rotation explicite.
  */
 
 type OAuthAppDoc = {
@@ -188,17 +190,22 @@ const randomBytes = (n: number): Uint8Array => {
   return bytes
 }
 
-const sha256Hex = async (input: string): Promise<string> => {
+/**
+ * Hash du `client_secret` OAuth.
+ *
+ * DOIT correspondre EXACTEMENT à `defaultClientSecretHasher` de better-auth
+ * (oidc-provider) : base64url(SHA-256(secret)) SANS padding. C'est ce que
+ * `oidcProvider` (configuré `storeClientSecret: "hashed"` dans auth.ts)
+ * recompute au token endpoint pour comparer le secret reçu à la valeur stockée.
+ * Toute divergence de format (ex. ancien hex) casse l'authentification client
+ * avec `invalid_client`.
+ */
+const hashClientSecret = async (secret: string): Promise<string> => {
   const buf = await crypto.subtle.digest(
     "SHA-256",
-    new TextEncoder().encode(input) as BufferSource,
+    new TextEncoder().encode(secret) as BufferSource,
   )
-  const arr = new Uint8Array(buf)
-  let hex = ""
-  for (let i = 0; i < arr.length; i++) {
-    hex += arr[i]!.toString(16).padStart(2, "0")
-  }
-  return hex
+  return base64Url(new Uint8Array(buf))
 }
 
 const tsOf = (value: Date | number | undefined | null): number => {
@@ -363,7 +370,7 @@ export const create = mutation({
       slugify(args.name),
       "sandbox",
     )
-    const clientSecretHash = await sha256Hex(clientSecretPlain)
+    const clientSecretHash = await hashClientSecret(clientSecretPlain)
     const now = Date.now()
 
     const metadata: AppMetadata = {
@@ -430,7 +437,7 @@ export const rotateSecret = mutation({
     const meta = parseMetadata(doc.metadata)
     const secretTag = meta.env === "production" ? "live" : "test"
     const newSecretPlain = `idn_sk_${secretTag}_${base64Url(randomBytes(24))}`
-    const newSecretHash = await sha256Hex(newSecretPlain)
+    const newSecretHash = await hashClientSecret(newSecretPlain)
 
     await ctx.runMutation(components.betterAuth.adapter.updateOne, {
       input: {
@@ -787,7 +794,7 @@ export const requestProduction = mutation({
     const baseName = doc.name ?? args.clientId
     const { clientId: prodClientId, clientSecret: prodSecretPlain } =
       credentialsForEnv(slugify(baseName), "production")
-    const prodSecretHash = await sha256Hex(prodSecretPlain)
+    const prodSecretHash = await hashClientSecret(prodSecretPlain)
     const now = Date.now()
 
     const prodMeta: AppMetadata = {
