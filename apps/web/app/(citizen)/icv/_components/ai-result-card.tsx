@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useMutation, useQuery } from "convex/react"
-import { Check, Copy, Sparkles, X } from "lucide-react"
+import { Check, Copy, Loader2, Sparkles, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { api } from "@repo/backend/convex/_generated/api"
@@ -33,6 +33,19 @@ export function AiResultCard({
   const upsert = useMutation(api.cv.profile.upsert)
   const addSkill = useMutation(api.cv.skills.add)
   const [busy, setBusy] = React.useState(false)
+
+  // Exécution asynchrone (pool IA) : on affiche un état « en cours » tant que
+  // le job n'est pas terminé, puis le résultat dès qu'il est disponible.
+  if (job && (job.status === "queued" || job.status === "running")) {
+    return (
+      <CardShell onClose={onClose} title={icv.aiTools.cardTitle}>
+        <div className="flex items-center gap-2 text-sm italic text-emerald-900 dark:text-emerald-100">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          {icv.aiTools.inProgress}
+        </div>
+      </CardShell>
+    )
+  }
 
   if (!job || job.status !== "completed" || !job.result) {
     return null

@@ -13,6 +13,7 @@
     "check-types": "tsc --noEmit -p convex"
   },
   "dependencies": {
+    "@convex-dev/workpool": "^0.4.7",
     "@google/generative-ai": "^0.24.1",
     "@react-pdf/renderer": "^4.5.1",
     "convex": "^1.38.0",

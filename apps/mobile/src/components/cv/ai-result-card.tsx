@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, Clipboard, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Clipboard, Pressable, ScrollView, Text, View } from 'react-native';
 import { useMutation, useQuery } from 'convex/react';
 
 import { api } from '@/lib/api';
@@ -31,11 +31,34 @@ export function AiResultCard({
   const addSkill = useMutation(api.cv.skills.add);
   const [busy, setBusy] = useState(false);
 
-  if (!job || job.status !== 'completed' || !job.result) return null;
-
   const bg = t.dark ? '#0F2818' : '#DCFCE7';
   const border = t.dark ? '#0F4A22' : '#86EFAC';
   const fg = t.dark ? '#86EFAC' : '#15803D';
+
+  // Exécution asynchrone (pool IA) : état « en cours » tant que le job tourne.
+  if (job && (job.status === 'queued' || job.status === 'running')) {
+    return (
+      <View
+        style={{
+          backgroundColor: bg,
+          borderWidth: 1,
+          borderColor: border,
+          borderRadius: 14,
+          padding: 14,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 10,
+        }}
+      >
+        <ActivityIndicator color={fg} />
+        <Text style={{ fontSize: 13, color: fg, fontStyle: 'italic' }}>
+          {icvStrings.ai.inProgress}
+        </Text>
+      </View>
+    );
+  }
+
+  if (!job || job.status !== 'completed' || !job.result) return null;
 
   const Shell = ({ children, title }: { children: React.ReactNode; title: string }) => (
     <View

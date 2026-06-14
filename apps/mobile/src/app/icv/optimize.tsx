@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, Text, TextInput, View } from 'react-native';
-import { useAction } from 'convex/react';
+import { useAction, useQuery } from 'convex/react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { api } from '@/lib/api';
@@ -21,6 +21,30 @@ export default function ICVOptimize() {
   const [offer, setOffer] = useState('');
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
+  const [activeJobId, setActiveJobId] = useState<Id<'citizenCvAiJob'> | null>(null);
+
+  // `optimizeForJob` délègue l'exécution au pool IA et ne renvoie plus le
+  // `derivedCvId` en synchrone : on suit le job via la query réactive et on
+  // navigue une fois le CV dérivé créé.
+  const job = useQuery(
+    api.cv.ai.getLastResult,
+    activeJobId && cvId ? { cvId, feature: 'optimize_job' } : 'skip',
+  );
+
+  useEffect(() => {
+    if (!activeJobId || !job || job._id !== activeJobId) return;
+    if (job.status === 'completed' && job.derivedCvId) {
+      setActiveJobId(null);
+      setBusy(false);
+      Alert.alert(icvStrings.optimize.success);
+      router.dismissAll();
+      router.push(`/icv?cv=${job.derivedCvId}` as never);
+    } else if (job.status === 'failed') {
+      setActiveJobId(null);
+      setBusy(false);
+      Alert.alert('Erreur', job.errorMessage ?? icvStrings.errors.aiFailed);
+    }
+  }, [activeJobId, job, router]);
 
   async function submit() {
     if (!cvId || busy) return;
@@ -31,15 +55,15 @@ export default function ICVOptimize() {
     }
     setBusy(true);
     try {
-      const result = await optimizeForJob({
+      const { jobId } = await optimizeForJob({
         cvId,
         jobOfferText: trimmed,
         newCvName: name.trim() || undefined,
       });
-      Alert.alert(icvStrings.optimize.success);
-      router.dismissAll();
-      router.push(`/icv?cv=${result.derivedCvId}` as never);
+      // On reste en `busy` jusqu'à la complétion, gérée par l'effet ci-dessus.
+      setActiveJobId(jobId);
     } catch (e) {
+      setBusy(false);
       const msg = (e as Error).message ?? '';
       Alert.alert(
         'Erreur',
@@ -47,8 +71,6 @@ export default function ICVOptimize() {
           ? icvStrings.errors.quotaIa
           : msg,
       );
-    } finally {
-      setBusy(false);
     }
   }
 

@@ -4,6 +4,7 @@ import resend from "@convex-dev/resend/convex.config"
 import rateLimiter from "@convex-dev/rate-limiter/convex.config"
 import aggregate from "@convex-dev/aggregate/convex.config"
 import workflow from "@convex-dev/workflow/convex.config"
+import workpool from "@convex-dev/workpool/convex.config"
 
 const app = defineApp()
 
@@ -26,5 +27,9 @@ app.use(aggregate, { name: "auditByCategory" })
 
 // Workflow — durable execution pour pipelines KYC L2 multi-étapes.
 app.use(workflow)
+
+// Workpool — exécution à concurrence bornée des jobs IA iCV (lisse les pics
+// d'appels provider, retry/backoff au niveau pool). Cf. cv/ai.ts.
+app.use(workpool, { name: "aiWorkpool" })
 
 export default app

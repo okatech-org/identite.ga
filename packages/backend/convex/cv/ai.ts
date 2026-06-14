@@ -1,7 +1,14 @@
 import { ConvexError, v } from "convex/values"
+import { Workpool, vOnCompleteArgs } from "@convex-dev/workpool"
 
-import { internal } from "../_generated/api"
-import { action, query } from "../_generated/server"
+import { components, internal } from "../_generated/api"
+import {
+  action,
+  internalAction,
+  internalMutation,
+  query,
+} from "../_generated/server"
+import type { ActionCtx } from "../_generated/server"
 import type { Doc, Id } from "../_generated/dataModel"
 import { requireVerifiedAuth, requireVerifiedAuthInAction } from "../lib/auth"
 import { withFallback } from "../lib/ai/registry"
@@ -13,17 +20,17 @@ import { CV_AI_FEATURES, CV_AI_STATUSES } from "../schema"
  * iCV — Actions IA citoyen.
  * Cf. PLAN_BACKEND_ICV.md §8 + SPECS_FEATURE_ICV.md §5.4.
  *
- * Chaque action suit ce pattern :
- *   1. Auth + rate-limit cvAi (10/jour/user).
- *   2. Crée un job `queued` (internal._createJob).
- *   3. Bascule en `running` + provider/model (internal._markRunning).
- *   4. Charge le CV (internal._getCvForAi).
- *   5. Appelle le provider via `withFallback`.
- *   6. Side-effects feature-specific (ex: clone CV pour optimize_job).
- *   7. `_markCompleted` ou `_markFailed`.
+ * Exécution asynchrone via Workpool (concurrence bornée) :
+ *   1. L'action publique authentifie, applique le rate-limit cvAi
+ *      (10/jour/user), crée un job `queued` et l'enfile dans `aiPool`.
+ *      Elle retourne immédiatement `{ jobId }` — le frontend lit la suite
+ *      via `getLastResult` (queued → running → completed/failed).
+ *   2. `_run` (poolé) charge le CV et appelle le provider via `withFallback`.
+ *   3. `_onComplete` écrit l'état terminal (exactly-once) et, pour
+ *      `optimize_job`, crée le CV dérivé à partir du JSON IA.
  *
- * Toutes les actions retournent l'`Id<"citizenCvAiJob">` (et l'`Id<"citizenCv">`
- * dérivé pour optimize_job). Le frontend lit le résultat via `getLastResult`.
+ * Le passage en async (vs appel synchrone) est imposé par Workpool : borner
+ * la concurrence provider exige de découpler l'exécution de la requête client.
  */
 
 const FEATURE = v.union(...CV_AI_FEATURES.map((f) => v.literal(f)))
@@ -193,41 +200,143 @@ const PROMPTS = {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// Wrapper d'exécution commun
+// Exécution via Workpool (concurrence bornée + retry au niveau pool)
 // ─────────────────────────────────────────────────────────────────────────
 
-async function runJob<T extends Record<string, unknown>>(opts: {
-  ctx: any
-  userId: string
-  cvId: Id<"citizenCv">
-  feature: keyof typeof PROMPTS
-  input?: Record<string, unknown>
-  buildPrompt: (cv: Doc<"citizenCv">) => string
-  schema: Record<string, unknown>
-  onResult?: (result: T, cv: Doc<"citizenCv">, jobId: Id<"citizenCvAiJob">) => Promise<{
-    derivedCvId?: Id<"citizenCv">
-  } | void>
-}): Promise<{ jobId: Id<"citizenCvAiJob">; derivedCvId?: Id<"citizenCv"> }> {
-  const { ctx, userId, cvId, feature, input, buildPrompt, schema, onResult } = opts
+/**
+ * Pool d'exécution des jobs IA. `maxParallelism` borne le nombre d'appels
+ * provider (Gemini…) concurrents pour lisser les pics et éviter les 429,
+ * indépendamment du rate-limit par utilisateur (10/jour) qui, lui, protège
+ * du spam individuel.
+ */
+const aiPool = new Workpool(components.aiWorkpool, { maxParallelism: 5 })
 
-  const jobId: Id<"citizenCvAiJob"> = await ctx.runMutation(
-    internal.cv.aiJobs._createJob,
-    { userId, cvId, feature, input },
+type CvAiFeature = (typeof CV_AI_FEATURES)[number]
+
+function buildPromptAndSchema(
+  feature: CvAiFeature,
+  cv: Doc<"citizenCv">,
+  input: Record<string, unknown> | undefined,
+): { prompt: string; schema: Record<string, unknown> } {
+  const s = serializeCvForPrompt(cv)
+  switch (feature) {
+    case "improve_summary":
+      return {
+        prompt: PROMPTS.improve_summary.user(s),
+        schema: PROMPTS.improve_summary.schema,
+      }
+    case "suggest_skills":
+      return {
+        prompt: PROMPTS.suggest_skills.user(s),
+        schema: PROMPTS.suggest_skills.schema,
+      }
+    case "ats_check":
+      return {
+        prompt: PROMPTS.ats_check.user(s),
+        schema: PROMPTS.ats_check.schema,
+      }
+    case "generate_letter":
+      return {
+        prompt: PROMPTS.generate_letter.user(
+          s,
+          typeof input?.recipient === "string" ? input.recipient : undefined,
+          typeof input?.tone === "string" ? input.tone : "formal",
+        ),
+        schema: PROMPTS.generate_letter.schema,
+      }
+    case "optimize_job":
+      return {
+        prompt: PROMPTS.optimize_job.user(
+          s,
+          typeof input?.jobOfferText === "string" ? input.jobOfferText : "",
+        ),
+        schema: PROMPTS.optimize_job.schema,
+      }
+  }
+}
+
+/** Contexte transmis du site d'enqueue au callback `_onComplete`. */
+const AI_JOB_CONTEXT = v.object({
+  jobId: v.id("citizenCvAiJob"),
+  userId: v.string(),
+  cvId: v.id("citizenCv"),
+  feature: FEATURE,
+  newCvName: v.optional(v.string()),
+})
+
+/**
+ * Enfile l'exécution d'un job IA dans le pool. `_run` est idempotent (aucun
+ * side-effect hors `_markRunning`) : les écritures terminales et la création
+ * du CV dérivé se font dans `_onComplete`, exactly-once. Le retry pool est
+ * donc sûr.
+ */
+async function enqueueAiJob(
+  ctx: ActionCtx,
+  opts: {
+    jobId: Id<"citizenCvAiJob">
+    userId: string
+    cvId: Id<"citizenCv">
+    feature: CvAiFeature
+    input?: Record<string, unknown>
+    newCvName?: string
+  },
+): Promise<void> {
+  await aiPool.enqueueAction(
+    ctx,
+    internal.cv.ai._run,
+    {
+      jobId: opts.jobId,
+      userId: opts.userId,
+      cvId: opts.cvId,
+      feature: opts.feature,
+      input: opts.input,
+    },
+    {
+      retry: true,
+      onComplete: internal.cv.ai._onComplete,
+      context: {
+        jobId: opts.jobId,
+        userId: opts.userId,
+        cvId: opts.cvId,
+        feature: opts.feature,
+        newCvName: opts.newCvName,
+      },
+    },
   )
+}
 
-  try {
-    const cv = await loadCvForAction(ctx, userId, cvId)
+/**
+ * Exécuteur poolé : charge le CV, appelle le provider IA via `withFallback`,
+ * et renvoie le JSON structuré. Idempotent — relançable par le pool.
+ */
+export const _run = internalAction({
+  args: {
+    jobId: v.id("citizenCvAiJob"),
+    userId: v.string(),
+    cvId: v.id("citizenCv"),
+    feature: FEATURE,
+    input: v.optional(v.record(v.string(), v.any())),
+  },
+  returns: v.object({
+    json: v.record(v.string(), v.any()),
+    tokensIn: v.optional(v.number()),
+    tokensOut: v.optional(v.number()),
+  }),
+  handler: async (ctx, args) => {
+    const cv = await loadCvForAction(ctx, args.userId, args.cvId)
+    const built = buildPromptAndSchema(args.feature, cv, args.input)
+
     const result = await withFallback(async (provider) => {
       await ctx.runMutation(internal.cv.aiJobs._markRunning, {
-        jobId,
+        jobId: args.jobId,
         provider: provider.id,
         model: provider.defaultModel,
       })
       return await provider.complete({
-        task: `cv.${feature}`,
+        task: `cv.${args.feature}`,
         system: SYSTEM_FR,
-        prompt: buildPrompt(cv),
-        jsonSchema: schema,
+        prompt: built.prompt,
+        jsonSchema: built.schema,
       })
     })
 
@@ -240,35 +349,70 @@ async function runJob<T extends Record<string, unknown>>(opts: {
       )
     }
 
+    return {
+      json: result.json,
+      tokensIn: result.tokensIn,
+      tokensOut: result.tokensOut,
+    }
+  },
+})
+
+/**
+ * Callback de terminaison du pool. Écrit l'état terminal du job (exactly-once)
+ * et, pour `optimize_job`, crée le CV dérivé à partir du JSON IA.
+ */
+export const _onComplete = internalMutation({
+  args: vOnCompleteArgs(AI_JOB_CONTEXT),
+  returns: v.null(),
+  handler: async (ctx, { context, result }) => {
+    if (result.kind !== "success") {
+      const errorMessage =
+        result.kind === "failed" ? result.error : "Job IA annulé."
+      await ctx.runMutation(internal.cv.aiJobs._markFailed, {
+        jobId: context.jobId,
+        errorMessage,
+      })
+      return null
+    }
+
+    const ret = result.returnValue as {
+      json: Record<string, unknown>
+      tokensIn?: number
+      tokensOut?: number
+    }
+
     let derivedCvId: Id<"citizenCv"> | undefined
-    if (onResult) {
-      const sideEffect = await onResult(result.json as T, cv, jobId)
-      if (sideEffect && "derivedCvId" in sideEffect) {
-        derivedCvId = sideEffect.derivedCvId
-      }
+    if (context.feature === "optimize_job") {
+      const json = ret.json
+      const source = await ctx.db.get(context.cvId)
+      const fallbackName = source ? `${source.name} — variant` : "CV optimisé"
+      derivedCvId = await ctx.runMutation(
+        internal.cv.aiJobs._createOptimizedCv,
+        {
+          userId: context.userId,
+          sourceCvId: context.cvId,
+          newName: context.newCvName?.trim() || fallbackName,
+          tailoredSummary: String(json.tailoredSummary ?? ""),
+          prioritizedExperienceIds: Array.isArray(json.prioritizedExperienceIds)
+            ? (json.prioritizedExperienceIds as unknown[]).map(String)
+            : [],
+          suggestedSkills: Array.isArray(json.suggestedSkills)
+            ? (json.suggestedSkills as unknown[]).map(String)
+            : [],
+        },
+      )
     }
 
     await ctx.runMutation(internal.cv.aiJobs._markCompleted, {
-      jobId,
-      result: result.json,
-      tokensIn: result.tokensIn,
-      tokensOut: result.tokensOut,
+      jobId: context.jobId,
+      result: ret.json,
+      tokensIn: ret.tokensIn,
+      tokensOut: ret.tokensOut,
       derivedCvId,
     })
-
-    return { jobId, derivedCvId }
-  } catch (err) {
-    const message =
-      err instanceof AIProviderError
-        ? `${err.code}: ${err.message}`
-        : (err as Error).message
-    await ctx.runMutation(internal.cv.aiJobs._markFailed, {
-      jobId,
-      errorMessage: message,
-    })
-    throw err
-  }
-}
+    return null
+  },
+})
 
 // ─────────────────────────────────────────────────────────────────────────
 // Actions publiques
@@ -280,14 +424,15 @@ export const improveSummary = action({
   handler: async (ctx, args) => {
     const user = await requireVerifiedAuthInAction(ctx)
     await rateLimiter.limit(ctx, "cvAi", { key: user.userId, throws: true })
-    const { jobId } = await runJob({
-      ctx,
+    const jobId: Id<"citizenCvAiJob"> = await ctx.runMutation(
+      internal.cv.aiJobs._createJob,
+      { userId: user.userId, cvId: args.cvId, feature: "improve_summary" },
+    )
+    await enqueueAiJob(ctx, {
+      jobId,
       userId: user.userId,
       cvId: args.cvId,
       feature: "improve_summary",
-      schema: PROMPTS.improve_summary.schema,
-      buildPrompt: (cv) =>
-        PROMPTS.improve_summary.user(serializeCvForPrompt(cv)),
     })
     return { jobId }
   },
@@ -299,14 +444,15 @@ export const suggestSkills = action({
   handler: async (ctx, args) => {
     const user = await requireVerifiedAuthInAction(ctx)
     await rateLimiter.limit(ctx, "cvAi", { key: user.userId, throws: true })
-    const { jobId } = await runJob({
-      ctx,
+    const jobId: Id<"citizenCvAiJob"> = await ctx.runMutation(
+      internal.cv.aiJobs._createJob,
+      { userId: user.userId, cvId: args.cvId, feature: "suggest_skills" },
+    )
+    await enqueueAiJob(ctx, {
+      jobId,
       userId: user.userId,
       cvId: args.cvId,
       feature: "suggest_skills",
-      schema: PROMPTS.suggest_skills.schema,
-      buildPrompt: (cv) =>
-        PROMPTS.suggest_skills.user(serializeCvForPrompt(cv)),
     })
     return { jobId }
   },
@@ -319,15 +465,12 @@ export const optimizeForJob = action({
     jobOfferUrl: v.optional(v.string()),
     newCvName: v.optional(v.string()),
   },
-  returns: v.object({
-    jobId: v.id("citizenCvAiJob"),
-    derivedCvId: v.id("citizenCv"),
-  }),
+  returns: v.object({ jobId: v.id("citizenCvAiJob") }),
   handler: async (ctx, args) => {
     const user = await requireVerifiedAuthInAction(ctx)
     await rateLimiter.limit(ctx, "cvAi", { key: user.userId, throws: true })
 
-    let jobOfferText = args.jobOfferText?.trim() ?? ""
+    const jobOfferText = args.jobOfferText?.trim() ?? ""
     if (!jobOfferText && args.jobOfferUrl) {
       throw new ConvexError({
         code: "NOT_IMPLEMENTED",
@@ -348,42 +491,28 @@ export const optimizeForJob = action({
       })
     }
 
-    const { jobId, derivedCvId } = await runJob({
-      ctx,
+    const newCvName = args.newCvName?.trim() || undefined
+    const input: Record<string, unknown> = { jobOfferText }
+    if (newCvName) input.newCvName = newCvName
+
+    const jobId: Id<"citizenCvAiJob"> = await ctx.runMutation(
+      internal.cv.aiJobs._createJob,
+      {
+        userId: user.userId,
+        cvId: args.cvId,
+        feature: "optimize_job",
+        input,
+      },
+    )
+    await enqueueAiJob(ctx, {
+      jobId,
       userId: user.userId,
       cvId: args.cvId,
       feature: "optimize_job",
-      input: { jobOfferText, newCvName: args.newCvName },
-      schema: PROMPTS.optimize_job.schema,
-      buildPrompt: (cv) =>
-        PROMPTS.optimize_job.user(serializeCvForPrompt(cv), jobOfferText),
-      onResult: async (json: any, cv) => {
-        const derived: Id<"citizenCv"> = await ctx.runMutation(
-          internal.cv.aiJobs._createOptimizedCv,
-          {
-            userId: user.userId,
-            sourceCvId: cv._id,
-            newName: args.newCvName?.trim() || `${cv.name} — variant`,
-            tailoredSummary: String(json.tailoredSummary ?? cv.summary),
-            prioritizedExperienceIds: Array.isArray(json.prioritizedExperienceIds)
-              ? (json.prioritizedExperienceIds as unknown[]).map(String)
-              : [],
-            suggestedSkills: Array.isArray(json.suggestedSkills)
-              ? (json.suggestedSkills as unknown[]).map(String)
-              : [],
-          },
-        )
-        return { derivedCvId: derived }
-      },
+      input,
+      newCvName,
     })
-
-    if (!derivedCvId) {
-      throw new ConvexError({
-        code: "INTERNAL",
-        message: "Impossible de créer le CV optimisé.",
-      })
-    }
-    return { jobId, derivedCvId }
+    return { jobId }
   },
 })
 
@@ -404,19 +533,23 @@ export const generateLetter = action({
     const user = await requireVerifiedAuthInAction(ctx)
     await rateLimiter.limit(ctx, "cvAi", { key: user.userId, throws: true })
     const tone = args.tone ?? "formal"
-    const { jobId } = await runJob({
-      ctx,
+    const input: Record<string, unknown> = { tone }
+    if (args.recipient) input.recipient = args.recipient
+    const jobId: Id<"citizenCvAiJob"> = await ctx.runMutation(
+      internal.cv.aiJobs._createJob,
+      {
+        userId: user.userId,
+        cvId: args.cvId,
+        feature: "generate_letter",
+        input,
+      },
+    )
+    await enqueueAiJob(ctx, {
+      jobId,
       userId: user.userId,
       cvId: args.cvId,
       feature: "generate_letter",
-      input: { recipient: args.recipient, tone },
-      schema: PROMPTS.generate_letter.schema,
-      buildPrompt: (cv) =>
-        PROMPTS.generate_letter.user(
-          serializeCvForPrompt(cv),
-          args.recipient,
-          tone,
-        ),
+      input,
     })
     return { jobId }
   },
@@ -428,13 +561,15 @@ export const atsCheck = action({
   handler: async (ctx, args) => {
     const user = await requireVerifiedAuthInAction(ctx)
     await rateLimiter.limit(ctx, "cvAi", { key: user.userId, throws: true })
-    const { jobId } = await runJob({
-      ctx,
+    const jobId: Id<"citizenCvAiJob"> = await ctx.runMutation(
+      internal.cv.aiJobs._createJob,
+      { userId: user.userId, cvId: args.cvId, feature: "ats_check" },
+    )
+    await enqueueAiJob(ctx, {
+      jobId,
       userId: user.userId,
       cvId: args.cvId,
       feature: "ats_check",
-      schema: PROMPTS.ats_check.schema,
-      buildPrompt: (cv) => PROMPTS.ats_check.user(serializeCvForPrompt(cv)),
     })
     return { jobId }
   },

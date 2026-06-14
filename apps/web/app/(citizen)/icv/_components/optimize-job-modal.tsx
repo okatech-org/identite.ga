@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useAction } from "convex/react"
+import { useAction, useQuery } from "convex/react"
 import { useRouter } from "next/navigation"
 import { Loader2, Sparkles, Target } from "lucide-react"
 import { toast } from "sonner"
@@ -43,14 +43,44 @@ export function OptimizeJobModal({
   const [offer, setOffer] = React.useState("")
   const [name, setName] = React.useState("")
   const [pending, setPending] = React.useState(false)
+  const [activeJobId, setActiveJobId] =
+    React.useState<Id<"citizenCvAiJob"> | null>(null)
+
+  // L'action `optimizeForJob` délègue désormais l'exécution au pool IA et ne
+  // renvoie plus le `derivedCvId` en synchrone. On suit donc le job via la
+  // query réactive et on navigue une fois le CV dérivé créé.
+  const job = useQuery(
+    api.cv.ai.getLastResult,
+    activeJobId && cvId ? { cvId, feature: "optimize_job" } : "skip",
+  )
 
   React.useEffect(() => {
     if (open) {
       setOffer("")
       setName("")
       setPending(false)
+      setActiveJobId(null)
     }
   }, [open])
+
+  React.useEffect(() => {
+    if (!activeJobId || !job || job._id !== activeJobId) return
+    if (job.status === "completed" && job.derivedCvId) {
+      setActiveJobId(null)
+      setPending(false)
+      toast.success(icv.optimizeJob.success, {
+        description: icv.optimizeJob.successDesc,
+      })
+      onOpenChange(false)
+      router.push(`/icv?cv=${job.derivedCvId}`)
+    } else if (job.status === "failed") {
+      setActiveJobId(null)
+      setPending(false)
+      toast.error("Impossible d'optimiser.", {
+        description: job.errorMessage ?? undefined,
+      })
+    }
+  }, [activeJobId, job, onOpenChange, router])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -62,25 +92,22 @@ export function OptimizeJobModal({
     }
     setPending(true)
     try {
-      const result = await optimizeForJob({
+      const { jobId } = await optimizeForJob({
         cvId,
         jobOfferText: trimmed,
         newCvName: name.trim() || undefined,
       })
-      toast.success(icv.optimizeJob.success, {
-        description: icv.optimizeJob.successDesc,
-      })
-      onOpenChange(false)
-      router.push(`/icv?cv=${result.derivedCvId}`)
+      // On reste en `pending` (spinner « Optimisation en cours… ») jusqu'à la
+      // complétion, gérée par l'effet ci-dessus.
+      setActiveJobId(jobId)
     } catch (e) {
+      setPending(false)
       const msg = (e as Error).message
       if (msg.includes("cvAi") || msg.includes("RATE_LIMIT")) {
         toast.error(icv.aiTools.quotaExceeded)
       } else {
         toast.error("Impossible d'optimiser.", { description: msg })
       }
-    } finally {
-      setPending(false)
     }
   }
 

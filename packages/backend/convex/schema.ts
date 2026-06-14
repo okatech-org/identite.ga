@@ -477,6 +477,29 @@ export default defineSchema({
     .index("by_userId_role", ["userId", "role"]),
 
   /**
+   * Clés API développeur (PAT / M2M) — émises depuis le portail développeur
+   * pour authentifier des appels serveur-à-serveur hors session OAuth.
+   *
+   * Le secret n'est JAMAIS stocké en clair : seul son hash SHA-256
+   * (`tokenHash`) est persisté, indexé pour une validation O(1). Le secret
+   * complet n'est renvoyé qu'une fois, à la création ; `tokenPrefix` (tronqué)
+   * sert à l'affichage. Cf. developer/apiKeys.ts + lib/secureToken.ts.
+   */
+  developerApiKey: defineTable({
+    userId: v.string(),
+    name: v.string(),
+    tokenHash: v.string(),
+    tokenPrefix: v.string(),
+    scopes: v.array(v.string()),
+    createdAt: v.number(),
+    expiresAt: v.optional(v.number()),
+    lastUsedAt: v.optional(v.number()),
+    revokedAt: v.optional(v.number()),
+  })
+    .index("by_userId", ["userId", "createdAt"])
+    .index("by_tokenHash", ["tokenHash"]),
+
+  /**
    * Clé/valeur pour la configuration système modifiable par le super-admin
    * (providers email/SMS actifs, feature flags, etc.).
    *

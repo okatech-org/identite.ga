@@ -64,21 +64,23 @@ export function AiToolsPanel({
     if (pending) return
     setPending(tool)
     try {
+      // L'exécution est désormais asynchrone (pool IA) : l'action confirme le
+      // lancement, le résultat arrive ensuite via `getLastResult` (carte/modale).
       if (tool === "improve_summary") {
         await improveSummary({ cvId })
-        toast.success("Suggestion IA prête.")
+        toast.success(icv.aiTools.inProgress)
         onImproveSummaryResult?.()
       } else if (tool === "suggest_skills") {
         await suggestSkills({ cvId })
-        toast.success("Suggestions de compétences prêtes.")
+        toast.success(icv.aiTools.inProgress)
         onSuggestSkillsResult?.()
       } else if (tool === "ats_check") {
         await atsCheck({ cvId })
-        toast.success("Analyse ATS terminée.")
+        toast.success(icv.aiTools.inProgress)
         onAtsResult?.()
       } else if (tool === "generate_letter") {
         await generateLetter({ cvId, tone: "formal" })
-        toast.success("Lettre de motivation générée.")
+        toast.success(icv.aiTools.inProgress)
         onLetterResult?.()
       }
     } catch (e) {
