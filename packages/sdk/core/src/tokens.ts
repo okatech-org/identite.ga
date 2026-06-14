@@ -1,4 +1,9 @@
-import type { DiscoveryDocument, IDNTokens, IDNUser } from "./types.js"
+import type {
+  DiscoveryDocument,
+  IDNTokens,
+  IDNUser,
+  IDNVerificationStatus,
+} from "./types.js"
 
 interface TokenResponseRaw {
   access_token: string
@@ -82,6 +87,28 @@ export const fetchUserInfo = async (
     throw new Error(`[@idn-ga/core] userinfo ${res.status}`)
   }
   return (await res.json()) as IDNUser
+}
+
+/**
+ * Statut de vérification d'identité (loa + état d'une demande KYC en cours).
+ * L'endpoint n'est pas dans le discovery — on le dérive de `userinfo_endpoint`
+ * (même hôte, `/userinfo` → `/verification`).
+ */
+export const fetchVerificationStatus = async (
+  discovery: DiscoveryDocument,
+  accessToken: string,
+): Promise<IDNVerificationStatus> => {
+  const url = discovery.userinfo_endpoint.replace(/\/userinfo$/, "/verification")
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: "application/json",
+    },
+  })
+  if (!res.ok) {
+    throw new Error(`[@idn-ga/core] verification ${res.status}`)
+  }
+  return (await res.json()) as IDNVerificationStatus
 }
 
 export const revokeToken = async (params: {

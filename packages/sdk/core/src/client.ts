@@ -6,6 +6,7 @@ import { resolveStorage, storageKeys } from "./storage.js"
 import {
   exchangeCode,
   fetchUserInfo,
+  fetchVerificationStatus,
   refreshAccessToken,
   revokeToken,
 } from "./tokens.js"
@@ -17,6 +18,7 @@ import type {
   IDNSession,
   IDNTokens,
   IDNUser,
+  IDNVerificationStatus,
   SignInOptions,
   SignOutOptions,
   StorageAdapter,
@@ -248,6 +250,35 @@ export class IDNClient {
     } finally {
       this.refreshPromise = undefined
     }
+  }
+
+  /**
+   * Statut de vérification d'identité de l'utilisateur connecté — niveau (loa)
+   * + état d'une éventuelle demande en cours (en cours / action requise /
+   * refusée). Interroge `/oauth2/verification` avec l'access token courant.
+   *
+   * À utiliser pour afficher « ton identité est en cours de vérification » ou
+   * proposer de la lancer/finir. Renvoie `null` si pas de session.
+   */
+  async getVerificationStatus(): Promise<IDNVerificationStatus | null> {
+    const accessToken = await this.getAccessToken()
+    if (!accessToken) return null
+    const discovery = await this.getDiscovery()
+    return fetchVerificationStatus(discovery, accessToken)
+  }
+
+  /**
+   * Déclenche une vérification d'identité pour le compte de l'utilisateur :
+   * relance le flow OIDC en exigeant un niveau de garantie (`acr_values`).
+   * identite.ga propose alors le step-up (upload pièce + selfie) puis renvoie
+   * l'utilisateur ici une fois le niveau atteint. `minLevel` 2 par défaut.
+   */
+  async requestIdentityVerification(
+    minLevel: 2 | 3 = 2,
+    opts: SignInOptions = {},
+  ): Promise<void> {
+    const acr = minLevel === 3 ? "eidas3" : "eidas2"
+    return this.signIn({ ...opts, acrValues: [acr] })
   }
 
   async revoke(): Promise<void> {

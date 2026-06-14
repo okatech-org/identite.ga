@@ -28,6 +28,21 @@ await client.signIn()
 const session = await client.handleCallback()
 ```
 
+## Vérification d'identité
+
+```ts
+// Niveau de vérification + état d'une demande en cours (temps réel)
+const status = await client.getVerificationStatus()
+// → { loa, acr, verified, verification: { status, action_required, action_url, … } }
+
+// Déclencher une vérification pour l'utilisateur (step-up, niveau 2 par défaut)
+await client.requestIdentityVerification()
+```
+
+Voir [`docs/verification-api.md`](https://github.com/okatech-org/identite.ga/blob/main/docs/verification-api.md)
+pour le contrat complet (claims `loa`/`acr`, endpoint `/oauth2/verification`,
+step-up via `acr_values`, polling).
+
 ## API
 
 - `createIDNClient(config)` — instancie un client OIDC

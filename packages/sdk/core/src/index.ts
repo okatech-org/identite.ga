@@ -12,6 +12,7 @@ export type {
   IDNSession,
   IDNTokens,
   IDNUser,
+  IDNVerificationStatus,
   SignInOptions,
   SignOutOptions,
   StorageAdapter,

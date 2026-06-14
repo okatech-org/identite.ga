@@ -35,6 +35,24 @@ type LocalStep = "intro" | "document" | "selfie" | "review" | "status"
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"]
 const MAX_SIZE = 8 * 1024 * 1024 // 8 Mo
 
+// Origines autorisées pour `return_to` (anti open-redirect) : sous-domaines
+// identite.ga (ex. connect.identite.ga d'où vient le step-up OAuth) + localhost.
+function isAllowedReturnTo(raw: string): boolean {
+  try {
+    const u = new URL(raw)
+    if (u.protocol !== "https:" && u.protocol !== "http:") return false
+    const host = u.hostname
+    return (
+      host === "identite.ga" ||
+      host.endsWith(".identite.ga") ||
+      host === "localhost" ||
+      host === "127.0.0.1"
+    )
+  } catch {
+    return false
+  }
+}
+
 async function uploadImage(uploadUrl: string, file: File): Promise<string> {
   const res = await fetch(uploadUrl, {
     method: "POST",
@@ -92,6 +110,21 @@ export default function KycPage() {
       setStep("status")
     }
   }, [latest, step])
+
+  // Step-up délégué : si on arrive avec un `return_to` valide (depuis le flux
+  // de consentement OAuth d'une app tierce), on renvoie l'utilisateur dès que
+  // son identité est vérifiée (loa ≥ 2) pour qu'il poursuive sa connexion.
+  const returnTo = React.useMemo(() => {
+    if (typeof window === "undefined") return null
+    const value = new URLSearchParams(window.location.search).get("return_to")
+    return value && isAllowedReturnTo(value) ? value : null
+  }, [])
+
+  React.useEffect(() => {
+    if (returnTo && me && (me.profile?.loa ?? 1) >= 2) {
+      window.location.assign(returnTo)
+    }
+  }, [returnTo, me])
 
   if (me === undefined || latest === undefined) {
     return (

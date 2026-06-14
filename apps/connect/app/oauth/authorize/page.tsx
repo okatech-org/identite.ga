@@ -8,6 +8,13 @@ import { api } from "@repo/backend/convex/_generated/api"
 
 import { ConsentForm } from "./_components/consent-form"
 
+// Base de l'app web identite.ga (flux de vérification sous /kyc). En dev,
+// définir NEXT_PUBLIC_IDN_WEB_URL=http://localhost:3000.
+const IDN_WEB_URL = process.env.NEXT_PUBLIC_IDN_WEB_URL ?? "https://identite.ga"
+
+const acrToLoa = (acr: string): number =>
+  acr === "eidas3" ? 3 : acr === "eidas2" ? 2 : 1
+
 const PARAM_KEYS = [
   "client_id",
   "redirect_uri",
@@ -143,18 +150,73 @@ function OAuthAuthorizePageInner() {
     .split(/\s+/)
     .filter(Boolean)
 
+  const userLoa = ((me as { loa?: 1 | 2 | 3 } | null)?.loa ?? 1) as 1 | 2 | 3
+
+  // Niveau exigé = max entre le minimum statique de l'app et le `acr_values`
+  // demandé sur cette requête. Si l'utilisateur ne l'atteint pas, on ne bloque
+  // pas : on lui propose de vérifier son identité (step-up) puis de revenir
+  // poursuivre la connexion (return_to vers cette même page authorize).
+  const requestedLoa = acrValues
+    .split(/\s+/)
+    .filter(Boolean)
+    .reduce((max, acr) => Math.max(max, acrToLoa(acr)), 0)
+  const requiredLoa = Math.max(app.requiredLoA, requestedLoa)
+
+  if (userLoa < requiredLoa) {
+    const absoluteContinue = `${window.location.origin}${continueUrl}`
+    const verifyUrl = `${IDN_WEB_URL}/kyc?return_to=${encodeURIComponent(absoluteContinue)}`
+    return (
+      <StepUpScreen
+        appName={app.name}
+        requiredLoa={requiredLoa}
+        verifyUrl={verifyUrl}
+      />
+    )
+  }
+
   return (
     <ConsentForm
       app={app}
       user={{
         fullName: (me as { name?: string } | null)?.name ?? "Utilisateur",
         email: (me as { email?: string } | null)?.email ?? "",
-        loa: ((me as { loa?: 1 | 2 | 3 } | null)?.loa ?? 1) as 1 | 2 | 3,
+        loa: userLoa,
       }}
       requestedScopes={requestedScopes}
       acrValues={acrValues}
       oauthParams={oauthParams}
     />
+  )
+}
+
+function StepUpScreen({
+  appName,
+  requiredLoa,
+  verifyUrl,
+}: {
+  appName: string
+  requiredLoa: number
+  verifyUrl: string
+}) {
+  return (
+    <main className="flex min-h-svh items-center justify-center bg-idn-bg p-10">
+      <div className="w-[480px] rounded-2xl border border-idn-border bg-idn-surface p-9 text-center">
+        <h1 className="text-[20px] font-semibold tracking-[-0.014em] text-idn-ink">
+          Vérification d&apos;identité requise
+        </h1>
+        <p className="mt-3 text-sm text-idn-muted">
+          <span className="font-medium text-idn-ink">{appName}</span> requiert un
+          niveau de garantie {requiredLoa}. Vérifiez votre identité pour
+          continuer, puis revenez à la connexion.
+        </p>
+        <a
+          href={verifyUrl}
+          className="mt-6 inline-flex h-11 w-full items-center justify-center rounded-md bg-idn-green px-6 text-sm font-medium text-white hover:opacity-90"
+        >
+          Vérifier mon identité
+        </a>
+      </div>
+    </main>
   )
 }
 

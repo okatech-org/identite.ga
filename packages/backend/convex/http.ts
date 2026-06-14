@@ -51,6 +51,87 @@ const IDN_EXTENDED_CLAIMS = [
 const loaToAcr = (loa: number): string =>
   loa === 3 ? "eidas3" : loa === 2 ? "eidas2" : "eidas1"
 
+// Base de l'app web identite.ga (flux KYC sous /kyc) — pour construire le
+// `action_url` renvoyé aux apps tierces dans /verification. Même fallback que
+// `getSiteUrl` dans auth.ts.
+const siteUrl = (): string =>
+  (process.env.SITE_URL ?? "http://localhost:3000").replace(/\/+$/, "")
+
+// Valide le Bearer access token via Better Auth (réutilise l'endpoint
+// /oauth2/userinfo qui gère la validation 401/403) et renvoie le `sub`.
+// Renvoie soit `{ sub }`, soit `{ error }` (la Response 401/403 à propager).
+const validateBearerSub = async (
+  auth: ReturnType<typeof createAuth>,
+  request: Request,
+): Promise<{ sub: string } | { error: Response }> => {
+  const api = auth.api as unknown as {
+    oAuth2userInfo: (input: {
+      headers: Headers
+      request: Request
+      asResponse: true
+    }) => Promise<Response>
+  }
+  let res: Response
+  try {
+    res = await api.oAuth2userInfo({
+      headers: request.headers,
+      request,
+      asResponse: true,
+    })
+  } catch (err) {
+    if (err instanceof Response) return { error: err }
+    throw err
+  }
+  if (!res.ok) return { error: res }
+  const claims = (await res.json()) as { sub?: unknown }
+  if (typeof claims.sub !== "string") {
+    return {
+      error: new Response(JSON.stringify({ error: "invalid_token" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      }),
+    }
+  }
+  return { sub: claims.sub }
+}
+
+// GET /api/auth/oauth2/verification — statut de vérification d'identité,
+// interrogeable par une app tierce avec l'access token de l'utilisateur.
+// Contrairement au claim `loa` (figé au login), reflète l'état vivant d'une
+// demande KYC (en cours / action requise / refusée). Cf. verification.ts.
+const verificationHandler = httpAction(async (ctx, request) => {
+  const origin = request.headers.get("origin")
+  const auth = createAuth(ctx, origin)
+
+  const validated = await validateBearerSub(auth, request)
+  if ("error" in validated) return validated.error
+
+  const status = await ctx.runQuery(internal.verification.getStatusForUser, {
+    userId: validated.sub,
+  })
+
+  const body = {
+    loa: status.loa,
+    acr: loaToAcr(status.loa),
+    verified: status.loa >= 2,
+    verification: {
+      status: status.status,
+      action_required: status.actionRequired,
+      action_url: `${siteUrl()}/kyc`,
+      message: status.message,
+      updated_at: status.updatedAt,
+    },
+  }
+
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: {
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": "*",
+    },
+  })
+})
+
 // Override du discovery OIDC : @convex-dev/better-auth instancie en interne
 // sa propre oidcProvider (sans useJWTPlugin: true ni notre metadata custom),
 // donc le JSON servi sous /api/auth/convex/.well-known/openid-configuration
@@ -180,6 +261,12 @@ http.route({
   path: `${AUTH_PATH}/oauth2/userinfo`,
   method: "GET",
   handler: userinfoHandler,
+})
+
+http.route({
+  path: `${AUTH_PATH}/oauth2/verification`,
+  method: "GET",
+  handler: verificationHandler,
 })
 
 http.route({ pathPrefix: `${AUTH_PATH}/`, method: "GET", handler: authRequestHandler })

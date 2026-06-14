@@ -21,6 +21,40 @@ export interface IDNUser {
   [claim: string]: unknown
 }
 
+/**
+ * Statut de vérification d'identité renvoyé par l'endpoint
+ * `/api/auth/oauth2/verification` (interrogeable avec l'access token).
+ *
+ * À la différence du claim `loa`/`acr` (figé au login), reflète l'état VIVANT
+ * d'une demande de vérification — permet d'afficher « en cours de vérification »
+ * ou « action requise » côté application relying party.
+ */
+export interface IDNVerificationStatus {
+  /** Niveau de garantie courant (1 = email seul, 2/3 = identité vérifiée). */
+  loa: 1 | 2 | 3
+  acr: "eidas1" | "eidas2" | "eidas3"
+  /** Raccourci : `loa >= 2`. */
+  verified: boolean
+  verification: {
+    /**
+     * - `none` : aucune vérification — proposez-en une
+     * - `in_progress` : soumise, en cours d'examen (rien à faire)
+     * - `action_required` : l'utilisateur doit agir (finir / compléter)
+     * - `approved` : identité vérifiée
+     * - `rejected` : demande refusée (l'utilisateur peut recommencer)
+     */
+    status: "none" | "in_progress" | "action_required" | "approved" | "rejected"
+    /** L'utilisateur doit agir pour faire avancer la vérification. */
+    action_required: boolean
+    /** Lien vers le flux de vérification identite.ga où l'envoyer. */
+    action_url: string
+    /** Message du contrôleur si un complément est demandé, sinon `null`. */
+    message: string | null
+    /** Dernière mise à jour de la demande (ms epoch), `null` si aucune. */
+    updated_at: number | null
+  }
+}
+
 export interface IDNTokens {
   accessToken: string
   refreshToken?: string

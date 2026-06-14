@@ -101,6 +101,7 @@ import type * as vault_cron from "../vault/cron.js";
 import type * as vault_folders from "../vault/folders.js";
 import type * as vault_items from "../vault/items.js";
 import type * as vault_keys from "../vault/keys.js";
+import type * as verification from "../verification.js";
 import type * as wallet from "../wallet.js";
 
 import type {
@@ -203,6 +204,7 @@ declare const fullApi: ApiFromModules<{
   "vault/folders": typeof vault_folders;
   "vault/items": typeof vault_items;
   "vault/keys": typeof vault_keys;
+  verification: typeof verification;
   wallet: typeof wallet;
 }>;
 
