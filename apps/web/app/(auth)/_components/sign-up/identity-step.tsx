@@ -44,7 +44,7 @@ const schema = z.object({
     .trim()
     .optional()
     .refine(
-      (v) => !v || /^\d{14}$/.test(v),
+      (v) => !v || /^[A-Za-z0-9]{14}$/.test(v),
       identity.validation.nipInvalid,
     ),
 })
@@ -312,7 +312,7 @@ export function IdentityStep() {
           <Label htmlFor="id-nip">{identity.fields.nip.label}</Label>
           <Input
             id="id-nip"
-            inputMode="numeric"
+            inputMode="text"
             autoComplete="off"
             maxLength={14}
             placeholder={identity.fields.nip.placeholder}

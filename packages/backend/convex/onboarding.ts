@@ -152,10 +152,10 @@ export const setIdentityPivot = mutation({
 
     const phoneTrim = args.phone?.trim()
     const nipTrim = args.nip?.trim()
-    if (nipTrim && !/^\d{14}$/.test(nipTrim)) {
+    if (nipTrim && !/^[A-Za-z0-9]{14}$/.test(nipTrim)) {
       throw new ConvexError({
         code: "INVALID_NIP",
-        message: "Le NIP doit contenir exactement 14 chiffres.",
+        message: "Le NIP doit contenir exactement 14 caractères (chiffres ou lettres).",
       })
     }
     await ctx.db.patch(profile._id, {
@@ -498,10 +498,10 @@ export const completeSignup = mutation({
     const idnId = await generateIdnId(ctx)
     const phoneTrim = args.pivot.phone?.trim()
     const nipTrim = args.pivot.nip?.trim()
-    if (nipTrim && !/^\d{14}$/.test(nipTrim)) {
+    if (nipTrim && !/^[A-Za-z0-9]{14}$/.test(nipTrim)) {
       throw new ConvexError({
         code: "INVALID_NIP",
-        message: "Le NIP doit contenir exactement 14 chiffres.",
+        message: "Le NIP doit contenir exactement 14 caractères (chiffres ou lettres).",
       })
     }
     const profileId = await ctx.db.insert("userProfile", {

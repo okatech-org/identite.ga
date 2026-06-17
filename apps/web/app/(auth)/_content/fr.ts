@@ -63,7 +63,7 @@ export const identity = {
     phone: { label: "Numéro de téléphone", placeholder: "+241 06 22 14 89" },
     nip: {
       label: "NIP (Numéro d'Identification Personnel)",
-      placeholder: "14 chiffres",
+      placeholder: "14 caractères",
       help: "Si vous en disposez déjà — délivré par le RBPP. Sert à la vérification d'identité.",
     },
     nationality: {
@@ -97,7 +97,7 @@ export const identity = {
     required: "Champ requis.",
     dateInvalid: "Date invalide.",
     dateFuture: "La date de naissance doit être dans le passé.",
-    nipInvalid: "Le NIP doit contenir exactement 14 chiffres.",
+    nipInvalid: "Le NIP doit contenir exactement 14 caractères (chiffres ou lettres).",
   },
 } as const
 
