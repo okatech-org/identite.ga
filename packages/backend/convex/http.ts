@@ -2,6 +2,7 @@ import { httpRouter } from "convex/server"
 
 import { internal } from "./_generated/api"
 import { httpAction } from "./_generated/server"
+import { authenticateApiKey } from "./developer/apiKeys"
 import { createAuth } from "./auth"
 import { resend } from "./email/provider"
 
@@ -267,6 +268,73 @@ http.route({
   path: `${AUTH_PATH}/oauth2/verification`,
   method: "GET",
   handler: verificationHandler,
+})
+
+// POST /api/partner/citizens/resolve — annuaire partenaire.
+// Authentifié par clé API M2M (Authorization: Bearer <token>) avec le scope
+// `citizens:resolve`. Permet à une app relying party autorisée de retrouver
+// une identité par NIP / alias @idn.ga / Nom (cf. partner/citizens.ts).
+// HORS session OAuth : sert l'enrôlement d'agents (l'app n'a pas l'access
+// token de la personne recherchée, seulement l'un de ses identifiants).
+const partnerResolveHandler = httpAction(async (ctx, request) => {
+  const principal = await authenticateApiKey(ctx, request)
+  if (!principal) {
+    return new Response(JSON.stringify({ error: "unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+  if (!principal.scopes.includes("citizens:resolve")) {
+    return new Response(JSON.stringify({ error: "insufficient_scope" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    return new Response(JSON.stringify({ error: "invalid_json" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+
+  const b = (body ?? {}) as Record<string, unknown>
+  const str = (x: unknown) =>
+    typeof x === "string" && x.trim() ? x.trim() : undefined
+  const sub = str(b.sub)
+  const nip = str(b.nip)
+  const emailAlias = str(b.emailAlias)
+  const name = str(b.name)
+  const limit = typeof b.limit === "number" ? b.limit : undefined
+
+  if (!sub && !nip && !emailAlias && !name) {
+    return new Response(
+      JSON.stringify({ error: "missing_query", message: "sub | nip | emailAlias | name requis" }),
+      { status: 400, headers: { "Content-Type": "application/json" } },
+    )
+  }
+
+  const results = await ctx.runQuery(internal.partner.citizens.resolveDirectory, {
+    sub,
+    nip,
+    emailAlias,
+    name,
+    limit,
+  })
+
+  return new Response(JSON.stringify({ results }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  })
+})
+
+http.route({
+  path: "/api/partner/citizens/resolve",
+  method: "POST",
+  handler: partnerResolveHandler,
 })
 
 http.route({ pathPrefix: `${AUTH_PATH}/`, method: "GET", handler: authRequestHandler })
