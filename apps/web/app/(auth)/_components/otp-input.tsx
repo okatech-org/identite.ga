@@ -7,6 +7,7 @@ import { cn } from "@repo/ui/lib/utils"
 type OtpInputProps = {
   value: string
   onChange: (value: string) => void
+  onComplete?: (value: string) => void
   length?: number
   autoFocus?: boolean
   disabled?: boolean
@@ -28,6 +29,7 @@ type OtpInputProps = {
 export function OtpInput({
   value,
   onChange,
+  onComplete,
   length = 6,
   autoFocus = false,
   disabled = false,
@@ -38,6 +40,11 @@ export function OtpInput({
   className,
 }: OtpInputProps) {
   const inputs = React.useRef<(HTMLInputElement | null)[]>([])
+  const completedRef = React.useRef(false)
+
+  React.useEffect(() => {
+    if (value.length < length) completedRef.current = false
+  }, [value, length])
 
   const digits = React.useMemo(() => {
     const arr: string[] = Array.from({ length }, () => "")
@@ -56,7 +63,12 @@ export function OtpInput({
   const setAt = (idx: number, char: string) => {
     const next = digits.slice()
     next[idx] = char
-    onChange(next.join("").slice(0, length))
+    const joined = next.join("").slice(0, length)
+    onChange(joined)
+    if (joined.length === length && !completedRef.current) {
+      completedRef.current = true
+      onComplete?.(joined)
+    }
   }
 
   return (
@@ -115,8 +127,12 @@ export function OtpInput({
               .replace(/\D/g, "")
               .slice(0, length)
             if (!pasted) return
-            onChange(pasted.padEnd(length, "").slice(0, length))
+            onChange(pasted.slice(0, length))
             focus(Math.min(pasted.length, length - 1))
+            if (pasted.length >= length && !completedRef.current) {
+              completedRef.current = true
+              onComplete?.(pasted.slice(0, length))
+            }
             e.preventDefault()
           }}
           className={cn(

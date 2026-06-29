@@ -14,6 +14,7 @@ import { IdnMark } from "@repo/ui/components/idn-mark"
 import { Input } from "@repo/ui/components/input"
 import { Label } from "@repo/ui/components/label"
 import { PinPad } from "@repo/ui/components/pin-pad"
+import { cn } from "@repo/ui/lib/utils"
 
 import { authClient } from "@/lib/auth-client"
 
@@ -72,6 +73,16 @@ function SignInPageInner() {
   const [pinError, setPinError] = React.useState<string | null>(null)
   const [submitting, setSubmitting] = React.useState(false)
   const [qrOpen, setQrOpen] = React.useState(false)
+
+  const [isDesktop, setIsDesktop] = React.useState(false)
+
+  React.useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)")
+    setIsDesktop(mq.matches)
+    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches)
+    mq.addEventListener("change", handler)
+    return () => mq.removeEventListener("change", handler)
+  }, [])
 
   const [twoFactorRequired, setTwoFactorRequired] = React.useState(false)
   const [twoFactorCode, setTwoFactorCode] = React.useState("")
@@ -229,8 +240,18 @@ function SignInPageInner() {
 
   // ─────── Étape PIN ───────
   if (phase === "pin") {
+    const pinOnChange = (v: string) => {
+      setPin(v)
+      if (pinError) setPinError(null)
+    }
+
     return (
-      <div className="mx-auto flex w-full max-w-[460px] flex-1 flex-col px-6 py-8 sm:py-12">
+      <div
+        className={cn(
+          "mx-auto flex w-full max-w-[460px] flex-1 flex-col px-6",
+          isDesktop ? "justify-center py-10 sm:py-16" : "py-8 sm:py-12",
+        )}
+      >
         <div className="flex flex-col items-center text-center">
           <IdnMark size={48} />
           <h1 className="mt-4 text-[22px] font-semibold text-foreground">
@@ -242,25 +263,35 @@ function SignInPageInner() {
           <p className="mt-1 text-xs text-muted-foreground">{email}</p>
         </div>
 
-        <div className="mt-8 flex flex-1 flex-col">
-          <PinPad
-            length={6}
-            value={pin}
-            onChange={(v) => {
-              setPin(v)
-              if (pinError) setPinError(null)
-            }}
-            onComplete={submitPin}
-            hasError={Boolean(pinError)}
-            ariaLabel={signIn.pinTitle}
-            numpadAriaLabel={signIn.pinNumpadAria}
-            backspaceAriaLabel={signIn.pinBackspaceAria}
-            digitAriaLabel={signIn.pinDigitAria}
-            dotsAriaLabel={signIn.pinDotsAria}
-            autoFocus
-            disabled={submitting}
-            resetKey={email}
-          />
+        <div className={cn("mt-8 flex flex-col", !isDesktop && "flex-1")}>
+          {isDesktop ? (
+            <OtpInput
+              value={pin}
+              onChange={pinOnChange}
+              onComplete={submitPin}
+              variant="pin"
+              hasError={Boolean(pinError)}
+              autoFocus
+              disabled={submitting}
+              ariaLabel={signIn.pinTitle}
+            />
+          ) : (
+            <PinPad
+              length={6}
+              value={pin}
+              onChange={pinOnChange}
+              onComplete={submitPin}
+              hasError={Boolean(pinError)}
+              ariaLabel={signIn.pinTitle}
+              numpadAriaLabel={signIn.pinNumpadAria}
+              backspaceAriaLabel={signIn.pinBackspaceAria}
+              digitAriaLabel={signIn.pinDigitAria}
+              dotsAriaLabel={signIn.pinDotsAria}
+              autoFocus
+              disabled={submitting}
+              resetKey={email}
+            />
+          )}
 
           <div
             id="pin-signin-error"
