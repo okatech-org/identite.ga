@@ -272,6 +272,9 @@ export default defineSchema({
   })
     .index("by_userId", ["userId"])
     .index("by_idnId", ["idnId"])
+    // Résolution annuaire par NIP (exact) pour les applications relying party
+    // autorisées (endpoint partenaire /api/partner/citizens/resolve).
+    .index("by_nip", ["pivot.nip"])
     .index("by_loa", ["loa"])
     .index("by_profileType", ["profileType"])
     .index("by_deletedAt", ["deletedAt"])
