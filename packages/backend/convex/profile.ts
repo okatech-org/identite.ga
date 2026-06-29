@@ -208,6 +208,54 @@ export const updatePivot = mutation({
   },
 })
 
+export const updateNip = mutation({
+  args: { nip: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const user = await requireVerifiedAuth(ctx)
+
+    const nip = args.nip.trim()
+    if (!/^[A-Za-z0-9]{14}$/.test(nip)) {
+      throw new ConvexError({
+        code: "INVALID_NIP",
+        message:
+          "Le NIP doit contenir exactement 14 caractères (chiffres ou lettres).",
+      })
+    }
+
+    const profile = await ctx.db
+      .query("userProfile")
+      .withIndex("by_userId", (q) => q.eq("userId", user.userId))
+      .unique()
+    if (!profile) {
+      throw new ConvexError({
+        code: "PROFILE_NOT_FOUND",
+        message: "Profil introuvable.",
+      })
+    }
+    if (!profile.pivot) {
+      throw new ConvexError({
+        code: "PROFILE_NOT_FOUND",
+        message: "Identité pivot introuvable.",
+      })
+    }
+
+    await ctx.db.patch(profile._id, {
+      pivot: { ...profile.pivot, nip },
+      updatedAt: Date.now(),
+    })
+
+    await ctx.runMutation(internal.audit.recordAudit, {
+      actorId: user.userId,
+      action: "account_modified",
+      targetType: "user",
+      targetId: user.userId,
+      metadata: { field: "nip" },
+    })
+    return null
+  },
+})
+
 export const generateProfilePhotoUploadUrl = mutation({
   args: {},
   returns: v.string(),

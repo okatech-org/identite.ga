@@ -123,6 +123,11 @@ export default function ProfilePage() {
                 value={idnId}
                 mono
               />
+              <InfoRow
+                label={profile.pivot.rows.nip}
+                value={pivot?.nip ?? profile.pivot.rows.nipEmpty}
+                mono={Boolean(pivot?.nip)}
+              />
             </div>
           </div>
 
@@ -239,6 +244,11 @@ export default function ProfilePage() {
               label={profile.pivot.rows.idnId}
               value={idnId}
               mono
+            />
+            <InfoRow
+              label={profile.pivot.rows.nip}
+              value={pivot?.nip ?? profile.pivot.rows.nipEmpty}
+              mono={Boolean(pivot?.nip)}
             />
           </div>
         </section>

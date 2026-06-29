@@ -206,10 +206,103 @@ function PinChangeDialog({ configured }: { configured: boolean }) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// NIP change
+
+const NIP_REGEX = /^[A-Za-z0-9]{14}$/
+
+function NipChangeDialog({ currentNip }: { currentNip: string | undefined }) {
+  const [open, setOpen] = React.useState(false)
+  const [value, setValue] = React.useState(currentNip ?? "")
+  const [error, setError] = React.useState("")
+  const [submitting, setSubmitting] = React.useState(false)
+  const updateNip = useMutation(api.profile.updateNip)
+
+  const submit = async () => {
+    const trimmed = value.trim()
+    if (!NIP_REGEX.test(trimmed)) {
+      setError(settings.security.nip.validationError)
+      return
+    }
+    setSubmitting(true)
+    setError("")
+    try {
+      await updateNip({ nip: trimmed })
+      toast.success(settings.security.nip.successToast)
+      setOpen(false)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o)
+        if (!o) {
+          setValue(currentNip ?? "")
+          setError("")
+        }
+      }}
+    >
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => setOpen(true)}
+      >
+        {currentNip ? settings.security.nip.cta : settings.security.nip.ctaDefine}
+      </Button>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{settings.security.nip.modalTitle}</DialogTitle>
+          <DialogDescription>{settings.security.nip.hint}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-1.5">
+          <Label htmlFor="nip-input">{settings.security.nip.label}</Label>
+          <Input
+            id="nip-input"
+            value={value}
+            onChange={(e) => {
+              setValue(e.target.value.toUpperCase())
+              setError("")
+            }}
+            maxLength={14}
+            autoFocus
+            className="h-11 font-mono tracking-widest"
+            aria-invalid={Boolean(error)}
+          />
+          {error && (
+            <p role="alert" className="text-xs text-destructive">
+              {error}
+            </p>
+          )}
+        </div>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={submitting}>
+            {settings.security.nip.cancel}
+          </Button>
+          <Button
+            type="button"
+            onClick={submit}
+            disabled={submitting || value.trim().length !== 14}
+          >
+            {submitting ? "…" : settings.security.nip.submit}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────
 
 export function SecurityTab() {
   const me = useQuery(api.profile.getCurrentUser)
   const pinConfigured = me?.profile?.pinConfigured ?? false
+  const currentNip = me?.profile?.pivot?.nip
 
   return (
     <div className="space-y-4">
@@ -236,6 +329,21 @@ export function SecurityTab() {
           label="PIN à 6 chiffres"
           description={pinConfigured ? "•• •• •• (configuré)" : "Non configuré"}
           trailing={<PinChangeDialog configured={pinConfigured} />}
+        />
+      </SettingsSection>
+
+      <SettingsSection
+        title={settings.security.nip.title}
+        sub={
+          currentNip
+            ? settings.security.nip.subConfigured
+            : settings.security.nip.subNotConfigured
+        }
+      >
+        <SettingsRow
+          label="NIP (RBPP)"
+          description={currentNip ?? "Non renseigné"}
+          trailing={<NipChangeDialog currentNip={currentNip} />}
         />
       </SettingsSection>
 
