@@ -4,8 +4,9 @@
  * Détail d'une application — port de idn-desktop.jsx:1633-1822 (AdminAppDetail).
  * Câblé sur `admin.oauthApps.getApp` (clientId) + audit récent filtré sur l'app.
  */
+import { useState } from "react"
 import { notFound, useParams } from "next/navigation"
-import { useQuery } from "convex/react"
+import { useMutation, useQuery } from "convex/react"
 
 import { api } from "@repo/backend/convex/_generated/api"
 
@@ -28,6 +29,11 @@ type AppDetail = {
   createdAt: number
   linkedClientId: string | null
   productionStatus: "none" | "pending" | "approved" | "rejected"
+  delegation: {
+    enabled: boolean
+    maxLoa: 1 | 2
+    grantedAt?: number
+  } | null
 }
 
 type AuditRow = {
@@ -44,6 +50,9 @@ const ACTION_LABEL: Record<string, string> = {
   oauth_app_created: "App créée",
   oauth_app_modified: "Configuration modifiée",
   oauth_app_disabled: "App désactivée",
+  delegation_enabled: "Délégation activée",
+  delegation_disabled: "Délégation désactivée",
+  delegated_identity_created: "Identité déléguée créée",
 }
 
 function fmtTs(ts: number) {
@@ -78,6 +87,161 @@ const STATUS_LABEL: Record<AppDetail["status"], string> = {
   pending: "pending",
   sandbox: "sandbox",
   disabled: "désactivée",
+}
+
+type DelegatedRow = {
+  _id: string
+  idnId?: string
+  firstName?: string
+  lastName?: string
+  assignedLoa: 1 | 2
+  status: "created" | "claimed"
+  createdAt: number
+  claimedAt?: number
+}
+
+function DelegationSection({
+  clientId,
+  delegation,
+}: {
+  clientId: string
+  delegation: AppDetail["delegation"]
+}) {
+  const t = fr.appDetail.delegation
+  const setDelegation = useMutation(api.admin.oauthApps.setDelegation)
+  const [maxLoa, setMaxLoa] = useState<1 | 2>(delegation?.maxLoa ?? 1)
+  const [busy, setBusy] = useState(false)
+
+  const identities = useQuery(
+    api.admin.oauthApps.listDelegatedIdentities,
+    delegation?.enabled ? { clientId } : "skip",
+  ) as DelegatedRow[] | undefined
+
+  const toggle = async () => {
+    setBusy(true)
+    try {
+      await setDelegation({
+        clientId,
+        enabled: !delegation?.enabled,
+        maxLoa,
+      })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const updateMaxLoa = async (loa: 1 | 2) => {
+    setMaxLoa(loa)
+    if (delegation?.enabled) {
+      await setDelegation({ clientId, enabled: true, maxLoa: loa })
+    }
+  }
+
+  return (
+    <section className="rounded-xl border border-idn-border bg-idn-surface p-5">
+      <div className="mb-3.5 flex items-center justify-between">
+        <h2 className="text-[13px] font-semibold text-idn-ink">{t.title}</h2>
+        <span
+          className={
+            "rounded-full px-2 py-0.5 text-[11px] font-medium " +
+            (delegation?.enabled
+              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+              : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400")
+          }
+        >
+          {delegation?.enabled ? t.enabled : t.disabled}
+        </span>
+      </div>
+      <p className="mb-4 text-xs text-idn-muted">{t.description}</p>
+
+      <div className="mb-4 flex items-center gap-3">
+        <label className="text-xs text-idn-muted">{t.maxLoa}</label>
+        <select
+          value={maxLoa}
+          onChange={(e) => updateMaxLoa(Number(e.target.value) as 1 | 2)}
+          className="rounded-md border border-idn-border bg-background px-2 py-1 text-xs text-idn-ink"
+        >
+          <option value={1}>{t.loa1}</option>
+          <option value={2}>{t.loa2}</option>
+        </select>
+      </div>
+
+      <button
+        onClick={toggle}
+        disabled={busy}
+        className={
+          "rounded-lg px-3.5 py-1.5 text-xs font-medium transition-colors " +
+          (delegation?.enabled
+            ? "border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/30"
+            : "bg-idn-green text-white hover:bg-idn-green/90")
+        }
+      >
+        {delegation?.enabled ? t.disable : t.enable}
+      </button>
+
+      {delegation?.enabled && identities !== undefined && (
+        <div className="mt-5 border-t border-idn-border-soft pt-4">
+          <h3 className="mb-2 text-xs font-semibold text-idn-ink">
+            {t.historyTitle}
+          </h3>
+          {identities.length === 0 ? (
+            <p className="text-xs text-idn-muted">{t.emptyHistory}</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-[11px]">
+                <thead>
+                  <tr className="border-b border-idn-border-soft text-idn-muted">
+                    <th className="pb-1.5 pr-3 font-medium">{t.cols.idnId}</th>
+                    <th className="pb-1.5 pr-3 font-medium">{t.cols.name}</th>
+                    <th className="pb-1.5 pr-3 font-medium">{t.cols.loa}</th>
+                    <th className="pb-1.5 pr-3 font-medium">{t.cols.status}</th>
+                    <th className="pb-1.5 font-medium">{t.cols.date}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {identities.map((row) => (
+                    <tr
+                      key={row._id}
+                      className="border-b border-idn-border-soft last:border-0"
+                    >
+                      <td className="py-1.5 pr-3 font-mono text-idn-ink">
+                        {row.idnId ?? "—"}
+                      </td>
+                      <td className="py-1.5 pr-3 text-idn-ink">
+                        {row.firstName && row.lastName
+                          ? `${row.firstName} ${row.lastName}`
+                          : "—"}
+                      </td>
+                      <td className="py-1.5 pr-3 text-idn-ink">
+                        {row.assignedLoa}
+                      </td>
+                      <td className="py-1.5 pr-3">
+                        <span
+                          className={
+                            "rounded-full px-1.5 py-0.5 text-[10px] font-medium " +
+                            (row.status === "claimed"
+                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+                              : "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400")
+                          }
+                        >
+                          {row.status === "claimed"
+                            ? t.statusClaimed
+                            : t.statusCreated}
+                        </span>
+                      </td>
+                      <td className="py-1.5 text-idn-muted">
+                        {fmtTs(row.createdAt)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  )
 }
 
 export default function AppDetailPage() {
@@ -161,6 +325,7 @@ export default function AppDetailPage() {
               }
             />
           </section>
+          <DelegationSection clientId={app.clientId} delegation={app.delegation} />
         </div>
 
         <aside className="rounded-xl border border-idn-border bg-idn-surface p-5">

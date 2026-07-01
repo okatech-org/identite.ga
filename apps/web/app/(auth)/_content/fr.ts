@@ -182,6 +182,8 @@ export const signIn = {
   twoFactorPrimary: "Vérifier",
   signUpPrefix: "Pas encore de compte ? ",
   signUpLink: "Créer un compte IDN",
+  claimPrefix: "Identité créée par un organisme ? ",
+  claimLink: "Récupérer mon compte",
   errorInvalid: "Email ou mot de passe incorrect.",
   errorEmailNotVerified:
     "Veuillez vérifier votre adresse email avant de vous connecter.",
@@ -230,5 +232,56 @@ export const resetPassword = {
   errorInvalidCode: "Code incorrect ou expiré.",
   errorMismatch: "Les deux mots de passe ne correspondent pas.",
   errorGeneric: "Réinitialisation impossible. Réessayez.",
+} as const
+
+export const CLAIM_STEP_TOTAL = 3
+
+export const claim = {
+  meta: {
+    title: "Récupérer mon identité numérique",
+    description: "Récupérez l'accès à votre identité numérique créée par un organisme.",
+  },
+  search: {
+    step: 1,
+    title: "Retrouver mon identité",
+    sub: "Saisissez votre NIP ou votre nom et date de naissance pour rechercher votre identité numérique.",
+    nipLabel: "NIP (14 caractères)",
+    nipPlaceholder: "Ex : A1B2C3D4E5F6G7",
+    orDivider: "ou rechercher par nom",
+    firstNameLabel: "Prénom",
+    lastNameLabel: "Nom",
+    dateOfBirthLabel: "Date de naissance",
+    primary: "Rechercher",
+    primarySearching: "Recherche en cours…",
+    notFound: "Aucune identité déléguée trouvable avec ces informations.",
+    backLabel: "Retour à la connexion",
+  },
+  confirm: {
+    step: 2,
+    title: "Confirmer mon identité",
+    sub: "Vérifiez que les informations ci-dessous correspondent bien à votre identité.",
+    idnIdLabel: "Identifiant IDN",
+    nameLabel: "Nom",
+    loaLabel: "Niveau de confiance",
+    primary: "C'est bien moi",
+    backLabel: "Nouvelle recherche",
+  },
+  setup: {
+    step: 3,
+    title: "Configurer mon compte",
+    sub: "Choisissez un mot de passe et un code PIN pour sécuriser votre compte.",
+    passwordLabel: "Mot de passe",
+    passwordHint: "Au moins 12 caractères.",
+    confirmPasswordLabel: "Confirmer le mot de passe",
+    pinLabel: "Code PIN à 6 chiffres",
+    pinHint: "Utilisé pour valider les actions sensibles.",
+    primary: "Activer mon compte",
+    primarySubmitting: "Activation en cours…",
+    errorMismatch: "Les deux mots de passe ne correspondent pas.",
+    errorWeakPin: "Ce PIN est trop simple. Choisissez-en un autre.",
+    errorGeneric: "Impossible d'activer le compte. Réessayez.",
+    successToast: "Votre identité numérique est activée ! Connectez-vous pour continuer.",
+    backLabel: "Retour à la confirmation",
+  },
 } as const
 

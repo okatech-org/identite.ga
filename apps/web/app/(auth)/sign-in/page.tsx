@@ -505,6 +505,16 @@ function SignInPageInner() {
         </Link>
       </p>
 
+      <p className="mt-2 text-center text-sm text-muted-foreground">
+        {signIn.claimPrefix}
+        <Link
+          href="/claim"
+          className="font-semibold text-idn-green hover:underline dark:text-idn-green-on-dark"
+        >
+          {signIn.claimLink}
+        </Link>
+      </p>
+
       {qrOpen ? (
         <CrossDeviceQr
           onClose={() => setQrOpen(false)}

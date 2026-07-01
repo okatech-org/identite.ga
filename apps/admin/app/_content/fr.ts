@@ -151,6 +151,29 @@ export const fr = {
       loaMin: "NIVEAU MIN.",
       consent: "CONSENT",
     },
+    delegation: {
+      title: "Délégation d'identité",
+      description:
+        "Autoriser cette application à créer des identités numériques pour le compte de citoyens.",
+      enabled: "Activée",
+      disabled: "Désactivée",
+      maxLoa: "Niveau max. assignable",
+      loa1: "Niveau 1 — Pivot seul",
+      loa2: "Niveau 2 — Pièce d'identité vérifiée",
+      enable: "Activer la délégation",
+      disable: "Désactiver la délégation",
+      historyTitle: "Identités créées",
+      emptyHistory: "Aucune identité créée par cette application.",
+      cols: {
+        idnId: "IDN ID",
+        name: "NOM",
+        loa: "NIVEAU",
+        status: "STATUT",
+        date: "DATE",
+      },
+      statusCreated: "En attente",
+      statusClaimed: "Réclamée",
+    },
   },
 
   users: {

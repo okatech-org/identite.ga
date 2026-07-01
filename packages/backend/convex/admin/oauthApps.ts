@@ -37,6 +37,13 @@ type AppMeta = {
   // Sandbox → prod : liaison réciproque + état de la demande (sandbox side).
   linkedClientId?: string
   productionStatus?: "none" | "pending" | "approved" | "rejected"
+  // Habilitation de délégation d'identité (activée par admin).
+  delegation?: {
+    enabled: boolean
+    maxLoa: 1 | 2
+    grantedAt: number
+    grantedBy: string
+  }
   // Toutes les autres clés (description, services, testUsers, createdBy…)
   // sont conservées telles quelles lors des updates partiels.
   [key: string]: unknown
@@ -117,6 +124,13 @@ function appView(doc: RawApp) {
       meta.productionStatus === "none"
         ? meta.productionStatus
         : "none",
+    delegation: meta.delegation
+      ? {
+          enabled: Boolean((meta.delegation as any).enabled),
+          maxLoa: ((meta.delegation as any).maxLoa === 2 ? 2 : 1) as 1 | 2,
+          grantedAt: (meta.delegation as any).grantedAt as number | undefined,
+        }
+      : null,
   }
 }
 
@@ -137,6 +151,14 @@ const APP_RETURN = v.object({
     v.literal("pending"),
     v.literal("approved"),
     v.literal("rejected"),
+  ),
+  delegation: v.union(
+    v.null(),
+    v.object({
+      enabled: v.boolean(),
+      maxLoa: v.union(v.literal(1), v.literal(2)),
+      grantedAt: v.optional(v.number()),
+    }),
   ),
 })
 
@@ -459,5 +481,116 @@ export const rejectProductionRequest = mutation({
       },
     })
     return null
+  },
+})
+
+// ---------------------------------------------------------------------------
+// Habilitation — délégation d'identité
+// ---------------------------------------------------------------------------
+
+export const setDelegation = mutation({
+  args: {
+    clientId: v.string(),
+    enabled: v.boolean(),
+    maxLoa: v.optional(v.union(v.literal(1), v.literal(2))),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const actor = await requireAdmin(ctx)
+
+    const doc = (await ctx.runQuery(components.betterAuth.adapter.findOne, {
+      model: "oauthApplication",
+      where: [{ field: "clientId", value: args.clientId }],
+    })) as { _id: string; metadata?: string | null } | null
+    if (!doc) {
+      throw new ConvexError({
+        code: "APP_NOT_FOUND",
+        message: "Application introuvable.",
+      })
+    }
+
+    const meta = parseMeta(doc.metadata)
+    const now = Date.now()
+
+    if (args.enabled) {
+      meta.delegation = {
+        enabled: true,
+        maxLoa: args.maxLoa ?? 1,
+        grantedAt: now,
+        grantedBy: actor.userId,
+      }
+    } else {
+      meta.delegation = {
+        enabled: false,
+        maxLoa: (meta.delegation as any)?.maxLoa ?? 1,
+        grantedAt: (meta.delegation as any)?.grantedAt ?? now,
+        grantedBy: (meta.delegation as any)?.grantedBy ?? actor.userId,
+      }
+    }
+
+    await ctx.runMutation(components.betterAuth.adapter.updateOne, {
+      input: {
+        model: "oauthApplication",
+        where: [{ field: "_id", value: doc._id }],
+        update: { metadata: JSON.stringify(meta), updatedAt: now },
+      },
+    })
+
+    await ctx.runMutation(internal.audit.recordAudit, {
+      actorId: actor.userId,
+      action: args.enabled ? "delegation_enabled" : "delegation_disabled",
+      targetType: "app",
+      targetId: args.clientId,
+      metadata: { maxLoa: args.maxLoa ?? 1 },
+    })
+
+    return null
+  },
+})
+
+export const listDelegatedIdentities = query({
+  args: {
+    clientId: v.string(),
+    limit: v.optional(v.number()),
+  },
+  returns: v.array(
+    v.object({
+      _id: v.id("delegatedIdentity"),
+      idnId: v.optional(v.string()),
+      firstName: v.optional(v.string()),
+      lastName: v.optional(v.string()),
+      assignedLoa: v.union(v.literal(1), v.literal(2)),
+      status: v.union(v.literal("created"), v.literal("claimed")),
+      createdAt: v.number(),
+      claimedAt: v.optional(v.number()),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx)
+
+    const limit = Math.min(args.limit ?? 50, 200)
+    const delegations = await ctx.db
+      .query("delegatedIdentity")
+      .withIndex("by_appClientId", (q) =>
+        q.eq("appClientId", args.clientId),
+      )
+      .order("desc")
+      .take(limit)
+
+    return Promise.all(
+      delegations.map(async (d) => {
+        const profile = await ctx.db.get(d.targetProfileId)
+        return {
+          _id: d._id,
+          idnId: profile?.idnId,
+          firstName: profile?.pivot?.firstName,
+          lastName: profile?.pivot?.lastName,
+          assignedLoa: d.assignedLoa,
+          status: d.status,
+          createdAt: d.createdAt,
+          claimedAt: d.claimedAt,
+        }
+      }),
+    )
   },
 })

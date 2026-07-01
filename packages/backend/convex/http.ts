@@ -337,6 +337,407 @@ http.route({
   handler: partnerResolveHandler,
 })
 
+// ---------------------------------------------------------------------------
+// POST /api/delegate/lookup — recherche d'un citoyen avant création déléguée.
+// Authentifié par clé API M2M avec le scope `idn:delegate:lookup`.
+// ---------------------------------------------------------------------------
+const delegateLookupHandler = httpAction(async (ctx, request) => {
+  const principal = await authenticateApiKey(ctx, request)
+  if (!principal) {
+    return new Response(JSON.stringify({ error: "unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+  if (!principal.scopes.includes("idn:delegate:lookup")) {
+    return new Response(JSON.stringify({ error: "insufficient_scope" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+
+  const app = await ctx.runQuery(internal.delegate.queries.getAppDelegation, {
+    developerUserId: principal.userId,
+  })
+  if (!app?.enabled) {
+    return new Response(
+      JSON.stringify({ error: "delegation_not_enabled" }),
+      { status: 403, headers: { "Content-Type": "application/json" } },
+    )
+  }
+
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    return new Response(JSON.stringify({ error: "invalid_json" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+
+  const b = (body ?? {}) as Record<string, unknown>
+  const str = (x: unknown) =>
+    typeof x === "string" && x.trim() ? x.trim() : undefined
+
+  const result = await ctx.runQuery(
+    internal.delegate.mutations.lookupForDelegation,
+    {
+      nip: str(b.nip),
+      firstName: str(b.firstName),
+      lastName: str(b.lastName),
+      dateOfBirth: str(b.dateOfBirth),
+    },
+  )
+
+  return new Response(JSON.stringify(result), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  })
+})
+
+http.route({
+  path: "/api/delegate/lookup",
+  method: "POST",
+  handler: delegateLookupHandler,
+})
+
+// ---------------------------------------------------------------------------
+// POST /api/delegate/identity — création d'une identité déléguée.
+// Authentifié par clé API M2M avec le scope `idn:delegate:create`.
+// ---------------------------------------------------------------------------
+const delegateCreateHandler = httpAction(async (ctx, request) => {
+  const principal = await authenticateApiKey(ctx, request)
+  if (!principal) {
+    return new Response(JSON.stringify({ error: "unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+  if (!principal.scopes.includes("idn:delegate:create")) {
+    return new Response(JSON.stringify({ error: "insufficient_scope" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+
+  const app = await ctx.runQuery(internal.delegate.queries.getAppDelegation, {
+    developerUserId: principal.userId,
+  })
+  if (!app?.enabled) {
+    return new Response(
+      JSON.stringify({ error: "delegation_not_enabled" }),
+      { status: 403, headers: { "Content-Type": "application/json" } },
+    )
+  }
+
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    return new Response(JSON.stringify({ error: "invalid_json" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+
+  const b = (body ?? {}) as Record<string, unknown>
+  const str = (x: unknown) =>
+    typeof x === "string" && x.trim() ? x.trim() : undefined
+
+  const firstName = str(b.firstName)
+  const lastName = str(b.lastName)
+  const dateOfBirth = str(b.dateOfBirth)
+  const gender = str(b.gender)
+  const birthPlace = str(b.birthPlace)
+  const nationality = str(b.nationality)
+
+  if (!firstName || !lastName || !dateOfBirth || !gender || !birthPlace || !nationality) {
+    return new Response(
+      JSON.stringify({
+        error: "missing_fields",
+        message: "firstName, lastName, dateOfBirth, gender, birthPlace, nationality requis.",
+      }),
+      { status: 400, headers: { "Content-Type": "application/json" } },
+    )
+  }
+
+  if (!["M", "F", "O", "N"].includes(gender)) {
+    return new Response(
+      JSON.stringify({ error: "invalid_gender" }),
+      { status: 400, headers: { "Content-Type": "application/json" } },
+    )
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)) {
+    return new Response(
+      JSON.stringify({ error: "invalid_date_of_birth" }),
+      { status: 400, headers: { "Content-Type": "application/json" } },
+    )
+  }
+
+  const nip = str(b.nip)
+  if (nip && !/^[A-Za-z0-9]{14}$/.test(nip)) {
+    return new Response(
+      JSON.stringify({ error: "invalid_nip" }),
+      { status: 400, headers: { "Content-Type": "application/json" } },
+    )
+  }
+
+  // Vérifier que le citoyen n'a pas déjà d'IDN
+  if (nip) {
+    const existing = await ctx.runQuery(
+      internal.delegate.mutations.lookupForDelegation,
+      { nip },
+    )
+    if (existing.found) {
+      return new Response(
+        JSON.stringify({
+          error: "identity_already_exists",
+          idnId: (existing as { idnId?: string }).idnId,
+        }),
+        { status: 409, headers: { "Content-Type": "application/json" } },
+      )
+    }
+  }
+
+  const requestedLoa = typeof b.loa === "number" ? b.loa : 1
+  const assignedLoa = Math.min(requestedLoa, app.maxLoa) as 1 | 2
+
+  const result = await ctx.runAction(
+    internal.delegate.actions.createDelegatedUser,
+    {
+      pivot: {
+        firstName,
+        lastName,
+        dateOfBirth,
+        gender: gender as "M" | "F" | "O" | "N",
+        birthPlace,
+        nationality: nationality.toUpperCase(),
+        phone: str(b.phone),
+        nip,
+      },
+      profileType: (str(b.profileType) === "resident" ? "resident" : "citizen") as
+        | "citizen"
+        | "resident",
+      assignedLoa,
+      appClientId: app.clientId,
+      operatorUserId: principal.userId,
+      kycDocumentType: str(b.documentType) as any,
+      kycDocFront: str(b.documentFront) as any,
+      kycDocBack: str(b.documentBack) as any,
+    },
+  )
+
+  return new Response(
+    JSON.stringify({
+      idnId: result.idnId,
+      delegatedIdentityId: result.delegatedIdentityId,
+      assignedLoa,
+    }),
+    { status: 201, headers: { "Content-Type": "application/json" } },
+  )
+})
+
+http.route({
+  path: "/api/delegate/identity",
+  method: "POST",
+  handler: delegateCreateHandler,
+})
+
+// ---------------------------------------------------------------------------
+// GET /api/delegate/identity?id=xxx — statut d'une identité déléguée.
+// Authentifié par clé API M2M avec le scope `idn:delegate:status`.
+// ---------------------------------------------------------------------------
+const delegateStatusHandler = httpAction(async (ctx, request) => {
+  const principal = await authenticateApiKey(ctx, request)
+  if (!principal) {
+    return new Response(JSON.stringify({ error: "unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+  if (!principal.scopes.includes("idn:delegate:status")) {
+    return new Response(JSON.stringify({ error: "insufficient_scope" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+
+  const url = new URL(request.url)
+  const id = url.searchParams.get("id")
+  if (!id) {
+    return new Response(
+      JSON.stringify({ error: "missing_id" }),
+      { status: 400, headers: { "Content-Type": "application/json" } },
+    )
+  }
+
+  const result = await ctx.runQuery(internal.delegate.queries.getById, {
+    id: id as any,
+  })
+  if (!result) {
+    return new Response(JSON.stringify({ error: "not_found" }), {
+      status: 404,
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+
+  // Vérifier que l'app appelante est bien propriétaire
+  const app = await ctx.runQuery(internal.delegate.queries.getAppDelegation, {
+    developerUserId: principal.userId,
+  })
+  if (!app || result.appClientId !== app.clientId) {
+    return new Response(JSON.stringify({ error: "forbidden" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+
+  return new Response(JSON.stringify(result), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  })
+})
+
+http.route({
+  path: "/api/delegate/identity",
+  method: "GET",
+  handler: delegateStatusHandler,
+})
+
+// ---------------------------------------------------------------------------
+// POST /api/claim/lookup — recherche publique d'une identité déléguée réclamable.
+// Pas d'auth M2M — appelé par le wizard citoyen.
+// ---------------------------------------------------------------------------
+const claimLookupHandler = httpAction(async (ctx, request) => {
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    return new Response(JSON.stringify({ error: "invalid_json" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+
+  const b = (body ?? {}) as Record<string, unknown>
+  const str = (x: unknown) =>
+    typeof x === "string" && x.trim() ? x.trim() : undefined
+
+  const nip = str(b.nip)
+  const firstName = str(b.firstName)
+  const lastName = str(b.lastName)
+  const dateOfBirth = str(b.dateOfBirth)
+
+  if (!nip && !(firstName && lastName && dateOfBirth)) {
+    return new Response(
+      JSON.stringify({ error: "missing_fields" }),
+      { status: 400, headers: { "Content-Type": "application/json" } },
+    )
+  }
+
+  const result = await ctx.runQuery(
+    internal.delegate.queries.lookupForClaim,
+    { nip, firstName, lastName, dateOfBirth },
+  )
+
+  if (!result) {
+    return new Response(JSON.stringify({ found: false }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+
+  return new Response(
+    JSON.stringify({
+      found: true,
+      delegatedIdentityId: result.delegatedIdentityId,
+      idnId: result.idnId,
+      firstName: result.firstName,
+      lastName: result.lastName,
+      loa: result.loa,
+    }),
+    { status: 200, headers: { "Content-Type": "application/json" } },
+  )
+})
+
+http.route({
+  path: "/api/claim/lookup",
+  method: "POST",
+  handler: claimLookupHandler,
+})
+
+// ---------------------------------------------------------------------------
+// POST /api/claim/complete — finalise la réclamation (password + PIN).
+// ---------------------------------------------------------------------------
+const claimCompleteHandler = httpAction(async (ctx, request) => {
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    return new Response(JSON.stringify({ error: "invalid_json" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+
+  const b = (body ?? {}) as Record<string, unknown>
+  const delegatedIdentityId = b.delegatedIdentityId as string | undefined
+  const password = b.password as string | undefined
+  const pin = b.pin as string | undefined
+
+  if (!delegatedIdentityId || !password || !pin) {
+    return new Response(
+      JSON.stringify({ error: "missing_fields" }),
+      { status: 400, headers: { "Content-Type": "application/json" } },
+    )
+  }
+
+  if (password.length < 12) {
+    return new Response(
+      JSON.stringify({ error: "password_too_short" }),
+      { status: 400, headers: { "Content-Type": "application/json" } },
+    )
+  }
+
+  if (!/^\d{6}$/.test(pin)) {
+    return new Response(
+      JSON.stringify({ error: "invalid_pin" }),
+      { status: 400, headers: { "Content-Type": "application/json" } },
+    )
+  }
+
+  try {
+    const result = await ctx.runAction(
+      internal.delegate.actions.claimAccount,
+      {
+        delegatedIdentityId: delegatedIdentityId as any,
+        password,
+        pin,
+      },
+    )
+
+    return new Response(
+      JSON.stringify({ success: true, userId: result.userId }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    )
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "Impossible de réclamer le compte."
+    return new Response(
+      JSON.stringify({ error: "claim_failed", message }),
+      { status: 400, headers: { "Content-Type": "application/json" } },
+    )
+  }
+})
+
+http.route({
+  path: "/api/claim/complete",
+  method: "POST",
+  handler: claimCompleteHandler,
+})
+
 http.route({ pathPrefix: `${AUTH_PATH}/`, method: "GET", handler: authRequestHandler })
 http.route({ pathPrefix: `${AUTH_PATH}/`, method: "POST", handler: authRequestHandler })
 

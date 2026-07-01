@@ -43,6 +43,13 @@ const MAX_KEYS_PER_DEV = 25
 const MAX_SCOPES = 20
 const MAX_EXPIRES_DAYS = 365
 const SCOPE_RE = /^[a-z0-9][a-z0-9:_-]{0,63}$/
+
+export const VALID_M2M_SCOPES = [
+  "citizens:resolve",
+  "idn:delegate:lookup",
+  "idn:delegate:create",
+  "idn:delegate:status",
+] as const
 const DAY_MS = 24 * 60 * 60 * 1000
 
 const KEY_STATUS = v.union(
@@ -79,6 +86,12 @@ function normalizeScopes(scopes: string[] | undefined): string[] {
       throw new ConvexError({
         code: "INVALID_SCOPE",
         message: `Scope invalide : ${raw} (a-z, 0-9, : _ -).`,
+      })
+    }
+    if (!(VALID_M2M_SCOPES as readonly string[]).includes(s)) {
+      throw new ConvexError({
+        code: "UNKNOWN_SCOPE",
+        message: `Scope inconnu : ${s}. Valides : ${VALID_M2M_SCOPES.join(", ")}.`,
       })
     }
     if (!out.includes(s)) out.push(s)

@@ -139,6 +139,11 @@ export const AUDIT_ACTIONS = [
   "signature_verified",
   // Présentation d'identité (mobile)
   "presentation_minted",
+  // Délégation d'identité
+  "delegated_identity_created",
+  "delegated_identity_claimed",
+  "delegation_enabled",
+  "delegation_disabled",
 ] as const
 
 export const AUDIT_TARGET_TYPES = [
@@ -278,7 +283,8 @@ export default defineSchema({
     .index("by_loa", ["loa"])
     .index("by_profileType", ["profileType"])
     .index("by_deletedAt", ["deletedAt"])
-    .index("by_deletionScheduledAt", ["deletionScheduledAt"]),
+    .index("by_deletionScheduledAt", ["deletionScheduledAt"])
+    .index("by_pivot_dob", ["pivot.dateOfBirth"]),
 
   /**
    * Demande KYC (L2 / L3).
@@ -978,6 +984,27 @@ export default defineSchema({
     .index("by_userId", ["userId", "createdAt"])
     .index("by_user_cv", ["userId", "cvId", "createdAt"])
     .index("by_user_cv_feature", ["userId", "cvId", "feature", "createdAt"])
+    .index("by_status", ["status", "createdAt"]),
+
+  /**
+   * Identités créées par délégation (organisme habilité via API M2M).
+   * Permet la traçabilité : quelle app a créé quelle identité, pour qui.
+   */
+  delegatedIdentity: defineTable({
+    appClientId: v.string(),
+    operatorUserId: v.string(),
+    targetUserId: v.string(),
+    targetProfileId: v.id("userProfile"),
+    assignedLoa: v.union(v.literal(1), v.literal(2)),
+    kycRequestId: v.optional(v.id("kycRequest")),
+    initialSecret: v.optional(v.string()),
+    status: v.union(v.literal("created"), v.literal("claimed")),
+    claimedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_appClientId", ["appClientId", "createdAt"])
+    .index("by_targetUserId", ["targetUserId"])
     .index("by_status", ["status", "createdAt"]),
 
   /**
