@@ -89,6 +89,11 @@ export const IdnIcons: Record<string, ReactNode> = {
       <path d="M21 21l-4.5-4.5" />
     </svg>
   ),
+  key: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M21 2l-2 2m-7.6 7.6a5.5 5.5 0 1 0-7.8 7.8 5.5 5.5 0 0 0 7.8-7.8zm0 0L15 9m-2 2 2-2m2-2 3-3m-3 3h3v-3" />
+    </svg>
+  ),
   settings: (
     <svg width="20" height="20" viewBox="0 0 24 24" {...stroke} strokeWidth="1.6" strokeLinejoin="round" aria-hidden>
       <circle cx="12" cy="12" r="3" />

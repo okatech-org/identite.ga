@@ -77,6 +77,7 @@ export const fr = {
   nav: {
     applications: "Mes applications",
     keys: "Clés & secrets",
+    apiKeys: "Clés API",
     docs: "Documentation",
     usage: "Quotas & usage",
     settings: "Paramètres",
@@ -133,6 +134,59 @@ export const fr = {
     warning:
       "Notez votre client_secret maintenant : il ne sera plus jamais affiché en clair. Vous pourrez le régénérer si nécessaire. Ces clés (préfixes idn_sk_test_ / _sbx_) ne fonctionnent qu'en mode test.",
     continue: "Voir mon application",
+  },
+
+  apiKeys: {
+    sub: "MACHINE-TO-MACHINE",
+    title: "Clés API",
+    description:
+      "Créez des clés pour authentifier vos appels serveur-à-serveur (annuaire citoyen, identité déléguée). Ces clés sont indépendantes de vos credentials OAuth.",
+    empty: {
+      title: "Aucune clé API",
+      body: "Créez votre première clé pour accéder aux APIs partenaires (résolution citoyen, identité déléguée).",
+    },
+    newKeyBtn: "Nouvelle clé",
+    form: {
+      nameLabel: "Nom de la clé",
+      namePlaceholder: "Ex. : Gabon Connect – production",
+      scopesLabel: "Scopes",
+      expiresLabel: "Expire dans (jours)",
+      expiresPlaceholder: "Ex. : 90 (vide = jamais)",
+      submit: "Créer la clé",
+      submitting: "Création…",
+      cancel: "Annuler",
+    },
+    created: {
+      title: "Clé créée — affichée une seule fois",
+      warning:
+        "Copiez ce token maintenant. Il ne sera plus jamais affiché en clair.",
+    },
+    table: {
+      name: "NOM",
+      prefix: "PRÉFIXE",
+      scopes: "SCOPES",
+      created: "CRÉÉE LE",
+      expires: "EXPIRE",
+      lastUsed: "DERNIÈRE UTILISATION",
+      status: "STATUT",
+      actions: "",
+    },
+    status: {
+      active: "Active",
+      expired: "Expirée",
+      revoked: "Révoquée",
+    },
+    revokeBtn: "Révoquer",
+    revokeConfirm: "Révoquer cette clé ? L'opération est irréversible.",
+    revokedToast: "Clé révoquée.",
+    never: "Jamais",
+    errorGeneric: "Action impossible. Réessayez.",
+    scopeDescriptions: {
+      "citizens:resolve": "Résolution citoyen (annuaire partenaire)",
+      "idn:delegate:lookup": "Identité déléguée — recherche",
+      "idn:delegate:create": "Identité déléguée — création",
+      "idn:delegate:status": "Identité déléguée — suivi",
+    },
   },
 
   keys: {
