@@ -271,6 +271,16 @@ export const createAuth = (
       // `useJWTPlugin: true` → ID tokens signés en RS256 via le plugin jwt
       // ci-dessous (§6.1) plutôt qu'en HS256 avec BETTER_AUTH_SECRET.
       oidcProvider({
+        // Scopes custom `idn:*` supportés en plus des scopes OIDC standard.
+        // Better Auth valide CHAQUE scope demandé sur /authorize contre une
+        // allowlist GLOBALE = ["openid","profile","email","offline_access",
+        // ...scopes] (voir oidc-provider/authorize.mjs). Les scopes déclarés
+        // par client dans le portail développeur ne sont PAS consultés ici :
+        // sans cette option, tout scope custom (ex. idn:civil_status) est
+        // rejeté avec `invalid_scope`. À garder en phase avec AVAILABLE_SCOPES
+        // (apps/developer/.../applications/new) et claimsForScopes
+        // (apps/connect/.../consent-form.tsx).
+        scopes: ["idn:civil_status"],
         loginPage:
           process.env.IDN_LOGIN_PAGE ?? "http://localhost:3004/sign-in",
         consentPage:
