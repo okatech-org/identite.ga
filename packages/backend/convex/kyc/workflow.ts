@@ -7,24 +7,71 @@ import { components, internal } from "../_generated/api"
  * Workflow KYC L2 (cf. stack-technique §7.5).
  *
  * Étapes durables, idempotentes, replay déterministe :
- *   1. OCR + lecture MRZ du document
- *   2. Liveness check + face match selfie ↔ document
- *   3. Décision automatique (score ≥ seuil) OU mise en file pour revue contrôleur
- *   4. Notification email à l'utilisateur (approuvé / rejeté / en revue)
+ *   1. OCR + lecture document (via notre microservice d'inférence
+ *      auto-hébergé — cf. kyc/actions.ts, contrat `KYC_INFERENCE_URL`)
+ *   2. Liveness check + face match selfie ↔ document (même service)
+ *   3. Décision automatique (score ≥ seuils) OU rejet auto (spoof) OU mise
+ *      en file pour revue contrôleur
+ *   4. Notification à l'utilisateur (approuvé / rejeté / en revue)
  *
- * Phase 1 : actions OCR / biométrie sont des stubs déterministes
- * (score = 0.7). Phase 2 : intégration Smile ID via webhook.
+ * Souveraineté : le pipeline biométrique est auto-hébergé (plus de SaaS
+ * tiers type Smile ID) — cf. ADR sur la biométrie KYC.
  */
 
 export const workflow = new WorkflowManager(components.workflow)
+
+// Seuils de décision auto — configurables via env (`bunx convex env set`)
+// pour ajuster sans redéploiement de code. Défauts documentés ici et dans
+// .env.example : KYC_OCR_THRESHOLD / KYC_MATCH_THRESHOLD.
+export const KYC_OCR_THRESHOLD = Number(process.env.KYC_OCR_THRESHOLD ?? 0.9)
+export const KYC_MATCH_THRESHOLD = Number(
+  process.env.KYC_MATCH_THRESHOLD ?? 0.6,
+)
+
+const REJECT_REASON_SPOOF = "Détection anti-usurpation"
+
+export type KycOcrResult = { confidence: number }
+export type KycBiometricResult = {
+  faceMatch: number
+  liveness: "real" | "spoof" | "uncertain"
+}
+export type KycDecision = "approve" | "reject" | "review"
+
+/**
+ * Décision pure (aucun I/O) à partir des résultats OCR + biométrie —
+ * extraite pour être testable unitairement indépendamment de
+ * l'orchestration du workflow (cf. workflow.test.ts).
+ *
+ *   • `liveness === "spoof"` → rejet automatique (anti-usurpation), quels
+ *     que soient les scores OCR/face-match — un spoof avéré ne doit jamais
+ *     finir en revue humaine "peut-être".
+ *   • confiance OCR ET face-match au-dessus des seuils ET `liveness ===
+ *     "real"` → approbation auto.
+ *   • sinon (scores bas, `liveness === "uncertain"`...) → revue manuelle
+ *     (fail-safe : un signal ambigu ne déclenche jamais une auto-approbation).
+ */
+export function decideKycOutcome(
+  ocr: KycOcrResult,
+  biometric: KycBiometricResult,
+): KycDecision {
+  if (biometric.liveness === "spoof") return "reject"
+  if (
+    ocr.confidence >= KYC_OCR_THRESHOLD &&
+    biometric.faceMatch >= KYC_MATCH_THRESHOLD &&
+    biometric.liveness === "real"
+  ) {
+    return "approve"
+  }
+  return "review"
+}
 
 export const kycLevel2 = workflow.define({
   args: {
     userId: v.string(),
     kycRequestId: v.id("kycRequest"),
   },
-  handler: async (step, args): Promise<{ autoApproved: boolean }> => {
-    // 1. OCR + MRZ — retry avec backoff exponentiel
+  handler: async (step, args): Promise<{ decision: KycDecision }> => {
+    // 1. OCR — retry avec backoff exponentiel
     const ocr = await step.runAction(
       internal.kyc.actions.runOcr,
       { kycRequestId: args.kycRequestId },
@@ -38,13 +85,15 @@ export const kycLevel2 = workflow.define({
       { retry: { maxAttempts: 3, initialBackoffMs: 1000, base: 2 } },
     )
 
-    // 3. Décision : auto si confiance haute, sinon revue manuelle
-    const autoApproved =
-      ocr.confidence >= 0.95 &&
-      biometric.faceMatch >= 0.6 &&
-      biometric.liveness === "real"
+    // 3. Décision : rejet auto (spoof) / approbation auto / revue manuelle
+    const decision = decideKycOutcome(ocr, biometric)
 
-    if (autoApproved) {
+    if (decision === "reject") {
+      await step.runMutation(internal.kyc.mutations.rejectAuto, {
+        kycRequestId: args.kycRequestId,
+        rejectionReason: REJECT_REASON_SPOOF,
+      })
+    } else if (decision === "approve") {
       await step.runMutation(internal.kyc.mutations.approveAuto, {
         kycRequestId: args.kycRequestId,
         score: ocr.confidence,
@@ -57,12 +106,9 @@ export const kycLevel2 = workflow.define({
         faceMatchScore: biometric.faceMatch,
         livenessVerdict: biometric.liveness,
       })
-      // Phase 2 : on attendra l'événement `kyc-decision-{userId}` pendant
-      // 7 jours max. Phase 1 : le workflow se termine, le contrôleur reprend
-      // via la console.
     }
 
-    // 4. Notification email (envoyée par les mutations elles-mêmes via Resend)
-    return { autoApproved }
+    // 4. Notification (envoyée par les mutations elles-mêmes)
+    return { decision }
   },
 })

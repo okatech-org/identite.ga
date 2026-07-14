@@ -198,6 +198,18 @@ export const claim = mutation({
         message: "Demande déjà assignée à un autre contrôleur.",
       })
     }
+    // Cohérence d'état : on ne peut « prendre en charge » qu'une demande
+    // encore dans la file d'examen — pas une demande déjà tranchée
+    // (`approved`/`rejected`) ni pas encore soumise/en attente OCR
+    // (`pending`/`submitted`). Inoffensif en soi (`claim` ne change que
+    // `reviewerId`), mais évite d'assigner un dossier clos à un contrôleur
+    // et prépare le terrain pour les gardes `approve`/`reject` ci-dessous.
+    if (kyc.status !== "under_review") {
+      throw new ConvexError({
+        code: "INVALID_STATE",
+        message: "Cette demande n'est pas dans la file d'examen.",
+      })
+    }
     await ctx.db.patch(args.kycRequestId, {
       reviewerId: controller.userId,
       updatedAt: Date.now(),
@@ -216,6 +228,26 @@ export const approve = mutation({
     const controller = await requireController(ctx)
     const kyc = await ctx.db.get(args.kycRequestId)
     if (!kyc) throw new ConvexError({ code: "NOT_FOUND", message: "Demande introuvable." })
+
+    // Garde d'intégrité (four-eyes) : n'autorise l'approbation QUE depuis
+    // `under_review` — empêche d'écraser une décision déjà terminale
+    // (`approved`/`rejected`) ou d'agir sur une demande pas encore prête
+    // (`pending`/`submitted`/`complement_required`). Exige aussi que ce soit
+    // BIEN le contrôleur qui a `claim` le dossier (séparation des tâches :
+    // le flux légitime — cf. `myCurrent` + UI `case-detail.tsx` — ne montre
+    // jamais un dossier non réclamé par l'appelant).
+    if (kyc.status !== "under_review") {
+      throw new ConvexError({
+        code: "INVALID_STATE",
+        message: "Cette demande n'est pas en attente de décision.",
+      })
+    }
+    if (kyc.reviewerId && kyc.reviewerId !== controller.userId) {
+      throw new ConvexError({
+        code: "NOT_CLAIMED",
+        message: "Cette demande est assignée à un autre contrôleur.",
+      })
+    }
 
     const now = Date.now()
     await ctx.db.patch(args.kycRequestId, {
@@ -265,6 +297,26 @@ export const reject = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const controller = await requireController(ctx)
+    const kyc = await ctx.db.get(args.kycRequestId)
+    if (!kyc) throw new ConvexError({ code: "NOT_FOUND", message: "Demande introuvable." })
+
+    // Même garde d'intégrité que `approve` (four-eyes) — cf. commentaire
+    // ci-dessus. Un rejet écrasant un `approved`/`rejected` déjà en place, ou
+    // agissant sur une demande pas encore en revue, romprait la même
+    // propriété d'intégrité que l'approbation non gardée.
+    if (kyc.status !== "under_review") {
+      throw new ConvexError({
+        code: "INVALID_STATE",
+        message: "Cette demande n'est pas en attente de décision.",
+      })
+    }
+    if (kyc.reviewerId && kyc.reviewerId !== controller.userId) {
+      throw new ConvexError({
+        code: "NOT_CLAIMED",
+        message: "Cette demande est assignée à un autre contrôleur.",
+      })
+    }
+
     if (args.reason.trim().length < 5) {
       throw new ConvexError({
         code: "INVALID",
@@ -293,15 +345,12 @@ export const reject = mutation({
       targetId: args.kycRequestId,
       metadata: { reason: args.reason.trim() },
     })
-    const kyc = await ctx.db.get(args.kycRequestId)
-    if (kyc) {
-      await ctx.runMutation(internal.notifications.dispatchKyc, {
-        userId: kyc.userId,
-        kind: "rejected",
-        kycRequestId: args.kycRequestId,
-        detail: args.reason.trim(),
-      })
-    }
+    await ctx.runMutation(internal.notifications.dispatchKyc, {
+      userId: kyc.userId,
+      kind: "rejected",
+      kycRequestId: args.kycRequestId,
+      detail: args.reason.trim(),
+    })
     return null
   },
 })
@@ -321,6 +370,25 @@ export const requestComplement = mutation({
         message: "Demande introuvable.",
       })
     }
+
+    // Garde d'état : une demande déjà tranchée (`approved`/`rejected`,
+    // terminale) ne doit pas pouvoir être « rouverte » vers
+    // `complement_required` — seul un dossier encore `under_review` peut en
+    // sortir vers ce statut. Même contrôle de propriété que
+    // `approve`/`reject` (four-eyes).
+    if (kyc.status !== "under_review") {
+      throw new ConvexError({
+        code: "INVALID_STATE",
+        message: "Cette demande n'est pas en attente de décision.",
+      })
+    }
+    if (kyc.reviewerId && kyc.reviewerId !== controller.userId) {
+      throw new ConvexError({
+        code: "NOT_CLAIMED",
+        message: "Cette demande est assignée à un autre contrôleur.",
+      })
+    }
+
     const message = args.message.trim()
     if (message.length < 5) {
       throw new ConvexError({

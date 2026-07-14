@@ -99,7 +99,7 @@ export default function KycSelfie() {
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 22 }}>
         <View style={{ position: 'absolute', top: 18, left: 22, right: 22, padding: 12, paddingHorizontal: 14, backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 12, alignItems: 'center' }}>
           <Text style={{ fontSize: 14, fontWeight: '600', color: '#fff' }}>
-            {previewUri ? 'Selfie capturé — vérifiez la netteté' : 'Tournez doucement la tête à gauche →'}
+            {previewUri ? 'Selfie capturé — vérifiez la netteté' : 'Placez votre visage dans le cadre'}
           </Text>
         </View>
         <Pressable onPress={pick} style={{
@@ -126,13 +126,10 @@ export default function KycSelfie() {
           )}
         </Pressable>
         <View style={{ position: 'absolute', bottom: 18, left: 22, right: 22, alignItems: 'center' }}>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            {[1, 0.6, 0.3, 0].map((o, i) => (
-              <View key={i} style={{ width: 24, height: 4, borderRadius: 9999, backgroundColor: idnTokens.green, opacity: o }} />
-            ))}
-          </View>
-          <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', marginTop: 12 }}>
-            {selfieUploaded ? 'Étape 4/4 · prêt à soumettre' : 'Étape 2/4 · Bonne luminosité détectée'}
+          <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', marginTop: 12, textAlign: 'center' }}>
+            {selfieUploaded
+              ? 'Selfie prêt — appuyez pour soumettre'
+              : 'Bonne lumière · visage bien visible · sans lunettes ni chapeau'}
           </Text>
         </View>
       </View>

@@ -10,21 +10,28 @@
   "scripts": {
     "dev": "convex dev",
     "setup": "convex dev --until-success",
-    "check-types": "tsc --noEmit -p convex"
+    "check-types": "tsc --noEmit -p convex",
+    "test": "vitest run",
+    "test:once": "vitest run"
   },
   "dependencies": {
     "@convex-dev/workpool": "^0.4.7",
     "@google/generative-ai": "^0.24.1",
     "@react-pdf/renderer": "^4.5.1",
     "convex": "^1.38.0",
+    "google-auth-library": "^10.9.0",
     "react": "^19",
     "react-dom": "^19",
     "react-native-qrcode-svg": "^6.3.21"
   },
   "devDependencies": {
+    "@edge-runtime/vm": "^5.0.0",
     "@types/node": "^25.6.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "typescript": "5.9.2"
+    "convex-test": "^0.0.38",
+    "typescript": "5.9.2",
+    "vite": "^7.3.6",
+    "vitest": "^3.2.4"
   }
 }

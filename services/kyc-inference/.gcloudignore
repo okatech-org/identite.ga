@@ -1,0 +1,25 @@
+# .gcloudignore — contexte d'upload pour `gcloud run deploy --source`.
+# IMPORTANT : ne PAS dériver de .gitignore (qui exclut models/ + *.pth), car
+# l'image Docker doit contenir les poids vendorisés MiniFASNet (models/). On
+# liste donc explicitement ce qu'on exclut, et les poids restent inclus.
+
+.git/
+.gitignore
+
+# Environnements Python locaux / caches
+.venv/
+.venv-test/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Secrets & temporaires (ne jamais uploader)
+.env
+tmp/
+/tmp/kyc-inference/
+
+# Artefacts de build locaux
+*.tar

@@ -137,6 +137,8 @@ export const AUDIT_ACTIONS = [
   // Contrôleur
   "identity_check_performed",
   "signature_verified",
+  // Signature de document (attestation simple RS256)
+  "document_signed",
   // Présentation d'identité (mobile)
   "presentation_minted",
   // Délégation d'identité
@@ -686,6 +688,14 @@ export default defineSchema({
     .index("by_thread", ["threadId", "createdAt"])
     .index("by_user_starred", ["userId", "isStarred", "createdAt"]),
 
+  iboiteMessageAttachment: defineTable({
+    messageId: v.id("iboiteMessage"),
+    name: v.string(),
+    size: v.number(),
+    storageRef: v.id("_storage"),
+    mimeType: v.string(),
+  }).index("by_message", ["messageId"]),
+
   // ─────────────────────────────────────────────────────────────────────
   // iDocument — Coffre-fort numérique chiffré E2E
   // (cf. ressources/SPECS_FEATURES_CITIZEN.md §3). Le serveur ne voit jamais
@@ -790,6 +800,35 @@ export default defineSchema({
     .index("by_userId_folder", ["userId", "folderId", "createdAt"])
     .index("by_userId_expiration", ["userId", "expirationDate"])
     .index("by_userId_deletedAt", ["userId", "deletedAt"]),
+
+  /**
+   * Signature de document — attestation cryptographique simple (PAS eIDAS
+   * qualifiée) qu'un `documentItem` a été signé par son propriétaire à un
+   * instant T. `signature` est un JWT RS256 complet
+   * (header.payload.signature, cf. lib/documentSigning.ts) dont le payload
+   * embarque le sha256 du document au moment de la signature ; toute
+   * altération ultérieure du blob référencé fait diverger le hash courant
+   * de celui signé, et la vérification renvoie `valid: false`.
+   *
+   * Vérifiable publiquement (tiers hors Convex) via la JWKS exposée par
+   * `GET /.well-known/document-signing-jwks.json` (cf. http.ts) — clé
+   * dédiée, distincte de la JWKS du plugin better-auth `jwt` (cf. auth.ts,
+   * réservée aux ID tokens OIDC).
+   */
+  documentSignature: defineTable({
+    userId: v.string(), // signataire = propriétaire du documentItem
+    documentItemId: v.optional(v.id("documentItem")),
+    documentName: v.optional(v.string()),
+    sha256: v.string(), // hex du blob au moment de la signature
+    algorithm: v.literal("RS256"),
+    keyId: v.string(),
+    signature: v.string(), // JWT RS256 complet
+    signerName: v.string(),
+    signerIdnId: v.optional(v.string()),
+    signedAt: v.number(),
+  })
+    .index("by_userId", ["userId", "signedAt"])
+    .index("by_documentItemId", ["documentItemId"]),
 
   /**
    * Trace de notification d'expiration vault — utilisée par le cron pour

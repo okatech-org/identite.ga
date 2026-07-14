@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, Alert } from 'react-native';
+import { View, Text, Pressable, Alert, Modal, ScrollView, Share } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import QRCode from 'react-native-qrcode-svg';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useConvexAuth, useMutation, useQuery } from 'convex/react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,6 +31,7 @@ export default function ICarteCardDetail() {
   const removeCard = useMutation(api.wallet.remove);
   const [verso, setVerso] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
 
   function confirmDelete() {
     if (!raw || deleting) return;
@@ -87,6 +89,38 @@ export default function ICarteCardDetail() {
   const visible = verso ? backEntries : frontEntries;
   const hasBack = backEntries.length > 0;
   const hasContent = visible.length > 0 && visible.some(([, v]) => v && v.length > 0);
+
+  // Champs renseignés uniquement — aucun vide/undefined dans les payloads.
+  const filledFront = frontEntries.filter(([, v]) => v && v.length > 0);
+  const filledBack = backEntries.filter(([, v]) => v && v.length > 0);
+
+  // Payload QR : représentation locale des champs de la carte (aucune
+  // vérification serveur n'existe pour ces cartes déclaratives).
+  const qrPayload = JSON.stringify({
+    card: raw.name,
+    ...(raw.subtitle ? { subtitle: raw.subtitle } : {}),
+    data: Object.fromEntries(filledFront),
+    ...(filledBack.length > 0 ? { backData: Object.fromEntries(filledBack) } : {}),
+  });
+
+  async function shareCard() {
+    if (!raw) return;
+    const lines: string[] = [raw.name];
+    if (raw.subtitle) lines.push(raw.subtitle);
+    if (filledFront.length > 0) {
+      lines.push('');
+      for (const [k, val] of filledFront) lines.push(`${formatLabel(k)} : ${val}`);
+    }
+    if (filledBack.length > 0) {
+      lines.push('');
+      for (const [k, val] of filledBack) lines.push(`${formatLabel(k)} : ${val}`);
+    }
+    try {
+      await Share.share({ title: raw.name, message: lines.join('\n') });
+    } catch {
+      // partage annulé
+    }
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top }}>
@@ -155,11 +189,11 @@ export default function ICarteCardDetail() {
             </IdnButton>
           </View>
           <View style={{ flex: 1 }}>
-            <IdnButton t={t} variant="ghost" full leadIcon={<Icon name="qr" size={16} color={t.ink} />}>QR Code</IdnButton>
+            <IdnButton t={t} variant="ghost" full leadIcon={<Icon name="qr" size={16} color={t.ink} />} onPress={() => setQrOpen(true)}>QR Code</IdnButton>
           </View>
         </View>
         <View style={{ marginTop: 10 }}>
-          <IdnButton t={t} variant="primary" size="lg" full leadIcon={<Icon name="share" size={16} color="#fff" />}>Partager</IdnButton>
+          <IdnButton t={t} variant="primary" size="lg" full leadIcon={<Icon name="share" size={16} color="#fff" />} onPress={shareCard}>Partager</IdnButton>
         </View>
         <Pressable
           onPress={confirmDelete}
@@ -171,6 +205,24 @@ export default function ICarteCardDetail() {
           </Text>
         </Pressable>
       </View>
+
+      <Modal visible={qrOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setQrOpen(false)}>
+        <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top + 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', padding: 14, borderBottomWidth: 1, borderBottomColor: t.borderSoft }}>
+            <Pressable onPress={() => setQrOpen(false)}><Text style={{ color: idnTokens.green, fontSize: 14, fontWeight: '500' }}>Fermer</Text></Pressable>
+            <Text style={{ flex: 1, textAlign: 'center', fontSize: 15, fontWeight: '600', color: t.ink }} numberOfLines={1}>{raw.name}</Text>
+            <View style={{ width: 60 }} />
+          </View>
+          <ScrollView contentContainerStyle={{ padding: 26, alignItems: 'center', gap: 18 }}>
+            <View style={{ backgroundColor: '#fff', padding: 18, borderRadius: 18, width: 260, height: 260, alignItems: 'center', justifyContent: 'center' }}>
+              <QRCode value={qrPayload} size={224} color="#0E110D" backgroundColor="#fff" />
+            </View>
+            <Text style={{ fontSize: 12, color: t.muted, textAlign: 'center', lineHeight: 18 }}>
+              Ce QR contient les informations de la carte, lisibles hors ligne. Il ne prouve aucune vérification par un service.
+            </Text>
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 }

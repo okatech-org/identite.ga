@@ -1,0 +1,9 @@
+# Sous-ensemble MINIMAL pour lancer la suite de tests sans télécharger les
+# gros modèles (paddle, insightface, torch). Les moteurs sont mockés dans les
+# tests, donc seules les briques API + validation sont nécessaires.
+fastapi>=0.111,<1.0
+pydantic>=2.7,<3.0
+python-dotenv>=1.0,<2.0
+httpx>=0.27,<1.0
+numpy>=1.26,<2.2
+pytest>=8.0,<9.0

@@ -21,7 +21,7 @@ export default function KycIntro() {
       step={0}
       total={3}
       title="Passons au Niveau 2"
-      sub="3 étapes, environ 5 minutes. Vos données restent chiffrées sur votre téléphone."
+      sub="3 étapes, environ 5 minutes. Vos images sont transmises de façon chiffrée à notre partenaire de vérification agréé, et servent uniquement à confirmer votre identité."
       primary="Commencer"
       onBack={() => router.back()}
       onPrimary={() => router.push('/kyc/doc')}

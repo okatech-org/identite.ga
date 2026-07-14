@@ -1,0 +1,16 @@
+[project]
+name = "kyc-inference"
+version = "1.0.0"
+description = "Microservice d'inférence KYC souverain (OCR + biométrie) pour identite.ga"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

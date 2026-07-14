@@ -1,0 +1,45 @@
+# --- API / runtime ---
+fastapi>=0.111,<1.0
+uvicorn[standard]>=0.30,<1.0
+pydantic>=2.7,<3.0
+python-dotenv>=1.0,<2.0
+httpx>=0.27,<1.0
+
+# --- Vision / calcul ---
+# numpy < 2.0 conservé : insightface/onnxruntime/scikit-image de cette génération
+# sont compilés contre numpy 1.x. (Historiquement aussi requis par paddle, désormais
+# retiré — voir section OCR ci-dessous.)
+numpy>=1.26,<2.0
+opencv-python-headless>=4.9,<5.0
+imageio[ffmpeg]>=2.34,<3.0
+# av (PyAV) accélère la lecture vidéo via imageio ; optionnel mais recommandé.
+av>=12.0,<13.0
+
+# --- OCR ---
+# OCR TEMPORAIREMENT DÉSACTIVÉ. paddlepaddle 2.6 (CPU) segfault (SIGSEGV, exit 139)
+# à l'instanciation de PaddleOCR sur l'amd64 natif de Cloud Build : un segfault
+# natif n'est PAS rattrapable en Python, il ferait crasher le worker. On retire
+# donc paddlepaddle/paddleocr du build. `app/ocr.py` importe paddle de façon
+# paresseuse et tolérante ; sans le paquet, le moteur reste `ready=False` et
+# `/v1/ocr` renvoie un 503 propre. À RÉACTIVER via Tesseract ou un paddle
+# stabilisé (+ calibration CNI gabonaise) — voir README.
+#   paddleocr==2.7.0.3
+#   paddlepaddle==2.6.2
+# MRZ passeport (PassportEye/tesseract). Conservé pour réactivation future ;
+# inerte tant que l'OCR est désactivé (le chemin MRZ passe par OcrEngine.run,
+# gardé par `ready`).
+passporteye>=2.2,<3.0
+mrz>=0.6,<1.0
+
+# --- Face match ---
+insightface>=0.7,<1.0
+onnxruntime>=1.17,<2.0        # remplacer par onnxruntime-gpu sur hôte CUDA
+scikit-image>=0.22,<1.0       # dépendance transitoire d'insightface, épinglée
+
+# --- Anti-spoof / liveness (Silent-Face-Anti-Spoofing / MiniFASNet) ---
+# Le code du prédicteur MiniFASNet n'est pas packagé sur PyPI : il est vendored
+# depuis le repo OSS (voir README, section liveness). Il dépend de torch.
+torch>=2.2,<3.0
+
+# --- Tests (installer via requirements-dev.txt de préférence) ---
+# pytest, voir requirements-dev.txt

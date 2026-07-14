@@ -9,6 +9,7 @@ import { idnTokens } from '@/design/tokens';
 import { Icon } from '@/design/icons';
 import { api } from '@/lib/api';
 import { iboiteAccountToUi } from '@/lib/iboite-adapter';
+import { resolveActiveAccountId, useIBoiteActiveAccount } from '@/lib/iboite-active-account';
 
 export default function IBoiteAccounts() {
   const t = useIdnTheme();
@@ -16,6 +17,8 @@ export default function IBoiteAccounts() {
   const insets = useSafeAreaInsets();
   const { isAuthenticated } = useConvexAuth();
   const accounts = useQuery(api.iboite.accounts.listMine, isAuthenticated ? {} : 'skip');
+  const { activeAccountId, setActiveAccountId } = useIBoiteActiveAccount();
+  const effectiveId = resolveActiveAccountId(accounts, activeAccountId);
 
   return (
     <Pressable onPress={() => router.back()} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', paddingTop: insets.top + 80, paddingHorizontal: 22 }}>
@@ -30,13 +33,16 @@ export default function IBoiteAccounts() {
             <Text style={{ color: t.muted, fontSize: 12 }}>Aucune boîte active.</Text>
           </View>
         ) : (
-          accounts.map((a, i) => {
+          accounts.map((a) => {
             const ui = iboiteAccountToUi(a);
-            const sel = i === 0;
+            const sel = a._id === effectiveId;
             return (
               <Pressable
                 key={a._id}
-                onPress={() => router.back()}
+                onPress={() => {
+                  setActiveAccountId(a._id);
+                  router.back();
+                }}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 8, borderRadius: 10 }}
               >
                 <View style={{ width: 36, height: 36, borderRadius: 9, overflow: 'hidden' }}>

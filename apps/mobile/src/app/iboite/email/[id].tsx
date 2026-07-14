@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
-import { ActionSheetIOS, Alert, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActionSheetIOS, Alert, Linking, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useConvexAuth, useMutation, useQuery } from 'convex/react';
+import { useConvex, useConvexAuth, useMutation, useQuery } from 'convex/react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useIdnTheme } from '@/design/theme';
 import { idnTokens } from '@/design/tokens';
@@ -24,6 +24,7 @@ export default function EmailDetail() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { isAuthenticated } = useConvexAuth();
+  const convex = useConvex();
   const email = useQuery(api.iboite.messages.get, isAuthenticated && id ? { messageId: id as never } : 'skip');
   const markRead = useMutation(api.iboite.messages.markRead);
   const toggleStar = useMutation(api.iboite.messages.toggleStar);
@@ -64,6 +65,26 @@ export default function EmailDetail() {
       router.back();
     } catch (err) {
       Alert.alert('Erreur', err instanceof Error ? err.message : 'Action impossible.');
+    }
+  }
+
+  /**
+   * Ouvre une pièce jointe : on récupère l'URL signée à la demande via
+   * `messages.attachmentUrl` (authz par ownership) puis on la déporte au
+   * navigateur natif (Linking.openURL), qui gère l'aperçu / le partage.
+   */
+  async function openAttachment(attachmentId: string) {
+    try {
+      const url = await convex.query(api.iboite.messages.attachmentUrl, {
+        attachmentId: attachmentId as never,
+      });
+      if (!url) {
+        Alert.alert('Erreur', 'Pièce jointe introuvable.');
+        return;
+      }
+      await Linking.openURL(url);
+    } catch (err) {
+      Alert.alert('Erreur', err instanceof Error ? err.message : 'Ouverture impossible.');
     }
   }
 
@@ -146,6 +167,28 @@ export default function EmailDetail() {
         <View style={{ paddingTop: 14 }}>
           <Text style={{ fontSize: 13, lineHeight: 22, color: t.ink2 }}>{email.body}</Text>
         </View>
+        {email.attachments.length > 0 ? (
+          <View style={{ marginTop: 18 }}>
+            <Text style={{ fontSize: 10, color: t.muted, letterSpacing: 1.2, fontWeight: '600', marginBottom: 8 }}>PIÈCES JOINTES</Text>
+            <View style={{ gap: 6 }}>
+              {email.attachments.map((a) => (
+                <Pressable
+                  key={a._id}
+                  onPress={() => openAttachment(a._id)}
+                  accessibilityLabel={`Ouvrir ${a.name}`}
+                  style={{ padding: 12, backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 10 }}
+                >
+                  <Icon name="paper" size={18} color={t.ink2} />
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text numberOfLines={1} style={{ fontSize: 12, color: t.ink, fontWeight: '500' }}>{a.name}</Text>
+                    <Text style={{ fontSize: 10, color: t.muted, marginTop: 1 }}>{Math.max(1, Math.round(a.size / 1024))} KB</Text>
+                  </View>
+                  <Icon name="download" size={16} color={t.muted} />
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        ) : null}
       </ScrollView>
       <View style={{ borderTopWidth: 1, borderTopColor: t.borderSoft, backgroundColor: t.surface, paddingHorizontal: 14, paddingTop: 10, paddingBottom: Math.max(insets.bottom, 10), flexDirection: 'row', gap: 4 }}>
         {actions.map((a, i) => (

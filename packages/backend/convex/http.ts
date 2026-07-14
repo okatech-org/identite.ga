@@ -5,6 +5,7 @@ import { httpAction } from "./_generated/server"
 import { authenticateApiKey } from "./developer/apiKeys"
 import { createAuth } from "./auth"
 import { resend } from "./email/provider"
+import { getPublicJwk } from "./lib/documentSigning"
 
 const http = httpRouter()
 
@@ -736,6 +737,29 @@ http.route({
   path: "/api/claim/complete",
   method: "POST",
   handler: claimCompleteHandler,
+})
+
+// GET /.well-known/document-signing-jwks.json — clé publique RS256 dédiée
+// à la feature « Signer un document » (cf. lib/documentSigning.ts). Permet
+// à un tiers de vérifier une signature indépendamment de Convex, avec
+// n'importe quelle lib JWT/JWKS standard. Distincte de la JWKS du plugin
+// better-auth `jwt` servie sous `${AUTH_PATH}/jwks` (réservée aux ID tokens
+// OIDC — cf. auth.ts).
+const documentSigningJwksHandler = httpAction(async (_ctx, _request) => {
+  const jwk = await getPublicJwk()
+  return new Response(JSON.stringify({ keys: [jwk] }), {
+    status: 200,
+    headers: {
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": "*",
+    },
+  })
+})
+
+http.route({
+  path: "/.well-known/document-signing-jwks.json",
+  method: "GET",
+  handler: documentSigningJwksHandler,
 })
 
 http.route({ pathPrefix: `${AUTH_PATH}/`, method: "GET", handler: authRequestHandler })

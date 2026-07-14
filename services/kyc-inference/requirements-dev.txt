@@ -1,0 +1,6 @@
+# Dépendances de développement / tests.
+# Les tests unitaires (HMAC + shape des réponses) n'ont besoin QUE de ce sous-ensemble :
+# les moteurs lourds (paddle, insightface, torch) sont mockés.
+-r requirements.txt
+
+pytest>=8.0,<9.0

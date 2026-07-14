@@ -2,6 +2,8 @@ import { createClient, type GenericCtx } from "@convex-dev/better-auth";
 import { convex, crossDomain } from "@convex-dev/better-auth/plugins";
 import { expo } from "@better-auth/expo";
 import { passkey } from "@better-auth/passkey";
+import { createAuthMiddleware } from "better-auth/api";
+import { deleteSessionCookie } from "better-auth/cookies";
 import { betterAuth } from "better-auth/minimal";
 import {
   emailOTP,
@@ -38,6 +40,10 @@ import type { DataModel } from "./_generated/dataModel";
 import { query } from "./_generated/server";
 import authConfig from "./auth.config";
 import { pinSignIn } from "./lib/pinSignInPlugin";
+import {
+  handleSignInTwoFactorGate,
+  requiresTwoFactorChallenge,
+} from "./lib/twoFactorGate";
 
 const isDev = process.env.NODE_ENV !== "production";
 
@@ -187,6 +193,75 @@ export const createAuth = (
       // refuserait les cookies Secure. On les force non-secure (le proxy
       // strip aussi le préfixe __Secure- au passage).
       useSecureCookies: isDev ? false : undefined,
+    },
+    hooks: {
+      // Gate 2FA générique pour TOUS les endpoints /sign-in/* — deux failles
+      // corrigées ici :
+      //
+      // 1) Le hook natif du plugin `twoFactor` ne matche que
+      //    /sign-in/email|username|phone-number (câblé en dur dans la lib).
+      //    Le plugin `emailOTP` expose /sign-in/email-otp, qui crée
+      //    directement une session sans passer par ce matcher : un compte
+      //    `twoFactorEnabled` pouvait contourner totalement le TOTP en
+      //    passant par l'OTP email (better-auth/dist/plugins/email-otp/
+      //    routes.mjs → signInEmailOTP). (`/sign-in/pin` n'a jamais ce
+      //    problème : il ne crée jamais de session en premier lieu — cf.
+      //    pinSignInPlugin.ts — donc `ctx.context.newSession` reste déjà
+      //    `null` et ce hook y est un no-op.)
+      //
+      // 2) BLOQUANT trouvé en revue authz : ni le hook natif du plugin
+      //    `twoFactor` ni notre gate email-otp d'origine ne neutralisaient
+      //    `ctx.context.newSession` après avoir supprimé la session DB. Or
+      //    le plugin `convex` de @convex-dev/better-auth (dist/plugins/
+      //    convex/index.js) pose SON PROPRE hook `after` sur tout chemin
+      //    /sign-in* : `ctx.context.session = ctx.context.session ??
+      //    ctx.context.newSession` puis `jwt.endpoints.getToken()` → pose
+      //    le cookie `convex_jwt` (~15 min). Comme la signature JWT ne
+      //    dépend que des objets `session`/`user` en mémoire (pas d'un
+      //    re-fetch DB), ce hook réussissait MÊME APRÈS que la session DB
+      //    ait été supprimée : un compte 2FA complétant /sign-in/email (ou
+      //    /sign-in/email-otp) recevait quand même un `convex_jwt`
+      //    exploitable sur le plan de données Convex, alors que la réponse
+      //    JSON annonçait `twoFactorRedirect: true` — 2FA totalement
+      //    contournée côté Convex. On neutralise donc explicitivement
+      //    `newSession`/`session` AVANT de rendre la main : les hooks
+      //    suivants (natif `twoFactor` inclus, qui voit alors `data` null
+      //    et no-op ; et le hook `convex`, dont `getToken()` échoue et est
+      //    catché en silence) ne peuvent alors plus émettre ni cookie de
+      //    session ni `convex_jwt`. Ce hook, enregistré au niveau top-level
+      //    de `betterAuth()`, s'exécute TOUJOURS avant les hooks `after`
+      //    apportés par les plugins (cf. better-auth/dist/api/
+      //    to-auth-endpoints.mjs → getHooks()), donc avant celui du plugin
+      //    `twoFactor` ET celui du plugin `convex` — on prend donc en
+      //    charge nous-mêmes toute la logique de gate pour /sign-in/email
+      //    |username|phone-number ici (le hook natif du plugin `twoFactor`
+      //    devient un no-op puisqu'on a déjà vidé `newSession`).
+      //
+      // Passkey (`/passkey/verify-authentication`) N'EST PAS sur
+      // /sign-in/* et n'est donc jamais concerné — exemption volontaire
+      // (cf. lib/twoFactorGate.ts).
+      //
+      // La logique elle-même (delete session + neutralisation newSession/
+      // session + verification/cookie 2FA en attente) vit dans
+      // `handleSignInTwoFactorGate` (lib/twoFactorGate.ts) pour rester
+      // testable sans monter tout le contexte Better Auth — seul
+      // `deleteSessionCookie` (expiration du cookie de session côté
+      // navigateur, pas la partie sécurité critique) reste appelé ici.
+      after: createAuthMiddleware(async (ctx) => {
+        const data = ctx.context.newSession
+        const isGated =
+          ctx.path?.startsWith("/sign-in") &&
+          data &&
+          requiresTwoFactorChallenge(
+            data.user as { twoFactorEnabled?: boolean | null },
+          )
+        if (!isGated) return
+        // Expire le cookie de session côté navigateur avant que
+        // `handleSignInTwoFactorGate` ne supprime la session en base et ne
+        // neutralise l'état en mémoire.
+        deleteSessionCookie(ctx, true)
+        return handleSignInTwoFactorGate(ctx)
+      }),
     },
     plugins: [
       // Réécrit les redirects OAuth/OIDC vers l'origin de l'app appelante

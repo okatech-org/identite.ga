@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useConvexAuth, useMutation, useQuery } from 'convex/react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -73,12 +73,32 @@ export default function Notifications() {
   const rows = useQuery(api.notifications.listMine, isAuthenticated ? { limit: 100 } : 'skip') as Notif[] | undefined;
   const markAllRead = useMutation(api.notifications.markAllRead);
   const markRead = useMutation(api.notifications.markRead);
+  const clearAll = useMutation(api.notifications.clearAll);
 
   async function handleMarkAll() {
     try { await markAllRead({}); } catch { /* ignore */ }
   }
   async function handleMarkOne(id: string) {
     try { await markRead({ notificationId: id as any }); } catch { /* ignore */ }
+  }
+  function handleClearAll() {
+    if (total === 0) return;
+    Alert.alert(
+      'Effacer les notifications ?',
+      'Toutes vos notifications seront supprimées. Cette action est irréversible.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Effacer',
+          style: 'destructive',
+          onPress: async () => {
+            try { await clearAll({}); } catch {
+              Alert.alert('Erreur', 'Suppression impossible. Réessayez.');
+            }
+          },
+        },
+      ],
+    );
   }
 
   const filtered = React.useMemo(() => {
@@ -98,6 +118,7 @@ export default function Notifications() {
   const olderItems = (filtered ?? []).filter(n => dayBucket(n.createdAt) === 'older');
 
   const unreadCount = (rows ?? []).filter(n => !n.readAt).length;
+  const total = (rows ?? []).length;
 
   function toItem(n: Notif): NotifLike {
     return {
@@ -132,7 +153,9 @@ export default function Notifications() {
           <Icon name="check" size={18} color={t.ink2} />
         </Pressable>
         <Pressable
-          style={{ width: 36, height: 36, borderRadius: 9999, backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, alignItems: 'center', justifyContent: 'center' }}
+          onPress={handleClearAll}
+          disabled={total === 0}
+          style={{ width: 36, height: 36, borderRadius: 9999, backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, alignItems: 'center', justifyContent: 'center', opacity: total === 0 ? 0.4 : 1 }}
         >
           <Icon name="trash" size={18} color={t.ink2} />
         </Pressable>

@@ -1,7 +1,9 @@
 import { Stack } from 'expo-router';
+import { IBoiteActiveAccountProvider } from '@/lib/iboite-active-account';
 
 export default function IBoiteLayout() {
   return (
+    <IBoiteActiveAccountProvider>
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="accounts" options={{ presentation: 'transparentModal', animation: 'fade' }} />
@@ -23,5 +25,6 @@ export default function IBoiteLayout() {
         options={{ presentation: 'formSheet', sheetAllowedDetents: [0.95], headerShown: false }}
       />
     </Stack>
+    </IBoiteActiveAccountProvider>
   );
 }

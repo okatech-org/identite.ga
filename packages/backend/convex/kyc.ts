@@ -113,6 +113,20 @@ export const submit = mutation({
     if (!kyc || kyc.userId !== user.userId) {
       throw new ConvexError({ code: "NOT_FOUND", message: "Demande introuvable." })
     }
+    // Garde de statut — symétrique à `setDocumentImage`/`setSelfie`. Sans
+    // elle, une demande `rejected` (rejet humain, ex. fraude via
+    // `controller.queue.reject`) pouvait être re-soumise sur le MÊME
+    // `kycRequestId` et relancer le workflow, qui pouvait auto-approuver
+    // (`approveAuto`) sur de bons scores et écraser silencieusement le rejet
+    // humain sans nouvelle revue. Seules `pending` (première soumission) et
+    // `complement_required` (retry légitime, cf. `respondComplement` pour le
+    // chemin normal) peuvent entrer dans le pipeline.
+    if (kyc.status !== "pending" && kyc.status !== "complement_required") {
+      throw new ConvexError({
+        code: "ALREADY_SUBMITTED",
+        message: "Cette demande ne peut plus être modifiée.",
+      })
+    }
     if (!kyc.documentImages.front || !kyc.selfieImage) {
       throw new ConvexError({
         code: "INCOMPLETE",
@@ -134,7 +148,9 @@ export const submit = mutation({
       targetId: args.kycRequestId,
     })
 
-    // Lance le workflow asynchrone (OCR + biométrie + revue)
+    // Déclenche le workflow KYC L2 (OCR + biométrie via notre service
+    // d'inférence auto-hébergé, cf. kyc/actions.ts) — auto-hébergé, plus de
+    // dépendance à un SaaS tiers.
     await workflow.start(ctx, internal.kyc.workflow.kycLevel2, {
       userId: user.userId,
       kycRequestId: args.kycRequestId,

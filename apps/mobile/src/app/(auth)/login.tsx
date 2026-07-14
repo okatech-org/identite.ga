@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { KeyboardAwareScrollView, KeyboardStickyView } from 'react-native-keyboard-controller';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import { useIdnTheme } from '@/design/theme';
@@ -103,6 +103,13 @@ export default function Login() {
         setSubmitting(false);
         return;
       }
+      // 2FA requise : better-auth n'a pas ouvert de session, il faut valider
+      // le code TOTP (ou un code de secours) sur l'écran de challenge.
+      if ((res?.data as { twoFactorRedirect?: boolean } | undefined)?.twoFactorRedirect) {
+        setSubmitting(false);
+        router.push('/(auth)/two-factor' as Href);
+        return;
+      }
       await setOnboardingDone(true);
       await routeAfterAuth();
     } catch (err) {
@@ -134,6 +141,11 @@ export default function Login() {
       if (res?.error) {
         setError(res.error.message ?? 'Aucun passkey utilisable sur ce device.');
         setSubmitting(false);
+        return;
+      }
+      if ((res?.data as { twoFactorRedirect?: boolean } | undefined)?.twoFactorRedirect) {
+        setSubmitting(false);
+        router.push('/(auth)/two-factor' as Href);
         return;
       }
       await setOnboardingDone(true);

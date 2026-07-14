@@ -11,6 +11,12 @@ import { loadAccountByEmailAlias, loadOwnedAccount } from "./accounts"
 
 const IBOITE_DOMAIN = "idn.ga"
 
+// Le rate-limit `messageSend` borne le nombre de MESSAGES/heure, pas le
+// nombre de pièces jointes par message — sans ce plafond, un seul appel
+// `send` pourrait insérer un nombre arbitraire de lignes
+// `iboiteMessageAttachment` (2 par PJ : copie envoyée + copie reçue).
+const MAX_ATTACHMENTS = 10
+
 /**
  * iBoîte — eMails internes (cf. SPECS_FEATURES_CITIZEN.md §2.7 + §2.9.3).
  *
@@ -28,6 +34,13 @@ const FOLDER = v.union(
   v.literal("sent"),
   v.literal("trash"),
 )
+
+const ATTACHMENT_OUT = v.object({
+  _id: v.id("iboiteMessageAttachment"),
+  name: v.string(),
+  size: v.number(),
+  mimeType: v.string(),
+})
 
 const MESSAGE_SUMMARY = v.object({
   _id: v.id("iboiteMessage"),
@@ -63,6 +76,7 @@ const MESSAGE_DETAIL = v.object({
   isRead: v.boolean(),
   isStarred: v.boolean(),
   hasAttachment: v.boolean(),
+  attachments: v.array(ATTACHMENT_OUT),
   inReplyTo: v.optional(v.id("iboiteMessage")),
   createdAt: v.number(),
 })
@@ -80,6 +94,16 @@ async function loadOwnedMessage(
     })
   }
   return m
+}
+
+async function getAttachments(
+  ctx: { db: { query: any } },
+  messageId: Id<"iboiteMessage">,
+): Promise<Doc<"iboiteMessageAttachment">[]> {
+  return await ctx.db
+    .query("iboiteMessageAttachment")
+    .withIndex("by_message", (q: any) => q.eq("messageId", messageId))
+    .collect()
 }
 
 function serializeSummary(m: Doc<"iboiteMessage">) {
@@ -168,6 +192,7 @@ export const get = query({
     const user = await requireAuth(ctx)
     const m = await ctx.db.get(args.messageId)
     if (!m || m.userId !== user.userId) return null
+    const attachments = await getAttachments(ctx, m._id)
     return {
       _id: m._id,
       accountId: m.accountId,
@@ -184,9 +209,32 @@ export const get = query({
       isRead: m.isRead,
       isStarred: m.isStarred,
       hasAttachment: m.hasAttachment,
+      attachments: attachments.map((a) => ({
+        _id: a._id,
+        name: a.name,
+        size: a.size,
+        mimeType: a.mimeType,
+      })),
       inReplyTo: m.inReplyTo,
       createdAt: m.createdAt,
     }
+  },
+})
+
+/**
+ * URL signée pour lire une pièce jointe de message. Authz par ownership du
+ * message (`message.userId === user courant`) — cf. `iboite/letters.ts`.
+ */
+export const attachmentUrl = query({
+  args: { attachmentId: v.id("iboiteMessageAttachment") },
+  returns: v.union(v.string(), v.null()),
+  handler: async (ctx, args) => {
+    const user = await requireAuth(ctx)
+    const att = await ctx.db.get(args.attachmentId)
+    if (!att) return null
+    const message = await ctx.db.get(att.messageId)
+    if (!message || message.userId !== user.userId) return null
+    return await ctx.storage.getUrl(att.storageRef)
   },
 })
 
@@ -275,6 +323,25 @@ export const move = mutation({
   },
 })
 
+/**
+ * URL signée pour uploader une pièce jointe de message dans `_storage`.
+ * Le client POST le blob ensuite et récupère un `storageId` à passer à
+ * `send`. Rate-limite partagé avec `send` (30 envois / heure) — un message
+ * coûte un slot, peu importe le nombre de pièces jointes.
+ */
+export const generateUploadUrl = mutation({
+  args: {},
+  returns: v.string(),
+  handler: async (ctx) => {
+    const user = await requireAuth(ctx)
+    await rateLimiter.limit(ctx, "messageSend", {
+      key: user.userId,
+      throws: true,
+    })
+    return await ctx.storage.generateUploadUrl()
+  },
+})
+
 export const send = mutation({
   args: {
     accountId: v.id("iboiteAccount"),
@@ -283,7 +350,16 @@ export const send = mutation({
     subject: v.string(),
     body: v.string(),
     inReplyTo: v.optional(v.id("iboiteMessage")),
-    hasAttachment: v.optional(v.boolean()),
+    attachments: v.optional(
+      v.array(
+        v.object({
+          name: v.string(),
+          size: v.number(),
+          storageRef: v.id("_storage"),
+          mimeType: v.string(),
+        }),
+      ),
+    ),
   },
   returns: v.id("iboiteMessage"),
   handler: async (ctx, args) => {
@@ -300,6 +376,17 @@ export const send = mutation({
     if (args.body.trim().length < 1) {
       throw new ConvexError({ code: "INVALID", message: "Message vide." })
     }
+    if ((args.attachments?.length ?? 0) > MAX_ATTACHMENTS) {
+      throw new ConvexError({
+        code: "TOO_MANY_ATTACHMENTS",
+        message: `Maximum ${MAX_ATTACHMENTS} pièces jointes par message.`,
+      })
+    }
+    // TODO(defense-in-depth): `storageRef` n'est pas vérifié comme
+    // appartenant à `user` (pas de lien uploader ↔ blob côté `_storage`) —
+    // un citoyen pourrait en théorie joindre le storageId d'un fichier
+    // uploadé par quelqu'un d'autre s'il le devine/l'obtient. Hors scope de
+    // ce correctif (noté pour un futur durcissement).
 
     // Normalisation tolérante : on accepte « jean.dupont » comme
     // « jean.dupont@idn.ga ». En revanche, tout autre domaine est rejeté
@@ -354,6 +441,10 @@ export const send = mutation({
     const now = Date.now()
     const subject = args.subject.trim()
     const preview = makePreview(args.body)
+    // `hasAttachment` est dérivé côté serveur du contenu réel de
+    // `args.attachments` — jamais accepté tel quel depuis le client (sinon
+    // un client malveillant pourrait afficher un trombone sans PJ réelle).
+    const hasAttachment = (args.attachments?.length ?? 0) > 0
 
     // 1) Copie « envoyée » côté expéditeur (folder: sent, owner: user courant).
     const sentId = await ctx.db.insert("iboiteMessage", {
@@ -371,7 +462,7 @@ export const send = mutation({
       folder: "sent",
       isRead: true,
       isStarred: false,
-      hasAttachment: args.hasAttachment ?? false,
+      hasAttachment,
       inReplyTo: args.inReplyTo,
       createdAt: now,
     })
@@ -393,12 +484,34 @@ export const send = mutation({
       folder: "inbox",
       isRead: false,
       isStarred: false,
-      hasAttachment: args.hasAttachment ?? false,
+      hasAttachment,
       // `inReplyTo` est un Id<"iboiteMessage"> du compte expéditeur, on ne
       // le propage pas côté destinataire (la continuité de thread est
       // assurée par `threadId`).
       createdAt: now,
     })
+
+    // 2bis) Pièces jointes : on duplique les rows (une par copie) mais on
+    //       partage le même `storageRef` pour éviter de doubler le stockage.
+    //       L'ownership est garanti par `message.userId` côté `attachmentUrl`.
+    if (args.attachments && args.attachments.length > 0) {
+      for (const att of args.attachments) {
+        await ctx.db.insert("iboiteMessageAttachment", {
+          messageId: sentId,
+          name: att.name,
+          size: att.size,
+          storageRef: att.storageRef,
+          mimeType: att.mimeType,
+        })
+        await ctx.db.insert("iboiteMessageAttachment", {
+          messageId: inboxId,
+          name: att.name,
+          size: att.size,
+          storageRef: att.storageRef,
+          mimeType: att.mimeType,
+        })
+      }
+    }
 
     // 3) Compteur unread + notification in-app côté destinataire.
     await ctx.db.patch(recipientAccount._id, {

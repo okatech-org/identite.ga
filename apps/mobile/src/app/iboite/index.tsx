@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useConvexAuth, useMutation, usePaginatedQuery, useQuery } from 'convex/react';
@@ -12,6 +12,7 @@ import { IBoiteTabs, type IBoiteTab } from '@/components/mailbox/iboite-tabs';
 import { Icon } from '@/design/icons';
 import { api } from '@/lib/api';
 import { formatRelativeTime, iboiteAccountToUi } from '@/lib/iboite-adapter';
+import { resolveActiveAccountId, useIBoiteActiveAccount } from '@/lib/iboite-active-account';
 
 type LetterFolder = 'inbox' | 'pending' | 'sent' | 'trash';
 type MessageFolder = 'inbox' | 'starred' | 'sent' | 'trash';
@@ -39,13 +40,8 @@ export default function IBoiteHome() {
   const [tab, setTab] = useState<IBoiteTab>('courriers');
   const [letterFolder, setLetterFolder] = useState<LetterFolder>('inbox');
   const [emailFolder, setEmailFolder] = useState<MessageFolder>('inbox');
-  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!selectedAccountId && accounts && accounts.length > 0) {
-      setSelectedAccountId(accounts[0]._id);
-    }
-  }, [accounts, selectedAccountId]);
+  const { activeAccountId } = useIBoiteActiveAccount();
+  const selectedAccountId = resolveActiveAccountId(accounts, activeAccountId);
 
   if (!isAuthenticated) {
     return (

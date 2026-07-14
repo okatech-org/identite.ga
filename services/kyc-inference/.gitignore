@@ -1,0 +1,26 @@
+# Secrets & environnement
+.env
+*.env
+!.env.example
+
+# Poids de modèles (à obtenir hors dépôt — voir README)
+models/
+*.onnx
+*.pth
+*.pdparams
+*.pdmodel
+weights/
+
+# Fichiers temporaires biométriques (ne DOIVENT jamais fuiter dans git)
+tmp/
+/tmp/kyc-inference/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.venv-test/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
