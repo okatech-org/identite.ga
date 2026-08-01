@@ -18,11 +18,12 @@ import { internalAction } from "../_generated/server"
  *     BRUT (la chaîne exacte envoyée, avant tout re-sérialisation) avec
  *     `KYC_INFERENCE_SECRET`, + header `X-Timestamp` (ISO 8601).
  *     Base URL = `KYC_INFERENCE_URL`.
- *   • Défense en profondeur : le service Cloud Run est déployé PRIVÉ
- *     (`--no-allow-unauthenticated`). En plus du HMAC applicatif, chaque
- *     appel porte un header `Authorization: Bearer <ID token OIDC Google>`
- *     dont l'audience = `KYC_INFERENCE_URL` (URL racine du service), minté
- *     via `KYC_INVOKER_SA_KEY`. Voir `getInvokerAuthHeader` ci-dessous.
+ *   • Défense en profondeur (mode normal) : chaque appel porte aussi un header
+ *     `Authorization: Bearer <ID token OIDC Google>` dont l'audience =
+ *     `KYC_INFERENCE_URL`, minté via `KYC_INVOKER_SA_KEY`.
+ *   • Contournement temporaire Cloud Run : `KYC_INFERENCE_DISABLE_OIDC=true`
+ *     supprime ce header lorsque le frontal IAM Google renvoie son 404 avant
+ *     le conteneur. Le HMAC reste obligatoire sur toutes les routes métier.
  *   • `POST {KYC_INFERENCE_URL}/v1/ocr`
  *       body     : { documentType, frontImageUrl, backImageUrl? }
  *       réponse  : { confidence: 0..1, fields: Record<string,string>,
@@ -60,6 +61,9 @@ import { internalAction } from "../_generated/server"
 //                            autorisé en IAM invoker sur le service Cloud Run privé. Optionnel :
 //                            absent → pas de header Authorization, dégrade vers HMAC seul
 //                            (dev local sans service privé).
+//   KYC_INFERENCE_DISABLE_OIDC — `true` uniquement pour le contournement temporaire
+//                            du 404 Google Frontend. La clé SA reste configurée pour
+//                            permettre un retour immédiat au mode IAM + HMAC.
 const INFERENCE_TIMEOUT_MS = 15_000
 
 // Cache le client ID-token par audience au niveau module — évite de recréer
@@ -69,18 +73,19 @@ const idTokenClients = new Map<string, IdTokenClient>()
 
 /**
  * OIDC Cloud Run — jeton d'identité Google, audience = URL du service.
- * Défense en profondeur en plus du HMAC applicatif : le service kyc-inference
- * est déployé en privé (`--no-allow-unauthenticated`), donc l'appelant doit
- * aussi prouver son identité IAM via un ID token Google dont l'audience est
- * l'URL racine du service.
+ * Défense en profondeur en plus du HMAC applicatif dans le mode normal.
  *
- * Si `KYC_INVOKER_SA_KEY` n'est pas configuré (ex. dev local sans service
- * privé), retourne `null` — l'appelant n'attache pas de `Authorization` et
- * dégrade vers HMAC seul.
+ * Si `KYC_INFERENCE_DISABLE_OIDC=true` ou si `KYC_INVOKER_SA_KEY` n'est pas
+ * configuré, retourne `null` — l'appelant n'attache pas de `Authorization` et
+ * utilise uniquement le HMAC applicatif.
  */
 async function getInvokerAuthHeader(
   audience: string,
 ): Promise<Record<string, string> | null> {
+  const oidcDisabled =
+    process.env.KYC_INFERENCE_DISABLE_OIDC?.trim().toLowerCase() === "true"
+  if (oidcDisabled) return null
+
   const saKeyJson = process.env.KYC_INVOKER_SA_KEY
   if (!saKeyJson) return null
 

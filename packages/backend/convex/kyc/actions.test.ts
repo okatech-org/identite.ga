@@ -91,6 +91,7 @@ describe("runOcr / runBiometric", () => {
     process.env.KYC_INFERENCE_URL = INFERENCE_URL
     process.env.KYC_INFERENCE_SECRET = INFERENCE_SECRET
     delete process.env.KYC_INVOKER_SA_KEY
+    delete process.env.KYC_INFERENCE_DISABLE_OIDC
     getRequestHeadersMock.mockClear()
     getIdTokenClientMock.mockClear()
     googleAuthConstructorMock.mockClear()
@@ -325,6 +326,32 @@ describe("runOcr / runBiometric", () => {
 
       const headers = capturedInit.headers as Record<string, string>
       expect(headers["X-Signature"]).toBeDefined()
+      expect(headers.Authorization).toBeUndefined()
+      expect(getIdTokenClientMock).not.toHaveBeenCalled()
+    })
+
+    test("KYC_INFERENCE_DISABLE_OIDC=true → conserve le HMAC mais omet OIDC même si la clé SA existe", async () => {
+      process.env.KYC_INVOKER_SA_KEY = FAKE_SA_KEY
+      process.env.KYC_INFERENCE_DISABLE_OIDC = "true"
+      const t = convexTest(schema, modules)
+      const kycRequestId = await seedKyc(t)
+
+      let capturedInit: RequestInit = {}
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (_url: string, init: RequestInit) => {
+          capturedInit = init
+          return new Response(JSON.stringify({ confidence: 0.9, fields: {} }), {
+            status: 200,
+          })
+        }),
+      )
+
+      await t.action(internal.kyc.actions.runOcr, { kycRequestId })
+
+      const headers = capturedInit.headers as Record<string, string>
+      expect(headers["X-Signature"]).toBeDefined()
+      expect(headers["X-Timestamp"]).toBeDefined()
       expect(headers.Authorization).toBeUndefined()
       expect(getIdTokenClientMock).not.toHaveBeenCalled()
     })

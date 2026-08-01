@@ -268,10 +268,17 @@ docker run --rm -p 8080:8080 -e PORT=8080 \
 Le déploiement de production passe exclusivement par
 `.github/workflows/deploy-kyc-inference.yml` : tests Python, build Docker
 `linux/amd64`, publication dans Artifact Registry puis nouvelle révision Cloud
-Run privée. Le workflow utilise Workload Identity Federation, jamais une clé
-Google stockée dans GitHub. Le point d'entrée stable est
+Run. Le workflow utilise Workload Identity Federation, jamais une clé Google
+stockée dans GitHub. Le point d'entrée stable est
 `https://kyc.identite.ga` ; le workflow configure cette URL comme audience OIDC
 personnalisée et l'utilise pour le test de santé après chaque déploiement.
+
+Temporairement, le frontal Cloud Run accepte les requêtes sans IAM à cause du
+404 Google Frontend qui affecte les appels authentifiés avant qu'ils atteignent
+le conteneur. Les routes `/v1/*` restent protégées par le HMAC obligatoire et le
+workflow vérifie en production qu'une requête sans signature reçoit `401`.
+Convex utilise `KYC_INFERENCE_DISABLE_OIDC=true` pendant ce contournement ; la
+clé du compte invocateur est conservée pour réactiver IAM sans rotation.
 
 La commande ci-dessous reste une référence opérateur, pas le chemin normal de
 production :
@@ -282,7 +289,7 @@ gcloud run deploy kyc-inference \
   --source . \
   --region europe-west1 \
   --platform managed \
-  --no-allow-unauthenticated \
+  --allow-unauthenticated \
   --add-custom-audiences=https://kyc.identite.ga \
   --memory 4Gi \
   --cpu 2 \
@@ -296,8 +303,10 @@ gcloud run deploy kyc-inference \
 ```
 
 Notes :
-- `--no-allow-unauthenticated` : le service reste **privé** (invoker IAM +
-  HMAC applicatif). Ne jamais l'exposer publiquement.
+- `--allow-unauthenticated` : contournement temporaire du 404 Google Frontend.
+  Le frontal est public, mais les routes d'inférence refusent toute requête
+  sans HMAC valide. Revenir à `--no-allow-unauthenticated` et supprimer
+  `KYC_INFERENCE_DISABLE_OIDC` dès que le routage IAM Cloud Run est réparé.
 - `--add-custom-audiences=https://kyc.identite.ga` : les jetons OIDC destinés
   au domaine personnalisé sont acceptés par Cloud Run. Le compte de service
   appelant doit également disposer de `roles/run.invoker`.
@@ -323,8 +332,10 @@ régions ; hors périmètre de cette image CPU.
 
 - **TLS obligatoire.** Le service ne doit jamais être exposé en clair. Terminer
   le TLS sur un reverse proxy (nginx/traefik) ou un mesh mTLS.
-- **Réseau privé backend↔service.** N'exposer le service que sur un réseau
-  interne / VPC. Pas d'accès public. Idéalement mTLS en plus du HMAC applicatif.
+- **Réseau privé backend↔service (état cible).** Revenir à IAM privé dès que le
+  défaut de routage Google est corrigé. Pendant l'exception HMAC-only, surveiller
+  les `401`, limiter strictement les routes publiques et conserver le secret
+  uniquement dans Convex et Secret Manager.
 - **Secret HMAC** (`KYC_INFERENCE_SECRET`) : ≥ 256 bits, stocké dans un coffre
   (pas dans l'image, pas dans git). Rotation périodique.
 - **Ne jamais journaliser les images** ni les embeddings ni les champs OCR. Les

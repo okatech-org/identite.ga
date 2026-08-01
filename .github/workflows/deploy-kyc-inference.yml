@@ -86,7 +86,7 @@ jobs:
           secrets_update_strategy: overwrite
           timeout: 120s
           flags: >-
-            --no-allow-unauthenticated
+            --allow-unauthenticated
             --port=8080
             --memory=4Gi
             --cpu=2
@@ -97,7 +97,7 @@ jobs:
             --add-custom-audiences=${{ env.SERVICE_URL }}
             --service-account=kyc-inference-runtime@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com
 
-      - name: Grant the private invoker access
+      - name: Keep the private invoker grant for IAM rollback
         run: >-
           gcloud run services add-iam-policy-binding "${{ env.SERVICE }}"
           --project="${{ secrets.GCP_PROJECT_ID }}"
@@ -106,17 +106,10 @@ jobs:
           --role="roles/run.invoker"
 
       - name: Verify the deployed engines
-        env:
-          INVOKER_SERVICE_ACCOUNT: kyc-invoker@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com
         run: |
-          identity_token="$(gcloud auth print-identity-token \
-            --impersonate-service-account="${INVOKER_SERVICE_ACCOUNT}" \
-            --audiences="${SERVICE_URL}" \
-            --include-email)"
           health="$(curl --fail-with-body --silent --show-error \
             --retry 12 --retry-all-errors --retry-delay 5 \
             --max-time 180 \
-            -H "Authorization: Bearer ${identity_token}" \
             "${SERVICE_URL}/healthz")"
           jq -e '
             .status == "ok" and
@@ -126,6 +119,15 @@ jobs:
             .models.face_match == true and
             .models.liveness == true
           ' <<<"${health}"
+
+          missing_hmac_status="$(curl --silent --show-error \
+            --max-time 30 --output /tmp/kyc-missing-hmac.json \
+            --write-out '%{http_code}' \
+            --request POST \
+            --header 'Content-Type: application/json' \
+            --data '{}' \
+            "${SERVICE_URL}/v1/ocr")"
+          test "${missing_hmac_status}" = "401"
 
       - name: Show deployed service URL
         run: echo "KYC inference deployed to ${SERVICE_URL}"
