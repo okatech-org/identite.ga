@@ -42,9 +42,11 @@ export default function SessionHandoffPage() {
     let cancelled = false
     const transfer = async () => {
       try {
-        const result = await authClient.crossDomain.oneTimeToken.verify({
-          token,
-        })
+        // Le jeton est émis par le plugin Better Auth oneTimeToken(), dont
+        // la route est /one-time-token/verify. Le namespace crossDomain
+        // pointerait vers /cross-domain/one-time-token/verify, absent du
+        // déploiement actuel.
+        const result = await authClient.oneTimeToken.verify({ token })
         const session = result?.data?.session as { token?: string } | undefined
         if (!session?.token) throw new Error("invalid handoff")
 

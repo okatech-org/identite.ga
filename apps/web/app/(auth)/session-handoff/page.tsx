@@ -35,9 +35,7 @@ export default function SessionHandoffPage() {
     let cancelled = false
     const transfer = async () => {
       try {
-        const result = await authClient.crossDomain.oneTimeToken.verify({
-          token,
-        })
+        const result = await authClient.oneTimeToken.verify({ token })
         const session = result?.data?.session as { token?: string } | undefined
         if (!session?.token) throw new Error("invalid handoff")
 
