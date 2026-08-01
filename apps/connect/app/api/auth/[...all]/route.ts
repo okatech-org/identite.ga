@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
+import { getBrowserRedirectUrl } from "@/lib/auth-proxy"
+
 const CONVEX_SITE_URL =
   process.env.CONVEX_SITE_URL ?? process.env.NEXT_PUBLIC_CONVEX_SITE_URL
 
@@ -118,6 +120,23 @@ async function proxyToConvex(req: NextRequest): Promise<NextResponse> {
       for (const cookie of rewritten) {
         headers.append("set-cookie", cookie)
       }
+    }
+
+    // Le fetch serveur vers Convex est vu comme `cors` par Better Auth, même
+    // quand la requête entrante était une navigation browser. oidcProvider
+    // renvoie alors `{ redirect: true, url }` au lieu d'un 302. Restaurer ici
+    // la sémantique de navigation évite d'afficher ce JSON à l'utilisateur.
+    const browserRedirectUrl = getBrowserRedirectUrl({
+      requestMode: req.headers.get("sec-fetch-mode"),
+      requestAccept: req.headers.get("accept"),
+      responseStatus: upstream.status,
+      responseContentType: upstream.headers.get("content-type"),
+      responseBody,
+    })
+    if (browserRedirectUrl) {
+      headers.set("location", browserRedirectUrl)
+      headers.delete("content-type")
+      return new NextResponse(null, { status: 302, headers })
     }
 
     return new NextResponse(responseBody, {
