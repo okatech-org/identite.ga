@@ -20,6 +20,7 @@ env:
   GCP_REGION: europe-west1
   AR_REPO: identite-ga
   SERVICE: kyc-inference
+  SERVICE_URL: https://kyc.identite.ga
 
 jobs:
   test-build-deploy:
@@ -93,6 +94,7 @@ jobs:
             --min-instances=0
             --max-instances=4
             --cpu-boost
+            --add-custom-audiences=${{ env.SERVICE_URL }}
             --service-account=kyc-inference-runtime@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com
 
       - name: Grant the private invoker access
@@ -105,7 +107,6 @@ jobs:
 
       - name: Verify the deployed engines
         env:
-          SERVICE_URL: ${{ steps.deploy.outputs.url }}
           INVOKER_SERVICE_ACCOUNT: kyc-invoker@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com
         run: |
           identity_token="$(gcloud auth print-identity-token \
@@ -127,4 +128,4 @@ jobs:
           ' <<<"${health}"
 
       - name: Show deployed service URL
-        run: echo "KYC inference deployed to ${{ steps.deploy.outputs.url }}"
+        run: echo "KYC inference deployed to ${SERVICE_URL}"

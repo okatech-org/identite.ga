@@ -269,7 +269,9 @@ Le déploiement de production passe exclusivement par
 `.github/workflows/deploy-kyc-inference.yml` : tests Python, build Docker
 `linux/amd64`, publication dans Artifact Registry puis nouvelle révision Cloud
 Run privée. Le workflow utilise Workload Identity Federation, jamais une clé
-Google stockée dans GitHub.
+Google stockée dans GitHub. Le point d'entrée stable est
+`https://kyc.identite.ga` ; le workflow configure cette URL comme audience OIDC
+personnalisée et l'utilise pour le test de santé après chaque déploiement.
 
 La commande ci-dessous reste une référence opérateur, pas le chemin normal de
 production :
@@ -281,6 +283,7 @@ gcloud run deploy kyc-inference \
   --region europe-west1 \
   --platform managed \
   --no-allow-unauthenticated \
+  --add-custom-audiences=https://kyc.identite.ga \
   --memory 4Gi \
   --cpu 2 \
   --concurrency 4 \
@@ -295,6 +298,9 @@ gcloud run deploy kyc-inference \
 Notes :
 - `--no-allow-unauthenticated` : le service reste **privé** (invoker IAM +
   HMAC applicatif). Ne jamais l'exposer publiquement.
+- `--add-custom-audiences=https://kyc.identite.ga` : les jetons OIDC destinés
+  au domaine personnalisé sont acceptés par Cloud Run. Le compte de service
+  appelant doit également disposer de `roles/run.invoker`.
 - `--min-instances 0` : le service redescend à zéro lorsqu'il est inutilisé ;
   aucune machine n'est maintenue chaude en permanence. Le premier contrôle après
   une période d'inactivité subit en contrepartie le chargement des modèles.
