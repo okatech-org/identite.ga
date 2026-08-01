@@ -27,6 +27,8 @@ import {
 } from "@repo/ui/components/select"
 import { cn } from "@repo/ui/lib/utils"
 
+import { parseKycFlow } from "@/lib/kyc-flow"
+
 import { kyc } from "../_content/fr"
 
 type DocType = "cni_gabon" | "passport" | "residence_card" | "birth_certificate"
@@ -34,24 +36,6 @@ type LocalStep = "intro" | "document" | "selfie" | "review" | "status"
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"]
 const MAX_SIZE = 8 * 1024 * 1024 // 8 Mo
-
-// Origines autorisées pour `return_to` (anti open-redirect) : sous-domaines
-// identite.ga (ex. connect.identite.ga d'où vient le step-up OAuth) + localhost.
-function isAllowedReturnTo(raw: string): boolean {
-  try {
-    const u = new URL(raw)
-    if (u.protocol !== "https:" && u.protocol !== "http:") return false
-    const host = u.hostname
-    return (
-      host === "identite.ga" ||
-      host.endsWith(".identite.ga") ||
-      host === "localhost" ||
-      host === "127.0.0.1"
-    )
-  } catch {
-    return false
-  }
-}
 
 async function uploadImage(uploadUrl: string, file: File): Promise<string> {
   const res = await fetch(uploadUrl, {
@@ -81,18 +65,23 @@ export default function KycPage() {
   const [backUrl, setBackUrl] = React.useState<string | null>(null)
   const [selfieUrl, setSelfieUrl] = React.useState<string | null>(null)
   const [submitting, setSubmitting] = React.useState(false)
+  const [search, setSearch] = React.useState<string | null>(null)
 
   const frontInput = React.useRef<HTMLInputElement>(null)
   const backInput = React.useRef<HTMLInputElement>(null)
   const selfieInput = React.useRef<HTMLInputElement>(null)
 
-  // Step-up délégué : `return_to` valide (depuis le flux de consentement OAuth
-  // d'une app tierce) où renvoyer l'utilisateur une fois sa part faite.
-  const returnTo = React.useMemo(() => {
-    if (typeof window === "undefined") return null
-    const value = new URLSearchParams(window.location.search).get("return_to")
-    return value && isAllowedReturnTo(value) ? value : null
+  React.useEffect(() => {
+    setSearch(window.location.search)
   }, [])
+
+  const currentLoa = me?.profile?.loa ?? 1
+  const flow = React.useMemo(
+    () => (search === null ? null : parseKycFlow(search, currentLoa)),
+    [currentLoa, search],
+  )
+  const returnTo = flow?.returnTo ?? null
+  const targetLoa = flow?.targetLoa ?? 2
 
   // Si une demande active existe (en cours d'examen, complément demandé,
   // refusée), on redirige vers la page de détail dédiée pour éviter de
@@ -100,6 +89,7 @@ export default function KycPage() {
   // (`return_to`) : on ne hijacke pas vers /kyc/request, on renvoie l'utilisateur
   // à l'app tierce (cf. effet de retour ci-dessous + handleSubmit).
   React.useEffect(() => {
+    if (!flow) return
     if (returnTo) return
     if (
       latest &&
@@ -109,30 +99,32 @@ export default function KycPage() {
     ) {
       router.replace("/kyc/request")
     }
-  }, [latest, router, returnTo])
+  }, [flow, latest, router, returnTo])
 
   // Approuvée / expirée : on garde l'écran "status" en lecture seule.
   React.useEffect(() => {
     if (
+      flow &&
       latest &&
       step === "intro" &&
-      ["approved", "expired"].includes(latest.status)
+      (latest.status === "expired" ||
+        (latest.status === "approved" && currentLoa >= targetLoa))
     ) {
       setStep("status")
     }
-  }, [latest, step])
+  }, [currentLoa, flow, latest, step, targetLoa])
 
   // Flux délégué : on renvoie l'utilisateur vers l'app tierce dès que son
-  // identité est vérifiée (loa ≥ 2), à l'arrivée ou après auto-approbation.
+  // identité atteint le niveau demandé, à l'arrivée ou après approbation.
   // Le cas « soumis mais en revue manuelle » est géré dans handleSubmit
   // (retour immédiat avec loa=1 → l'app affiche « en cours » et poll).
   React.useEffect(() => {
-    if (returnTo && me && (me.profile?.loa ?? 1) >= 2) {
+    if (returnTo && me && currentLoa >= targetLoa) {
       window.location.assign(returnTo)
     }
-  }, [returnTo, me])
+  }, [currentLoa, returnTo, me, targetLoa])
 
-  if (me === undefined || latest === undefined) {
+  if (me === undefined || latest === undefined || flow === null) {
     return (
       <section className="mx-auto w-full max-w-[640px] px-5 py-6 md:px-7 md:py-8">
         <div className="h-32 animate-pulse rounded-2xl bg-secondary" />
@@ -140,10 +132,12 @@ export default function KycPage() {
     )
   }
   if (me === null) return null
-  const currentLoa = me.profile?.loa ?? 1
-  if (currentLoa >= 2) {
-    // Already L2/L3 — show status
-    if (step !== "status") setStep("status")
+
+  // Le L3 nécessite le parcours vidéo + croisement état civil documenté pour
+  // une phase ultérieure. Ne jamais recycler le workflow L2 ni afficher
+  // « Niveau 2 accordé » comme si le démarrage L3 avait abouti.
+  if (targetLoa === 3 && currentLoa === 2) {
+    return <LevelThreeUnavailable />
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -502,6 +496,32 @@ export default function KycPage() {
       {step === "document" && renderDocument()}
       {step === "selfie" && renderSelfie()}
       {step === "status" && renderStatus()}
+    </section>
+  )
+}
+
+function LevelThreeUnavailable() {
+  return (
+    <section className="mx-auto w-full max-w-[640px] px-5 py-6 md:px-7 md:py-8">
+      <div className="rounded-2xl border border-border bg-card p-7 text-center sm:p-10">
+        <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-idn-green-soft text-idn-green dark:text-idn-green-on-dark">
+          <ShieldCheckIcon className="size-7" aria-hidden="true" />
+        </div>
+        <p className="mt-5 font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+          Vérification d&apos;identité · Niveau 3
+        </p>
+        <h1 className="mt-2 text-[26px] font-semibold tracking-[-0.01em] text-foreground">
+          Le parcours Niveau 3 arrive prochainement
+        </h1>
+        <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-muted-foreground">
+          Votre Niveau 2 reste actif. Le Niveau 3 nécessitera un entretien vidéo
+          et un croisement avec l&apos;état civil ; ce parcours n&apos;est pas
+          encore ouvert en production.
+        </p>
+        <Button asChild variant="outline" className="mt-7">
+          <Link href="/profile">Retour au profil</Link>
+        </Button>
+      </div>
     </section>
   )
 }

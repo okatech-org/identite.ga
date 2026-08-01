@@ -9,6 +9,7 @@ import {
   emailOTP,
   haveIBeenPwned,
   jwt,
+  oneTimeToken,
   oidcProvider,
   twoFactor,
 } from "better-auth/plugins";
@@ -271,6 +272,13 @@ export const createAuth = (
       crossDomain({
         siteUrl: resolveSiteUrl(requestOrigin),
       }),
+
+      // Transfert explicite d'une session existante entre deux surfaces IDN
+      // (ex. connect.identite.ga -> identite.ga avant un step-up KYC). Le
+      // jeton est à usage unique et expire après 3 minutes. Le plugin
+      // crossDomain sait déjà le consommer côté destination ; il manquait
+      // seulement l'endpoint de génération pour une session déjà ouverte.
+      oneTimeToken(),
 
       // Sign-in par PIN à 6 chiffres — endpoint /api/auth/sign-in/pin.
       // Le plugin reçoit (email, pin), résout l'email via Better Auth,

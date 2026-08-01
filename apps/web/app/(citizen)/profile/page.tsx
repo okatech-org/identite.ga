@@ -278,7 +278,7 @@ export default function ProfilePage() {
 
         {showUpgrade && (
           <Button asChild variant="outline" size="lg" className="h-12 w-full">
-            <Link href="/kyc">
+            <Link href={`/kyc?target=${loa + 1}`}>
               <ShieldCheckIcon
                 className="text-idn-green dark:text-idn-green-on-dark"
                 aria-hidden="true"

@@ -16,10 +16,11 @@ type KycPromoCardProps = {
 export function KycPromoCard({
   currentLoa,
   variant = "desktop",
-  href = "/kyc",
+  href,
   className,
 }: KycPromoCardProps) {
   const nextLevel = currentLoa + 1
+  const targetHref = href ?? `/kyc?target=${nextLevel}`
 
   const inner = (
     <>
@@ -36,7 +37,7 @@ export function KycPromoCard({
         </p>
         {variant === "desktop" && (
           <Button asChild size="sm" className="mt-3">
-            <Link href={href}>{kycPromo.cta}</Link>
+            <Link href={targetHref}>{kycPromo.cta}</Link>
           </Button>
         )}
       </div>
@@ -58,7 +59,7 @@ export function KycPromoCard({
   if (variant === "mobile") {
     return (
       <Link
-        href={href}
+        href={targetHref}
         className={cn(
           classes,
           "w-full text-left transition-colors hover:bg-idn-yellow-soft/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:hover:bg-[#262C18]",

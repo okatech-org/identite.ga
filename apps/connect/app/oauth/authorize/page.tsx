@@ -2,9 +2,12 @@
 
 import { useRouter, useSearchParams } from "next/navigation"
 import { useConvexAuth, useQuery } from "convex/react"
-import { Suspense, useEffect, useMemo } from "react"
+import { Suspense, useEffect, useMemo, useState } from "react"
 
 import { api } from "@repo/backend/convex/_generated/api"
+
+import { authClient } from "@/lib/auth-client"
+import { buildKycHandoffUrl } from "@/lib/step-up"
 
 import { ConsentForm } from "./_components/consent-form"
 
@@ -187,12 +190,11 @@ function OAuthAuthorizePageInner() {
 
   if (userLoa < requiredLoa && !verificationPending) {
     const absoluteContinue = `${window.location.origin}${continueUrl}`
-    const verifyUrl = `${IDN_WEB_URL}/kyc?return_to=${encodeURIComponent(absoluteContinue)}`
     return (
       <StepUpScreen
         appName={app.name}
         requiredLoa={requiredLoa}
-        verifyUrl={verifyUrl}
+        continueUrl={absoluteContinue}
       />
     )
   }
@@ -215,12 +217,41 @@ function OAuthAuthorizePageInner() {
 function StepUpScreen({
   appName,
   requiredLoa,
-  verifyUrl,
+  continueUrl,
 }: {
   appName: string
   requiredLoa: number
-  verifyUrl: string
+  continueUrl: string
 }) {
+  const [isRedirecting, setIsRedirecting] = useState(false)
+  const [handoffError, setHandoffError] = useState<string | null>(null)
+
+  const startVerification = async () => {
+    if (isRedirecting) return
+    setIsRedirecting(true)
+    setHandoffError(null)
+
+    try {
+      const result = await authClient.oneTimeToken.generate()
+      const token = result?.data?.token as string | undefined
+      if (!token) throw new Error("missing handoff token")
+
+      window.location.assign(
+        buildKycHandoffUrl({
+          idnWebUrl: IDN_WEB_URL,
+          continueUrl,
+          targetLoa: requiredLoa,
+          token,
+        }),
+      )
+    } catch {
+      setHandoffError(
+        "La session n’a pas pu être transférée. Reconnectez-vous puis réessayez.",
+      )
+      setIsRedirecting(false)
+    }
+  }
+
   return (
     <main className="flex min-h-svh items-center justify-center bg-idn-bg p-10">
       <div className="w-[480px] rounded-2xl border border-idn-border bg-idn-surface p-9 text-center">
@@ -232,12 +263,19 @@ function StepUpScreen({
           niveau de garantie {requiredLoa}. Vérifiez votre identité pour
           continuer, puis revenez à la connexion.
         </p>
-        <a
-          href={verifyUrl}
+        <button
+          type="button"
+          onClick={() => void startVerification()}
+          disabled={isRedirecting}
           className="mt-6 inline-flex h-11 w-full items-center justify-center rounded-md bg-idn-green px-6 text-sm font-medium text-white hover:opacity-90"
         >
-          Vérifier mon identité
-        </a>
+          {isRedirecting ? "Ouverture…" : "Vérifier mon identité"}
+        </button>
+        {handoffError ? (
+          <p role="alert" className="mt-3 text-xs text-red-700">
+            {handoffError}
+          </p>
+        ) : null}
       </div>
     </main>
   )
