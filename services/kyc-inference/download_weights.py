@@ -5,7 +5,8 @@ met en cache dans l'image :
   * PaddleOCR : modèles det + rec + cls pour la langue configurée,
   * InsightFace : pack ArcFace (`buffalo_l` par défaut) + détecteur SCRFD.
 
-Vérifie aussi la présence des poids MiniFASNet vendorisés (copiés via COPY).
+Télécharge les poids MiniFASNet depuis une révision amont épinglée et vérifie
+leurs empreintes SHA-256 avant de les intégrer à l'image.
 
 Ce script N'EXIGE PAS le secret HMAC (au contraire de `app.config.get_settings`) :
 il lit directement l'environnement avec des valeurs par défaut sûres, afin de
@@ -17,11 +18,91 @@ build (fail loud) : une image sans poids ne doit pas être publiée.
 
 from __future__ import annotations
 
+import hashlib
 import os
 import sys
+from pathlib import Path
+from typing import BinaryIO, Callable
+from urllib.request import urlopen
+
+
+_MINIFASNET_REVISION = "b6d5f04ad78778917853b25c778acef6d5626d15"
+_MINIFASNET_BASE_URL = (
+    "https://raw.githubusercontent.com/minivision-ai/"
+    f"Silent-Face-Anti-Spoofing/{_MINIFASNET_REVISION}"
+)
+_MINIFASNET_FILES = (
+    (
+        "resources/anti_spoof_models/2.7_80x80_MiniFASNetV2.pth",
+        "anti_spoof/2.7_80x80_MiniFASNetV2.pth",
+        "a5eb02e1843f19b5386b953cc4c9f011c3f985d0ee2bb9819eea9a142099bec0",
+    ),
+    (
+        "resources/anti_spoof_models/4_0_0_80x80_MiniFASNetV1SE.pth",
+        "anti_spoof/4_0_0_80x80_MiniFASNetV1SE.pth",
+        "84ee1d37d96894d5e82de5a57df044ef80a58be2b218b5ed7cdfd875ec2f5990",
+    ),
+    (
+        "resources/detection_model/Widerface-RetinaFace.caffemodel",
+        "detection/Widerface-RetinaFace.caffemodel",
+        "d08338a2c207df16a9c566f767fea67fb43ba6fff76ce11e938fe3fabefb9402",
+    ),
+    (
+        "resources/detection_model/deploy.prototxt",
+        "detection/deploy.prototxt",
+        "9fe2f141b4baee039ed9442da2833e216af40a6ff3e639e7b39258812bcda808",
+    ),
+)
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def ensure_pinned_file(
+    url: str,
+    destination: Path,
+    expected_sha256: str,
+    opener: Callable[..., BinaryIO] = urlopen,
+) -> None:
+    """Télécharge un artefact épinglé et refuse toute empreinte inattendue."""
+    if destination.is_file() and sha256_file(destination) == expected_sha256:
+        return
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary = destination.with_name(f".{destination.name}.download")
+    try:
+        with opener(url, timeout=120) as response, temporary.open("wb") as output:
+            while chunk := response.read(1024 * 1024):
+                output.write(chunk)
+
+        actual_sha256 = sha256_file(temporary)
+        if actual_sha256 != expected_sha256:
+            raise ValueError(
+                f"Empreinte SHA-256 invalide pour {destination.name}: "
+                f"attendu {expected_sha256}, reçu {actual_sha256}"
+            )
+        temporary.replace(destination)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def ensure_minifasnet_files() -> None:
+    model_root = Path(os.getenv("KYC_MODEL_ROOT", "./models"))
+    for source_path, destination_path, checksum in _MINIFASNET_FILES:
+        ensure_pinned_file(
+            f"{_MINIFASNET_BASE_URL}/{source_path}",
+            model_root / destination_path,
+            checksum,
+        )
 
 
 def check_minifasnet() -> None:
+    ensure_minifasnet_files()
     model_dir = os.getenv("KYC_ANTISPOOF_MODEL_DIR", "./models/anti_spoof")
     det_dir = os.getenv("KYC_ANTISPOOF_DETECTION_DIR", "./models/detection")
     pth = [f for f in os.listdir(model_dir) if f.endswith(".pth")] if os.path.isdir(model_dir) else []

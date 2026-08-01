@@ -159,6 +159,8 @@ export const enqueueForReview = internalMutation({
       v.literal("spoof"),
       v.literal("uncertain"),
     ),
+    ocrAvailable: v.boolean(),
+    biometricAvailable: v.boolean(),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -171,6 +173,8 @@ export const enqueueForReview = internalMutation({
       score: args.score,
       faceMatchScore: args.faceMatchScore,
       livenessVerdict: args.livenessVerdict,
+      ocrAvailable: args.ocrAvailable,
+      biometricAvailable: args.biometricAvailable,
       updatedAt: now,
     })
 
@@ -179,7 +183,12 @@ export const enqueueForReview = internalMutation({
       action: "kyc_under_review",
       targetType: "kyc",
       targetId: args.kycRequestId,
-      metadata: { score: args.score, faceMatch: args.faceMatchScore },
+      metadata: {
+        score: args.score,
+        faceMatch: args.faceMatchScore,
+        ocrAvailable: args.ocrAvailable,
+        biometricAvailable: args.biometricAvailable,
+      },
     })
 
     // Le citoyen doit savoir que son dossier part en revue manuelle : sans ce

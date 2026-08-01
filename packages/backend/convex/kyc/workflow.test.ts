@@ -55,4 +55,31 @@ describe("decideKycOutcome", () => {
     )
     expect(decision).toBe("review")
   })
+
+  test("OCR indisponible → review, jamais approve malgré la biométrie", () => {
+    const decision = decideKycOutcome(
+      { confidence: 0.99 },
+      { faceMatch: 0.99, liveness: "real" },
+      { ocrAvailable: false, biometricAvailable: true },
+    )
+    expect(decision).toBe("review")
+  })
+
+  test("biométrie indisponible → review, jamais auto-reject sur uncertain", () => {
+    const decision = decideKycOutcome(
+      { confidence: 0.99 },
+      { faceMatch: 0, liveness: "uncertain" },
+      { ocrAvailable: true, biometricAvailable: false },
+    )
+    expect(decision).toBe("review")
+  })
+
+  test("spoof mesuré reste rejeté même si l'OCR est indisponible", () => {
+    const decision = decideKycOutcome(
+      { confidence: 0 },
+      { faceMatch: 0.1, liveness: "spoof" },
+      { ocrAvailable: false, biometricAvailable: true },
+    )
+    expect(decision).toBe("reject")
+  })
 })

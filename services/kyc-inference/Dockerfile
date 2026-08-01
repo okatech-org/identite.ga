@@ -4,8 +4,8 @@
 # Build multi-étapes :
 #   * builder  : toolchain C/C++ (insightface n'a pas de wheel -> compilation),
 #                installe toutes les dépendances Python.
-#   * runtime  : image slim, copie les site-packages compilés, COPY des poids
-#                MiniFASNet vendorisés, puis TÉLÉCHARGE PaddleOCR + InsightFace
+#   * runtime  : image slim, copie les site-packages compilés, télécharge et
+#                vérifie les poids MiniFASNet épinglés, puis bake InsightFace
 #                dans les caches de l'image (download_weights.py).
 #
 # Cible : linux/amd64 pour Cloud Run.
@@ -90,17 +90,18 @@ RUN useradd --create-home --home-dir /home/kyc --uid 10001 kyc \
     && mkdir -p /tmp/kyc-inference /home/kyc/.insightface \
     && chown -R kyc:kyc /srv /tmp/kyc-inference /home/kyc
 
-# Code applicatif + poids vendorisés (MiniFASNet + détecteur caffe).
+# Code applicatif. Les poids MiniFASNet épinglés sont téléchargés et vérifiés
+# par `download_weights.py` pendant le build : le checkout CI reste léger et
+# l'image est reproductible sans fichiers hors-Git.
 COPY --chown=kyc:kyc app ./app
-COPY --chown=kyc:kyc models ./models
 COPY --chown=kyc:kyc download_weights.py ./
 
 USER kyc
 
-# Baking des poids DANS l'image (télécharge InsightFace, vérifie MiniFASNet).
+# Baking des poids DANS l'image (télécharge InsightFace et MiniFASNet).
 # Échoue le build si un téléchargement échoue.
-# KYC_BAKE_ENGINES : build-only. Défaut = ocr,face (+ liveness vendorisé via
-# COPY). Tesseract n'a aucun poids à télécharger (les langpacks viennent d'apt) :
+# KYC_BAKE_ENGINES : build-only. Défaut = ocr,face (+ liveness téléchargé et
+# vérifié par SHA-256). Tesseract n'a aucun poids à télécharger (langpacks apt) :
 # l'étape "ocr" VÉRIFIE la présence du binaire et des langpacks, pour que le
 # build échoue ici plutôt que de livrer une image qui renvoie 503 en prod.
 ARG KYC_BAKE_ENGINES=ocr,face

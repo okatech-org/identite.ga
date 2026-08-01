@@ -312,6 +312,11 @@ export default defineSchema({
     livenessVerdict: v.optional(
       v.union(v.literal("real"), v.literal("spoof"), v.literal("uncertain")),
     ),
+    // Disponibilité effective des moteurs lors du traitement. `false` force
+    // une revue humaine et permet au contrôleur de distinguer un score faible
+    // d'une analyse qui n'a pas pu être exécutée.
+    ocrAvailable: v.optional(v.boolean()),
+    biometricAvailable: v.optional(v.boolean()),
 
     status: v.union(...KYC_STATUSES.map((s) => v.literal(s))),
 

@@ -36,6 +36,10 @@ export type KycBiometricResult = {
   liveness: "real" | "spoof" | "uncertain"
 }
 export type KycDecision = "approve" | "reject" | "review"
+export type KycInferenceAvailability = {
+  ocrAvailable: boolean
+  biometricAvailable: boolean
+}
 
 /**
  * Décision pure (aucun I/O) à partir des résultats OCR + biométrie —
@@ -53,8 +57,17 @@ export type KycDecision = "approve" | "reject" | "review"
 export function decideKycOutcome(
   ocr: KycOcrResult,
   biometric: KycBiometricResult,
+  availability: KycInferenceAvailability = {
+    ocrAvailable: true,
+    biometricAvailable: true,
+  },
 ): KycDecision {
-  if (biometric.liveness === "spoof") return "reject"
+  if (availability.biometricAvailable && biometric.liveness === "spoof") {
+    return "reject"
+  }
+  if (!availability.ocrAvailable || !availability.biometricAvailable) {
+    return "review"
+  }
   if (
     ocr.confidence >= KYC_OCR_THRESHOLD &&
     biometric.faceMatch >= KYC_MATCH_THRESHOLD &&
@@ -72,21 +85,43 @@ export const kycLevel2 = workflow.define({
   },
   handler: async (step, args): Promise<{ decision: KycDecision }> => {
     // 1. OCR — retry avec backoff exponentiel
-    const ocr = await step.runAction(
-      internal.kyc.actions.runOcr,
-      { kycRequestId: args.kycRequestId },
-      { retry: { maxAttempts: 3, initialBackoffMs: 1000, base: 2 } },
-    )
+    let ocr: KycOcrResult
+    let ocrAvailable = true
+    try {
+      ocr = await step.runAction(
+        internal.kyc.actions.runOcr,
+        { kycRequestId: args.kycRequestId },
+        { retry: { maxAttempts: 3, initialBackoffMs: 1000, base: 2 } },
+      )
+    } catch (error) {
+      // Après épuisement des retries, on ne laisse jamais le dossier bloqué
+      // en `submitted`. L'absence de signal vaut score nul et impose la revue.
+      console.error("[kyc/workflow] OCR indisponible, revue manuelle requise", error)
+      ocr = { confidence: 0 }
+      ocrAvailable = false
+    }
 
     // 2. Liveness + face match
-    const biometric = await step.runAction(
-      internal.kyc.actions.runBiometric,
-      { kycRequestId: args.kycRequestId },
-      { retry: { maxAttempts: 3, initialBackoffMs: 1000, base: 2 } },
-    )
+    let biometric: KycBiometricResult
+    let biometricAvailable = true
+    try {
+      biometric = await step.runAction(
+        internal.kyc.actions.runBiometric,
+        { kycRequestId: args.kycRequestId },
+        { retry: { maxAttempts: 3, initialBackoffMs: 1000, base: 2 } },
+      )
+    } catch (error) {
+      console.error(
+        "[kyc/workflow] biométrie indisponible, revue manuelle requise",
+        error,
+      )
+      biometric = { faceMatch: 0, liveness: "uncertain" }
+      biometricAvailable = false
+    }
 
     // 3. Décision : rejet auto (spoof) / approbation auto / revue manuelle
-    const decision = decideKycOutcome(ocr, biometric)
+    const availability = { ocrAvailable, biometricAvailable }
+    const decision = decideKycOutcome(ocr, biometric, availability)
 
     if (decision === "reject") {
       await step.runMutation(internal.kyc.mutations.rejectAuto, {
@@ -105,6 +140,7 @@ export const kycLevel2 = workflow.define({
         score: ocr.confidence,
         faceMatchScore: biometric.faceMatch,
         livenessVerdict: biometric.liveness,
+        ...availability,
       })
     }
 

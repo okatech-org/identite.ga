@@ -124,6 +124,13 @@ export const myCurrent = query({
       docFrontUrl: v.union(v.string(), v.null()),
       docBackUrl: v.union(v.string(), v.null()),
       selfieUrl: v.union(v.string(), v.null()),
+      score: v.optional(v.number()),
+      faceMatchScore: v.optional(v.number()),
+      livenessVerdict: v.optional(
+        v.union(v.literal("real"), v.literal("spoof"), v.literal("uncertain")),
+      ),
+      ocrAvailable: v.optional(v.boolean()),
+      biometricAvailable: v.optional(v.boolean()),
       citizen: v.object({
         firstName: v.string(),
         lastName: v.string(),
@@ -163,6 +170,11 @@ export const myCurrent = query({
       docFrontUrl,
       docBackUrl,
       selfieUrl,
+      score: claimed.score,
+      faceMatchScore: claimed.faceMatchScore,
+      livenessVerdict: claimed.livenessVerdict,
+      ocrAvailable: claimed.ocrAvailable,
+      biometricAvailable: claimed.biometricAvailable,
       citizen: {
         firstName: profile?.pivot?.firstName ?? "",
         lastName: profile?.pivot?.lastName ?? "",

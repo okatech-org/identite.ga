@@ -134,8 +134,8 @@ services/kyc-inference/
 │   ├── liveness.py     # MiniFASNet (verdict réel), échantillonnage vidéo, seuils (À CALIBRER)
 │   └── vendor/
 │       └── minifasnet/ # Prédicteur MiniFASNet vendorisé (Apache-2.0, voir NOTICE.md)
-├── models/             # Poids MiniFASNet + détecteur caffe (hors-Git, COPY au build)
-├── download_weights.py # Vérif Tesseract + baking InsightFace au build (fail loud)
+├── models/             # Cache local optionnel, toujours ignoré par Git
+├── download_weights.py # Téléchargements épinglés + SHA-256, baking InsightFace
 ├── tests/              # pytest : HMAC (accept/reject) + shape des réponses (mocks)
 ├── requirements.txt        # runtime complet (modèles lourds)
 ├── requirements-test.txt   # sous-ensemble pour lancer les tests (modèles mockés)
@@ -163,7 +163,7 @@ premier appel, pas de volume à monter). Deux mécanismes :
 
 | Modèle       | Stratégie                        | Emplacement dans l'image                    | Licence |
 |--------------|----------------------------------|---------------------------------------------|---------|
-| MiniFASNet   | **vendorisé** (COPY)             | `/srv/models/anti_spoof/*.pth` + `/srv/models/detection/` (détecteur caffe) | Apache-2.0 |
+| MiniFASNet   | **téléchargé au build**, commit + SHA-256 épinglés | `/srv/models/anti_spoof/*.pth` + `/srv/models/detection/` (détecteur caffe) | Apache-2.0 |
 | Tesseract    | **paquet apt** (aucun poids)     | `/usr/share/tesseract-ocr/*/tessdata`       | Apache-2.0 |
 | InsightFace  | **téléchargé au build**          | `/home/kyc/.insightface/models/buffalo_l`   | code MIT (voir ⚠️ poids) |
 
@@ -175,12 +175,12 @@ Repo : https://github.com/minivision-ai/Silent-Face-Anti-Spoofing — **Apache-2
   **réel** real/spoof/uncertain.
 - Les poids `.pth` (`2.7_80x80_MiniFASNetV2.pth`, `4_0_0_80x80_MiniFASNetV1SE.pth`)
   et le détecteur de visage caffe (`Widerface-RetinaFace.caffemodel` +
-  `deploy.prototxt`) sont déposés hors-Git sous `services/kyc-inference/models/`
-  (voir `.gitignore`) et **copiés dans l'image** au build.
-- Pour ré-obtenir les poids (dépôt propre) :
-  `git clone https://github.com/minivision-ai/Silent-Face-Anti-Spoofing` puis
-  copier `resources/anti_spoof_models/*.pth` → `models/anti_spoof/` et
-  `resources/detection_model/*` → `models/detection/`.
+  `deploy.prototxt`) sont récupérés par `download_weights.py` depuis une
+  **révision Git précise** de l'amont. Chaque fichier est vérifié par SHA-256
+  avant d'être installé dans l'image ; un changement amont inattendu fait
+  échouer le build.
+- Un dossier `models/` local reste accepté comme cache de développement, mais
+  il est ignoré par Git et n'est pas requis par GitHub Actions.
 
 ### Tesseract — paquet système
 Aucun poids à télécharger : le moteur et ses données de langue viennent d'apt
@@ -265,9 +265,14 @@ docker run --rm -p 8080:8080 -e PORT=8080 \
 
 ### Déployer sur Google Cloud Run
 
-> Commande fournie à titre de référence — **à exécuter par l'opérateur** (ce
-> service ne déploie rien lui-même). Choisir `--source .` (Cloud Build produit
-> l'image amd64) **ou** pré-pousser une image dans Artifact Registry.
+Le déploiement de production passe exclusivement par
+`.github/workflows/deploy-kyc-inference.yml` : tests Python, build Docker
+`linux/amd64`, publication dans Artifact Registry puis nouvelle révision Cloud
+Run privée. Le workflow utilise Workload Identity Federation, jamais une clé
+Google stockée dans GitHub.
+
+La commande ci-dessous reste une référence opérateur, pas le chemin normal de
+production :
 
 ```bash
 # Option A — build par Cloud Build depuis les sources (produit l'image amd64)
@@ -290,6 +295,9 @@ gcloud run deploy kyc-inference \
 Notes :
 - `--no-allow-unauthenticated` : le service reste **privé** (invoker IAM +
   HMAC applicatif). Ne jamais l'exposer publiquement.
+- `--min-instances 0` : le service redescend à zéro lorsqu'il est inutilisé ;
+  aucune machine n'est maintenue chaude en permanence. Le premier contrôle après
+  une période d'inactivité subit en contrepartie le chargement des modèles.
 - `--set-secrets` : stocker `KYC_INFERENCE_SECRET` dans Secret Manager
   (`gcloud secrets create kyc-inference-secret …`), pas en clair.
 - `--concurrency 4` : les moteurs ne sont pas thread-safe et sont coûteux en
@@ -347,7 +355,7 @@ régions ; hors périmètre de cette image CPU.
 
 ## Ce qui reste à faire (avant production)
 
-1. ~~Déposer les poids et vendoriser MiniFASNet~~ — **fait** (poids bakés,
+1. ~~Automatiser les poids MiniFASNet~~ — **fait** (commit et SHA-256 épinglés,
    prédicteur vendorisé sous `app/vendor/minifasnet/`).
 2. **Calibrer** : layout CNI gabonaise (`app/ocr.py`), seuil face match
    (`KYC_FACE_MATCH_THRESHOLD`), seuils liveness (`KYC_LIVENESS_*_THRESHOLD`)

@@ -146,6 +146,43 @@ export function CaseDetail() {
           />
           <PreviewSlot url={current.selfieUrl} label={content.preview.selfie} />
         </div>
+        <div className="mt-3.5 rounded-[10px] border border-idn-border-soft bg-idn-surface-2 p-3.5">
+          <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-idn-muted">
+            Analyse automatique
+          </div>
+          <div className="mt-2 grid gap-2 text-xs sm:grid-cols-3">
+            <InferenceSignal
+              label="Lecture document"
+              available={current.ocrAvailable}
+              value={formatInferenceScore(current.score)}
+            />
+            <InferenceSignal
+              label="Correspondance visage"
+              available={current.biometricAvailable}
+              value={formatInferenceScore(current.faceMatchScore)}
+            />
+            <InferenceSignal
+              label="Présence"
+              available={current.biometricAvailable}
+              value={
+                current.livenessVerdict === "real"
+                  ? "Réelle"
+                  : current.livenessVerdict === "spoof"
+                    ? "Usurpation détectée"
+                    : current.livenessVerdict === "uncertain"
+                      ? "Incertaine"
+                      : "—"
+              }
+            />
+          </div>
+          {(current.ocrAvailable === false ||
+            current.biometricAvailable === false) && (
+            <p className="mt-2.5 text-xs leading-relaxed text-[#9A6700] dark:text-[#F2C94C]">
+              Une partie de l&apos;analyse automatique était indisponible. Le
+              dossier exige un contrôle humain complet avant toute décision.
+            </p>
+          )}
+        </div>
         <div className="mt-3.5 flex items-center gap-2.5">
           <Button onClick={onApprove} disabled={submitting !== null}>
             {submitting === "approve" ? "…" : content.approveCta}
@@ -245,6 +282,35 @@ export function CaseDetail() {
         </DialogContent>
       </Dialog>
     </>
+  )
+}
+
+function formatInferenceScore(score: number | undefined): string {
+  return score === undefined ? "—" : `${Math.round(score * 100)} %`
+}
+
+function InferenceSignal({
+  label,
+  value,
+  available,
+}: {
+  label: string
+  value: string
+  available: boolean | undefined
+}) {
+  return (
+    <div className="rounded-lg border border-idn-border-soft bg-idn-surface px-3 py-2">
+      <div className="text-idn-muted">{label}</div>
+      <div
+        className={
+          available === false
+            ? "mt-0.5 font-semibold text-[#9A6700] dark:text-[#F2C94C]"
+            : "mt-0.5 font-semibold text-idn-ink"
+        }
+      >
+        {available === false ? "Indisponible" : value}
+      </div>
+    </div>
   )
 }
 

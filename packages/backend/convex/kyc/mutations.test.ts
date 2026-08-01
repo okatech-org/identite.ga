@@ -198,6 +198,8 @@ describe("enqueueForReview", () => {
       score: 0.8,
       faceMatchScore: 0.5,
       livenessVerdict: "uncertain",
+      ocrAvailable: true,
+      biometricAvailable: true,
     })
 
     const kyc = await t.run(async (ctx) => ctx.db.get(kycRequestId))
@@ -205,6 +207,8 @@ describe("enqueueForReview", () => {
     expect(kyc?.score).toBe(0.8)
     expect(kyc?.faceMatchScore).toBe(0.5)
     expect(kyc?.livenessVerdict).toBe("uncertain")
+    expect(kyc?.ocrAvailable).toBe(true)
+    expect(kyc?.biometricAvailable).toBe(true)
 
     const profile = await t.run(async (ctx) =>
       ctx.db
@@ -241,6 +245,8 @@ describe("enqueueForReview", () => {
       score: 0.8,
       faceMatchScore: 0.5,
       livenessVerdict: "uncertain",
+      ocrAvailable: false,
+      biometricAvailable: false,
     })
 
     const notifs = await t.run(async (ctx) =>
