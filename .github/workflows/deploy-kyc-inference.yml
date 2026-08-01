@@ -17,7 +17,7 @@ permissions:
   id-token: write
 
 env:
-  GCP_REGION: europe-west9
+  GCP_REGION: europe-west1
   AR_REPO: identite-ga
   SERVICE: kyc-inference
 
@@ -94,6 +94,37 @@ jobs:
             --max-instances=4
             --cpu-boost
             --service-account=kyc-inference-runtime@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com
+
+      - name: Grant the private invoker access
+        run: >-
+          gcloud run services add-iam-policy-binding "${{ env.SERVICE }}"
+          --project="${{ secrets.GCP_PROJECT_ID }}"
+          --region="${{ env.GCP_REGION }}"
+          --member="serviceAccount:kyc-invoker@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+          --role="roles/run.invoker"
+
+      - name: Verify the deployed engines
+        env:
+          SERVICE_URL: ${{ steps.deploy.outputs.url }}
+          INVOKER_SERVICE_ACCOUNT: kyc-invoker@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com
+        run: |
+          identity_token="$(gcloud auth print-identity-token \
+            --impersonate-service-account="${INVOKER_SERVICE_ACCOUNT}" \
+            --audiences="${SERVICE_URL}" \
+            --include-email)"
+          health="$(curl --fail-with-body --silent --show-error \
+            --retry 12 --retry-all-errors --retry-delay 5 \
+            --max-time 180 \
+            -H "Authorization: Bearer ${identity_token}" \
+            "${SERVICE_URL}/healthz")"
+          jq -e '
+            .status == "ok" and
+            .models.ocr == true and
+            .models.ocr_text == true and
+            .models.ocr_mrz == true and
+            .models.face_match == true and
+            .models.liveness == true
+          ' <<<"${health}"
 
       - name: Show deployed service URL
         run: echo "KYC inference deployed to ${{ steps.deploy.outputs.url }}"

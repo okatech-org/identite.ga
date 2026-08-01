@@ -278,7 +278,7 @@ production :
 # Option A — build par Cloud Build depuis les sources (produit l'image amd64)
 gcloud run deploy kyc-inference \
   --source . \
-  --region europe-west9 \
+  --region europe-west1 \
   --platform managed \
   --no-allow-unauthenticated \
   --memory 4Gi \
