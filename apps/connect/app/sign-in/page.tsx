@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
@@ -15,12 +15,21 @@ import { Label } from "@repo/ui/components/label"
 import { PinPad } from "@repo/ui/components/pin-pad"
 
 import { authClient } from "@/lib/auth-client"
+import { syncCrossDomainCookiesForProxy } from "@/lib/auth-cookie"
+import {
+  buildPortalSsoUrl,
+  buildPostLoginRedirect,
+  hasCheckedPortalSession,
+  isFederatedSignIn,
+  resolveIdnWebUrl,
+} from "@/lib/sso"
 
 import { IdnIcons } from "../_components/icons"
 import { fr } from "../_content/fr"
 
 const HANDLE_REGEX = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/
 const IDN_DOMAIN = "@idn.ga"
+const CONFIGURED_IDN_WEB_URL = process.env.NEXT_PUBLIC_IDN_WEB_URL
 
 /**
  * Accepte `handle` ou `handle@idn.ga` indifféremment.
@@ -49,28 +58,6 @@ const handleSchema = z.object({
 
 type HandleValues = z.infer<typeof handleSchema>
 
-const safeRedirectTo = (raw: string | null): string => {
-  if (!raw) return "/"
-  // N'autorise que des chemins internes, jamais une URL absolue externe.
-  if (!raw.startsWith("/")) return "/"
-  if (raw.startsWith("//")) return "/"
-  return raw
-}
-
-/**
- * Détecte une requête OAuth2 (sign-in déclenché par un client tiers via
- * /api/auth/oauth2/authorize). Si oui, on doit rediriger vers ce même
- * endpoint après login pour que le plugin oidcProvider reprenne le flow
- * (la session vient juste d'être posée, le plugin va voir l'user et
- * continuer vers consentPage).
- */
-const buildPostLoginRedirect = (params: URLSearchParams): string => {
-  if (!params.get("client_id") || !params.get("response_type")) {
-    return safeRedirectTo(params.get("redirect_to"))
-  }
-  return `/api/auth/oauth2/authorize?${params.toString()}`
-}
-
 type Phase = "handle" | "pin"
 
 export default function ConnectSignInPage() {
@@ -85,15 +72,35 @@ function ConnectSignInPageInner() {
   const router = useRouter()
   const params = useSearchParams()
   const postLoginUrl = buildPostLoginRedirect(params)
-  const isOAuthFlow = Boolean(
-    params.get("client_id") && params.get("response_type"),
-  )
+  const isOAuthFlow = isFederatedSignIn(params)
+  const shouldCheckPortal = isOAuthFlow && !hasCheckedPortalSession(params)
 
   const [phase, setPhase] = useState<Phase>("handle")
   const [email, setEmail] = useState("")
   const [pin, setPin] = useState("")
   const [pinError, setPinError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [checkingPortal, setCheckingPortal] = useState(shouldCheckPortal)
+
+  useEffect(() => {
+    if (!shouldCheckPortal) return
+
+    try {
+      window.location.replace(
+        buildPortalSsoUrl({
+          idnWebUrl: resolveIdnWebUrl(
+            CONFIGURED_IDN_WEB_URL,
+            window.location.origin,
+          ),
+          connectOrigin: window.location.origin,
+          postLoginPath: postLoginUrl,
+          signInParams: new URLSearchParams(params.toString()),
+        }),
+      )
+    } catch {
+      setCheckingPortal(false)
+    }
+  }, [params, postLoginUrl, shouldCheckPortal])
 
   const handleForm = useForm<HandleValues>({
     resolver: zodResolver(handleSchema),
@@ -125,18 +132,7 @@ function ConnectSignInPageInner() {
       return
     }
     try {
-      const cookieStr: string | undefined = (
-        authClient as { getCookie?: () => string }
-      ).getCookie?.()
-      if (cookieStr) {
-        for (const kv of cookieStr.split(/;\s*/)) {
-          if (!kv) continue
-          // Strip `__Secure-` : le browser refuse Secure cookies sur
-          // http://localhost. Le proxy remet le préfixe au passage.
-          const stripped = kv.replace(/^__Secure-/, "")
-          document.cookie = `${stripped}; path=/; SameSite=Lax`
-        }
-      }
+      syncCrossDomainCookiesForProxy(authClient)
     } catch (err) {
       console.error("[idn:sign-in] failed to write document.cookie", err)
     }
@@ -197,6 +193,16 @@ function ConnectSignInPageInner() {
       setPin("")
       setSubmitting(false)
     }
+  }
+
+  if (checkingPortal) {
+    return (
+      <main className="flex min-h-svh items-center justify-center bg-idn-bg p-6">
+        <p className="text-sm text-idn-muted">
+          Vérification de votre session Identité Numérique…
+        </p>
+      </main>
+    )
   }
 
   if (phase === "pin") {
