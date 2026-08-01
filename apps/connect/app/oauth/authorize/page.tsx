@@ -7,7 +7,7 @@ import { Suspense, useEffect, useMemo, useState } from "react"
 import { api } from "@repo/backend/convex/_generated/api"
 
 import { authClient } from "@/lib/auth-client"
-import { buildKycHandoffUrl } from "@/lib/step-up"
+import { buildKycHandoffUrl, getCurrentUserLoa } from "@/lib/step-up"
 
 import { ConsentForm } from "./_components/consent-form"
 
@@ -165,7 +165,7 @@ function OAuthAuthorizePageInner() {
     .split(/\s+/)
     .filter(Boolean)
 
-  const userLoa = ((me as { loa?: 1 | 2 | 3 } | null)?.loa ?? 1) as 1 | 2 | 3
+  const userLoa = getCurrentUserLoa(me)
 
   // Niveau exigé = max entre le minimum statique de l'app et le `acr_values`
   // demandé sur cette requête. Si l'utilisateur ne l'atteint pas, on ne bloque
