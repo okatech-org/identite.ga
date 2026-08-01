@@ -86,7 +86,7 @@ jobs:
           secrets_update_strategy: overwrite
           timeout: 120s
           flags: >-
-            --allow-unauthenticated
+            --no-invoker-iam-check
             --port=8080
             --memory=4Gi
             --cpu=2

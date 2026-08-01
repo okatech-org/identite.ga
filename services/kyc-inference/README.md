@@ -289,7 +289,7 @@ gcloud run deploy kyc-inference \
   --source . \
   --region europe-west1 \
   --platform managed \
-  --allow-unauthenticated \
+  --no-invoker-iam-check \
   --add-custom-audiences=https://kyc.identite.ga \
   --memory 4Gi \
   --cpu 2 \
@@ -303,9 +303,9 @@ gcloud run deploy kyc-inference \
 ```
 
 Notes :
-- `--allow-unauthenticated` : contournement temporaire du 404 Google Frontend.
-  Le frontal est public, mais les routes d'inférence refusent toute requête
-  sans HMAC valide. Revenir à `--no-allow-unauthenticated` et supprimer
+- `--no-invoker-iam-check` : contournement temporaire du 404 Google Frontend.
+  Le frontal ne contrôle plus IAM, mais les routes d'inférence refusent toute
+  requête sans HMAC valide. Revenir à `--invoker-iam-check` et supprimer
   `KYC_INFERENCE_DISABLE_OIDC` dès que le routage IAM Cloud Run est réparé.
 - `--add-custom-audiences=https://kyc.identite.ga` : les jetons OIDC destinés
   au domaine personnalisé sont acceptés par Cloud Run. Le compte de service
