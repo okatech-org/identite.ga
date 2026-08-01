@@ -23,7 +23,7 @@ from .assets import AssetFetchError, fetch_bytes, looks_like_video
 from .config import Settings, get_settings
 from .face_match import FaceMatchEngine, NoFaceDetected
 from .liveness import LivenessEngine
-from .ocr import OcrEngine
+from .ocr import OcrEngine, OcrUnavailable
 from .schemas import (
     BiometricRequest,
     BiometricResponse,
@@ -48,8 +48,13 @@ class Engines:
     liveness: LivenessEngine
 
     def status(self) -> dict[str, bool]:
+        # `ocr` = au moins un chemin utilisable ; `ocr_text` / `ocr_mrz`
+        # détaillent lequel. Les deux sont indépendants (cf. app/ocr.py) : un
+        # `ocr: true` avec `ocr_text: false` signifie que les passeports sont
+        # lisibles mais pas les CNI.
         return {
             "ocr": self.ocr.ready,
+            **self.ocr.capabilities(),
             "face_match": self.face.ready,
             "liveness": self.liveness.ready,
         }
@@ -105,6 +110,7 @@ async def hmac_auth_middleware(request: Request, call_next):
             signature_header=request.headers.get("X-Signature"),
             timestamp_header=request.headers.get("X-Timestamp"),
             tolerance_seconds=settings.timestamp_tolerance_seconds,
+            previous_secret=settings.inference_secret_previous or None,
         )
     except AuthError as exc:
         # 401 générique : on ne divulgue pas quelle vérification a échoué au client.
@@ -158,6 +164,12 @@ async def ocr_endpoint(
             front_bytes=front,
             back_bytes=back,
         )
+    except OcrUnavailable as exc:
+        # Le chemin requis pour CE type de document est indisponible (langpack
+        # manquant, PassportEye absent…) alors que le moteur est globalement
+        # "ready". 503 et pas 422 : la faute est côté service, et le backend
+        # sait dégrader un 503 vers la revue manuelle (cf. kyc/actions.ts).
+        return JSONResponse(status_code=503, content={"detail": str(exc)})
     except ValueError as exc:  # image indécodable, etc.
         return JSONResponse(status_code=422, content={"detail": str(exc)})
 

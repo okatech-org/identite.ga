@@ -61,9 +61,12 @@ ENV PYTHONUNBUFFERED=1 \
 
 # Dépendances système d'exécution :
 #   libgl1/libglib2.0-0 : OpenCV headless
-#   libgomp1            : OpenMP (paddlepaddle / torch)
+#   libgomp1            : OpenMP (torch)
 #   ffmpeg              : décodage vidéo liveness (imageio/pyav)
-#   tesseract-ocr       : MRZ passeport via PassportEye
+#   tesseract-ocr       : moteur OCR (CNI via pytesseract, MRZ via PassportEye)
+#   tesseract-ocr-fra   : langpack français — REQUIS par KYC_TESSERACT_LANG
+#     ("fra+eng" par défaut). Sans lui le moteur texte se marque indisponible
+#     au boot et /v1/ocr renvoie 503 sur les CNI.
 #   curl                : HEALTHCHECK
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libgl1 \
@@ -71,6 +74,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libgomp1 \
         ffmpeg \
         tesseract-ocr \
+        tesseract-ocr-fra \
+        tesseract-ocr-eng \
         curl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -82,7 +87,7 @@ WORKDIR /srv
 
 # Utilisateur non-root + arborescence de caches.
 RUN useradd --create-home --home-dir /home/kyc --uid 10001 kyc \
-    && mkdir -p /tmp/kyc-inference /home/kyc/.insightface /home/kyc/.paddleocr \
+    && mkdir -p /tmp/kyc-inference /home/kyc/.insightface \
     && chown -R kyc:kyc /srv /tmp/kyc-inference /home/kyc
 
 # Code applicatif + poids vendorisés (MiniFASNet + détecteur caffe).
@@ -94,11 +99,11 @@ USER kyc
 
 # Baking des poids DANS l'image (télécharge InsightFace, vérifie MiniFASNet).
 # Échoue le build si un téléchargement échoue.
-# KYC_BAKE_ENGINES : build-only. Défaut = face (+ liveness vendorisé via COPY).
-# L'OCR (paddle) est TEMPORAIREMENT DÉSACTIVÉ : paddle 2.6 segfault à
-# l'instanciation sur l'amd64 de Cloud Build, on ne le bake donc plus (et il
-# n'est plus dans requirements.txt). Réactivation : voir README + app/ocr.py.
-ARG KYC_BAKE_ENGINES=face
+# KYC_BAKE_ENGINES : build-only. Défaut = ocr,face (+ liveness vendorisé via
+# COPY). Tesseract n'a aucun poids à télécharger (les langpacks viennent d'apt) :
+# l'étape "ocr" VÉRIFIE la présence du binaire et des langpacks, pour que le
+# build échoue ici plutôt que de livrer une image qui renvoie 503 en prod.
+ARG KYC_BAKE_ENGINES=ocr,face
 RUN KYC_BAKE_ENGINES="${KYC_BAKE_ENGINES}" python download_weights.py
 
 EXPOSE 8080

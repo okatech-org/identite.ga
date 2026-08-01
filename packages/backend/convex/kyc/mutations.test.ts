@@ -224,6 +224,41 @@ describe("enqueueForReview", () => {
     )
     expect(audit.some((e) => e.action === "kyc_under_review")).toBe(true)
   })
+
+  /**
+   * La revue manuelle peut durer des jours. Sans notification, le citoyen n'a
+   * aucun moyen de distinguer "en cours d'examen" de "perdu" — et c'est le
+   * chemin par défaut tant que l'OCR CNI n'est pas calibré. Ce test échoue si
+   * on retire le dispatch ou si le kind repasse à un libellé non prévu.
+   */
+  test("notifie le citoyen que son dossier part en revue manuelle", async () => {
+    const t = makeTestClient()
+    const userId = "user_review_notif"
+    const kycRequestId = await seedKyc(t, userId)
+
+    await t.mutation(internal.kyc.mutations.enqueueForReview, {
+      kycRequestId,
+      score: 0.8,
+      faceMatchScore: 0.5,
+      livenessVerdict: "uncertain",
+    })
+
+    const notifs = await t.run(async (ctx) =>
+      ctx.db
+        .query("notification")
+        .withIndex("by_userId", (q) => q.eq("userId", userId))
+        .collect(),
+    )
+    const review = notifs.find(
+      (n) => (n.metadata as { kind?: string } | undefined)?.kind === "under_review",
+    )
+    expect(review).toBeDefined()
+    expect(review?.category).toBe("kyc")
+    expect(review?.channel).toBe("in_app")
+    // Le corps doit dire au citoyen qu'il n'a rien à faire : sinon il ré-uploade
+    // ses pièces et re-remplit la file d'attente qu'on essaie de désengorger.
+    expect(review?.body).toMatch(/aucune action/i)
+  })
 })
 
 describe("rejectAuto", () => {

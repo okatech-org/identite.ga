@@ -28,12 +28,11 @@ export const mobileNav = {
 } as const;
 
 export const mobileFooter = {
-  copyright: "© République Gabonaise",
+  copyright: "Ntsagui digital",
 } as const;
 
 export const footer = {
-  copyright:
-    "© République Gabonaise — Agence Nationale des Infrastructures Numériques",
+  copyright: "Ntsagui digital",
   links: [
     { href: "/legal/mentions", label: "Mentions légales" },
     { href: "/legal/privacy", label: "Confidentialité" },
@@ -52,9 +51,9 @@ export const welcome = {
   },
   eyebrow: "RÉPUBLIQUE GABONAISE · IDN v1.2",
   title: {
-    line1: "Un compte unique",
-    line2: "pour tous les services",
-    line3: "de l'État.",
+    line1: "Un citoyen,",
+    line2: "une identité numérique",
+    line3: "et un portefeuille souverain.",
   },
   sub: "Authentifiez-vous une fois, accédez à l'ensemble des services administratifs gabonais en toute sécurité.",
   ctaPrimary: "Créer un compte IDN",
@@ -124,7 +123,7 @@ export const about = {
   },
   governance: {
     eyebrow: "GOUVERNANCE",
-    body: "IDN est opéré par l'Agence Nationale des Infrastructures Numériques (ANINF) sous la tutelle du Ministère de l'Économie Numérique. Le code source des composants critiques est audité chaque année par la Cour des Comptes et un cabinet indépendant.",
+    body: "IDN est opéré par Ntsagui digital. Le code source des composants critiques est audité chaque année par la Cour des Comptes et un cabinet indépendant.",
   },
 } as const;
 
@@ -132,25 +131,25 @@ export const administrations = {
   meta: {
     title: "Pour les administrations",
     description:
-      "Intégrez IDN à votre service en quelques jours. Standard OpenID Connect, SDK officiels, accompagnement par l'ANINF.",
+      "Intégrez IDN à votre service en quelques jours. Standard OpenID Connect, SDK officiels, accompagnement par Ntsagui digital.",
   },
   hero: {
     eyebrow: "POUR LES ADMINISTRATIONS",
     title: "Intégrez IDN à votre service en quelques jours.",
-    sub: "Standard OpenID Connect, SDK officiels, accompagnement par l'ANINF. Conforme RGPD et à la loi gabonaise sur la protection des données personnelles.",
+    sub: "Standard OpenID Connect, SDK officiels, accompagnement par Ntsagui digital. Conforme RGPD et à la loi gabonaise sur la protection des données personnelles.",
   },
   steps: [
     {
       n: "01",
       title: "Demande d'intégration",
       description:
-        "Constituez un dossier technique et fonctionnel auprès de l'ANINF. Réponse sous 10 jours ouvrés.",
+        "Constituez un dossier technique et fonctionnel auprès de Ntsagui digital. Réponse sous 10 jours ouvrés.",
     },
     {
       n: "02",
       title: "Validation et niveau de garantie",
       description:
-        "L'ANINF qualifie le LoA minimum (1, 2 ou 3) requis selon la sensibilité du service.",
+        "Ntsagui digital qualifie le LoA minimum (1, 2 ou 3) requis selon la sensibilité du service.",
     },
     {
       n: "03",
@@ -282,7 +281,7 @@ export const privacy = {
   sections: [
     {
       title: "Responsable de traitement",
-      body: "Agence Nationale des Infrastructures Numériques (ANINF), 248 boulevard du Bord de Mer, BP 12 345, Libreville, République Gabonaise. Délégué à la protection des données : privacy@identite.ga.",
+      body: "Ntsagui digital, 248 boulevard du Bord de Mer, BP 12 345, Libreville, République Gabonaise. Délégué à la protection des données : privacy@identite.ga.",
     },
     {
       title: "Données collectées",
@@ -306,11 +305,11 @@ export const privacy = {
     },
     {
       title: "Hébergement et transferts",
-      body: "Hébergement national au Gabon. Aucun transfert de données hors du territoire gabonais sans clause contractuelle type validée par l'ANINF.",
+      body: "Hébergement national au Gabon. Aucun transfert de données hors du territoire gabonais sans clause contractuelle type validée par Ntsagui digital.",
     },
     {
       title: "Droits des personnes",
-      body: "Vous disposez d'un droit d'accès, de rectification, de portabilité, d'opposition et de suppression. Exercer vos droits : depuis l'app Identité Numérique → Paramètres → Confidentialité, ou par email à privacy@identite.ga, ou par courrier à l'ANINF avec copie de la pièce d'identité.",
+      body: "Vous disposez d'un droit d'accès, de rectification, de portabilité, d'opposition et de suppression. Exercer vos droits : depuis l'app Identité Numérique → Paramètres → Confidentialité, ou par email à privacy@identite.ga, ou par courrier à Ntsagui digital avec copie de la pièce d'identité.",
     },
     {
       title: "Suppression de compte",
@@ -341,7 +340,7 @@ export const terms = {
   sections: [
     {
       title: "Objet",
-      body: "Les présentes conditions régissent l'utilisation de la plateforme Identité Numérique du Gabon (IDN), opérée par l'ANINF. La création d'un compte vaut acceptation pleine et entière.",
+      body: "Les présentes conditions régissent l'utilisation de la plateforme Identité Numérique du Gabon (IDN), opérée par Ntsagui digital. La création d'un compte vaut acceptation pleine et entière.",
     },
     {
       title: "Éligibilité",
@@ -361,11 +360,11 @@ export const terms = {
     },
     {
       title: "Disponibilité",
-      body: "L'ANINF s'engage à un taux de disponibilité de 99,5 % hors maintenance programmée. Les interruptions sont annoncées sur identite.ga/status.",
+      body: "Ntsagui digital s'engage à un taux de disponibilité de 99,5 % hors maintenance programmée. Les interruptions sont annoncées sur identite.ga/status.",
     },
     {
       title: "Responsabilité",
-      body: "L'ANINF n'est pas responsable des contenus, services ou actions des administrations tierces accessibles via IDN. La responsabilité de l'ANINF est limitée aux dommages directs résultant d'une faute prouvée.",
+      body: "Ntsagui digital n'est pas responsable des contenus, services ou actions des administrations tierces accessibles via IDN. La responsabilité de Ntsagui digital est limitée aux dommages directs résultant d'une faute prouvée.",
     },
     {
       title: "Évolution",
@@ -392,11 +391,11 @@ export const mentions = {
   sections: [
     {
       title: "Éditeur",
-      body: "Agence Nationale des Infrastructures Numériques (ANINF), établissement public sous tutelle du Ministère de l'Économie Numérique. Siège : 248 boulevard du Bord de Mer, BP 12 345, Libreville, République Gabonaise.",
+      body: "Ntsagui digital. Siège : 248 boulevard du Bord de Mer, BP 12 345, Libreville, République Gabonaise.",
     },
     {
       title: "Directeur de la publication",
-      body: "Le Directeur Général de l'ANINF.",
+      body: "Le Directeur Général de Ntsagui digital.",
     },
     {
       title: "Contact",
@@ -404,7 +403,7 @@ export const mentions = {
     },
     {
       title: "Hébergement",
-      body: "Hébergement national assuré par le Datacenter de l'ANINF, Libreville, République Gabonaise.",
+      body: "Hébergement national assuré par le Datacenter de Ntsagui digital, Libreville, République Gabonaise.",
     },
     {
       title: "Propriété intellectuelle",
@@ -412,7 +411,7 @@ export const mentions = {
     },
     {
       title: "Responsable de traitement",
-      body: "Agence Nationale des Infrastructures Numériques (ANINF). Délégué à la protection des données : privacy@identite.ga.",
+      body: "Ntsagui digital. Délégué à la protection des données : privacy@identite.ga.",
     },
   ],
 } as const;
@@ -431,7 +430,7 @@ export const accessibility = {
   sections: [
     {
       title: "Engagement",
-      body: "L'ANINF s'engage à rendre la plateforme Identité Numérique accessible à toutes et tous, conformément aux articles 47 de la loi gabonaise sur le handicap et au référentiel français RGAA 4.1.2 (WCAG 2.1 niveau AA), adopté comme référence.",
+      body: "Ntsagui digital s'engage à rendre la plateforme Identité Numérique accessible à toutes et tous, conformément aux articles 47 de la loi gabonaise sur le handicap et au référentiel français RGAA 4.1.2 (WCAG 2.1 niveau AA), adopté comme référence.",
     },
     {
       title: "État de conformité",

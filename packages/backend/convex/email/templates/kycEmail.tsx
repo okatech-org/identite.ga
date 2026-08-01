@@ -16,12 +16,14 @@ export type KycEmailKind =
   | "approved"
   | "rejected"
   | "complement_provided"
+  | "under_review"
 
 const SUBJECT: Record<KycEmailKind, string> = {
   complement_requested: "Votre demande KYC nécessite un complément",
   approved: "Votre identité a été vérifiée (Niveau 2)",
   rejected: "Votre demande KYC a été refusée",
   complement_provided: "Un citoyen a fourni un complément KYC",
+  under_review: "Votre demande KYC est en cours d'examen",
 }
 
 const HEADLINE: Record<KycEmailKind, string> = {
@@ -29,6 +31,7 @@ const HEADLINE: Record<KycEmailKind, string> = {
   approved: "Vérification réussie",
   rejected: "Demande refusée",
   complement_provided: "Nouveau complément reçu",
+  under_review: "Dossier en cours d'examen",
 }
 
 const INTRO: Record<KycEmailKind, string> = {
@@ -40,6 +43,8 @@ const INTRO: Record<KycEmailKind, string> = {
     "Votre demande KYC n'a pas pu être validée. Vous trouverez ci-dessous le motif communiqué par le contrôleur. Vous pouvez démarrer une nouvelle demande à tout moment.",
   complement_provided:
     "Le citoyen a fourni le complément que vous aviez demandé. Sa demande est de retour dans votre file d'attente — vous pouvez reprendre l'examen.",
+  under_review:
+    "Les vérifications automatiques de votre dossier n'ont pas permis de conclure. Un agent va l'examiner manuellement. Aucune action n'est attendue de votre part : vous serez notifié dès qu'une décision sera prise.",
 }
 
 const CTA_LABEL: Record<KycEmailKind, string> = {
@@ -47,6 +52,7 @@ const CTA_LABEL: Record<KycEmailKind, string> = {
   approved: "Accéder à mon tableau de bord",
   rejected: "Voir le détail",
   complement_provided: "Reprendre l'examen",
+  under_review: "Suivre ma demande",
 }
 
 const CTA_URL: Record<KycEmailKind, string> = {
@@ -54,6 +60,7 @@ const CTA_URL: Record<KycEmailKind, string> = {
   approved: "https://identite.ga/dashboard",
   rejected: "https://identite.ga/kyc/request",
   complement_provided: "https://controleur.identite.ga/queue",
+  under_review: "https://identite.ga/kyc/request",
 }
 
 export function getKycEmailSubject(kind: KycEmailKind): string {
@@ -123,8 +130,7 @@ export function KycEmail({ kind, recipientName, detail }: Props) {
             </Text>
 
             <Text className="mt-6 text-[11px] leading-relaxed text-[#74766B]">
-              République Gabonaise — Agence Nationale des Infrastructures
-              Numériques
+              Ntsagui digital
             </Text>
           </Container>
         </Body>

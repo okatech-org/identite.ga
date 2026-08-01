@@ -15,19 +15,15 @@ imageio[ffmpeg]>=2.34,<3.0
 # av (PyAV) accélère la lecture vidéo via imageio ; optionnel mais recommandé.
 av>=12.0,<13.0
 
-# --- OCR ---
-# OCR TEMPORAIREMENT DÉSACTIVÉ. paddlepaddle 2.6 (CPU) segfault (SIGSEGV, exit 139)
-# à l'instanciation de PaddleOCR sur l'amd64 natif de Cloud Build : un segfault
-# natif n'est PAS rattrapable en Python, il ferait crasher le worker. On retire
-# donc paddlepaddle/paddleocr du build. `app/ocr.py` importe paddle de façon
-# paresseuse et tolérante ; sans le paquet, le moteur reste `ready=False` et
-# `/v1/ocr` renvoie un 503 propre. À RÉACTIVER via Tesseract ou un paddle
-# stabilisé (+ calibration CNI gabonaise) — voir README.
-#   paddleocr==2.7.0.3
-#   paddlepaddle==2.6.2
-# MRZ passeport (PassportEye/tesseract). Conservé pour réactivation future ;
-# inerte tant que l'OCR est désactivé (le chemin MRZ passe par OcrEngine.run,
-# gardé par `ready`).
+# --- OCR (Tesseract) ---
+# paddlepaddle/paddleocr sont DÉFINITIVEMENT écartés : segfault (SIGSEGV, exit
+# 139 — non rattrapable en Python, ça tue le worker) à l'instanciation de
+# PaddleOCR sur l'amd64 de Cloud Build, et ce n'est pas propre à la 2.6 : la 3.x
+# plante de la même façon en conteneur x86_64 (PaddlePaddle/Paddle#76111,
+# PaddleOCR#16402, #16361). Tesseract est un binaire système stable, installé
+# par apt dans le Dockerfile (tesseract-ocr + tesseract-ocr-fra/-eng).
+pytesseract>=0.3.10,<1.0
+# MRZ passeport (PassportEye, s'appuie sur le même binaire tesseract).
 passporteye>=2.2,<3.0
 mrz>=0.6,<1.0
 

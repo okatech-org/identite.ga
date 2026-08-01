@@ -183,9 +183,12 @@ export const getClaimInfo = internalQuery({
       targetUserId: v.string(),
       targetProfileId: v.id("userProfile"),
       status: v.union(v.literal("created"), v.literal("claimed")),
-      initialSecret: v.optional(v.string()),
     }),
   ),
+  // N'expose PLUS `initialSecret` : ce champ contenait le mot de passe du
+  // compte en clair, et le renvoyer faisait de cette query un vecteur de
+  // compromission de toute identité déléguée non réclamée. Le mot de passe
+  // initial est désormais dérivé (delegate/actions.ts::deriveInitialPassword).
   handler: async (ctx, args) => {
     const d = await ctx.db.get(args.id)
     if (!d) return null
@@ -193,8 +196,29 @@ export const getClaimInfo = internalQuery({
       targetUserId: d.targetUserId,
       targetProfileId: d.targetProfileId,
       status: d.status,
-      initialSecret: d.initialSecret,
     }
+  },
+})
+
+/**
+ * TRANSITOIRE — mot de passe hérité d'une identité créée AVANT la dérivation.
+ *
+ * Ces lignes portent un `initialSecret` aléatoire : `deriveInitialPassword` ne
+ * peut pas le reproduire, donc sans ce repli elles deviendraient définitivement
+ * non réclamables. N'est appelée qu'APRÈS validation du code de réclamation
+ * (cf. delegate/actions.ts::claimAccount) — le secret ne sort jamais sur la foi
+ * d'un simple identifiant.
+ *
+ * À SUPPRIMER, avec `purgeInitialSecrets`, quand la file des identités
+ * héritées est vide :
+ *   bunx convex run delegate/mutations:listWithoutClaimCode
+ */
+export const getLegacyInitialSecret = internalQuery({
+  args: { id: v.id("delegatedIdentity") },
+  returns: v.union(v.null(), v.string()),
+  handler: async (ctx, args) => {
+    const d = await ctx.db.get(args.id)
+    return d?.initialSecret ?? null
   },
 })
 

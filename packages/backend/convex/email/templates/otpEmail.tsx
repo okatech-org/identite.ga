@@ -87,8 +87,7 @@ export function OtpEmail({ code, type }: Props) {
             </Text>
 
             <Text className="mt-6 text-[11px] leading-relaxed text-[#74766B]">
-              République Gabonaise — Agence Nationale des Infrastructures
-              Numériques
+              Ntsagui digital
             </Text>
           </Container>
         </Body>

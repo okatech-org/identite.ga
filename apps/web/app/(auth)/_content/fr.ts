@@ -244,7 +244,11 @@ export const claim = {
   search: {
     step: 1,
     title: "Retrouver mon identité",
-    sub: "Saisissez votre NIP ou votre nom et date de naissance pour rechercher votre identité numérique.",
+    sub: "Saisissez le code de réclamation remis par l'agent, puis votre NIP ou votre nom et date de naissance.",
+    claimCodeLabel: "Code de réclamation",
+    claimCodePlaceholder: "Ex : K7M2-9XQ4-B3TF",
+    claimCodeHint:
+      "Ce code figure sur le document que l'agent vous a remis lors de votre enrôlement. Il est indispensable : il prouve que cette identité est bien la vôtre.",
     nipLabel: "NIP (14 caractères)",
     nipPlaceholder: "Ex : A1B2C3D4E5F6G7",
     orDivider: "ou rechercher par nom",
@@ -253,7 +257,8 @@ export const claim = {
     dateOfBirthLabel: "Date de naissance",
     primary: "Rechercher",
     primarySearching: "Recherche en cours…",
-    notFound: "Aucune identité déléguée trouvable avec ces informations.",
+    notFound:
+      "Aucune identité réclamable ne correspond à ce code et à ces informations. Vérifiez votre code de réclamation, ou rapprochez-vous de l'agent qui vous a enrôlé.",
     backLabel: "Retour à la connexion",
   },
   confirm: {

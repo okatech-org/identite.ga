@@ -82,7 +82,7 @@ class LivenessEngine:
             )
 
             predictor = AntiSpoofPredict(
-                device_id=0 if self.settings.paddle_use_gpu else -1,
+                device_id=0 if self.settings.use_gpu else -1,
                 detection_model_dir=detection_dir,
             )
             self._model = {

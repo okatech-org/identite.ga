@@ -40,8 +40,8 @@ export default async function DocsCatchAll({ params }: PageProps) {
               url: absoluteUrl("/docs"),
               inLanguage: "fr-GA",
               publisher: {
-                "@type": "GovernmentOrganization",
-                name: "Agence Nationale des Infrastructures Numériques",
+                "@type": "Organization",
+                name: "Ntsagui digital",
               },
             }),
           }}
@@ -70,8 +70,8 @@ export default async function DocsCatchAll({ params }: PageProps) {
       url: absoluteUrl("/docs"),
     },
     publisher: {
-      "@type": "GovernmentOrganization",
-      name: "Agence Nationale des Infrastructures Numériques",
+      "@type": "Organization",
+      name: "Ntsagui digital",
     },
   }
 

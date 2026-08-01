@@ -5,7 +5,7 @@ import { httpAction } from "./_generated/server"
 import { authenticateApiKey } from "./developer/apiKeys"
 import { createAuth } from "./auth"
 import { resend } from "./email/provider"
-import { getPublicJwk } from "./lib/documentSigning"
+import { getPublicJwks } from "./lib/documentSigning"
 
 const http = httpRouter()
 
@@ -530,11 +530,16 @@ const delegateCreateHandler = httpAction(async (ctx, request) => {
     },
   )
 
+  // `claimCode` : SEULE et UNIQUE restitution du code en clair. L'opérateur
+  // doit le remettre au citoyen (impression, remise en main propre) — il n'est
+  // pas relisible ensuite, seul son hash est stocké. Sans lui le citoyen ne
+  // peut pas réclamer son identité, et il faut réémettre l'identité.
   return new Response(
     JSON.stringify({
       idnId: result.idnId,
       delegatedIdentityId: result.delegatedIdentityId,
       assignedLoa,
+      claimCode: result.claimCode,
     }),
     { status: 201, headers: { "Content-Type": "application/json" } },
   )
@@ -630,8 +635,9 @@ const claimLookupHandler = httpAction(async (ctx, request) => {
   const firstName = str(b.firstName)
   const lastName = str(b.lastName)
   const dateOfBirth = str(b.dateOfBirth)
+  const claimCode = str(b.claimCode)
 
-  if (!nip && !(firstName && lastName && dateOfBirth)) {
+  if (!claimCode || (!nip && !(firstName && lastName && dateOfBirth))) {
     return new Response(
       JSON.stringify({ error: "missing_fields" }),
       { status: 400, headers: { "Content-Type": "application/json" } },
@@ -643,12 +649,22 @@ const claimLookupHandler = httpAction(async (ctx, request) => {
     { nip, firstName, lastName, dateOfBirth },
   )
 
-  if (!result) {
-    return new Response(JSON.stringify({ found: false }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    })
-  }
+  // `{found:false}` UNIFORME, que la personne soit inconnue, déjà réclamée ou
+  // que le code soit faux. Sans cette uniformité, la route redevient un oracle :
+  // on pourrait tester des couples nom/date de naissance et apprendre qui
+  // possède une identité déléguée réclamable — l'information même qui rendait
+  // l'ancienne version exploitable.
+  const notFound = new Response(JSON.stringify({ found: false }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  })
+  if (!result) return notFound
+
+  const codeOk = await ctx.runMutation(
+    internal.delegate.mutations.verifyClaimCode,
+    { delegatedIdentityId: result.delegatedIdentityId, claimCode },
+  )
+  if (!codeOk) return notFound
 
   return new Response(
     JSON.stringify({
@@ -687,8 +703,12 @@ const claimCompleteHandler = httpAction(async (ctx, request) => {
   const delegatedIdentityId = b.delegatedIdentityId as string | undefined
   const password = b.password as string | undefined
   const pin = b.pin as string | undefined
+  // Le `delegatedIdentityId` n'est PAS un secret (il sort de /api/claim/lookup) :
+  // le code de réclamation est la seule preuve que l'appelant est bien le
+  // citoyen à qui l'opérateur l'a remis.
+  const claimCode = b.claimCode as string | undefined
 
-  if (!delegatedIdentityId || !password || !pin) {
+  if (!delegatedIdentityId || !password || !pin || !claimCode) {
     return new Response(
       JSON.stringify({ error: "missing_fields" }),
       { status: 400, headers: { "Content-Type": "application/json" } },
@@ -714,6 +734,7 @@ const claimCompleteHandler = httpAction(async (ctx, request) => {
       internal.delegate.actions.claimAccount,
       {
         delegatedIdentityId: delegatedIdentityId as any,
+        claimCode,
         password,
         pin,
       },
@@ -746,8 +767,8 @@ http.route({
 // better-auth `jwt` servie sous `${AUTH_PATH}/jwks` (réservée aux ID tokens
 // OIDC — cf. auth.ts).
 const documentSigningJwksHandler = httpAction(async (_ctx, _request) => {
-  const jwk = await getPublicJwk()
-  return new Response(JSON.stringify({ keys: [jwk] }), {
+  const keys = await getPublicJwks()
+  return new Response(JSON.stringify({ keys }), {
     status: 200,
     headers: {
       "Content-Type": "application/json",

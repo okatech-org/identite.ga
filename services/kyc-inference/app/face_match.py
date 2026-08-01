@@ -36,7 +36,7 @@ class FaceMatchEngine:
 
             providers = (
                 ["CUDAExecutionProvider", "CPUExecutionProvider"]
-                if self.settings.paddle_use_gpu
+                if self.settings.use_gpu
                 else ["CPUExecutionProvider"]
             )
             app = FaceAnalysis(
@@ -45,7 +45,7 @@ class FaceMatchEngine:
                 providers=providers,
             )
             # ctx_id=-1 => CPU. det_size : compromis vitesse/rappel.
-            app.prepare(ctx_id=0 if self.settings.paddle_use_gpu else -1, det_size=(640, 640))
+            app.prepare(ctx_id=0 if self.settings.use_gpu else -1, det_size=(640, 640))
             self._app = app
             self._ready = True
         except Exception as exc:  # noqa: BLE001

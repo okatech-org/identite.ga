@@ -149,10 +149,6 @@ export const _getForInference = internalQuery({
   },
 })
 
-// TODO(notif): pas de dispatch citoyen ici (contrairement à `approveAuto`/
-// `rejectAuto`) — il n'existe pas encore de kind `KYC_IN_APP` "en revue" avec
-// un texte produit validé (cf. notifications.ts). À ajouter quand le libellé
-// UX sera fourni ; ne pas en inventer un ici (pas de texte hors maquettes).
 export const enqueueForReview = internalMutation({
   args: {
     kycRequestId: v.id("kycRequest"),
@@ -166,6 +162,9 @@ export const enqueueForReview = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    const kyc = await ctx.db.get(args.kycRequestId)
+    if (!kyc) throw new Error("Demande KYC introuvable")
+
     const now = Date.now()
     await ctx.db.patch(args.kycRequestId, {
       status: "under_review",
@@ -181,6 +180,16 @@ export const enqueueForReview = internalMutation({
       targetType: "kyc",
       targetId: args.kycRequestId,
       metadata: { score: args.score, faceMatch: args.faceMatchScore },
+    })
+
+    // Le citoyen doit savoir que son dossier part en revue manuelle : sans ce
+    // dispatch il reste sans nouvelle jusqu'à la décision de l'agent, qui peut
+    // prendre des jours (et c'est le chemin par défaut tant que l'OCR CNI
+    // n'est pas calibré).
+    await ctx.runMutation(internal.notifications.dispatchKyc, {
+      userId: kyc.userId,
+      kind: "under_review",
+      kycRequestId: args.kycRequestId,
     })
   },
 })

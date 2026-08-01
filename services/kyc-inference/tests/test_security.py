@@ -131,3 +131,63 @@ def test_malformed_timestamp_rejected():
             timestamp_header="pas-une-date",
             tolerance_seconds=TOLERANCE,
         )
+
+
+# --------------------------------------------------------------------------- #
+# Rotation de secret sans coupure
+# --------------------------------------------------------------------------- #
+# Pendant une rotation, le backend Convex et ce service ne basculent pas au même
+# instant. Sans recouvrement, cette fenêtre produit des 401 — et le backend ne
+# dégrade gracieusement que sur 503 : un 401 fait échouer le workflow KYC après
+# ses 3 retries, donc perd la demande d'un citoyen. D'où l'acceptation
+# temporaire de l'ancien secret.
+def test_previous_secret_accepted_during_rotation():
+    body = b'{"documentType":"cni_gabon"}'
+    verify_request(
+        secret="nouveau-secret",
+        raw_body=body,
+        signature_header=compute_signature(SECRET, body),
+        timestamp_header=_now_iso(),
+        tolerance_seconds=TOLERANCE,
+        previous_secret=SECRET,
+    )  # ne lève pas
+
+
+def test_current_secret_still_accepted_during_rotation():
+    body = b"{}"
+    verify_request(
+        secret="nouveau-secret",
+        raw_body=body,
+        signature_header=compute_signature("nouveau-secret", body),
+        timestamp_header=_now_iso(),
+        tolerance_seconds=TOLERANCE,
+        previous_secret=SECRET,
+    )  # ne lève pas
+
+
+def test_third_secret_rejected_even_during_rotation():
+    """Le recouvrement autorise DEUX secrets, pas n'importe lequel."""
+    body = b"{}"
+    with pytest.raises(AuthError, match="Signature .* invalide"):
+        verify_request(
+            secret="nouveau-secret",
+            raw_body=body,
+            signature_header=compute_signature("secret-attaquant", body),
+            timestamp_header=_now_iso(),
+            tolerance_seconds=TOLERANCE,
+            previous_secret=SECRET,
+        )
+
+
+def test_previous_secret_refused_once_rotation_is_over():
+    """Rotation terminée (previous vidé) : l'ancien secret ne passe plus."""
+    body = b"{}"
+    with pytest.raises(AuthError, match="Signature .* invalide"):
+        verify_request(
+            secret="nouveau-secret",
+            raw_body=body,
+            signature_header=compute_signature(SECRET, body),
+            timestamp_header=_now_iso(),
+            tolerance_seconds=TOLERANCE,
+            previous_secret=None,
+        )

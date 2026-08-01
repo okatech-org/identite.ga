@@ -28,11 +28,11 @@ export default function SettingsAbout() {
         }}>
           <IdnMark size={56} />
           <Text style={{ fontSize: 18, fontWeight: '700', color: t.ink, marginTop: 12 }}>Identité Numérique</Text>
-          <Text style={{ fontSize: 12, color: t.muted, marginTop: 4 }}>République Gabonaise · ANINF</Text>
+          <Text style={{ fontSize: 12, color: t.muted, marginTop: 4 }}>Ntsagui digital</Text>
           <Text style={{ fontFamily: idnTokens.mono, fontSize: 11, color: t.muted, marginTop: 14 }}>v{version}</Text>
         </View>
         <Text style={{ fontSize: 13, color: t.ink2, lineHeight: 21, paddingHorizontal: 4, paddingVertical: 20 }}>
-          IDN est l'infrastructure de confiance qui relie chaque citoyen, résident et visiteur à l'ensemble des services administratifs en ligne. Opéré par l'Agence Nationale des Infrastructures Numériques sous la tutelle du Ministère de l'Économie Numérique.
+          IDN est l'infrastructure de confiance qui relie chaque citoyen, résident et visiteur à l'ensemble des services administratifs en ligne. Opéré par Ntsagui digital.
         </Text>
         <View style={{ backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 14, overflow: 'hidden' }}>
           <SetMobileRow t={t} label="Conditions d'utilisation" onPress={() => openLegal('terms')} />

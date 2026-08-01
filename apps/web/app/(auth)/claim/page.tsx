@@ -25,6 +25,12 @@ type ClaimResult = {
   firstName?: string
   lastName?: string
   loa?: number
+  /**
+   * Code saisi par le citoyen, conservé en mémoire pour l'étape finale —
+   * `/api/claim/complete` le revérifie. Il n'est PAS renvoyé par le serveur :
+   * le `delegatedIdentityId` seul n'autorise rien.
+   */
+  claimCode?: string
 }
 
 const STEPS = ["search", "confirm", "setup"] as const
@@ -106,6 +112,7 @@ function SearchStep({
 }) {
   const t = claim.search
   const [mode, setMode] = React.useState<"nip" | "name">("nip")
+  const [claimCode, setClaimCode] = React.useState("")
   const [nip, setNip] = React.useState("")
   const [firstName, setFirstName] = React.useState("")
   const [lastName, setLastName] = React.useState("")
@@ -113,16 +120,21 @@ function SearchStep({
   const [error, setError] = React.useState<string | null>(null)
   const [busy, setBusy] = React.useState(false)
 
+  // Le code de réclamation est exigé dans tous les cas : c'est la preuve de
+  // possession, sans elle un NIP (imprimé sur la carte) suffirait à revendiquer
+  // l'identité de quelqu'un d'autre.
+  const codeFilled = claimCode.replace(/[^0-9A-Za-z]/g, "").length === 12
   const canSubmit =
-    mode === "nip"
+    codeFilled &&
+    (mode === "nip"
       ? nip.trim().length === 14
-      : firstName.trim() && lastName.trim() && dob
+      : Boolean(firstName.trim() && lastName.trim() && dob))
 
   const submit = async () => {
     setError(null)
     setBusy(true)
     try {
-      const body =
+      const identity =
         mode === "nip"
           ? { nip: nip.trim() }
           : {
@@ -134,7 +146,7 @@ function SearchStep({
       const res = await fetch(`${CONVEX_SITE}/api/claim/lookup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ ...identity, claimCode: claimCode.trim() }),
       })
 
       const data = (await res.json()) as ClaimResult
@@ -142,7 +154,7 @@ function SearchStep({
         setError(t.notFound)
         return
       }
-      onFound(data)
+      onFound({ ...data, claimCode: claimCode.trim() })
     } catch {
       setError(t.notFound)
     } finally {
@@ -171,6 +183,26 @@ function SearchStep({
       }
     >
       <div className="flex flex-col gap-5">
+        <div>
+          <Label htmlFor="claimCode">{t.claimCodeLabel}</Label>
+          <Input
+            id="claimCode"
+            value={claimCode}
+            onChange={(e) => setClaimCode(e.target.value)}
+            placeholder={t.claimCodePlaceholder}
+            autoComplete="off"
+            spellCheck={false}
+            aria-describedby="claimCode-hint"
+            className="mt-2 font-mono tracking-widest uppercase"
+          />
+          <p
+            id="claimCode-hint"
+            className="text-muted-foreground mt-2 text-sm"
+          >
+            {t.claimCodeHint}
+          </p>
+        </div>
+
         {mode === "nip" ? (
           <div>
             <Label htmlFor="nip">{t.nipLabel}</Label>
@@ -370,6 +402,7 @@ function SetupStep({ result }: { result: ClaimResult }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           delegatedIdentityId: result.delegatedIdentityId,
+          claimCode: result.claimCode,
           password,
           pin,
         }),

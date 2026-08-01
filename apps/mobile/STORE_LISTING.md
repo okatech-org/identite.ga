@@ -51,7 +51,7 @@ Open Testing).
 >
 > ◆ VÉRIFICATION D'IDENTITÉ (KYC)
 > Photographiez votre CNI, votre passeport ou votre carte de séjour
-> + selfie animé. Validation par les contrôleurs ANINF sous 24h.
+> + selfie animé. Validation par les contrôleurs Ntsagui digital sous 24h.
 >
 > ◆ iCARTE — Portefeuille numérique
 > Toutes vos cartes (CNI, permis, transport, CNAMGS, bancaire,
@@ -80,8 +80,7 @@ Open Testing).
 > gratuit 24/7. Antennes physiques dans les 9 provinces. Canal USSD
 > *242# pour les zones non connectées.
 >
-> Opéré par l'Agence Nationale des Infrastructures Numériques
-> (ANINF), sous la tutelle du Ministère de l'Économie Numérique.
+> Opéré par Ntsagui digital.
 >
 > Une question ? privacy@identite.ga · support@identite.ga · 1407
 
@@ -107,8 +106,7 @@ Open Testing).
 > All data hosted in Gabon. End-to-end encryption. GDPR-compliant,
 > Gabonese Data Protection Law 001/2011.
 >
-> Operated by Agence Nationale des Infrastructures Numériques
-> (ANINF).
+> Operated by Ntsagui digital.
 
 ---
 
@@ -132,7 +130,7 @@ Open Testing).
 ## Mots-clés Apple (≤ 100 chars, virgules)
 
 ```
-identité,gabon,kyc,aninf,wallet,icarte,icv,iboite,passkey,ID,service public,e-visa,administration
+identité,gabon,kyc,ntsagui,wallet,icarte,icv,iboite,passkey,ID,service public,e-visa,administration
 ```
 
 (99 caractères avec les virgules — OK.)

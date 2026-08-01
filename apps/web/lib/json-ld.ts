@@ -17,11 +17,10 @@ export function organizationJsonLd() {
     url: SITE_URL,
     logo: absoluteUrl("/icon"),
     description:
-      "Plateforme d'identité numérique souveraine de la République Gabonaise, opérée par l'Agence Nationale des Infrastructures Numériques (ANINF).",
+      "Plateforme d'identité numérique souveraine de la République Gabonaise, opérée par Ntsagui digital.",
     parentOrganization: {
-      "@type": "GovernmentOrganization",
-      name: "Agence Nationale des Infrastructures Numériques",
-      alternateName: "ANINF",
+      "@type": "Organization",
+      name: "Ntsagui digital",
     },
     areaServed: {
       "@type": "Country",
@@ -65,8 +64,8 @@ export function websiteJsonLd() {
     url: SITE_URL,
     inLanguage: "fr-GA",
     publisher: {
-      "@type": "GovernmentOrganization",
-      name: "Agence Nationale des Infrastructures Numériques",
+      "@type": "Organization",
+      name: "Ntsagui digital",
     },
   }
 }

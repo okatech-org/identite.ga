@@ -19,17 +19,26 @@ from fastapi.testclient import TestClient
 import app.main as main
 from app.liveness import LivenessResult
 from app.main import Engines, app
-from app.ocr import OcrResult
+from app.ocr import OcrResult, OcrUnavailable
 
 
 # --------------------------------------------------------------------------- #
 # Doubles de test (moteurs factices)
 # --------------------------------------------------------------------------- #
 class FakeOcr:
-    def __init__(self, ready: bool = True):
+    def __init__(self, ready: bool = True, text_ready: bool | None = None):
         self.ready = ready
+        # `text_ready` distinct de `ready` : le moteur peut être globalement
+        # disponible (MRZ passeport OK) sans savoir lire une CNI (langpack
+        # manquant). C'est le cas que `OcrUnavailable` doit couvrir.
+        self.text_ready = ready if text_ready is None else text_ready
+
+    def capabilities(self) -> dict[str, bool]:
+        return {"ocr_text": self.text_ready, "ocr_mrz": self.ready}
 
     def run(self, *, document_type, front_bytes, back_bytes):
+        if document_type != "passport" and not self.text_ready:
+            raise OcrUnavailable("OCR plein texte indisponible (langpack fra manquant).")
         return OcrResult(
             confidence=0.91,
             fields={
@@ -85,7 +94,16 @@ def test_healthz_public_and_reports_models(client):
     assert resp.status_code == 200
     body = resp.json()
     assert body["status"] == "ok"
-    assert set(body["models"]) == {"ocr", "face_match", "liveness"}
+    # `ocr_text` / `ocr_mrz` en plus de `ocr` : sans ce détail, un opérateur ne
+    # peut pas distinguer "les passeports passent, les CNI non" d'un OCR
+    # totalement HS — les deux se présentaient comme `ocr: false`.
+    assert set(body["models"]) == {
+        "ocr",
+        "ocr_text",
+        "ocr_mrz",
+        "face_match",
+        "liveness",
+    }
     assert all(isinstance(v, bool) for v in body["models"].values())
 
 
@@ -141,6 +159,33 @@ def test_ocr_returns_503_when_engine_not_ready(client, make_signed_headers):
     resp = _post_signed(client, "/v1/ocr", payload, make_signed_headers)
     assert resp.status_code == 503
     assert "non chargé" in resp.json()["detail"]
+
+
+def test_passport_still_readable_when_text_ocr_unavailable(client, make_signed_headers):
+    """La MRZ ne dépend pas du langpack fra : elle doit rester servie.
+
+    C'est la régression qu'on vient de corriger — un drapeau `ready` unique
+    faisait tomber la lecture des passeports (normalisée ICAO 9303) pour une
+    carence qui ne concernait que l'extraction CNI.
+    """
+    app.state.engines = Engines(
+        ocr=FakeOcr(ready=True, text_ready=False),
+        face=FakeFace(),
+        liveness=FakeLiveness(),
+    )
+    payload = {
+        "documentType": "passport",
+        "frontImageUrl": "https://x/y",
+        "backImageUrl": None,
+    }
+    resp = _post_signed(client, "/v1/ocr", payload, make_signed_headers)
+    assert resp.status_code == 200, resp.text
+
+    # …tandis qu'une CNI renvoie 503 (et pas 422 : la faute est côté service).
+    payload["documentType"] = "cni_gabon"
+    resp = _post_signed(client, "/v1/ocr", payload, make_signed_headers)
+    assert resp.status_code == 503
+    assert "langpack" in resp.json()["detail"]
 
 
 # --------------------------------------------------------------------------- #

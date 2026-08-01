@@ -144,6 +144,9 @@ export const AUDIT_ACTIONS = [
   // Délégation d'identité
   "delegated_identity_created",
   "delegated_identity_claimed",
+  // Code de réclamation refusé : à surveiller, une série sur la même identité
+  // signale une tentative de prise de contrôle (cf. lib/claimCode.ts).
+  "delegated_claim_code_failed",
   "delegation_enabled",
   "delegation_disabled",
 ] as const
@@ -1036,7 +1039,27 @@ export default defineSchema({
     targetProfileId: v.id("userProfile"),
     assignedLoa: v.union(v.literal(1), v.literal(2)),
     kycRequestId: v.optional(v.id("kycRequest")),
+    /**
+     * @deprecated NE PLUS ÉCRIRE. Contenait le mot de passe Better Auth du
+     * compte délégué EN CLAIR, jusqu'à la réclamation. Le mot de passe initial
+     * est désormais dérivé d'une clé d'environnement (cf.
+     * delegate/actions.ts::deriveInitialPassword), donc plus rien de secret
+     * n'est persisté ici. Le champ reste déclaré uniquement parce que des
+     * documents existants le portent (Convex valide les documents stockés au
+     * déploiement) — purge via `internal.delegate.mutations.purgeInitialSecrets`.
+     */
     initialSecret: v.optional(v.string()),
+    /**
+     * SHA-256 du code de réclamation à usage unique remis au citoyen par
+     * l'opérateur. Preuve de possession exigée par /api/claim/* : sans lui,
+     * connaître le NIP (imprimé sur la carte) suffisait à s'emparer de
+     * l'identité. Cf. lib/claimCode.ts.
+     */
+    claimCodeHash: v.optional(v.string()),
+    claimCodeExpiresAt: v.optional(v.number()),
+    /** Tentatives de code erroné — plafonnées pour rendre le brute-force vain. */
+    claimAttempts: v.optional(v.number()),
+    claimLockedUntil: v.optional(v.number()),
     status: v.union(v.literal("created"), v.literal("claimed")),
     claimedAt: v.optional(v.number()),
     createdAt: v.number(),

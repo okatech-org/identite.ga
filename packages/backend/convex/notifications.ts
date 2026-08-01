@@ -33,13 +33,15 @@ const KYC_KIND = v.union(
   v.literal("approved"),
   v.literal("rejected"),
   v.literal("complement_provided"),
+  v.literal("under_review"),
 )
 
 const KYC_IN_APP: Record<
   | "complement_requested"
   | "approved"
   | "rejected"
-  | "complement_provided",
+  | "complement_provided"
+  | "under_review",
   { title: string; body: (detail: string | null) => string }
 > = {
   complement_requested: {
@@ -65,6 +67,11 @@ const KYC_IN_APP: Record<
     title: "Le citoyen a fourni le complément demandé",
     body: () =>
       "La demande est de retour dans votre file d'attente — vous pouvez reprendre l'examen.",
+  },
+  under_review: {
+    title: "Votre vérification d'identité est en cours d'examen",
+    body: () =>
+      "Les contrôles automatiques n'ont pas permis de conclure : un agent va examiner votre dossier. Aucune action n'est attendue de votre part, vous serez notifié dès qu'une décision sera prise.",
   },
 }
 

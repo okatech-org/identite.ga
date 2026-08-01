@@ -38,17 +38,17 @@ export const metadata: Metadata = {
   referrer: "strict-origin-when-cross-origin",
   authors: [
     {
-      name: "Agence Nationale des Infrastructures Numériques",
+      name: "Ntsagui digital",
       url: SITE_URL,
     },
   ],
-  creator: "Agence Nationale des Infrastructures Numériques (ANINF)",
-  publisher: "République Gabonaise",
+  creator: "Ntsagui digital",
+  publisher: "Ntsagui digital",
   keywords: [
     "Identité Numérique",
     "Gabon",
     "IDN",
-    "ANINF",
+    "Ntsagui digital",
     "République Gabonaise",
     "OpenID Connect",
     "services publics",

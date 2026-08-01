@@ -6,7 +6,7 @@ import type { Doc, Id } from "./_generated/dataModel"
 import type { QueryCtx } from "./_generated/server"
 import { getCurrentAuthUser, requireVerifiedAuth } from "./lib/auth"
 import {
-  DOCUMENT_SIGNING_KEY_ID,
+  currentKeyId,
   signDocument,
   verifyDocumentToken,
 } from "./lib/documentSigning"
@@ -120,7 +120,7 @@ export const sign = mutation({
       documentName: item.name,
       sha256: storageMeta.sha256,
       algorithm: "RS256",
-      keyId: DOCUMENT_SIGNING_KEY_ID,
+      keyId: currentKeyId(),
       signature,
       signerName,
       signerIdnId,

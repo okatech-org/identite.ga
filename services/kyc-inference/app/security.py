@@ -81,11 +81,20 @@ def verify_request(
     signature_header: str | None,
     timestamp_header: str | None,
     tolerance_seconds: int,
+    previous_secret: str | None = None,
 ) -> None:
     """Vérifie une requête entrante. Lève AuthError si invalide.
 
     Ordre volontaire : présence des headers -> fraîcheur du timestamp ->
     comparaison timing-safe de la signature.
+
+    `previous_secret` permet une ROTATION SANS COUPURE : pendant la fenêtre où
+    le backend Convex et ce service n'ont pas encore le même secret courant, les
+    deux sont acceptés. Sans ce recouvrement, la fenêtre produit des 401 — et le
+    backend ne dégrade gracieusement que sur 503 (cf. kyc/actions.ts), donc un
+    401 fait échouer le workflow KYC après ses 3 retries : une demande de
+    citoyen perdue. À vider (`KYC_INFERENCE_SECRET_PREVIOUS` non défini) dès la
+    rotation terminée.
     """
     if not signature_header:
         raise AuthError("Header X-Signature manquant.")
@@ -94,7 +103,15 @@ def verify_request(
 
     verify_timestamp(timestamp_header, tolerance_seconds)
 
-    expected = compute_signature(secret, raw_body)
+    presented = signature_header.strip()
     # compare_digest : comparaison à temps constant contre les timing attacks.
-    if not hmac.compare_digest(expected, signature_header.strip()):
+    # Les deux secrets sont toujours évalués (pas de court-circuit) pour ne pas
+    # révéler par le temps de réponse lequel a servi.
+    accepted = hmac.compare_digest(compute_signature(secret, raw_body), presented)
+    if previous_secret:
+        accepted = (
+            hmac.compare_digest(compute_signature(previous_secret, raw_body), presented)
+            or accepted
+        )
+    if not accepted:
         raise AuthError("Signature X-Signature invalide.")

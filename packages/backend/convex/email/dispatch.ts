@@ -21,6 +21,7 @@ export const sendKyc = internalAction({
       v.literal("approved"),
       v.literal("rejected"),
       v.literal("complement_provided"),
+      v.literal("under_review"),
     ),
     recipientName: v.union(v.string(), v.null()),
     detail: v.union(v.string(), v.null()),

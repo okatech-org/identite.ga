@@ -33,13 +33,39 @@ def check_minifasnet() -> None:
     print(f"[weights] MiniFASNet OK : {pth} + détecteur caffe", flush=True)
 
 
-def bake_paddleocr() -> None:
-    from paddleocr import PaddleOCR
+def check_tesseract() -> None:
+    """Vérifie le binaire tesseract ET les langpacks demandés.
 
-    lang = os.getenv("KYC_PADDLE_LANG", "fr")
-    # L'instanciation déclenche le téléchargement des modèles det/rec/cls.
-    PaddleOCR(use_angle_cls=True, lang=lang, use_gpu=False, show_log=False)
-    print(f"[weights] PaddleOCR ({lang}) OK", flush=True)
+    Tesseract n'a aucun poids à télécharger (les langpacks viennent d'apt) :
+    l'intérêt de cette étape est de faire échouer le BUILD si le binaire ou un
+    langpack manque, plutôt que de publier une image qui répond 503 sur
+    /v1/ocr en production — c'est exactement le mode de panne qu'on vient de
+    corriger, on refuse de pouvoir y revenir par un simple oubli d'apt.
+    """
+    import pytesseract
+
+    cmd = os.getenv("KYC_TESSERACT_CMD", "").strip()
+    if cmd:
+        pytesseract.pytesseract.tesseract_cmd = cmd
+
+    version = pytesseract.get_tesseract_version()
+    available = set(pytesseract.get_languages(config=""))
+    wanted = [
+        lang
+        for lang in os.getenv("KYC_TESSERACT_LANG", "fra+eng").split("+")
+        if lang
+    ]
+    missing = [lang for lang in wanted if lang not in available]
+    if missing:
+        raise FileNotFoundError(
+            f"Langpack(s) tesseract manquant(s) : {', '.join(missing)}. "
+            f"Installés : {', '.join(sorted(available)) or 'aucun'}. "
+            "Ajouter le paquet apt correspondant (ex. tesseract-ocr-fra)."
+        )
+    print(
+        f"[weights] Tesseract {version} OK (langpacks : {'+'.join(wanted)})",
+        flush=True,
+    )
 
 
 def bake_insightface() -> None:
@@ -54,13 +80,10 @@ def bake_insightface() -> None:
 
 
 # `KYC_BAKE_ENGINES` (build-time uniquement) : liste des moteurs à baker.
-# Défaut = `face` (+ liveness vendorisé vérifié). L'OCR (paddle) est TEMPORAIREMENT
-# DÉSACTIVÉ : paddle 2.6 segfault à l'instanciation sur l'amd64 de Cloud Build et
-# n'est plus dans requirements.txt ; `bake_paddleocr` échouerait à l'import. On ne
-# bake donc plus l'OCR. Réactivation : réinstaller paddle (ou Tesseract) puis
-# ajouter "ocr" à KYC_BAKE_ENGINES.
+# Défaut = `ocr,face` (+ liveness vendorisé vérifié). "ocr" ne télécharge rien :
+# c'est une vérification de la présence de Tesseract et de ses langpacks.
 _BAKERS = {
-    "ocr": bake_paddleocr,
+    "ocr": check_tesseract,
     "face": bake_insightface,
 }
 
@@ -68,7 +91,7 @@ _BAKERS = {
 def main() -> int:
     engines = [
         e.strip()
-        for e in os.getenv("KYC_BAKE_ENGINES", "face").split(",")
+        for e in os.getenv("KYC_BAKE_ENGINES", "ocr,face").split(",")
         if e.strip()
     ]
     try:

@@ -4,27 +4,47 @@ Microservice **auto-hébergé** d'inférence KYC pour le système d'identité na
 gabonais. Il exécute des modèles **open-source** derrière une API HTTP privée
 appelée par le backend Convex. **Aucune donnée biométrique ne sort de l'infra.**
 
-Trois traitements :
+Quatre traitements :
 
-| Traitement   | Modèle OSS                                   | Rôle                                            | État        |
-|--------------|----------------------------------------------|-------------------------------------------------|-------------|
-| OCR          | PaddleOCR (+ PassportEye/mrz pour passeport) | Extraire les champs du document (recto/verso)   | ⚠️ DÉSACTIVÉ |
-| Face match   | InsightFace `buffalo_l` (ArcFace)            | Similarité selfie ↔ photo du document           | actif       |
-| Liveness     | Silent-Face-Anti-Spoofing (MiniFASNet)       | Détecter présentation-attack (papier, écran…)   | actif       |
+| Traitement       | Modèle OSS                                | Rôle                                          | État                |
+|------------------|-------------------------------------------|-----------------------------------------------|---------------------|
+| OCR — MRZ        | PassportEye/mrz sur Tesseract (ICAO 9303) | Lire la MRZ d'un passeport (checksums)        | actif               |
+| OCR — plein texte| Tesseract 5 (`fra+eng`) via pytesseract   | Extraire les champs d'une CNI (recto/verso)   | actif, **à calibrer** |
+| Face match       | InsightFace `buffalo_l` (ArcFace)         | Similarité selfie ↔ photo du document         | actif               |
+| Liveness         | Silent-Face-Anti-Spoofing (MiniFASNet)    | Détecter présentation-attack (papier, écran…) | actif               |
 
-> ⚠️ **OCR temporairement désactivé.** `paddlepaddle` 2.6 (CPU) segfault
-> (SIGSEGV, exit 139 — non rattrapable en Python) à l'instanciation de PaddleOCR
-> sur l'amd64 natif de Cloud Build. Pour rendre le service buildable/déployable,
-> `paddlepaddle`/`paddleocr` ont été retirés de `requirements.txt` et du bake
-> (`KYC_BAKE_ENGINES=face` par défaut). L'import paddle dans `app/ocr.py` est
-> paresseux et tolérant : le moteur OCR reste `ready=False`, `/v1/ocr` renvoie un
-> **503 propre** (jamais de crash worker), et `/healthz` retourne `ocr: false`.
-> Face match + liveness fonctionnent normalement.
-> **TODO — réactiver l'OCR** : soit via **Tesseract** (parsing CNI + MRZ, sans
-> paddle), soit via un **paddle stabilisé** (wheel/base image ne segfaultant pas
-> sur amd64), dans les deux cas avec **calibration du layout de la CNI gabonaise**
-> (`app/ocr.py::_extract_cni_gabon`). Puis réajouter les deps et remettre `ocr`
-> dans `KYC_BAKE_ENGINES`.
+> **Pourquoi Tesseract et pas PaddleOCR.** `paddlepaddle` segfault (SIGSEGV,
+> exit 139 — non rattrapable en Python, ça tue le worker) à l'instanciation de
+> PaddleOCR sur l'amd64 de Cloud Build. Ce n'est pas propre à la 2.6 : PaddleOCR
+> 3.3 + paddlepaddle 3.0 plantent de la même façon en conteneur x86_64
+> ([Paddle#76111](https://github.com/PaddlePaddle/Paddle/issues/76111),
+> [PaddleOCR#16402](https://github.com/PaddlePaddle/PaddleOCR/issues/16402),
+> [#16361](https://github.com/PaddlePaddle/PaddleOCR/issues/16361)). Paddle est
+> donc définitivement écarté. Tesseract est un binaire système stable, installé
+> par apt (`tesseract-ocr` + `tesseract-ocr-fra`/`-eng`).
+
+> **Les deux chemins OCR sont indépendants.** `mrz_ready` et `text_ready` sont
+> deux drapeaux distincts, exposés par `/healthz` sous `ocr_mrz` et `ocr_text`.
+> La lecture MRZ ne dépend ni du langpack français ni des heuristiques de layout :
+> une carence sur l'extraction CNI ne doit pas faire tomber la lecture des
+> passeports, qui est entièrement normalisée. Quand le chemin requis pour un type
+> de document manque, `/v1/ocr` renvoie un **503** (et non 422) : la faute est
+> côté service, et le backend sait dégrader un 503 vers la revue manuelle.
+
+> ⚠️ **Extraction CNI à calibrer.** `app/ocr.py::_extract_cni_gabon` fonctionne
+> mais ses libellés et son ordre de champs sont **supposés** — seul le format du
+> NIP est sourcé (14 caractères alphanumériques, DGDI). Deux garde-fous sont déjà
+> en place : la date de naissance est prise par libellé puis, à défaut, comme la
+> **plus ancienne** date de la carte (la naissance précède délivrance et
+> expiration), et le numéro privilégie le format NIP sur l'heuristique « plus
+> long token dense ». Pour finir la calibration, remplir `CNI_SAMPLES` dans
+> `tests/test_ocr_extraction.py` avec des échantillons réels puis ajuster jusqu'au
+> vert.
+
+> ℹ️ **`docAuthentic` n'est significatif que pour la MRZ** (checksums ICAO 9303).
+> Sur une CNI, aucun contrôle d'authenticité n'est possible depuis une simple
+> photo (ni UV, ni hologramme, ni puce) : le champ vaut donc `false`, plutôt que
+> de rapporter un signal fabriqué à partir de « les champs sont remplis ».
 
 ---
 
@@ -61,8 +81,9 @@ Authentification entrante sur toutes les routes `/v1/*` :
   timing-safe, message générique).
 
 ### `POST /v1/ocr`
-> ⚠️ Actuellement **désactivé** : renvoie **503** (`ocr` non chargé). Contrat de
-> réponse ci-dessous conservé pour la réactivation future.
+> `documentType: "passport"` passe par la MRZ (fiable, checksums ICAO) avec repli
+> sur l'OCR plein texte ; tout autre type passe directement par l'OCR plein texte.
+> **503** si le chemin requis est indisponible, **422** si l'image est illisible.
 ```jsonc
 // requête
 { "documentType": "passport", "frontImageUrl": "https://…", "backImageUrl": null }
@@ -87,12 +108,14 @@ Authentification entrante sur toutes les routes `/v1/*` :
 
 ### `GET /healthz` (public, sans auth)
 ```json
-{ "status": "ok", "models": { "ocr": false, "face_match": true, "liveness": true } }
+{ "status": "ok", "models": { "ocr": true, "ocr_text": true, "ocr_mrz": true, "face_match": true, "liveness": true } }
 ```
-Sur l'image Docker officielle actuelle, `face_match` et `liveness` ressortent
-`true` (poids bakés/vendorisés), et `ocr` ressort **`false`** (paddle retiré, voir
-l'avertissement en tête de README). En dev local sans poids, ils peuvent tous être
-`false` (voir « Dégradation gracieuse »).
+Sur l'image Docker officielle, les cinq drapeaux ressortent `true` (poids bakés
+ou vendorisés, Tesseract et ses langpacks installés par apt et vérifiés au build).
+`ocr` est le OU de `ocr_text` et `ocr_mrz` : un `ocr: true` avec
+`ocr_text: false` signifie que les passeports sont lisibles mais pas les CNI. En
+dev local sans poids ni binaire tesseract, ils peuvent tous être `false`
+(voir « Dégradation gracieuse »).
 
 ---
 
@@ -106,13 +129,13 @@ services/kyc-inference/
 │   ├── security.py     # HMAC-SHA256 + anti-rejeu timestamp
 │   ├── schemas.py      # Modèles Pydantic (contrat backend)
 │   ├── assets.py       # Récupération des images (SSRF guard, limite taille, tmp files)
-│   ├── ocr.py          # PaddleOCR + MRZ passeport + extraction CNI (À CALIBRER)
+│   ├── ocr.py          # Tesseract + MRZ passeport + extraction CNI (À CALIBRER)
 │   ├── face_match.py   # InsightFace / ArcFace, similarité cosinus
 │   ├── liveness.py     # MiniFASNet (verdict réel), échantillonnage vidéo, seuils (À CALIBRER)
 │   └── vendor/
 │       └── minifasnet/ # Prédicteur MiniFASNet vendorisé (Apache-2.0, voir NOTICE.md)
 ├── models/             # Poids MiniFASNet + détecteur caffe (hors-Git, COPY au build)
-├── download_weights.py # Baking PaddleOCR + InsightFace au build (fail loud)
+├── download_weights.py # Vérif Tesseract + baking InsightFace au build (fail loud)
 ├── tests/              # pytest : HMAC (accept/reject) + shape des réponses (mocks)
 ├── requirements.txt        # runtime complet (modèles lourds)
 ├── requirements-test.txt   # sous-ensemble pour lancer les tests (modèles mockés)
@@ -141,7 +164,7 @@ premier appel, pas de volume à monter). Deux mécanismes :
 | Modèle       | Stratégie                        | Emplacement dans l'image                    | Licence |
 |--------------|----------------------------------|---------------------------------------------|---------|
 | MiniFASNet   | **vendorisé** (COPY)             | `/srv/models/anti_spoof/*.pth` + `/srv/models/detection/` (détecteur caffe) | Apache-2.0 |
-| PaddleOCR    | **téléchargé au build**          | `~/.paddleocr` (via `download_weights.py`)  | Apache-2.0 |
+| Tesseract    | **paquet apt** (aucun poids)     | `/usr/share/tesseract-ocr/*/tessdata`       | Apache-2.0 |
 | InsightFace  | **téléchargé au build**          | `/home/kyc/.insightface/models/buffalo_l`   | code MIT (voir ⚠️ poids) |
 
 ### MiniFASNet (Silent-Face-Anti-Spoofing) — vendorisé
@@ -159,9 +182,13 @@ Repo : https://github.com/minivision-ai/Silent-Face-Anti-Spoofing — **Apache-2
   copier `resources/anti_spoof_models/*.pth` → `models/anti_spoof/` et
   `resources/detection_model/*` → `models/detection/`.
 
-### PaddleOCR — téléchargé au build
-Modèles det/rec/cls (latin/fr) téléchargés dans `~/.paddleocr` par
-`download_weights.py`. Licence **Apache-2.0**. Repo : https://github.com/PaddlePaddle/PaddleOCR
+### Tesseract — paquet système
+Aucun poids à télécharger : le moteur et ses données de langue viennent d'apt
+(`tesseract-ocr`, `tesseract-ocr-fra`, `tesseract-ocr-eng`). L'étape `ocr` de
+`download_weights.py` ne télécharge rien — elle **vérifie** la présence du binaire
+et des langpacks, et fait échouer le build s'ils manquent, pour ne pas publier une
+image qui répondrait 503 en production. Licence **Apache-2.0**.
+Repo : https://github.com/tesseract-ocr/tesseract
 
 ### InsightFace `buffalo_l` — téléchargé au build
 Pack ArcFace (r100) + détecteur SCRFD, téléchargé dans
@@ -224,13 +251,12 @@ docker run --rm -p 8080:8080 -e PORT=8080 \
 ```
 
 - **Écoute** : `0.0.0.0:${PORT:-8000}`. Cloud Run injecte `PORT=8080`.
-- **Architecture** : **`linux/amd64` obligatoire**. `paddlepaddle` 2.6 est
-  instable/non fonctionnel sur ARM (segfault/NameError à l'import) et sous
-  émulation Rosetta/QEMU — construire l'image amd64 sur du **x86 réel**
-  (Cloud Build via `--source .`, ou une machine/CI x86). Sur Apple Silicon,
-  l'image ARM sert uniquement au dev des moteurs face/liveness.
-- **Taille d'image** : ~**5 Gio** (torch CPU + paddlepaddle + onnxruntime +
-  buffalo_l + PaddleOCR). Prévoir Artifact Registry en conséquence. `torch` est
+- **Architecture** : **`linux/amd64`** pour Cloud Run. Construire sur du x86
+  réel (Cloud Build via `--source .`, ou une CI x86) reste recommandé : les wheels
+  `onnxruntime`/`insightface` sont plus fiables ainsi, et l'émulation QEMU sur
+  Apple Silicon rend le build très lent.
+- **Taille d'image** : ~**4 Gio** (torch CPU + onnxruntime + buffalo_l +
+  Tesseract). Prévoir Artifact Registry en conséquence. `torch` est
   installé en **CPU-only** (index PyTorch `/whl/cpu`) pour éviter ~3 Gio de
   dépendances CUDA inutiles.
 - **RAM / CPU** : au moins **`--memory 4Gi --cpu 2`** (chargement simultané des
@@ -257,7 +283,7 @@ gcloud run deploy kyc-inference \
   --min-instances 0 \
   --max-instances 5 \
   --port 8080 \
-  --set-env-vars KYC_PADDLE_LANG=fr,ALLOWED_ASSET_HOST_SUFFIXES=.convex.cloud\,.convex.site \
+  --set-env-vars KYC_TESSERACT_LANG=fra+eng,ALLOWED_ASSET_HOST_SUFFIXES=.convex.cloud\,.convex.site \
   --set-secrets KYC_INFERENCE_SECRET=kyc-inference-secret:latest
 ```
 
@@ -273,8 +299,8 @@ Notes :
 - `--build-service-account` / `--gcs-source-staging-dir` peuvent être requis
   selon la politique du projet GCP.
 
-GPU : voir la note en fin de `Dockerfile` (base CUDA, `paddlepaddle-gpu`,
-`onnxruntime-gpu`, torch CUDA). Cloud Run supporte les GPU (L4) sur certaines
+GPU : voir la note en fin de `Dockerfile` (base CUDA, `onnxruntime-gpu`,
+torch CUDA ; `KYC_USE_GPU=true`). Cloud Run supporte les GPU (L4) sur certaines
 régions ; hors périmètre de cette image CPU.
 
 ---

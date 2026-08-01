@@ -31,10 +31,10 @@ export const metadata: Metadata = {
   applicationName: SITE_NAME,
   referrer: "strict-origin-when-cross-origin",
   authors: [
-    { name: "Agence Nationale des Infrastructures Numériques", url: SITE_URL },
+    { name: "Ntsagui digital", url: SITE_URL },
   ],
-  creator: "Agence Nationale des Infrastructures Numériques (ANINF)",
-  publisher: "République Gabonaise",
+  creator: "Ntsagui digital",
+  publisher: "Ntsagui digital",
   // Le portail (espace authentifié) est noindex par défaut ; la doc surcharge
   // explicitement avec `robots: { index: true }` dans son layout.
   robots: { index: false, follow: false },
