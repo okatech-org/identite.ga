@@ -1,0 +1,12 @@
+title: LiveKit deployment operator
+description: Deploy and restart only the dedicated LiveKit VM from GitHub Actions.
+stage: GA
+includedPermissions:
+  - compute.addresses.get
+  - compute.instances.get
+  - compute.instances.getSerialPortOutput
+  - compute.instances.reset
+  - compute.instances.setMetadata
+  - compute.instances.start
+  - compute.instances.stop
+  - compute.zoneOperations.get

@@ -6,6 +6,7 @@ import { v } from "convex/values"
 import { internal } from "../_generated/api"
 import type { Id } from "../_generated/dataModel"
 import { action, type ActionCtx } from "../_generated/server"
+import { ensureLiveKitReadyForToken } from "./infrastructure"
 
 type JoinContext = {
   roomName: string
@@ -39,6 +40,7 @@ export const issueJoinToken = action({
     args: { verificationId: Id<"level3Verification"> },
   ): Promise<JoinCredentials> => {
     const context: JoinContext = await ctx.runQuery(internal.level3._getJoinContext, args)
+    await ensureLiveKitReadyForToken(ctx)
     const serverUrl = requireEnv("LIVEKIT_URL")
     const apiKey = requireEnv("LIVEKIT_API_KEY")
     const apiSecret = requireEnv("LIVEKIT_API_SECRET")

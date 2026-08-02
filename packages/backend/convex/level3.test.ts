@@ -4,7 +4,7 @@ import { ConvexError } from "convex/values"
 import { convexTest } from "convex-test"
 import { beforeEach, describe, expect, test, vi } from "vitest"
 
-import { api } from "./_generated/api"
+import { api, internal } from "./_generated/api"
 import type { Id } from "./_generated/dataModel"
 import schema from "./schema"
 
@@ -80,9 +80,34 @@ beforeEach(() => {
   process.env.LIVEKIT_URL = "wss://video.identite.ga"
   process.env.LIVEKIT_API_KEY = "test-api-key"
   process.env.LIVEKIT_API_SECRET = "test-api-secret-at-least-32-characters"
+  process.env.LIVEKIT_AUTOSUSPEND_ENABLED = "false"
 })
 
 describe("parcours Niveau 3", () => {
+  test("mémorise l'activité LiveKit dans une entrée système unique", async () => {
+    const t = makeTestClient()
+    const first = await t.mutation(internal.level3.infrastructureState.recordActivity, {
+      source: "token_request",
+    })
+    const second = await t.mutation(internal.level3.infrastructureState.recordActivity, {
+      source: "active_rooms",
+    })
+    const activity = await t.query(internal.level3.infrastructureState.getActivity, {})
+    const rows = await t.run(async (ctx) =>
+      ctx.db
+        .query("systemConfig")
+        .withIndex("by_key", (q) => q.eq("key", "runtime.livekit.activity"))
+        .take(2),
+    )
+
+    expect(second).toBeGreaterThanOrEqual(first)
+    expect(activity).toMatchObject({
+      lastActivityAt: second,
+      source: "active_rooms",
+    })
+    expect(rows).toHaveLength(1)
+  })
+
   test("exige le Niveau 2", async () => {
     const t = makeTestClient()
     await seedCitizen(t, "citizen_l1", 1)

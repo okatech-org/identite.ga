@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - "services/livekit/**"
+      - "packages/backend/convex/level3/infrastructure*.ts"
+      - "packages/backend/convex/level3/livekit.ts"
       - ".github/workflows/deploy-livekit.yml"
   workflow_dispatch: {}
 
@@ -59,9 +61,18 @@ jobs:
             --zone="${GCP_ZONE}" \
             --metadata="livekit-deploy-revision=${GITHUB_SHA}" \
             --metadata-from-file=startup-script=services/livekit/bootstrap.sh
-          gcloud compute instances reset "${INSTANCE}" \
+          instance_status="$(gcloud compute instances describe "${INSTANCE}" \
             --project="${{ secrets.GCP_PROJECT_ID }}" \
-            --zone="${GCP_ZONE}"
+            --zone="${GCP_ZONE}" --format='value(status)')"
+          if [ "${instance_status}" = "TERMINATED" ] || [ "${instance_status}" = "SUSPENDED" ]; then
+            gcloud compute instances start "${INSTANCE}" \
+              --project="${{ secrets.GCP_PROJECT_ID }}" \
+              --zone="${GCP_ZONE}"
+          else
+            gcloud compute instances reset "${INSTANCE}" \
+              --project="${{ secrets.GCP_PROJECT_ID }}" \
+              --zone="${GCP_ZONE}"
+          fi
 
       - name: Wait for bootstrap
         run: |
@@ -92,6 +103,12 @@ jobs:
             --secret=livekit-api-secret \
             --project="${{ secrets.GCP_PROJECT_ID }}" | \
             bunx convex env set LIVEKIT_API_SECRET --prod
+          gcloud secrets versions access latest \
+            --secret=livekit-controller-sa-key \
+            --project="${{ secrets.GCP_PROJECT_ID }}" | \
+            bunx convex env set GCP_LIVEKIT_CONTROLLER_SA_KEY --prod
+          printf '%s' 'true' | \
+            bunx convex env set LIVEKIT_AUTOSUSPEND_ENABLED --prod
 
       - name: Verify DNS and TLS when available
         run: |
@@ -105,3 +122,9 @@ jobs:
             --write-out '%{http_code}' --max-time 30 \
             https://video.identite.ga/)"
           test "${status}" = "404" -o "${status}" = "200"
+
+      - name: Stop the idle VM after deployment
+        run: |
+          gcloud compute instances stop "${INSTANCE}" \
+            --project="${{ secrets.GCP_PROJECT_ID }}" \
+            --zone="${GCP_ZONE}" --quiet

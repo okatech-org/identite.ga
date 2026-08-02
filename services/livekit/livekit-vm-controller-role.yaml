@@ -1,0 +1,7 @@
+title: LiveKit VM Controller
+description: Start, stop, and inspect only the dedicated LiveKit VM.
+stage: GA
+includedPermissions:
+  - compute.instances.get
+  - compute.instances.start
+  - compute.instances.stop
