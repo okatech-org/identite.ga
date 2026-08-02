@@ -270,8 +270,14 @@ Le déploiement de production passe exclusivement par
 `linux/amd64`, publication dans Artifact Registry puis nouvelle révision Cloud
 Run. Le workflow utilise Workload Identity Federation, jamais une clé Google
 stockée dans GitHub. Le point d'entrée stable est
-`https://kyc.identite.ga` ; le workflow configure cette URL comme audience OIDC
-personnalisée et l'utilise pour le test de santé après chaque déploiement.
+`https://kyc.identite.ga`, servi par un **Application Load Balancer global**
+(IP statique, certificat Certificate Manager validé par DNS et serverless NEG
+vers Cloud Run). Le DNS contient un enregistrement A vers l'IP du load balancer
+et le CNAME `_acme-challenge.kyc` requis pour les renouvellements automatiques.
+Cloud Run limite son ingress à `internal-and-cloud-load-balancing`, ce qui
+empêche de contourner la façade TLS. Le workflow configure l'URL publique comme
+audience OIDC personnalisée et l'utilise pour le test de santé après chaque
+déploiement.
 
 Temporairement, le frontal Cloud Run accepte les requêtes sans IAM à cause du
 404 Google Frontend qui affecte les appels authentifiés avant qu'ils atteignent
@@ -290,6 +296,7 @@ gcloud run deploy kyc-inference \
   --region europe-west1 \
   --platform managed \
   --no-invoker-iam-check \
+  --ingress internal-and-cloud-load-balancing \
   --add-custom-audiences=https://kyc.identite.ga \
   --memory 4Gi \
   --cpu 2 \
@@ -307,6 +314,10 @@ Notes :
   Le frontal ne contrôle plus IAM, mais les routes d'inférence refusent toute
   requête sans HMAC valide. Revenir à `--invoker-iam-check` et supprimer
   `KYC_INFERENCE_DISABLE_OIDC` dès que le routage IAM Cloud Run est réparé.
+- `--ingress internal-and-cloud-load-balancing` : le conteneur n'accepte que le
+  trafic interne GCP et celui du load balancer externe. L'URL `run.app` ne doit
+  pas être utilisée par les clients ; le seul endpoint supporté est
+  `https://kyc.identite.ga`.
 - `--add-custom-audiences=https://kyc.identite.ga` : les jetons OIDC destinés
   au domaine personnalisé sont acceptés par Cloud Run. Le compte de service
   appelant doit également disposer de `roles/run.invoker`.
@@ -330,8 +341,9 @@ régions ; hors périmètre de cette image CPU.
 
 ## Notes de sécurité (IMPORTANT)
 
-- **TLS obligatoire.** Le service ne doit jamais être exposé en clair. Terminer
-  le TLS sur un reverse proxy (nginx/traefik) ou un mesh mTLS.
+- **TLS obligatoire.** Le certificat Certificate Manager géré est terminé par
+  l'Application Load Balancer global et renouvelé via l'autorisation DNS dédiée.
+  Le listener HTTP ne sert qu'une redirection permanente vers HTTPS.
 - **Réseau privé backend↔service (état cible).** Revenir à IAM privé dès que le
   défaut de routage Google est corrigé. Pendant l'exception HMAC-only, surveiller
   les `401`, limiter strictement les routes publiques et conserver le secret
