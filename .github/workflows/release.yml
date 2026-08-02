@@ -67,4 +67,6 @@ jobs:
           title: "chore(release): version SDK packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_CONFIG_PROVENANCE: "true"
+          # npm refuse les attestations Sigstore dont le dépôt source GitHub
+          # est privé. Trusted Publishing (OIDC) reste actif sans provenance.
+          NPM_CONFIG_PROVENANCE: "false"
