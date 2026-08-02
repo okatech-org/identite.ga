@@ -1,6 +1,6 @@
-import { cronJobs } from "convex/server"
+import { cronJobs } from "convex/server";
 
-import { internal } from "./_generated/api"
+import { internal } from "./_generated/api";
 
 /**
  * Jobs récurrents IDN.
@@ -13,7 +13,7 @@ import { internal } from "./_generated/api"
  *     fonction cible est définie dans ce fichier.
  */
 
-const crons = cronJobs()
+const crons = cronJobs();
 
 // Vérifie les expirations de documents iDocument et dispatch les notifs
 // `documents` correspondantes (paliers 30j / 7j / expired).
@@ -22,7 +22,7 @@ crons.interval(
   { hours: 24 },
   internal.vault.cron.checkExpirations,
   {},
-)
+);
 
 // Anonymise les comptes dont la suppression demandée a passé son
 // cooldown 30j (Apple Guideline 5.1.1(v) + RGPD §3.4).
@@ -31,6 +31,16 @@ crons.interval(
   { hours: 24 },
   internal.privacy.deletion.processScheduledDeletions,
   {},
-)
+);
 
-export default crons
+// Filet de sécurité des rappels d'entretien Niveau 3. Le rappel principal est
+// planifié exactement à J-1 lors de la réservation ; ce passage récupère un
+// éventuel job manqué sans créer de doublon.
+crons.interval(
+  "Level 3 appointment reminders",
+  { minutes: 30 },
+  internal.level3.scheduling.dispatchDueReminders,
+  {},
+);
+
+export default crons;

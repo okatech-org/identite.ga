@@ -1,63 +1,77 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { useMutation, useQuery } from "convex/react"
-import { toast } from "sonner"
+import * as React from "react";
+import { useMutation, useQuery } from "convex/react";
+import { toast } from "sonner";
 
-import { api } from "@repo/backend/convex/_generated/api"
-import { Switch } from "@repo/ui/components/switch"
+import { api } from "@repo/backend/convex/_generated/api";
+import { Switch } from "@repo/ui/components/switch";
 
-import { settings } from "../../_content/fr"
-import { SettingsSection } from "../settings-section"
+import { settings } from "../../_content/fr";
+import { SettingsSection } from "../settings-section";
+import { PwaDeviceSettings } from "@/app/_components/pwa-bootstrap";
 
-type Categories = "security" | "kyc" | "consent" | "comms"
-type Channels = "email" | "inApp"
+type Categories = "security" | "kyc" | "consent" | "comms";
+type Channels = "email" | "inApp";
 
-const CATS: Categories[] = ["security", "kyc", "consent", "comms"]
+const CATS: Categories[] = ["security", "kyc", "consent", "comms"];
 
 export function NotificationsTab() {
-  const prefs = useQuery(api.preferences.getMyNotificationPreferences)
-  const update = useMutation(api.preferences.updateMyNotificationPreferences)
+  const prefs = useQuery(api.preferences.getMyNotificationPreferences);
+  const update = useMutation(api.preferences.updateMyNotificationPreferences);
 
   // Optimistic local state pour les toggles
   const [local, setLocal] = React.useState<{
-    email: Record<Categories, boolean>
-    inApp: Record<Categories, boolean>
-  } | null>(null)
+    email: Record<Categories, boolean>;
+    inApp: Record<Categories, boolean>;
+  } | null>(null);
 
   React.useEffect(() => {
     if (prefs) {
       setLocal({
         email: { ...prefs.email },
         inApp: { ...prefs.inApp },
-      })
+      });
     }
-  }, [prefs])
+  }, [prefs]);
 
-  const onToggle = async (channel: Channels, cat: Categories, value: boolean) => {
-    if (!local) return
+  const onToggle = async (
+    channel: Channels,
+    cat: Categories,
+    value: boolean,
+  ) => {
+    if (!local) return;
     const next = {
       ...local,
       [channel]: { ...local[channel], [cat]: value },
-    }
-    setLocal(next)
+    };
+    setLocal(next);
     try {
-      await update({ [channel]: next[channel] } as { email?: typeof next.email; inApp?: typeof next.inApp })
+      await update({ [channel]: next[channel] } as {
+        email?: typeof next.email;
+        inApp?: typeof next.inApp;
+      });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erreur")
+      toast.error(err instanceof Error ? err.message : "Erreur");
       // Rollback
-      setLocal(local)
+      setLocal(local);
     }
-  }
+  };
 
   if (prefs === undefined || local === null) {
-    return <div className="h-48 animate-pulse rounded-xl bg-secondary" />
+    return <div className="h-48 animate-pulse rounded-xl bg-secondary" />;
   }
 
   return (
-    <SettingsSection title={settings.notifications.title} sub={settings.notifications.sub}>
+    <SettingsSection
+      title={settings.notifications.title}
+      sub={settings.notifications.sub}
+    >
+      <PwaDeviceSettings />
       <div className="hidden border-b border-idn-border-soft pb-2 sm:grid sm:grid-cols-[1fr_80px_80px] sm:gap-4">
-        <span className="text-xs font-medium text-muted-foreground">Catégorie</span>
+        <span className="text-xs font-medium text-muted-foreground">
+          Catégorie
+        </span>
         <span className="text-center text-xs font-medium text-muted-foreground">
           {settings.notifications.channels.email}
         </span>
@@ -101,5 +115,5 @@ export function NotificationsTab() {
         </div>
       ))}
     </SettingsSection>
-  )
+  );
 }

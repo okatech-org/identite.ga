@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { useMutation, useQuery } from "convex/react"
+import * as React from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useMutation, useQuery } from "convex/react";
 import {
   CameraIcon,
   CheckIcon,
@@ -13,76 +13,80 @@ import {
   ShieldCheckIcon,
   ShieldIcon,
   XCircleIcon,
-} from "lucide-react"
-import { toast } from "sonner"
+} from "lucide-react";
+import { toast } from "sonner";
 
-import { api } from "@repo/backend/convex/_generated/api"
-import { Button } from "@repo/ui/components/button"
+import { api } from "@repo/backend/convex/_generated/api";
+import { Button } from "@repo/ui/components/button";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@repo/ui/components/select"
-import { cn } from "@repo/ui/lib/utils"
+} from "@repo/ui/components/select";
+import { cn } from "@repo/ui/lib/utils";
 
-import { parseKycFlow } from "@/lib/kyc-flow"
+import { parseKycFlow } from "@/lib/kyc-flow";
 
-import { kyc } from "../_content/fr"
-import { LevelThreeFlow } from "./_components/level-three-flow"
+import { kyc } from "../_content/fr";
+import { LevelThreeFlow } from "./_components/level-three-flow";
 
-type DocType = "cni_gabon" | "passport" | "residence_card" | "birth_certificate"
-type LocalStep = "intro" | "document" | "selfie" | "review" | "status"
+type DocType =
+  | "cni_gabon"
+  | "passport"
+  | "residence_card"
+  | "birth_certificate";
+type LocalStep = "intro" | "document" | "selfie" | "review" | "status";
 
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"]
-const MAX_SIZE = 8 * 1024 * 1024 // 8 Mo
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const MAX_SIZE = 8 * 1024 * 1024; // 8 Mo
 
 async function uploadImage(uploadUrl: string, file: File): Promise<string> {
   const res = await fetch(uploadUrl, {
     method: "POST",
     headers: { "Content-Type": file.type },
     body: file,
-  })
-  if (!res.ok) throw new Error("Upload failed")
-  const { storageId } = (await res.json()) as { storageId: string }
-  return storageId
+  });
+  if (!res.ok) throw new Error("Upload failed");
+  const { storageId } = (await res.json()) as { storageId: string };
+  return storageId;
 }
 
 export default function KycPage() {
-  const router = useRouter()
-  const me = useQuery(api.profile.getCurrentUser)
-  const latest = useQuery(api.kyc.getMyLatest)
-  const initialize = useMutation(api.kyc.initialize)
-  const generateUploadUrl = useMutation(api.kyc.generateUploadUrl)
-  const setDocumentImage = useMutation(api.kyc.setDocumentImage)
-  const setSelfie = useMutation(api.kyc.setSelfie)
-  const submit = useMutation(api.kyc.submit)
+  const router = useRouter();
+  const me = useQuery(api.profile.getCurrentUser);
+  const latest = useQuery(api.kyc.getMyLatest);
+  const initialize = useMutation(api.kyc.initialize);
+  const generateUploadUrl = useMutation(api.kyc.generateUploadUrl);
+  const setDocumentImage = useMutation(api.kyc.setDocumentImage);
+  const setSelfie = useMutation(api.kyc.setSelfie);
+  const submit = useMutation(api.kyc.submit);
 
-  const [docType, setDocType] = React.useState<DocType>("cni_gabon")
-  const [step, setStep] = React.useState<LocalStep>("intro")
-  const [kycRequestId, setKycRequestId] = React.useState<string | null>(null)
-  const [frontUrl, setFrontUrl] = React.useState<string | null>(null)
-  const [backUrl, setBackUrl] = React.useState<string | null>(null)
-  const [selfieUrl, setSelfieUrl] = React.useState<string | null>(null)
-  const [submitting, setSubmitting] = React.useState(false)
-  const [search, setSearch] = React.useState<string | null>(null)
+  const [docType, setDocType] = React.useState<DocType>("cni_gabon");
+  const [step, setStep] = React.useState<LocalStep>("intro");
+  const [kycRequestId, setKycRequestId] = React.useState<string | null>(null);
+  const [frontUrl, setFrontUrl] = React.useState<string | null>(null);
+  const [backUrl, setBackUrl] = React.useState<string | null>(null);
+  const [selfieUrl, setSelfieUrl] = React.useState<string | null>(null);
+  const [submitting, setSubmitting] = React.useState(false);
+  const [search, setSearch] = React.useState<string | null>(null);
 
-  const frontInput = React.useRef<HTMLInputElement>(null)
-  const backInput = React.useRef<HTMLInputElement>(null)
-  const selfieInput = React.useRef<HTMLInputElement>(null)
+  const frontInput = React.useRef<HTMLInputElement>(null);
+  const backInput = React.useRef<HTMLInputElement>(null);
+  const selfieInput = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
-    setSearch(window.location.search)
-  }, [])
+    setSearch(window.location.search);
+  }, []);
 
-  const currentLoa = me?.profile?.loa ?? 1
+  const currentLoa = me?.profile?.loa ?? 1;
   const flow = React.useMemo(
     () => (search === null ? null : parseKycFlow(search, currentLoa)),
     [currentLoa, search],
-  )
-  const returnTo = flow?.returnTo ?? null
-  const targetLoa = flow?.targetLoa ?? 2
+  );
+  const returnTo = flow?.returnTo ?? null;
+  const targetLoa = flow?.targetLoa ?? 2;
 
   // Si une demande active existe (en cours d'examen, complément demandé,
   // refusée), on redirige vers la page de détail dédiée pour éviter de
@@ -90,17 +94,17 @@ export default function KycPage() {
   // (`return_to`) : on ne hijacke pas vers /kyc/request, on renvoie l'utilisateur
   // à l'app tierce (cf. effet de retour ci-dessous + handleSubmit).
   React.useEffect(() => {
-    if (!flow) return
-    if (returnTo) return
+    if (!flow) return;
+    if (returnTo) return;
     if (
       latest &&
       ["submitted", "under_review", "complement_required", "rejected"].includes(
         latest.status,
       )
     ) {
-      router.replace("/kyc/request")
+      router.replace("/kyc/request");
     }
-  }, [flow, latest, router, returnTo])
+  }, [flow, latest, router, returnTo]);
 
   // Approuvée / expirée : on garde l'écran "status" en lecture seule.
   React.useEffect(() => {
@@ -111,9 +115,9 @@ export default function KycPage() {
       (latest.status === "expired" ||
         (latest.status === "approved" && currentLoa >= targetLoa))
     ) {
-      setStep("status")
+      setStep("status");
     }
-  }, [currentLoa, flow, latest, step, targetLoa])
+  }, [currentLoa, flow, latest, step, targetLoa]);
 
   // Flux délégué : on renvoie l'utilisateur vers l'app tierce dès que son
   // identité atteint le niveau demandé, à l'arrivée ou après approbation.
@@ -121,110 +125,115 @@ export default function KycPage() {
   // (retour immédiat avec loa=1 → l'app affiche « en cours » et poll).
   React.useEffect(() => {
     if (returnTo && me && currentLoa >= targetLoa) {
-      window.location.assign(returnTo)
+      window.location.assign(returnTo);
     }
-  }, [currentLoa, returnTo, me, targetLoa])
+  }, [currentLoa, returnTo, me, targetLoa]);
 
   if (me === undefined || latest === undefined || flow === null) {
     return (
       <section className="mx-auto w-full max-w-[640px] px-5 py-6 md:px-7 md:py-8">
         <div className="h-32 animate-pulse rounded-2xl bg-secondary" />
       </section>
-    )
+    );
   }
-  if (me === null) return null
+  if (me === null) return null;
 
   // Le Niveau 3 possède son propre parcours : entretien vidéo LiveKit puis
   // décision humaine d'un contrôleur. Il ne recycle jamais le workflow L2.
-  if (targetLoa === 3 && currentLoa === 2) {
-    return <LevelThreeFlow />
+  if (targetLoa === 3 && currentLoa >= 2) {
+    return <LevelThreeFlow currentLoa={currentLoa} />;
   }
 
   // ─────────────────────────────────────────────────────────────
   // Handlers
 
   const handleStart = async () => {
-    setSubmitting(true)
+    setSubmitting(true);
     try {
-      const { kycRequestId: id } = await initialize({ documentType: docType })
-      setKycRequestId(id)
-      setStep("document")
+      const { kycRequestId: id } = await initialize({ documentType: docType });
+      setKycRequestId(id);
+      setStep("document");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erreur")
+      toast.error(err instanceof Error ? err.message : "Erreur");
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   const handleFile = async (file: File, side: "front" | "back" | "selfie") => {
     if (!kycRequestId) {
-      toast.error("Erreur : pas de demande active.")
-      return
+      toast.error("Erreur : pas de demande active.");
+      return;
     }
     if (!ALLOWED_TYPES.includes(file.type)) {
-      toast.error("Format non supporté (JPEG, PNG, WebP).")
-      return
+      toast.error("Format non supporté (JPEG, PNG, WebP).");
+      return;
     }
     if (file.size > MAX_SIZE) {
-      toast.error("Image trop volumineuse (max 8 Mo).")
-      return
+      toast.error("Image trop volumineuse (max 8 Mo).");
+      return;
     }
     try {
-      const uploadUrl = await generateUploadUrl()
-      const storageId = await uploadImage(uploadUrl, file)
+      const uploadUrl = await generateUploadUrl();
+      const storageId = await uploadImage(uploadUrl, file);
       if (side === "selfie") {
-        await setSelfie({ kycRequestId: kycRequestId as never, storageRef: storageId as never })
-        setSelfieUrl(URL.createObjectURL(file))
+        await setSelfie({
+          kycRequestId: kycRequestId as never,
+          storageRef: storageId as never,
+        });
+        setSelfieUrl(URL.createObjectURL(file));
       } else {
         await setDocumentImage({
           kycRequestId: kycRequestId as never,
           side,
           storageRef: storageId as never,
-        })
-        if (side === "front") setFrontUrl(URL.createObjectURL(file))
-        else setBackUrl(URL.createObjectURL(file))
+        });
+        if (side === "front") setFrontUrl(URL.createObjectURL(file));
+        else setBackUrl(URL.createObjectURL(file));
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : kyc.document.uploadError)
+      toast.error(
+        err instanceof Error ? err.message : kyc.document.uploadError,
+      );
     }
-  }
+  };
 
   const handleSubmit = async () => {
-    if (!kycRequestId) return
+    if (!kycRequestId) return;
     if (!frontUrl) {
-      toast.error(kyc.document.requiredFront)
-      return
+      toast.error(kyc.document.requiredFront);
+      return;
     }
     if (!selfieUrl) {
-      toast.error("Selfie requis.")
-      return
+      toast.error("Selfie requis.");
+      return;
     }
-    setSubmitting(true)
+    setSubmitting(true);
     try {
-      await submit({ kycRequestId: kycRequestId as never })
-      toast.success("Demande envoyée.")
+      await submit({ kycRequestId: kycRequestId as never });
+      toast.success("Demande envoyée.");
       // Flux délégué : on renvoie l'utilisateur à l'app tierce dès la soumission,
       // sans attendre la décision. L'app le récupère sur son redirect_uri (loa=1
       // si revue manuelle) et suit l'avancement via /oauth2/verification.
       if (returnTo) {
-        window.location.assign(returnTo)
-        return
+        window.location.assign(returnTo);
+        return;
       }
-      setStep("status")
+      setStep("status");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : kyc.selfie.submitError)
+      toast.error(err instanceof Error ? err.message : kyc.selfie.submitError);
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   const handleRestart = () => {
-    setStep("intro")
-    setKycRequestId(null)
-    setFrontUrl(null)
-    setBackUrl(null)
-    setSelfieUrl(null)
-  }
+    setStep("intro");
+    setKycRequestId(null);
+    setFrontUrl(null);
+    setBackUrl(null);
+    setSelfieUrl(null);
+  };
 
   // ─────────────────────────────────────────────────────────────
   // Renderers
@@ -234,7 +243,7 @@ export default function KycPage() {
       doc: FileTextIcon,
       camera: CameraIcon,
       check: CheckIcon,
-    }
+    };
     return (
       <>
         <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
@@ -249,7 +258,7 @@ export default function KycPage() {
 
         <div className="mt-7 grid grid-cols-1 gap-[18px] sm:grid-cols-3">
           {kyc.intro.steps.map((s) => {
-            const Icon = stepIcons[s.icon]
+            const Icon = stepIcons[s.icon];
             return (
               <div
                 key={s.number}
@@ -274,7 +283,7 @@ export default function KycPage() {
                   {kyc.intro.statusTodo.toLowerCase()}
                 </p>
               </div>
-            )
+            );
           })}
         </div>
 
@@ -300,7 +309,10 @@ export default function KycPage() {
 
         <div className="mt-5 hidden">
           {/* Sélecteur de doc déplacé à l'étape suivante (cf. maquette) */}
-          <Select value={docType} onValueChange={(v) => setDocType(v as DocType)}>
+          <Select
+            value={docType}
+            onValueChange={(v) => setDocType(v as DocType)}
+          >
             <SelectTrigger className="!h-12 w-full !text-base">
               <SelectValue />
             </SelectTrigger>
@@ -325,8 +337,8 @@ export default function KycPage() {
           {submitting ? "…" : kyc.intro.cta}
         </Button>
       </>
-    )
-  }
+    );
+  };
 
   const renderDocument = () => (
     <>
@@ -354,7 +366,13 @@ export default function KycPage() {
       </div>
 
       <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <Button type="button" variant="outline" size="lg" className="h-12" onClick={handleRestart}>
+        <Button
+          type="button"
+          variant="outline"
+          size="lg"
+          className="h-12"
+          onClick={handleRestart}
+        >
           Recommencer
         </Button>
         <Button
@@ -368,7 +386,7 @@ export default function KycPage() {
         </Button>
       </div>
     </>
-  )
+  );
 
   const renderSelfie = () => (
     <>
@@ -399,9 +417,9 @@ export default function KycPage() {
           accept={ALLOWED_TYPES.join(",")}
           capture="user"
           onChange={(e) => {
-            const f = e.target.files?.[0]
-            if (f) void handleFile(f, "selfie")
-            e.target.value = ""
+            const f = e.target.files?.[0];
+            if (f) void handleFile(f, "selfie");
+            e.target.value = "";
           }}
           className="sr-only"
         />
@@ -419,7 +437,13 @@ export default function KycPage() {
       </div>
 
       <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <Button type="button" variant="outline" size="lg" className="h-12" onClick={() => setStep("document")}>
+        <Button
+          type="button"
+          variant="outline"
+          size="lg"
+          className="h-12"
+          onClick={() => setStep("document")}
+        >
           <ChevronLeftIcon aria-hidden="true" />
           Retour
         </Button>
@@ -434,23 +458,34 @@ export default function KycPage() {
         </Button>
       </div>
     </>
-  )
+  );
 
   const renderStatus = () => {
-    const statusKey = (latest?.status ?? "pending") as keyof typeof kyc.status
-    const statusCopy = kyc.status[statusKey] as { title: string; sub: string } | undefined
-    const isApproved = latest?.status === "approved"
-    const isRejected = latest?.status === "rejected"
-    const Icon = isApproved ? CheckIcon : isRejected ? XCircleIcon : ShieldCheckIcon
+    const statusKey = (latest?.status ?? "pending") as keyof typeof kyc.status;
+    const statusCopy = kyc.status[statusKey] as
+      | { title: string; sub: string }
+      | undefined;
+    const isApproved = latest?.status === "approved";
+    const isRejected = latest?.status === "rejected";
+    const Icon = isApproved
+      ? CheckIcon
+      : isRejected
+        ? XCircleIcon
+        : ShieldCheckIcon;
     const colorClass = isApproved
       ? "bg-idn-green text-white"
       : isRejected
         ? "bg-destructive text-white"
-        : "bg-idn-yellow text-[#5a4a0a]"
+        : "bg-idn-yellow text-[#5a4a0a]";
 
     return (
       <div className="text-center">
-        <div className={cn("mx-auto flex size-20 items-center justify-center rounded-full", colorClass)}>
+        <div
+          className={cn(
+            "mx-auto flex size-20 items-center justify-center rounded-full",
+            colorClass,
+          )}
+        >
           <Icon className="size-10" aria-hidden="true" />
         </div>
         <h1 className="mt-5 text-[22px] font-semibold leading-tight tracking-[-0.01em] text-foreground">
@@ -469,14 +504,19 @@ export default function KycPage() {
             <Link href="/profile">{kyc.status.backToProfile}</Link>
           </Button>
           {(isRejected || latest?.status === "expired") && (
-            <Button type="button" size="lg" className="h-12" onClick={handleRestart}>
+            <Button
+              type="button"
+              size="lg"
+              className="h-12"
+              onClick={handleRestart}
+            >
               {kyc.status.restart}
             </Button>
           )}
         </div>
       </div>
-    )
-  }
+    );
+  };
 
   return (
     <section className="mx-auto flex w-full max-w-[1080px] flex-1 flex-col px-5 py-6 md:px-7 md:py-8">
@@ -497,19 +537,26 @@ export default function KycPage() {
       {step === "selfie" && renderSelfie()}
       {step === "status" && renderStatus()}
     </section>
-  )
+  );
 }
 
 type DocSlotProps = {
-  label: string
-  url: string | null
-  inputRef: React.RefObject<HTMLInputElement | null>
-  onPick: () => void
-  onChange: (file: File) => void
-  required?: boolean
-}
+  label: string;
+  url: string | null;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  onPick: () => void;
+  onChange: (file: File) => void;
+  required?: boolean;
+};
 
-function DocSlot({ label, url, inputRef, onPick, onChange, required }: DocSlotProps) {
+function DocSlot({
+  label,
+  url,
+  inputRef,
+  onPick,
+  onChange,
+  required,
+}: DocSlotProps) {
   return (
     <div>
       <label className="text-sm font-medium text-foreground">
@@ -542,12 +589,12 @@ function DocSlot({ label, url, inputRef, onPick, onChange, required }: DocSlotPr
         accept={ALLOWED_TYPES.join(",")}
         capture="environment"
         onChange={(e) => {
-          const f = e.target.files?.[0]
-          if (f) onChange(f)
-          e.target.value = ""
+          const f = e.target.files?.[0];
+          if (f) onChange(f);
+          e.target.value = "";
         }}
         className="sr-only"
       />
     </div>
-  )
+  );
 }

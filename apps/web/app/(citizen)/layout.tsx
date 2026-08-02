@@ -1,28 +1,29 @@
-"use client"
+"use client";
 
-import { useRouter } from "next/navigation"
-import { useConvexAuth } from "convex/react"
-import { useEffect } from "react"
+import { useRouter } from "next/navigation";
+import { useConvexAuth } from "convex/react";
+import { useEffect } from "react";
 
-import { CitizenHeader } from "./_components/citizen-header"
-import { CitizenMobileHeader } from "./_components/citizen-mobile-header"
+import { CitizenHeader } from "./_components/citizen-header";
+import { CitizenMobileHeader } from "./_components/citizen-mobile-header";
+import { PwaBootstrap } from "../_components/pwa-bootstrap";
 
 export default function CitizenLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
-  const { isAuthenticated, isLoading } = useConvexAuth()
-  const router = useRouter()
+  const { isAuthenticated, isLoading } = useConvexAuth();
+  const router = useRouter();
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.replace("/sign-in?redirect_to=/dashboard")
+      router.replace("/sign-in?redirect_to=/dashboard");
     }
-  }, [isLoading, isAuthenticated, router])
+  }, [isLoading, isAuthenticated, router]);
 
   if (isLoading || !isAuthenticated) {
-    return <div className="min-h-svh bg-background" />
+    return <div className="min-h-svh bg-background" />;
   }
 
   return (
@@ -38,6 +39,7 @@ export default function CitizenLayout({
       <main id="main" className="flex flex-1 flex-col">
         {children}
       </main>
+      <PwaBootstrap />
     </div>
-  )
+  );
 }

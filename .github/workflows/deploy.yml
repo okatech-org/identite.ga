@@ -109,6 +109,17 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Tests backend
         run: bun run --filter=@repo/backend test:once
+      - name: Sync Web Push configuration
+        working-directory: packages/backend
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+        run: |
+          test -n "$VAPID_PUBLIC_KEY"
+          test -n "$VAPID_PRIVATE_KEY"
+          bunx convex env set VAPID_PUBLIC_KEY "$VAPID_PUBLIC_KEY"
+          bunx convex env set VAPID_PRIVATE_KEY "$VAPID_PRIVATE_KEY"
       - name: Deploy Convex
         working-directory: packages/backend
         env:

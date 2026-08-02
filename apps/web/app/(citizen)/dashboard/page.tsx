@@ -10,6 +10,7 @@ import { type LoALevel } from "@repo/ui/components/loa-badge";
 import { dashboard, modules, quickActions } from "../_content/fr";
 import { KycActiveCard } from "../_components/kyc-active-card";
 import { KycPromoCard } from "../_components/kyc-promo-card";
+import { LevelThreeAppointmentCard } from "../_components/level-three-appointment-card";
 import { ModuleCard } from "../_components/module-card";
 import { ProfileCard } from "../_components/profile-card";
 import { QuickAction } from "../_components/quick-action";
@@ -27,6 +28,7 @@ const ACTIVE_STATUSES = new Set([
 export default function DashboardPage() {
   const me = useQuery(api.profile.getCurrentUser);
   const activeKyc = useQuery(api.kyc.getActiveRequest, {});
+  const level3 = useQuery(api.level3.getMine, {});
 
   if (me === undefined) {
     return (
@@ -54,6 +56,11 @@ export default function DashboardPage() {
   const hasActiveKyc = Boolean(
     activeKyc && ACTIVE_STATUSES.has(activeKyc.status),
   );
+  const hasActiveLevel3 = Boolean(
+    loa === 2 &&
+    level3 &&
+    ["waiting_controller", "claimed", "in_interview"].includes(level3.status),
+  );
 
   return (
     <>
@@ -69,7 +76,14 @@ export default function DashboardPage() {
             photoUrl={photoUrl}
             variant="desktop"
           />
-          {hasActiveKyc && activeKyc ? (
+          {hasActiveLevel3 && level3 ? (
+            <LevelThreeAppointmentCard
+              status={level3.status}
+              scheduledAt={level3.scheduledAt}
+              controllerName={level3.controllerName}
+              variant="desktop"
+            />
+          ) : hasActiveKyc && activeKyc ? (
             <KycActiveCard status={activeKyc.status} variant="desktop" />
           ) : loa < 3 ? (
             <KycPromoCard currentLoa={loa as 1 | 2} variant="desktop" />
@@ -134,7 +148,14 @@ export default function DashboardPage() {
           href="/profile"
         />
 
-        {hasActiveKyc && activeKyc ? (
+        {hasActiveLevel3 && level3 ? (
+          <LevelThreeAppointmentCard
+            status={level3.status}
+            scheduledAt={level3.scheduledAt}
+            controllerName={level3.controllerName}
+            variant="mobile"
+          />
+        ) : hasActiveKyc && activeKyc ? (
           <KycActiveCard status={activeKyc.status} variant="mobile" />
         ) : loa < 2 ? (
           <KycPromoCard currentLoa={loa as 1} variant="mobile" />

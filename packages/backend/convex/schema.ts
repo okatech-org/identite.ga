@@ -1,5 +1,5 @@
-import { defineSchema, defineTable } from "convex/server"
-import { v } from "convex/values"
+import { defineSchema, defineTable } from "convex/server";
+import { v } from "convex/values";
 
 /**
  * Schéma applicatif IDN (Identité Numérique du Gabon).
@@ -21,7 +21,7 @@ export const PROFILE_TYPES = [
   "resident",
   "visitor",
   "developer",
-] as const
+] as const;
 
 export const KYC_DOCUMENT_TYPES = [
   "cni_gabon",
@@ -29,7 +29,7 @@ export const KYC_DOCUMENT_TYPES = [
   "residence_card",
   "passport",
   "visa",
-] as const
+] as const;
 
 export const KYC_STATUSES = [
   "pending",
@@ -43,7 +43,7 @@ export const KYC_STATUSES = [
   "approved",
   "rejected",
   "expired",
-] as const
+] as const;
 
 /** États du parcours Niveau 3 : entretien vidéo + décision humaine. */
 export const LEVEL3_VERIFICATION_STATUSES = [
@@ -53,7 +53,7 @@ export const LEVEL3_VERIFICATION_STATUSES = [
   "approved",
   "rejected",
   "cancelled",
-] as const
+] as const;
 
 export const USER_DOCUMENT_TYPES = [
   "profilePhoto",
@@ -61,9 +61,9 @@ export const USER_DOCUMENT_TYPES = [
   "kycDocBack",
   "selfie",
   "attestation",
-] as const
+] as const;
 
-export const NOTIFICATION_CHANNELS = ["email", "in_app"] as const
+export const NOTIFICATION_CHANNELS = ["email", "in_app"] as const;
 export const NOTIFICATION_CATEGORIES = [
   "security",
   "kyc",
@@ -73,7 +73,7 @@ export const NOTIFICATION_CATEGORIES = [
   "ai",
   "cv",
   "system",
-] as const
+] as const;
 
 // Catalogue des cartes du portefeuille citoyen (iCarte).
 export const WALLET_CARD_TYPES = [
@@ -87,14 +87,14 @@ export const WALLET_CARD_TYPES = [
   "voter",
   "loyalty",
   "custom",
-] as const
+] as const;
 
 // Comptes iBoîte (boîte aux lettres souveraine multi-comptes).
 export const IBOITE_ACCOUNT_TYPES = [
   "personal",
   "professional",
   "association",
-] as const
+] as const;
 
 // Dossiers iDocument (coffre-fort numérique chiffré E2E).
 export const VAULT_FOLDERS = [
@@ -106,7 +106,7 @@ export const VAULT_FOLDERS = [
   "health",
   "vehicle",
   "other",
-] as const
+] as const;
 
 export const AUDIT_ACTIONS = [
   // Auth
@@ -133,6 +133,9 @@ export const AUDIT_ACTIONS = [
   "kyc_rejected",
   "level3_requested",
   "level3_claimed",
+  "level3_availability_created",
+  "level3_scheduled",
+  "level3_rescheduled",
   "level3_interview_started",
   "level3_approved",
   "level3_rejected",
@@ -165,7 +168,7 @@ export const AUDIT_ACTIONS = [
   "delegated_claim_code_failed",
   "delegation_enabled",
   "delegation_disabled",
-] as const
+] as const;
 
 export const AUDIT_TARGET_TYPES = [
   "user",
@@ -176,22 +179,22 @@ export const AUDIT_TARGET_TYPES = [
   "consent",
   "document",
   "system",
-] as const
+] as const;
 
-export const ROLES = ["admin", "identity_controller", "developer"] as const
+export const ROLES = ["admin", "identity_controller", "developer"] as const;
 
 export const CONTACT_CATEGORIES = [
   "citoyen",
   "administration",
   "presse",
   "securite",
-] as const
+] as const;
 
-export const CONTACT_STATUSES = ["new", "read", "responded", "spam"] as const
+export const CONTACT_STATUSES = ["new", "read", "responded", "spam"] as const;
 
-export const LANGUAGES = ["fr", "en"] as const
-export const THEMES = ["light", "dark", "auto"] as const
-export const FONT_SIZES = ["sm", "md", "lg", "xl"] as const
+export const LANGUAGES = ["fr", "en"] as const;
+export const THEMES = ["light", "dark", "auto"] as const;
+export const FONT_SIZES = ["sm", "md", "lg", "xl"] as const;
 
 // iCV — 12 thèmes de présentation (cf. SPECS_FEATURE_ICV.md §9).
 export const CV_THEMES = [
@@ -207,15 +210,15 @@ export const CV_THEMES = [
   "executive",
   "elegant",
   "compact",
-] as const
+] as const;
 
 // iCV — origine d'un CV (utile pour distinguer les variants dans l'UI).
 export const CV_SOURCES = [
-  "onboarding",   // seed initial à la sélection de profil
-  "manual",       // créé / dupliqué à la main par le citoyen
-  "ai_optimize",  // dérivé via cv.ai.optimizeForJob
-  "import",       // créé via cv.import.parseAndApply
-] as const
+  "onboarding", // seed initial à la sélection de profil
+  "manual", // créé / dupliqué à la main par le citoyen
+  "ai_optimize", // dérivé via cv.ai.optimizeForJob
+  "import", // créé via cv.import.parseAndApply
+] as const;
 
 // iCV — features IA disponibles (cf. PLAN_BACKEND_ICV.md §8).
 export const CV_AI_FEATURES = [
@@ -224,7 +227,7 @@ export const CV_AI_FEATURES = [
   "optimize_job",
   "generate_letter",
   "ats_check",
-] as const
+] as const;
 
 // iCV — cycle de vie d'un job IA.
 export const CV_AI_STATUSES = [
@@ -232,7 +235,7 @@ export const CV_AI_STATUSES = [
   "running",
   "completed",
   "failed",
-] as const
+] as const;
 
 export default defineSchema({
   /**
@@ -392,6 +395,10 @@ export default defineSchema({
     ),
     roomName: v.string(),
     controllerId: v.optional(v.string()),
+    appointmentSlotId: v.optional(v.id("level3AppointmentSlot")),
+    scheduledAt: v.optional(v.number()),
+    scheduledEndAt: v.optional(v.number()),
+    reminderSentAt: v.optional(v.number()),
     requestedAt: v.number(),
     claimedAt: v.optional(v.number()),
     interviewStartedAt: v.optional(v.number()),
@@ -402,7 +409,30 @@ export default defineSchema({
     .index("by_userId", ["userId"])
     .index("by_status", ["status"])
     .index("by_controllerId", ["controllerId"])
+    .index("by_status_and_scheduledAt", ["status", "scheduledAt"])
     .index("by_userId_and_status", ["userId", "status"]),
+
+  /**
+   * Créneaux concrets publiés par les contrôleurs pour les entretiens L3.
+   * Une plage de disponibilité est découpée en créneaux de 30, 45 ou 60 min.
+   */
+  level3AppointmentSlot: defineTable({
+    controllerId: v.string(),
+    startsAt: v.number(),
+    endsAt: v.number(),
+    status: v.union(
+      v.literal("available"),
+      v.literal("booked"),
+      v.literal("cancelled"),
+    ),
+    verificationId: v.optional(v.id("level3Verification")),
+    bookedUserId: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_status_and_startsAt", ["status", "startsAt"])
+    .index("by_controllerId_and_startsAt", ["controllerId", "startsAt"])
+    .index("by_verificationId", ["verificationId"]),
 
   /** Décision Niveau 3 append-only du contrôleur. */
   level3Review: defineTable({
@@ -491,6 +521,19 @@ export default defineSchema({
     }),
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
+
+  /** Abonnements Web Push associés aux navigateurs/appareils du citoyen. */
+  pushSubscription: defineTable({
+    userId: v.string(),
+    endpoint: v.string(),
+    p256dh: v.string(),
+    auth: v.string(),
+    userAgent: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_endpoint", ["endpoint"]),
 
   /**
    * Préférences UI : langue, thème, accessibilité.
@@ -734,11 +777,7 @@ export default defineSchema({
     subject: v.string(),
     preview: v.string(),
     body: v.string(),
-    folder: v.union(
-      v.literal("inbox"),
-      v.literal("sent"),
-      v.literal("trash"),
-    ),
+    folder: v.union(v.literal("inbox"), v.literal("sent"), v.literal("trash")),
     isRead: v.boolean(),
     isStarred: v.boolean(),
     hasAttachment: v.boolean(),
@@ -793,11 +832,7 @@ export default defineSchema({
     iv: v.string(), // base64 — IV utilisé pour le blob
     metaIv: v.string(), // base64 — IV utilisé pour encryptedMetadata
     // Cleartext utile pour filtres / notifs d'expiration
-    fileType: v.union(
-      v.literal("pdf"),
-      v.literal("image"),
-      v.literal("other"),
-    ),
+    fileType: v.union(v.literal("pdf"), v.literal("image"), v.literal("other")),
     fileSize: v.number(),
     status: v.union(
       v.literal("pending"),
@@ -839,11 +874,7 @@ export default defineSchema({
     name: v.string(),
     originalName: v.optional(v.string()),
     mimeType: v.string(),
-    fileType: v.union(
-      v.literal("pdf"),
-      v.literal("image"),
-      v.literal("other"),
-    ),
+    fileType: v.union(v.literal("pdf"), v.literal("image"), v.literal("other")),
     fileSize: v.number(),
     status: v.union(
       v.literal("pending"),
@@ -951,8 +982,8 @@ export default defineSchema({
   // ─────────────────────────────────────────────────────────────────────
   citizenCv: defineTable({
     userId: v.string(),
-    name: v.string(),            // ex « CV principal », « CV - Chef de projet »
-    isDefault: v.boolean(),      // un seul `true` par user — appliqué en mutation
+    name: v.string(), // ex « CV principal », « CV - Chef de projet »
+    isDefault: v.boolean(), // un seul `true` par user — appliqué en mutation
     source: v.union(...CV_SOURCES.map((s) => v.literal(s))),
     derivedFromCvId: v.optional(v.id("citizenCv")),
 
@@ -974,7 +1005,7 @@ export default defineSchema({
         position: v.number(), // multiples de 1000
         title: v.string(),
         company: v.string(),
-        startDate: v.string(),         // ISO YYYY-MM ou YYYY-MM-DD
+        startDate: v.string(), // ISO YYYY-MM ou YYYY-MM-DD
         endDate: v.optional(v.string()),
         current: v.boolean(),
         description: v.string(),
@@ -1064,7 +1095,7 @@ export default defineSchema({
 
     // Provider effectivement utilisé (audit + observabilité multi-provider)
     provider: v.optional(v.string()), // "gemini" | "anthropic" | "openai" | "ollama" | "mock"
-    model: v.optional(v.string()),    // ex "gemini-2.5-flash"
+    model: v.optional(v.string()), // ex "gemini-2.5-flash"
 
     // Entrée libre (paramètres feature-specific)
     input: v.optional(v.record(v.string(), v.any())),
@@ -1148,4 +1179,4 @@ export default defineSchema({
     .index("by_status", ["status", "createdAt"])
     .index("by_email", ["email"])
     .index("by_createdAt", ["createdAt"]),
-})
+});
