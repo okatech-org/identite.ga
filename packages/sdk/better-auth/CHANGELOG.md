@@ -1,5 +1,14 @@
 # @idn-ga/better-auth
 
+## 0.2.1
+
+### Patch Changes
+
+- [`f71ca26`](https://github.com/okatech-org/identite.ga/commit/f71ca2696e266b2856fb8251163a4f788d45098a) Thanks [@okafrancois](https://github.com/okafrancois)! - Force le helper Better Auth à charger le profil depuis `/userinfo` afin de
+  recevoir les claims civils IDN étendus, même lorsqu'un ID token est présent.
+  Le profil typé inclut désormais aussi le NIP, le sexe, le lieu de naissance et
+  l'environnement de l'application OIDC.
+
 ## 0.2.0
 
 ### Minor Changes
