@@ -43,6 +43,8 @@ const IDN_EXTENDED_CLAIMS = [
   "given_name",
   "family_name",
   "birthdate",
+  "birth_place",
+  "gender",
   "nationality",
   "profile_type",
   "acr",
@@ -235,9 +237,12 @@ const userinfoHandler = httpAction(async (ctx, request) => {
     acr: loaToAcr(profile.loa),
     ...(pivot
       ? {
+          name: [pivot.firstName, pivot.lastName].filter(Boolean).join(" "),
           given_name: pivot.firstName,
           family_name: pivot.lastName,
           birthdate: pivot.dateOfBirth,
+          birth_place: pivot.birthPlace,
+          gender: pivot.gender,
           nationality: pivot.nationality,
           ...(pivot.nip ? { nip: pivot.nip } : {}),
         }

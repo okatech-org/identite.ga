@@ -41,11 +41,25 @@ export interface IDNProfile {
   family_name?: string
   picture?: string
   birthdate?: string
+  birth_place?: string
+  gender?: "M" | "F" | "O" | "N"
   nationality?: string
   profile_type?: "citizen" | "resident" | "visitor" | "developer"
   acr?: "eidas1" | "eidas2" | "eidas3"
   loa?: 1 | 2 | 3
+  nip?: string
+  env?: "sandbox" | "production"
   [claim: string]: unknown
+}
+
+interface BetterAuthOAuthTokens {
+  accessToken?: string
+}
+
+type IDNGenericOAuthProfile = IDNProfile & {
+  id: string
+  emailVerified: boolean
+  image?: string
 }
 
 export interface IDNHelperOptions {
@@ -84,7 +98,80 @@ const defaultMapProfileToUser = (profile: IDNProfile): Record<string, unknown> =
   idnAcr: profile.acr,
   idnProfileType: profile.profile_type,
   idnNationality: profile.nationality,
+  idnBirthdate: profile.birthdate,
+  idnNip: profile.nip,
+  idnEnvironment: profile.env,
 })
+
+/**
+ * Charge toujours le profil depuis l'endpoint `/userinfo` annoncé par le
+ * discovery OIDC.
+ *
+ * Better Auth `genericOAuth` préfère sinon décoder l'ID token lorsqu'il
+ * contient déjà `sub` et `email`, et n'appelle jamais `/userinfo`. Or le
+ * contrat IDN expose volontairement les claims civils étendus dans
+ * `/userinfo` plutôt que dans l'ID token.
+ */
+const createUserInfoFetcher = (discoveryUrl: string) => {
+  let resolvedUserInfoUrl: string | undefined
+
+  return async (
+    tokens: BetterAuthOAuthTokens,
+  ): Promise<IDNGenericOAuthProfile> => {
+    if (!tokens.accessToken) {
+      throw new Error("[@idn-ga/better-auth] access token userinfo manquant")
+    }
+
+    if (!resolvedUserInfoUrl) {
+      const discoveryResponse = await fetch(discoveryUrl, {
+        headers: { Accept: "application/json" },
+      })
+      if (!discoveryResponse.ok) {
+        throw new Error(
+          `[@idn-ga/better-auth] discovery ${discoveryResponse.status}`,
+        )
+      }
+      const discovery = (await discoveryResponse.json()) as {
+        userinfo_endpoint?: unknown
+      }
+      if (
+        typeof discovery.userinfo_endpoint !== "string" ||
+        !discovery.userinfo_endpoint
+      ) {
+        throw new Error(
+          "[@idn-ga/better-auth] userinfo_endpoint absent du discovery",
+        )
+      }
+      resolvedUserInfoUrl = discovery.userinfo_endpoint
+    }
+
+    const userInfoResponse = await fetch(resolvedUserInfoUrl, {
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${tokens.accessToken}`,
+      },
+    })
+    if (!userInfoResponse.ok) {
+      throw new Error(
+        `[@idn-ga/better-auth] userinfo ${userInfoResponse.status}`,
+      )
+    }
+
+    const profile = (await userInfoResponse.json()) as IDNProfile
+    if (!profile.sub || !profile.email) {
+      throw new Error(
+        "[@idn-ga/better-auth] profil userinfo incomplet (sub/email requis)",
+      )
+    }
+
+    return {
+      ...profile,
+      id: profile.sub,
+      emailVerified: profile.email_verified,
+      ...(profile.picture ? { image: profile.picture } : {}),
+    }
+  }
+}
 
 /**
  * Construit une entrée de configuration `genericOAuth` pré-remplie pour
@@ -115,6 +202,9 @@ export const idn = (options: IDNHelperOptions): Record<string, unknown> => {
     discoveryUrl,
     pkce: true,
     scopes,
+    // Force l'appel documenté à `/userinfo`, même si Better Auth peut déjà
+    // décoder un ID token contenant `sub` et `email`.
+    getUserInfo: createUserInfoFetcher(discoveryUrl),
     mapProfileToUser: (profile: unknown) =>
       mapProfileToUser(profile as IDNProfile),
   }

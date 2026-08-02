@@ -35,7 +35,8 @@ Le niveau est exposé sous le scope **`profile`**, dans la réponse de
   "email": "user@example.com",
   "loa": 2,
   "acr": "eidas2",
-  "given_name": "…", "family_name": "…", "birthdate": "…", "nationality": "GA"
+  "given_name": "…", "family_name": "…", "birthdate": "…",
+  "birth_place": "Libreville", "gender": "M", "nationality": "GA"
 }
 ```
 

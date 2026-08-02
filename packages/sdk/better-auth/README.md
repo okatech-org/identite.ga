@@ -36,6 +36,8 @@ Le helper retourne une configuration `genericOAuth` pré-remplie avec :
 
 - Discovery automatique (`.well-known/openid-configuration`)
 - PKCE S256
+- Appel systématique de `/userinfo` avec l'access token (les claims civils
+  étendus ne sont volontairement pas lus depuis l'ID token)
 - Mapping `userinfo` → `User` Better Auth
 - `providerId: "idn"`
 
