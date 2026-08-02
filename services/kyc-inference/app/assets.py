@@ -31,7 +31,13 @@ def _check_host_allowed(url: str, settings: Settings) -> None:
     if not settings.allowed_hosts_enabled:
         return
     host = (urlparse(url).hostname or "").lower()
-    if not any(host.endswith(suffix.lower()) for suffix in settings.allowed_asset_host_suffixes):
+    allowed = False
+    for suffix in settings.allowed_asset_host_suffixes:
+        domain = suffix.strip().lower().lstrip(".")
+        if domain and (host == domain or host.endswith(f".{domain}")):
+            allowed = True
+            break
+    if not allowed:
         raise AssetFetchError(
             f"Hôte non autorisé pour la récupération d'asset : {host!r}."
         )

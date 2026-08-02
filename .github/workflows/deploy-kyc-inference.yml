@@ -79,7 +79,7 @@ jobs:
           image: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.SERVICE }}:${{ github.sha }}
           env_vars: |
             KYC_TESSERACT_LANG=fra+eng
-            ALLOWED_ASSET_HOST_SUFFIXES=.convex.cloud\,.convex.site
+            ALLOWED_ASSET_HOST_SUFFIXES=.convex.cloud\,.convex.site\,api.identite.ga
           env_vars_update_strategy: overwrite
           secrets: |
             KYC_INFERENCE_SECRET=kyc-inference-secret:latest

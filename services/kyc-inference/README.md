@@ -305,7 +305,7 @@ gcloud run deploy kyc-inference \
   --min-instances 0 \
   --max-instances 5 \
   --port 8080 \
-  --set-env-vars KYC_TESSERACT_LANG=fra+eng,ALLOWED_ASSET_HOST_SUFFIXES=.convex.cloud\,.convex.site \
+  --set-env-vars KYC_TESSERACT_LANG=fra+eng,ALLOWED_ASSET_HOST_SUFFIXES=.convex.cloud\,.convex.site\,api.identite.ga \
   --set-secrets KYC_INFERENCE_SECRET=kyc-inference-secret:latest
 ```
 
@@ -355,9 +355,11 @@ régions ; hors périmètre de cette image CPU.
 - **Rétention nulle.** Images en mémoire uniquement ; les fichiers temporaires
   (vidéos liveness) sont supprimés immédiatement (`finally`), y compris en cas
   d'erreur. Vérifier que `KYC_TMP_DIR` est sur un volume non persistant.
-- **Garde SSRF.** Restreindre `ALLOWED_ASSET_HOST_SUFFIXES` aux domaines Convex
-  pour empêcher le service de récupérer des URLs arbitraires. Limite de taille de
-  téléchargement active (`KYC_MAX_DOWNLOAD_BYTES`).
+- **Garde SSRF.** Restreindre `ALLOWED_ASSET_HOST_SUFFIXES` aux domaines Convex,
+  y compris le domaine de stockage personnalisé `api.identite.ga`, pour empêcher
+  le service de récupérer des URLs arbitraires. La comparaison respecte les
+  frontières de labels DNS (`evilapi.identite.ga` n'est pas accepté). Limite de
+  taille de téléchargement active (`KYC_MAX_DOWNLOAD_BYTES`).
 - **Anti-rejeu.** Fenêtre de 5 min sur `X-Timestamp`. Synchroniser les horloges
   (NTP) entre backend et service.
 - **Isolation & non-root.** Le conteneur tourne en utilisateur non privilégié ;
