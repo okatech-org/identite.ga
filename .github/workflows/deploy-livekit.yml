@@ -1,0 +1,107 @@
+name: Deploy LiveKit
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "services/livekit/**"
+      - ".github/workflows/deploy-livekit.yml"
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-livekit-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  GCP_ZONE: europe-west1-b
+  INSTANCE: livekit-prod
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      LIVEKIT_IP: ${{ secrets.LIVEKIT_IP }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_LIVEKIT_SA_EMAIL }}
+
+      - uses: google-github-actions/setup-gcloud@v3
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Validate provisioned infrastructure
+        run: |
+          gcloud compute instances describe "${INSTANCE}" \
+            --project="${{ secrets.GCP_PROJECT_ID }}" \
+            --zone="${GCP_ZONE}" >/dev/null
+
+      - name: Deploy to the LiveKit VM
+        run: |
+          instance_address="$(gcloud compute instances describe "${INSTANCE}" \
+            --project="${{ secrets.GCP_PROJECT_ID }}" \
+            --zone="${GCP_ZONE}" \
+            --format='value(networkInterfaces[0].accessConfigs[0].natIP)')"
+          test "${instance_address}" = "${LIVEKIT_IP}"
+          gcloud compute instances add-metadata "${INSTANCE}" \
+            --project="${{ secrets.GCP_PROJECT_ID }}" \
+            --zone="${GCP_ZONE}" \
+            --metadata="livekit-deploy-revision=${GITHUB_SHA}" \
+            --metadata-from-file=startup-script=services/livekit/bootstrap.sh
+          gcloud compute instances reset "${INSTANCE}" \
+            --project="${{ secrets.GCP_PROJECT_ID }}" \
+            --zone="${GCP_ZONE}"
+
+      - name: Wait for bootstrap
+        run: |
+          for attempt in $(seq 1 60); do
+            serial="$(gcloud compute instances get-serial-port-output "${INSTANCE}" \
+              --project="${{ secrets.GCP_PROJECT_ID }}" \
+              --zone="${GCP_ZONE}" --port=1 2>/dev/null || true)"
+            if grep -q "LIVEKIT_BOOTSTRAP_COMPLETE version=v1.13.5 revision=${GITHUB_SHA}" <<<"${serial}"; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "LiveKit bootstrap did not complete in time" >&2
+          exit 1
+
+      - name: Synchronize Convex LiveKit configuration
+        working-directory: packages/backend
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+        run: |
+          printf '%s' 'wss://video.identite.ga' | \
+            bunx convex env set LIVEKIT_URL --prod
+          gcloud secrets versions access latest \
+            --secret=livekit-api-key \
+            --project="${{ secrets.GCP_PROJECT_ID }}" | \
+            bunx convex env set LIVEKIT_API_KEY --prod
+          gcloud secrets versions access latest \
+            --secret=livekit-api-secret \
+            --project="${{ secrets.GCP_PROJECT_ID }}" | \
+            bunx convex env set LIVEKIT_API_SECRET --prod
+
+      - name: Verify DNS and TLS when available
+        run: |
+          resolved="$(dig +short video.identite.ga A | tail -n1 || true)"
+          turn_resolved="$(dig +short turn.identite.ga A | tail -n1 || true)"
+          if [ "${resolved}" != "${LIVEKIT_IP}" ] || [ "${turn_resolved}" != "${LIVEKIT_IP}" ]; then
+            echo "DNS pending: point video.identite.ga and turn.identite.ga to ${LIVEKIT_IP}"
+            exit 0
+          fi
+          status="$(curl --silent --show-error --output /dev/null \
+            --write-out '%{http_code}' --max-time 30 \
+            https://video.identite.ga/)"
+          test "${status}" = "404" -o "${status}" = "200"

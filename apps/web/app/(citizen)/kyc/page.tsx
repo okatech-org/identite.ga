@@ -30,6 +30,7 @@ import { cn } from "@repo/ui/lib/utils"
 import { parseKycFlow } from "@/lib/kyc-flow"
 
 import { kyc } from "../_content/fr"
+import { LevelThreeFlow } from "./_components/level-three-flow"
 
 type DocType = "cni_gabon" | "passport" | "residence_card" | "birth_certificate"
 type LocalStep = "intro" | "document" | "selfie" | "review" | "status"
@@ -133,11 +134,10 @@ export default function KycPage() {
   }
   if (me === null) return null
 
-  // Le L3 nécessite le parcours vidéo + croisement état civil documenté pour
-  // une phase ultérieure. Ne jamais recycler le workflow L2 ni afficher
-  // « Niveau 2 accordé » comme si le démarrage L3 avait abouti.
+  // Le Niveau 3 possède son propre parcours : entretien vidéo LiveKit puis
+  // décision humaine d'un contrôleur. Il ne recycle jamais le workflow L2.
   if (targetLoa === 3 && currentLoa === 2) {
-    return <LevelThreeUnavailable />
+    return <LevelThreeFlow />
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -496,32 +496,6 @@ export default function KycPage() {
       {step === "document" && renderDocument()}
       {step === "selfie" && renderSelfie()}
       {step === "status" && renderStatus()}
-    </section>
-  )
-}
-
-function LevelThreeUnavailable() {
-  return (
-    <section className="mx-auto w-full max-w-[640px] px-5 py-6 md:px-7 md:py-8">
-      <div className="rounded-2xl border border-border bg-card p-7 text-center sm:p-10">
-        <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-idn-green-soft text-idn-green dark:text-idn-green-on-dark">
-          <ShieldCheckIcon className="size-7" aria-hidden="true" />
-        </div>
-        <p className="mt-5 font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-          Vérification d&apos;identité · Niveau 3
-        </p>
-        <h1 className="mt-2 text-[26px] font-semibold tracking-[-0.01em] text-foreground">
-          Le parcours Niveau 3 arrive prochainement
-        </h1>
-        <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-muted-foreground">
-          Votre Niveau 2 reste actif. Le Niveau 3 nécessitera un entretien vidéo
-          et un croisement avec l&apos;état civil ; ce parcours n&apos;est pas
-          encore ouvert en production.
-        </p>
-        <Button asChild variant="outline" className="mt-7">
-          <Link href="/profile">Retour au profil</Link>
-        </Button>
-      </div>
     </section>
   )
 }

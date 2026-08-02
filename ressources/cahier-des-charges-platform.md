@@ -164,8 +164,9 @@ Sous-section du portail citoyen, accessible via une barre latérale dédiée. Ro
 
 ### 3.6 KYC Niveau 3 _(Phase ultérieure)_
 
-- KYC vidéo (entretien à distance) ou rendez-vous présentiel
-- Croisement avec le registre national d'état civil
+- KYC vidéo (entretien à distance LiveKit) avec un Contrôleur d'Identité
+- Décision finale manuelle et auditée du contrôleur
+- Croisement avec le registre national d'état civil reporté à une phase ultérieure
 - Authentification renforcée obligatoire (passkey ou MFA)
 
 ### 3.7 Serveur OIDC

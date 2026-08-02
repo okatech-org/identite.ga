@@ -546,8 +546,10 @@ Le pipeline interne est encapsulé dans un **service KYC dédié** (Hono ou Fast
 
 ### 7.3 Niveau 3 — Élevé (Phase 5)
 
-- KYC vidéo (entretien à distance via WebRTC)
-- Croisement avec le **registre national d'état civil** (intégration backend gouvernement, à spécifier)
+- KYC vidéo (entretien à distance via LiveKit / WebRTC)
+- Revue et décision manuelles par un **Contrôleur d'Identité** habilité
+- Croisement avec le **registre national d'état civil** reporté à une phase
+  ultérieure (l'intégration gouvernementale reste à spécifier)
 - Authentification renforcée obligatoire (passkey ou TOTP)
 
 ### 7.4 Recommandation MVP

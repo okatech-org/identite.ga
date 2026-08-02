@@ -180,7 +180,7 @@ export const help = {
   faqs: [
     {
       q: "Qu'est-ce qu'un niveau de garantie (LoA) ?",
-      a: "Le niveau de garantie indique le degré de certitude avec lequel IDN connaît votre identité. Niveau 1 (faible) = email vérifié. Niveau 2 (substantiel) = pièce d'identité + selfie liveness. Niveau 3 (élevé) = vérification vidéo + état civil croisé.",
+      a: "Le niveau de garantie indique le degré de certitude avec lequel IDN connaît votre identité. Niveau 1 (faible) = email vérifié. Niveau 2 (substantiel) = pièce d'identité + selfie liveness. Niveau 3 (élevé) = entretien vidéo et validation manuelle par un contrôleur habilité.",
     },
     {
       q: "Comment passer du Niveau 1 au Niveau 2 ?",

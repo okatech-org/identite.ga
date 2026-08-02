@@ -56,7 +56,7 @@ export default function LoA() {
             acr_values = &quot;eidas3&quot;
           </div>
           <div className="mt-2">
-            KYC vidéo + état civil. Services régaliens.
+            Entretien vidéo + validation manuelle par un contrôleur habilité.
           </div>
           <div className="mt-1 text-[12px] text-idn-muted">
             Ex. : impôts, santé, signature qualifiée

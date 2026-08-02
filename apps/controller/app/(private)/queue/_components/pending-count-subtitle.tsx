@@ -10,7 +10,10 @@ import { api } from "@repo/backend/convex/_generated/api"
  * la query n'a pas encore résolu.
  */
 export function PendingCountSubtitle({ fallback }: { fallback: string }) {
-  const count = useQuery(api.controller.queue.pendingCount, {})
-  if (count === undefined) return <>{fallback}</>
-  return <>{`REVUE MANUELLE · ${count} EN ATTENTE`}</>
+  const level2Count = useQuery(api.controller.queue.pendingCount, {})
+  const level3Count = useQuery(api.level3.waitingCount, {})
+  if (level2Count === undefined || level3Count === undefined) {
+    return <>{fallback}</>
+  }
+  return <>{`REVUE MANUELLE · ${level2Count + level3Count} EN ATTENTE`}</>
 }

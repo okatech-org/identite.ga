@@ -45,6 +45,16 @@ export const KYC_STATUSES = [
   "expired",
 ] as const
 
+/** États du parcours Niveau 3 : entretien vidéo + décision humaine. */
+export const LEVEL3_VERIFICATION_STATUSES = [
+  "waiting_controller",
+  "claimed",
+  "in_interview",
+  "approved",
+  "rejected",
+  "cancelled",
+] as const
+
 export const USER_DOCUMENT_TYPES = [
   "profilePhoto",
   "kycDocFront",
@@ -121,6 +131,12 @@ export const AUDIT_ACTIONS = [
   "kyc_complement_provided",
   "kyc_approved",
   "kyc_rejected",
+  "level3_requested",
+  "level3_claimed",
+  "level3_interview_started",
+  "level3_approved",
+  "level3_rejected",
+  "level3_cancelled",
   // OAuth / consentement
   "consent_granted",
   "consent_revoked",
@@ -360,6 +376,44 @@ export default defineSchema({
   })
     .index("by_kycRequest", ["kycRequestId"])
     .index("by_reviewer", ["reviewerId"]),
+
+  /**
+   * Vérification Niveau 3 MVP.
+   *
+   * Le niveau 2 est un prérequis. Un contrôleur habilité prend la demande,
+   * réalise un entretien vidéo LiveKit avec le citoyen, puis prend lui-même
+   * la décision. Aucun croisement automatique avec l'état civil n'est requis
+   * dans cette première version.
+   */
+  level3Verification: defineTable({
+    userId: v.string(),
+    status: v.union(
+      ...LEVEL3_VERIFICATION_STATUSES.map((status) => v.literal(status)),
+    ),
+    roomName: v.string(),
+    controllerId: v.optional(v.string()),
+    requestedAt: v.number(),
+    claimedAt: v.optional(v.number()),
+    interviewStartedAt: v.optional(v.number()),
+    decidedAt: v.optional(v.number()),
+    rejectionReason: v.optional(v.string()),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_status", ["status"])
+    .index("by_controllerId", ["controllerId"])
+    .index("by_userId_and_status", ["userId", "status"]),
+
+  /** Décision Niveau 3 append-only du contrôleur. */
+  level3Review: defineTable({
+    verificationId: v.id("level3Verification"),
+    reviewerId: v.string(),
+    decision: v.union(v.literal("approved"), v.literal("rejected")),
+    notes: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_verificationId", ["verificationId"])
+    .index("by_reviewerId", ["reviewerId"]),
 
   /**
    * Journal d'audit — append-only (jamais patch, jamais delete).

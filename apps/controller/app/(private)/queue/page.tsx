@@ -5,6 +5,7 @@ import { Button } from "@repo/ui/components/button"
 import { OpHeader } from "../../_components/op-header"
 import { queue } from "../../_content/fr"
 import { QueueList } from "./_components/queue-list"
+import { LevelThreeQueue } from "./_components/level-three-queue"
 import { PendingCountSubtitle } from "./_components/pending-count-subtitle"
 
 export const metadata: Metadata = { title: queue.meta.title }
@@ -28,6 +29,7 @@ export default function QueuePage() {
         }
       />
       <div className="flex-1 overflow-auto p-7">
+        <LevelThreeQueue />
         <QueueList />
       </div>
     </>
