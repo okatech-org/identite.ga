@@ -1,8 +1,9 @@
 import { ConvexError, v } from "convex/values"
 
-import { internal } from "../_generated/api"
+import { components, internal } from "../_generated/api"
 import { internalMutation, mutation, query } from "../_generated/server"
 import type { Doc, Id } from "../_generated/dataModel"
+import { authComponent } from "../auth"
 import { requireAuth } from "../lib/auth"
 import { generateIboiteEmailAlias, generateIboiteQrCode } from "../lib/iboiteId"
 
@@ -52,6 +53,38 @@ export function emptyCounters() {
     pendingLetters: 0,
     availablePackages: 0,
     unreadMessages: 0,
+  }
+}
+
+const IDN_EMAIL_PATTERN = /^[a-z0-9]+(?:[._-][a-z0-9]+)*@idn\.ga$/
+
+function normalizeIdnEmail(value: string): string | null {
+  const normalized = value.trim().toLowerCase()
+  const email = normalized.includes("@") ? normalized : `${normalized}@idn.ga`
+  return IDN_EMAIL_PATTERN.test(email) ? email : null
+}
+
+async function canonicalPersonalEmail(
+  ctx: Parameters<typeof authComponent.getAnyUserById>[0],
+  userId: string,
+  idnHandle?: string,
+): Promise<string | null> {
+  if (idnHandle) return normalizeIdnEmail(idnHandle)
+  const authUser = await authComponent.getAnyUserById(ctx, userId)
+  return normalizeIdnEmail(authUser?.email ?? "")
+}
+
+async function assertAliasAvailable(
+  ctx: { db: { query: any } },
+  emailAlias: string,
+  currentAccountId?: Id<"iboiteAccount">,
+) {
+  const owner = await ctx.db
+    .query("iboiteAccount")
+    .withIndex("by_emailAlias", (q: any) => q.eq("emailAlias", emailAlias))
+    .first()
+  if (owner && owner._id !== currentAccountId) {
+    throw new Error(`L'adresse iBoîte ${emailAlias} est déjà attribuée.`)
   }
 }
 
@@ -256,7 +289,14 @@ export const ensurePersonal = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    // Idempotent : si un compte personal existe déjà, on ne fait rien.
+    // L'adresse IDN de connexion est la source de vérité. L'ancien parcours
+    // créait parfois l'iBoîte avant de connaître cette adresse, à partir du
+    // prénom/nom ; on resynchronise donc aussi les comptes déjà existants.
+    const desiredAlias = await canonicalPersonalEmail(
+      ctx,
+      args.userId,
+      args.idnHandle,
+    )
     const existing = await ctx.db
       .query("iboiteAccount")
       .withIndex("by_userId_type", (q) =>
@@ -264,6 +304,24 @@ export const ensurePersonal = internalMutation({
       )
       .first()
     if (existing) {
+      if (desiredAlias && existing.emailAlias !== desiredAlias) {
+        await assertAliasAvailable(ctx, desiredAlias, existing._id)
+        const oldEmail = existing.emailAlias
+        await ctx.db.patch(existing._id, {
+          emailAlias: desiredAlias,
+          mailboxStatus: "pending",
+          mailboxProvisioningError: undefined,
+          updatedAt: Date.now(),
+        })
+        if (process.env.NODE_ENV !== "test") {
+          await ctx.scheduler.runAfter(
+            0,
+            internal.iboite.mailActions.renameMailbox,
+            { accountId: existing._id, oldEmail, newEmail: desiredAlias },
+          )
+        }
+        return null
+      }
       if (
         existing.mailboxStatus !== "provisioned" &&
         process.env.NODE_ENV !== "test"
@@ -278,13 +336,14 @@ export const ensurePersonal = internalMutation({
     }
 
     const qrCode = await generateIboiteQrCode(ctx, "personal")
-    const emailAlias = args.idnHandle
-      ? `${args.idnHandle}@idn.ga`
-      : await generateIboiteEmailAlias(ctx, {
-          firstName: args.firstName ?? null,
-          lastName: args.lastName ?? null,
-          idnId: args.idnId ?? null,
-        })
+    const emailAlias =
+      desiredAlias ??
+      (await generateIboiteEmailAlias(ctx, {
+        firstName: args.firstName ?? null,
+        lastName: args.lastName ?? null,
+        idnId: args.idnId ?? null,
+      }))
+    await assertAliasAvailable(ctx, emailAlias)
 
     const displayName =
       [args.firstName, args.lastName].filter(Boolean).join(" ") || "Personnel"
@@ -324,5 +383,119 @@ export const ensurePersonal = internalMutation({
     }
 
     return null
+  },
+})
+
+/**
+ * Réconcilie les comptes personnels historiques avec leur adresse IDN.
+ *
+ * - si Better Auth possède déjà une adresse @idn.ga, elle est canonique ;
+ * - pour les anciens citoyens encore connectés avec une adresse externe,
+ *   l'adresse iBoîte @idn.ga devient leur adresse de connexion ;
+ * - les comptes techniques et les lignes orphelines sont volontairement
+ *   ignorés : ils ne représentent pas une identité citoyenne.
+ */
+export const reconcilePersonalEmails = internalMutation({
+  args: { apply: v.boolean() },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const accounts = await ctx.db.query("iboiteAccount").collect()
+    const changed: Array<Record<string, unknown>> = []
+    const skipped: Array<Record<string, unknown>> = []
+
+    for (const account of accounts) {
+      if (account.type !== "personal") continue
+      const profile = await ctx.db
+        .query("userProfile")
+        .withIndex("by_userId", (q) => q.eq("userId", account.userId))
+        .unique()
+      if (!profile) {
+        skipped.push({
+          accountId: account._id,
+          reason: "no_citizen_profile",
+        })
+        continue
+      }
+
+      const authUser = await authComponent.getAnyUserById(ctx, account.userId)
+      if (!authUser) {
+        skipped.push({ accountId: account._id, reason: "auth_user_missing" })
+        continue
+      }
+
+      const authEmail = authUser.email.trim().toLowerCase()
+      const iboiteEmail = account.emailAlias.trim().toLowerCase()
+      const canonicalEmail =
+        normalizeIdnEmail(authEmail) ?? normalizeIdnEmail(iboiteEmail)
+      if (!canonicalEmail) {
+        skipped.push({ accountId: account._id, reason: "no_idn_email" })
+        continue
+      }
+      if (authEmail === canonicalEmail && iboiteEmail === canonicalEmail) {
+        continue
+      }
+
+      await assertAliasAvailable(ctx, canonicalEmail, account._id)
+      const authOwner = (await ctx.runQuery(
+        components.betterAuth.adapter.findOne,
+        {
+          model: "user",
+          where: [{ field: "email", value: canonicalEmail, operator: "eq" }],
+        },
+      )) as { _id: string } | null
+      if (authOwner && authOwner._id !== account.userId) {
+        skipped.push({
+          accountId: account._id,
+          reason: "auth_email_already_used",
+          canonicalEmail,
+        })
+        continue
+      }
+
+      changed.push({
+        accountId: account._id,
+        userId: account.userId,
+        oldAuthEmail: authEmail,
+        oldIboiteEmail: iboiteEmail,
+        canonicalEmail,
+      })
+      if (!args.apply) continue
+
+      if (authEmail !== canonicalEmail) {
+        await ctx.runMutation(components.betterAuth.adapter.updateOne, {
+          input: {
+            model: "user",
+            where: [{ field: "_id", value: account.userId, operator: "eq" }],
+            update: {
+              email: canonicalEmail,
+              emailVerified: true,
+              updatedAt: Date.now(),
+            },
+          },
+        })
+      }
+
+      if (iboiteEmail !== canonicalEmail) {
+        await ctx.db.patch(account._id, {
+          emailAlias: canonicalEmail,
+          mailboxStatus: "pending",
+          mailboxProvisioningError: undefined,
+          updatedAt: Date.now(),
+        })
+        if (process.env.NODE_ENV !== "test") {
+          await ctx.scheduler.runAfter(
+            0,
+            internal.iboite.mailActions.renameMailbox,
+            {
+              accountId: account._id,
+              oldEmail: iboiteEmail,
+              newEmail: canonicalEmail,
+            },
+          )
+        }
+      }
+    }
+
+    return { changed, skipped }
   },
 })

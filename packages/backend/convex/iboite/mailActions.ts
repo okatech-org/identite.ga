@@ -75,6 +75,43 @@ export const provisionMailbox = internalAction({
   },
 })
 
+export const renameMailbox = internalAction({
+  args: {
+    accountId: v.id("iboiteAccount"),
+    oldEmail: v.string(),
+    newEmail: v.string(),
+    attempt: v.optional(v.number()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const attempt = args.attempt ?? 1
+    try {
+      await callBridge("/rename", {
+        oldEmail: args.oldEmail,
+        newEmail: args.newEmail,
+      })
+      await ctx.runMutation(internal.iboite.mailInternal.markProvisioning, {
+        accountId: args.accountId,
+        status: "provisioned",
+      })
+    } catch (error) {
+      await ctx.runMutation(internal.iboite.mailInternal.markProvisioning, {
+        accountId: args.accountId,
+        status: attempt >= MAX_ATTEMPTS ? "failed" : "pending",
+        error: errorMessage(error),
+      })
+      if (attempt < MAX_ATTEMPTS) {
+        await ctx.scheduler.runAfter(
+          Math.min(60_000 * 2 ** (attempt - 1), 15 * 60_000),
+          internal.iboite.mailActions.renameMailbox,
+          { ...args, attempt: attempt + 1 },
+        )
+      }
+    }
+    return null
+  },
+})
+
 export const deliverOutbound = internalAction({
   args: { messageId: v.id("iboiteMessage"), attempt: v.optional(v.number()) },
   returns: v.null(),

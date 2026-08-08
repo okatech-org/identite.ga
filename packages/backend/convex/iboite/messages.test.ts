@@ -111,6 +111,22 @@ async function seedStorageRef(t: TestClient) {
   })
 }
 
+describe("accounts.ensurePersonal — adresse IDN canonique", () => {
+  test("resynchronise un ancien alias iBoîte quand l'adresse IDN devient connue", async () => {
+    const t = makeTestClient()
+    const account = await seedAccount(t, "user_alias_sync", "ancien.alias")
+
+    await t.mutation(internal.iboite.accounts.ensurePersonal, {
+      userId: "user_alias_sync",
+      idnHandle: "adressecanonique",
+    })
+
+    const updated = await t.run(async (ctx) => ctx.db.get(account._id))
+    expect(updated?.emailAlias).toBe("adressecanonique@idn.ga")
+    expect(updated?.mailboxStatus).toBe("pending")
+  })
+})
+
 describe("messages.send — pièces jointes", () => {
   test("PJ jointe visible par l'expéditeur ET le destinataire (hasAttachment dérivé, pas passé par le client)", async () => {
     const t = makeTestClient()

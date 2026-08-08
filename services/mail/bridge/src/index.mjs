@@ -171,6 +171,89 @@ function ensureMailbox(address, displayName) {
   return job
 }
 
+async function renameMailboxNow(oldAddress, newAddress) {
+  const oldMailbox = localMailbox(oldAddress)
+  const newMailbox = localMailbox(newAddress)
+  await loadManagementIds()
+
+  const responses = await stalwartCall([
+    [
+      "x:Account/query",
+      {
+        accountId: principalAccountId,
+        filter: { name: oldMailbox.name },
+        limit: 2,
+      },
+      "old",
+    ],
+    [
+      "x:Account/query",
+      {
+        accountId: principalAccountId,
+        filter: { name: newMailbox.name },
+        limit: 2,
+      },
+      "new",
+    ],
+  ])
+  const oldIds = responses.find(([, , tag]) => tag === "old")?.[1]?.ids ?? []
+  const newIds = responses.find(([, , tag]) => tag === "new")?.[1]?.ids ?? []
+
+  if (newIds.length > 0) {
+    if (oldIds.length > 0 && oldIds[0] !== newIds[0]) {
+      throw Object.assign(new Error(`Target mailbox ${newMailbox.email} already exists`), { status: 409 })
+    }
+    return {
+      oldEmail: oldMailbox.email,
+      email: newMailbox.email,
+      id: newIds[0],
+      renamed: false,
+    }
+  }
+  if (oldIds.length === 0) {
+    const created = await ensureMailboxNow(newMailbox.email, newMailbox.name)
+    return { oldEmail: oldMailbox.email, ...created, renamed: false }
+  }
+
+  const accountId = oldIds[0]
+  const updateResponses = await stalwartCall([
+    [
+      "x:Account/set",
+      {
+        accountId: principalAccountId,
+        update: {
+          [accountId]: {
+            name: newMailbox.name,
+            credentials: {
+              0: {
+                "@type": "Password",
+                secret: mailboxPassword(newMailbox.email),
+              },
+            },
+          },
+        },
+      },
+      "rename",
+    ],
+  ])
+  const result = updateResponses.find(([, , tag]) => tag === "rename")?.[1]
+  if (!result?.updated?.[accountId]) {
+    throw new Error(`Mailbox rename failed: ${JSON.stringify(result?.notUpdated?.[accountId] ?? result)}`)
+  }
+  return {
+    oldEmail: oldMailbox.email,
+    email: newMailbox.email,
+    id: accountId,
+    renamed: true,
+  }
+}
+
+function renameMailbox(oldAddress, newAddress) {
+  const job = provisioningQueue.then(() => renameMailboxNow(oldAddress, newAddress))
+  provisioningQueue = job.catch(() => undefined)
+  return job
+}
+
 async function sendMail(payload) {
   const from = localMailbox(payload.from?.email ?? payload.from).email
   const to = normalizeEmail(payload.to?.email ?? payload.to)
@@ -284,6 +367,11 @@ const server = createServer(async (req, res) => {
       if (!authorized(req, BRIDGE_TOKEN)) return json(res, 401, { error: "unauthorized" })
       const body = await readJson(req)
       return json(res, 200, await ensureMailbox(body.email, body.displayName))
+    }
+    if (req.method === "POST" && url.pathname === "/rename") {
+      if (!authorized(req, BRIDGE_TOKEN)) return json(res, 401, { error: "unauthorized" })
+      const body = await readJson(req)
+      return json(res, 200, await renameMailbox(body.oldEmail, body.newEmail))
     }
     if (req.method === "POST" && url.pathname === "/send") {
       if (!authorized(req, BRIDGE_TOKEN)) return json(res, 401, { error: "unauthorized" })
