@@ -69,3 +69,41 @@ export const createM2mApiKey = internalMutation({
     return { token, tokenPrefix, id, scopes }
   },
 })
+
+/**
+ * Crée la clé d'annuaire minimale utilisée par Gabon Connect.
+ *
+ * Contrairement à `createM2mApiKey`, cette clé ne peut ni consulter ni créer
+ * de délégation : elle porte exclusivement `citizens:resolve`.
+ *
+ * Usage :
+ *   bunx convex run dev:createDirectoryApiKey '{"ownerLabel":"gabon-gouv"}'
+ *
+ * NE JAMAIS appeler en production : la clé de production doit être émise par
+ * un développeur authentifié depuis le portail Identité.ga.
+ */
+export const createDirectoryApiKey = internalMutation({
+  args: {
+    ownerLabel: v.string(),
+  },
+  returns: v.object({
+    token: v.string(),
+    tokenPrefix: v.string(),
+    id: v.id("developerApiKey"),
+    scopes: v.array(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    const scopes = ["citizens:resolve"]
+    const { token, tokenHash, tokenPrefix } = await generateApiToken()
+    const now = Date.now()
+    const id = await ctx.db.insert("developerApiKey", {
+      userId: `dev-script:${args.ownerLabel}`,
+      name: `Annuaire – ${args.ownerLabel}`,
+      tokenHash,
+      tokenPrefix,
+      scopes,
+      createdAt: now,
+    })
+    return { token, tokenPrefix, id, scopes }
+  },
+})

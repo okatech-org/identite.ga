@@ -35,3 +35,7 @@ yarn-error.log*
 .DS_Store
 *.pem
 .claude
+
+# Runtime state for the self-hosted mail bridge
+services/mail/bridge.env
+services/mail/bridge-data/

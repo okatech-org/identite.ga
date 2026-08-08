@@ -20,7 +20,7 @@
  */
 
 import { v } from "convex/values"
-import { internalQuery } from "../_generated/server"
+import { internalQuery, type QueryCtx } from "../_generated/server"
 import type { Doc } from "../_generated/dataModel"
 
 // Carte d'identité minimale renvoyée à l'app partenaire.
@@ -42,7 +42,7 @@ const MAX_RESULTS = 20
 const NAME_SCAN_CAP = 200
 
 async function emailAliasForUser(
-  ctx: { db: any },
+  ctx: QueryCtx,
   userId: string,
 ): Promise<string | null> {
   const account = await ctx.db
@@ -79,6 +79,13 @@ export const resolveDirectory = internalQuery({
   },
   returns: v.array(CITIZEN_CARD),
   handler: async (ctx, args) => {
+    const criteriaCount = [args.sub, args.nip, args.emailAlias, args.name]
+      .filter((criterion) => criterion?.trim()).length
+    if (criteriaCount !== 1) {
+      throw new Error(
+        "Un seul critère parmi sub, nip, emailAlias et name est requis.",
+      )
+    }
     const limit = Math.min(Math.max(args.limit ?? 8, 1), MAX_RESULTS)
     const matches: Doc<"userProfile">[] = []
 

@@ -63,6 +63,9 @@ import type * as http from "../http.js";
 import type * as iboite_accounts from "../iboite/accounts.js";
 import type * as iboite_admin from "../iboite/admin.js";
 import type * as iboite_letters from "../iboite/letters.js";
+import type * as iboite_mailActions from "../iboite/mailActions.js";
+import type * as iboite_mailHttp from "../iboite/mailHttp.js";
+import type * as iboite_mailInternal from "../iboite/mailInternal.js";
 import type * as iboite_messages from "../iboite/messages.js";
 import type * as iboite_packages from "../iboite/packages.js";
 import type * as idoc from "../idoc.js";
@@ -99,6 +102,7 @@ import type * as oauthAuthorize from "../oauthAuthorize.js";
 import type * as oauthConsents from "../oauthConsents.js";
 import type * as onboarding from "../onboarding.js";
 import type * as partner_citizens from "../partner/citizens.js";
+import type * as partner_resolveRequest from "../partner/resolveRequest.js";
 import type * as preferences from "../preferences.js";
 import type * as presentation from "../presentation.js";
 import type * as privacy from "../privacy.js";
@@ -182,6 +186,9 @@ declare const fullApi: ApiFromModules<{
   "iboite/accounts": typeof iboite_accounts;
   "iboite/admin": typeof iboite_admin;
   "iboite/letters": typeof iboite_letters;
+  "iboite/mailActions": typeof iboite_mailActions;
+  "iboite/mailHttp": typeof iboite_mailHttp;
+  "iboite/mailInternal": typeof iboite_mailInternal;
   "iboite/messages": typeof iboite_messages;
   "iboite/packages": typeof iboite_packages;
   idoc: typeof idoc;
@@ -218,6 +225,7 @@ declare const fullApi: ApiFromModules<{
   oauthConsents: typeof oauthConsents;
   onboarding: typeof onboarding;
   "partner/citizens": typeof partner_citizens;
+  "partner/resolveRequest": typeof partner_resolveRequest;
   preferences: typeof preferences;
   presentation: typeof presentation;
   privacy: typeof privacy;
@@ -268,7 +276,6 @@ export declare const internal: FilterApi<
 
 export declare const components: {
   betterAuth: import("@convex-dev/better-auth/_generated/component.js").ComponentApi<"betterAuth">;
-  resend: import("@convex-dev/resend/_generated/component.js").ComponentApi<"resend">;
   rateLimiter: import("@convex-dev/rate-limiter/_generated/component.js").ComponentApi<"rateLimiter">;
   usersByLoa: import("@convex-dev/aggregate/_generated/component.js").ComponentApi<"usersByLoa">;
   usersByProfile: import("@convex-dev/aggregate/_generated/component.js").ComponentApi<"usersByProfile">;

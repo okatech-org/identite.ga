@@ -1,5 +1,5 @@
-import { defineSchema, defineTable } from "convex/server";
-import { v } from "convex/values";
+import { defineSchema, defineTable } from "convex/server"
+import { v } from "convex/values"
 
 /**
  * Schéma applicatif IDN (Identité Numérique du Gabon).
@@ -21,7 +21,7 @@ export const PROFILE_TYPES = [
   "resident",
   "visitor",
   "developer",
-] as const;
+] as const
 
 export const KYC_DOCUMENT_TYPES = [
   "cni_gabon",
@@ -29,7 +29,7 @@ export const KYC_DOCUMENT_TYPES = [
   "residence_card",
   "passport",
   "visa",
-] as const;
+] as const
 
 export const KYC_STATUSES = [
   "pending",
@@ -43,7 +43,7 @@ export const KYC_STATUSES = [
   "approved",
   "rejected",
   "expired",
-] as const;
+] as const
 
 /** États du parcours Niveau 3 : entretien vidéo + décision humaine. */
 export const LEVEL3_VERIFICATION_STATUSES = [
@@ -53,7 +53,7 @@ export const LEVEL3_VERIFICATION_STATUSES = [
   "approved",
   "rejected",
   "cancelled",
-] as const;
+] as const
 
 export const USER_DOCUMENT_TYPES = [
   "profilePhoto",
@@ -61,9 +61,9 @@ export const USER_DOCUMENT_TYPES = [
   "kycDocBack",
   "selfie",
   "attestation",
-] as const;
+] as const
 
-export const NOTIFICATION_CHANNELS = ["email", "in_app"] as const;
+export const NOTIFICATION_CHANNELS = ["email", "in_app"] as const
 export const NOTIFICATION_CATEGORIES = [
   "security",
   "kyc",
@@ -73,7 +73,7 @@ export const NOTIFICATION_CATEGORIES = [
   "ai",
   "cv",
   "system",
-] as const;
+] as const
 
 // Catalogue des cartes du portefeuille citoyen (iCarte).
 export const WALLET_CARD_TYPES = [
@@ -87,14 +87,14 @@ export const WALLET_CARD_TYPES = [
   "voter",
   "loyalty",
   "custom",
-] as const;
+] as const
 
 // Comptes iBoîte (boîte aux lettres souveraine multi-comptes).
 export const IBOITE_ACCOUNT_TYPES = [
   "personal",
   "professional",
   "association",
-] as const;
+] as const
 
 // Dossiers iDocument (coffre-fort numérique chiffré E2E).
 export const VAULT_FOLDERS = [
@@ -106,7 +106,7 @@ export const VAULT_FOLDERS = [
   "health",
   "vehicle",
   "other",
-] as const;
+] as const
 
 export const AUDIT_ACTIONS = [
   // Auth
@@ -168,7 +168,7 @@ export const AUDIT_ACTIONS = [
   "delegated_claim_code_failed",
   "delegation_enabled",
   "delegation_disabled",
-] as const;
+] as const
 
 export const AUDIT_TARGET_TYPES = [
   "user",
@@ -179,22 +179,22 @@ export const AUDIT_TARGET_TYPES = [
   "consent",
   "document",
   "system",
-] as const;
+] as const
 
-export const ROLES = ["admin", "identity_controller", "developer"] as const;
+export const ROLES = ["admin", "identity_controller", "developer"] as const
 
 export const CONTACT_CATEGORIES = [
   "citoyen",
   "administration",
   "presse",
   "securite",
-] as const;
+] as const
 
-export const CONTACT_STATUSES = ["new", "read", "responded", "spam"] as const;
+export const CONTACT_STATUSES = ["new", "read", "responded", "spam"] as const
 
-export const LANGUAGES = ["fr", "en"] as const;
-export const THEMES = ["light", "dark", "auto"] as const;
-export const FONT_SIZES = ["sm", "md", "lg", "xl"] as const;
+export const LANGUAGES = ["fr", "en"] as const
+export const THEMES = ["light", "dark", "auto"] as const
+export const FONT_SIZES = ["sm", "md", "lg", "xl"] as const
 
 // iCV — 12 thèmes de présentation (cf. SPECS_FEATURE_ICV.md §9).
 export const CV_THEMES = [
@@ -210,7 +210,7 @@ export const CV_THEMES = [
   "executive",
   "elegant",
   "compact",
-] as const;
+] as const
 
 // iCV — origine d'un CV (utile pour distinguer les variants dans l'UI).
 export const CV_SOURCES = [
@@ -218,7 +218,7 @@ export const CV_SOURCES = [
   "manual", // créé / dupliqué à la main par le citoyen
   "ai_optimize", // dérivé via cv.ai.optimizeForJob
   "import", // créé via cv.import.parseAndApply
-] as const;
+] as const
 
 // iCV — features IA disponibles (cf. PLAN_BACKEND_ICV.md §8).
 export const CV_AI_FEATURES = [
@@ -227,7 +227,7 @@ export const CV_AI_FEATURES = [
   "optimize_job",
   "generate_letter",
   "ats_check",
-] as const;
+] as const
 
 // iCV — cycle de vie d'un job IA.
 export const CV_AI_STATUSES = [
@@ -235,7 +235,7 @@ export const CV_AI_STATUSES = [
   "running",
   "completed",
   "failed",
-] as const;
+] as const
 
 export default defineSchema({
   /**
@@ -669,7 +669,16 @@ export default defineSchema({
     userId: v.string(),
     type: v.union(...IBOITE_ACCOUNT_TYPES.map((t) => v.literal(t))),
     label: v.string(),
-    emailAlias: v.string(), // ex "jean.dupont@idn.ga" — alias interne, pas SMTP
+    emailAlias: v.string(), // ex "jean.dupont@idn.ga" — boîte SMTP/JMAP réelle
+    mailboxStatus: v.optional(
+      v.union(
+        v.literal("pending"),
+        v.literal("provisioned"),
+        v.literal("failed"),
+      ),
+    ),
+    mailboxProvisionedAt: v.optional(v.number()),
+    mailboxProvisioningError: v.optional(v.string()),
     // Adresse postale physique du citoyen. Au Gabon les adresses formelles
     // sont rares — on privilégie la géolocalisation GPS + un quartier libre.
     // Les champs sont vides tant que `isAddressConfigured` est false.
@@ -782,6 +791,13 @@ export default defineSchema({
     isStarred: v.boolean(),
     hasAttachment: v.boolean(),
     inReplyTo: v.optional(v.id("iboiteMessage")),
+    transport: v.optional(v.union(v.literal("internal"), v.literal("smtp"))),
+    deliveryStatus: v.optional(
+      v.union(v.literal("queued"), v.literal("sent"), v.literal("failed")),
+    ),
+    externalMessageId: v.optional(v.string()),
+    deliveryError: v.optional(v.string()),
+    deliveryAttempts: v.optional(v.number()),
     createdAt: v.number(),
   })
     .index("by_user_folder", ["userId", "folder", "createdAt"])
@@ -796,6 +812,13 @@ export default defineSchema({
     storageRef: v.id("_storage"),
     mimeType: v.string(),
   }).index("by_message", ["messageId"]),
+
+  iboiteInboundReceipt: defineTable({
+    providerMessageId: v.string(),
+    recipientEmail: v.string(),
+    messageId: v.id("iboiteMessage"),
+    receivedAt: v.number(),
+  }).index("by_provider_recipient", ["providerMessageId", "recipientEmail"]),
 
   // ─────────────────────────────────────────────────────────────────────
   // iDocument — Coffre-fort numérique chiffré E2E
@@ -1179,4 +1202,4 @@ export default defineSchema({
     .index("by_status", ["status", "createdAt"])
     .index("by_email", ["email"])
     .index("by_createdAt", ["createdAt"]),
-});
+})

@@ -20,10 +20,8 @@ const MAX_ATTACHMENTS = 10
 /**
  * iBoîte — eMails internes (cf. SPECS_FEATURES_CITIZEN.md §2.7 + §2.9.3).
  *
- * Phase 1 : messagerie app-only entre citoyens et administrations (DGDI,
- * CNAMGS, Mairie, DGI…). Pas de SMTP. Le destinataire `recipientEmail`
- * est un libellé (pas de validation contre un registre opérateur — un
- * routing admin-side est prévu en V2).
+ * Messagerie iBoîte : livraison transactionnelle interne pour les adresses
+ * @idn.ga, et remise SMTP asynchrone pour les domaines externes.
  *
  * Les messages entrants (admin → citoyen) sont créés par les opérateurs
  * via `iboite/admin.sendMessageFromAdmin`.
@@ -388,9 +386,8 @@ export const send = mutation({
     // uploadé par quelqu'un d'autre s'il le devine/l'obtient. Hors scope de
     // ce correctif (noté pour un futur durcissement).
 
-    // Normalisation tolérante : on accepte « jean.dupont » comme
-    // « jean.dupont@idn.ga ». En revanche, tout autre domaine est rejeté
-    // (iBoîte est un système fermé, pas de SMTP sortant).
+    // Normalisation tolérante : un identifiant sans domaine désigne une boîte
+    // iBoîte. Une adresse complète valide peut viser n'importe quel domaine.
     const rawTo = args.recipientEmail.trim().toLowerCase()
     if (rawTo.length < 1) {
       throw new ConvexError({
@@ -401,17 +398,18 @@ export const send = mutation({
     const recipientAlias = rawTo.includes("@")
       ? rawTo
       : `${rawTo}@${IBOITE_DOMAIN}`
-    if (!recipientAlias.endsWith(`@${IBOITE_DOMAIN}`)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientAlias)) {
       throw new ConvexError({
-        code: "INVALID_DOMAIN",
-        message: `Adresse non valide. Seul le domaine @${IBOITE_DOMAIN} est accepté.`,
+        code: "INVALID_EMAIL",
+        message: "Adresse email invalide.",
       })
     }
 
-    // Vérification stricte : l'alias doit exister dans iboiteAccount.
-    // Sinon on remonte un RECIPIENT_UNKNOWN — l'UI l'affiche en toast.
-    const recipientAccount = await loadAccountByEmailAlias(ctx, recipientAlias)
-    if (!recipientAccount) {
+    const isInternal = recipientAlias.endsWith(`@${IBOITE_DOMAIN}`)
+    const recipientAccount = isInternal
+      ? await loadAccountByEmailAlias(ctx, recipientAlias)
+      : null
+    if (isInternal && !recipientAccount) {
       throw new ConvexError({
         code: "RECIPIENT_UNKNOWN",
         message: "Aucun utilisateur ne correspond à cette adresse iBoîte.",
@@ -454,7 +452,9 @@ export const send = mutation({
       senderKind: "citizen",
       senderName,
       senderEmail: account.emailAlias,
-      recipientName: recipientAccount.label,
+      recipientName:
+        recipientAccount?.label ??
+        (args.recipientName.trim() || recipientAlias),
       recipientEmail: recipientAlias,
       subject,
       preview,
@@ -464,8 +464,33 @@ export const send = mutation({
       isStarred: false,
       hasAttachment,
       inReplyTo: args.inReplyTo,
+      transport: isInternal ? "internal" : "smtp",
+      deliveryStatus: isInternal ? "sent" : "queued",
+      deliveryAttempts: 0,
       createdAt: now,
     })
+
+    if (!recipientAccount) {
+      if (args.attachments && args.attachments.length > 0) {
+        for (const att of args.attachments) {
+          await ctx.db.insert("iboiteMessageAttachment", {
+            messageId: sentId,
+            name: att.name,
+            size: att.size,
+            storageRef: att.storageRef,
+            mimeType: att.mimeType,
+          })
+        }
+      }
+      if (process.env.NODE_ENV !== "test") {
+        await ctx.scheduler.runAfter(
+          0,
+          internal.iboite.mailActions.deliverOutbound,
+          { messageId: sentId },
+        )
+      }
+      return sentId
+    }
 
     // 2) Copie « reçue » côté destinataire (folder: inbox, owner: destinataire).
     //    C'est cette insertion qui rend le message visible chez l'autre.
@@ -485,6 +510,8 @@ export const send = mutation({
       isRead: false,
       isStarred: false,
       hasAttachment,
+      transport: "internal",
+      deliveryStatus: "sent",
       // `inReplyTo` est un Id<"iboiteMessage"> du compte expéditeur, on ne
       // le propage pas côté destinataire (la continuité de thread est
       // assurée par `threadId`).

@@ -4,8 +4,9 @@ import { internal } from "./_generated/api"
 import { httpAction } from "./_generated/server"
 import { authenticateApiKey } from "./developer/apiKeys"
 import { createAuth } from "./auth"
-import { resend } from "./email/provider"
+import { inbound as inboundMailHandler } from "./iboite/mailHttp"
 import { getPublicJwks } from "./lib/documentSigning"
+import { parseDirectoryResolveRequest } from "./partner/resolveRequest"
 
 const http = httpRouter()
 
@@ -307,29 +308,20 @@ const partnerResolveHandler = httpAction(async (ctx, request) => {
     })
   }
 
-  const b = (body ?? {}) as Record<string, unknown>
-  const str = (x: unknown) =>
-    typeof x === "string" && x.trim() ? x.trim() : undefined
-  const sub = str(b.sub)
-  const nip = str(b.nip)
-  const emailAlias = str(b.emailAlias)
-  const name = str(b.name)
-  const limit = typeof b.limit === "number" ? b.limit : undefined
-
-  if (!sub && !nip && !emailAlias && !name) {
+  const parsed = parseDirectoryResolveRequest(body)
+  if (!parsed.ok) {
     return new Response(
-      JSON.stringify({ error: "missing_query", message: "sub | nip | emailAlias | name requis" }),
+      JSON.stringify({ error: parsed.error, message: parsed.message }),
       { status: 400, headers: { "Content-Type": "application/json" } },
     )
   }
 
-  const results = await ctx.runQuery(internal.partner.citizens.resolveDirectory, {
-    sub,
-    nip,
-    emailAlias,
-    name,
-    limit,
-  })
+  const results = await ctx.runQuery(
+    internal.partner.citizens.resolveDirectory,
+    {
+      ...parsed.value,
+    },
+  )
 
   return new Response(JSON.stringify({ results }), {
     status: 200,
@@ -366,10 +358,10 @@ const delegateLookupHandler = httpAction(async (ctx, request) => {
     developerUserId: principal.userId,
   })
   if (!app?.enabled) {
-    return new Response(
-      JSON.stringify({ error: "delegation_not_enabled" }),
-      { status: 403, headers: { "Content-Type": "application/json" } },
-    )
+    return new Response(JSON.stringify({ error: "delegation_not_enabled" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" },
+    })
   }
 
   let body: unknown
@@ -431,10 +423,10 @@ const delegateCreateHandler = httpAction(async (ctx, request) => {
     developerUserId: principal.userId,
   })
   if (!app?.enabled) {
-    return new Response(
-      JSON.stringify({ error: "delegation_not_enabled" }),
-      { status: 403, headers: { "Content-Type": "application/json" } },
-    )
+    return new Response(JSON.stringify({ error: "delegation_not_enabled" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" },
+    })
   }
 
   let body: unknown
@@ -458,36 +450,44 @@ const delegateCreateHandler = httpAction(async (ctx, request) => {
   const birthPlace = str(b.birthPlace)
   const nationality = str(b.nationality)
 
-  if (!firstName || !lastName || !dateOfBirth || !gender || !birthPlace || !nationality) {
+  if (
+    !firstName ||
+    !lastName ||
+    !dateOfBirth ||
+    !gender ||
+    !birthPlace ||
+    !nationality
+  ) {
     return new Response(
       JSON.stringify({
         error: "missing_fields",
-        message: "firstName, lastName, dateOfBirth, gender, birthPlace, nationality requis.",
+        message:
+          "firstName, lastName, dateOfBirth, gender, birthPlace, nationality requis.",
       }),
       { status: 400, headers: { "Content-Type": "application/json" } },
     )
   }
 
   if (!["M", "F", "O", "N"].includes(gender)) {
-    return new Response(
-      JSON.stringify({ error: "invalid_gender" }),
-      { status: 400, headers: { "Content-Type": "application/json" } },
-    )
+    return new Response(JSON.stringify({ error: "invalid_gender" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    })
   }
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth)) {
-    return new Response(
-      JSON.stringify({ error: "invalid_date_of_birth" }),
-      { status: 400, headers: { "Content-Type": "application/json" } },
-    )
+    return new Response(JSON.stringify({ error: "invalid_date_of_birth" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    })
   }
 
   const nip = str(b.nip)
   if (nip && !/^[A-Za-z0-9]{14}$/.test(nip)) {
-    return new Response(
-      JSON.stringify({ error: "invalid_nip" }),
-      { status: 400, headers: { "Content-Type": "application/json" } },
-    )
+    return new Response(JSON.stringify({ error: "invalid_nip" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    })
   }
 
   // Vérifier que le citoyen n'a pas déjà d'IDN
@@ -523,9 +523,9 @@ const delegateCreateHandler = httpAction(async (ctx, request) => {
         phone: str(b.phone),
         nip,
       },
-      profileType: (str(b.profileType) === "resident" ? "resident" : "citizen") as
-        | "citizen"
-        | "resident",
+      profileType: (str(b.profileType) === "resident"
+        ? "resident"
+        : "citizen") as "citizen" | "resident",
       assignedLoa,
       appClientId: app.clientId,
       operatorUserId: principal.userId,
@@ -578,10 +578,10 @@ const delegateStatusHandler = httpAction(async (ctx, request) => {
   const url = new URL(request.url)
   const id = url.searchParams.get("id")
   if (!id) {
-    return new Response(
-      JSON.stringify({ error: "missing_id" }),
-      { status: 400, headers: { "Content-Type": "application/json" } },
-    )
+    return new Response(JSON.stringify({ error: "missing_id" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    })
   }
 
   const result = await ctx.runQuery(internal.delegate.queries.getById, {
@@ -643,16 +643,18 @@ const claimLookupHandler = httpAction(async (ctx, request) => {
   const claimCode = str(b.claimCode)
 
   if (!claimCode || (!nip && !(firstName && lastName && dateOfBirth))) {
-    return new Response(
-      JSON.stringify({ error: "missing_fields" }),
-      { status: 400, headers: { "Content-Type": "application/json" } },
-    )
+    return new Response(JSON.stringify({ error: "missing_fields" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    })
   }
 
-  const result = await ctx.runQuery(
-    internal.delegate.queries.lookupForClaim,
-    { nip, firstName, lastName, dateOfBirth },
-  )
+  const result = await ctx.runQuery(internal.delegate.queries.lookupForClaim, {
+    nip,
+    firstName,
+    lastName,
+    dateOfBirth,
+  })
 
   // `{found:false}` UNIFORME, que la personne soit inconnue, déjà réclamée ou
   // que le code soit faux. Sans cette uniformité, la route redevient un oracle :
@@ -714,36 +716,33 @@ const claimCompleteHandler = httpAction(async (ctx, request) => {
   const claimCode = b.claimCode as string | undefined
 
   if (!delegatedIdentityId || !password || !pin || !claimCode) {
-    return new Response(
-      JSON.stringify({ error: "missing_fields" }),
-      { status: 400, headers: { "Content-Type": "application/json" } },
-    )
+    return new Response(JSON.stringify({ error: "missing_fields" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    })
   }
 
   if (password.length < 12) {
-    return new Response(
-      JSON.stringify({ error: "password_too_short" }),
-      { status: 400, headers: { "Content-Type": "application/json" } },
-    )
+    return new Response(JSON.stringify({ error: "password_too_short" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    })
   }
 
   if (!/^\d{6}$/.test(pin)) {
-    return new Response(
-      JSON.stringify({ error: "invalid_pin" }),
-      { status: 400, headers: { "Content-Type": "application/json" } },
-    )
+    return new Response(JSON.stringify({ error: "invalid_pin" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    })
   }
 
   try {
-    const result = await ctx.runAction(
-      internal.delegate.actions.claimAccount,
-      {
-        delegatedIdentityId: delegatedIdentityId as any,
-        claimCode,
-        password,
-        pin,
-      },
-    )
+    const result = await ctx.runAction(internal.delegate.actions.claimAccount, {
+      delegatedIdentityId: delegatedIdentityId as any,
+      claimCode,
+      password,
+      pin,
+    })
 
     return new Response(
       JSON.stringify({ success: true, userId: result.userId }),
@@ -752,10 +751,10 @@ const claimCompleteHandler = httpAction(async (ctx, request) => {
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "Impossible de réclamer le compte."
-    return new Response(
-      JSON.stringify({ error: "claim_failed", message }),
-      { status: 400, headers: { "Content-Type": "application/json" } },
-    )
+    return new Response(JSON.stringify({ error: "claim_failed", message }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    })
   }
 })
 
@@ -788,22 +787,21 @@ http.route({
   handler: documentSigningJwksHandler,
 })
 
-http.route({ pathPrefix: `${AUTH_PATH}/`, method: "GET", handler: authRequestHandler })
-http.route({ pathPrefix: `${AUTH_PATH}/`, method: "POST", handler: authRequestHandler })
-
-// Webhook Resend — Resend POST ici les événements (sent / delivered / bounce
-// / complaint / opened / clicked) avec une signature HMAC. Le composant
-// vérifie la signature et met à jour le statut des emails en BD.
-//
-// URL à déclarer côté Resend :
-//   <NEXT_PUBLIC_CONVEX_SITE_URL>/resend-webhook
-//   (en dev local : https://pleasant-platypus-379.eu-west-1.convex.site/resend-webhook)
 http.route({
-  path: "/resend-webhook",
+  pathPrefix: `${AUTH_PATH}/`,
+  method: "GET",
+  handler: authRequestHandler,
+})
+http.route({
+  pathPrefix: `${AUTH_PATH}/`,
   method: "POST",
-  handler: httpAction(async (ctx, req) => {
-    return await resend.handleResendEventWebhook(ctx, req)
-  }),
+  handler: authRequestHandler,
+})
+
+http.route({
+  path: "/mail/inbound",
+  method: "POST",
+  handler: inboundMailHandler,
 })
 
 export default http

@@ -1,0 +1,49 @@
+name: idn-mail
+
+services:
+  bridge:
+    build: ./bridge
+    container_name: idn-mail-bridge
+    restart: unless-stopped
+    env_file: ./bridge.env
+    depends_on:
+      stalwart:
+        condition: service_healthy
+    volumes:
+      - ./bridge-data:/data
+    mem_limit: 192m
+    pids_limit: 100
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: "5"
+    networks:
+      - homelab
+
+  stalwart:
+    image: stalwartlabs/stalwart:v0.16
+    container_name: stalwart
+    restart: unless-stopped
+    ports:
+      - "25:25"
+      - "465:465"
+      - "993:993"
+      - "127.0.0.1:8085:8080"
+    volumes:
+      - ./data/etc:/etc/stalwart
+      - ./data/stalwart:/var/lib/stalwart
+    mem_limit: 384m
+    pids_limit: 200
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: "5"
+    networks:
+      - homelab
+
+networks:
+  homelab:
+    name: homelab_default
+    external: true

@@ -1,0 +1,10 @@
+{
+  "name": "idn-mail-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "mailparser": "3.9.15",
+    "nodemailer": "9.0.5"
+  }
+}

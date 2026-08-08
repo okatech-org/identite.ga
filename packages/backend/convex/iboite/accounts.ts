@@ -1,16 +1,10 @@
 import { ConvexError, v } from "convex/values"
 
-import {
-  internalMutation,
-  mutation,
-  query,
-} from "../_generated/server"
+import { internal } from "../_generated/api"
+import { internalMutation, mutation, query } from "../_generated/server"
 import type { Doc, Id } from "../_generated/dataModel"
 import { requireAuth } from "../lib/auth"
-import {
-  generateIboiteEmailAlias,
-  generateIboiteQrCode,
-} from "../lib/iboiteId"
+import { generateIboiteEmailAlias, generateIboiteQrCode } from "../lib/iboiteId"
 
 /**
  * iBoîte — Comptes (cf. SPECS_FEATURES_CITIZEN.md §2.3).
@@ -212,8 +206,7 @@ export const setAddress = mutation({
     if (!hasGps && !hasCity) {
       throw new ConvexError({
         code: "INVALID",
-        message:
-          "Indiquez au moins votre ville ou activez la géolocalisation.",
+        message: "Indiquez au moins votre ville ou activez la géolocalisation.",
       })
     }
     if (hasGps) {
@@ -270,7 +263,19 @@ export const ensurePersonal = internalMutation({
         q.eq("userId", args.userId).eq("type", "personal"),
       )
       .first()
-    if (existing) return null
+    if (existing) {
+      if (
+        existing.mailboxStatus !== "provisioned" &&
+        process.env.NODE_ENV !== "test"
+      ) {
+        await ctx.scheduler.runAfter(
+          0,
+          internal.iboite.mailActions.provisionMailbox,
+          { accountId: existing._id },
+        )
+      }
+      return null
+    }
 
     const qrCode = await generateIboiteQrCode(ctx, "personal")
     const emailAlias = args.idnHandle
@@ -285,11 +290,12 @@ export const ensurePersonal = internalMutation({
       [args.firstName, args.lastName].filter(Boolean).join(" ") || "Personnel"
 
     const now = Date.now()
-    await ctx.db.insert("iboiteAccount", {
+    const accountId = await ctx.db.insert("iboiteAccount", {
       userId: args.userId,
       type: "personal",
       label: "Personnel",
       emailAlias,
+      mailboxStatus: "pending",
       // Adresse vide à la création — le citoyen la configure depuis l'UI
       // iBoîte (géolocalisation GPS prioritaire, saisie manuelle en fallback).
       // Au Gabon les adresses formelles sont rares — voir `setAddress`.
@@ -308,6 +314,14 @@ export const ensurePersonal = internalMutation({
     // stocke pas dans `iboiteAccount` pour éviter la duplication
     // (le résolveur d'adresse postale lit `userProfile.pivot`).
     void displayName
+
+    if (process.env.NODE_ENV !== "test") {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.iboite.mailActions.provisionMailbox,
+        { accountId },
+      )
+    }
 
     return null
   },

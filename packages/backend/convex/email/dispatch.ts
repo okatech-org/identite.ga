@@ -6,10 +6,8 @@ import { sendGenericEmail, sendKycEmail, sendOtpEmail } from "./provider"
 /**
  * Wrappers `internalAction` autour des fonctions d'envoi email.
  *
- * `@react-email/render` utilise `await import("react-dom/server.edge")`,
- * un import dynamique non supporté par le runtime V8 isolate des
- * `mutation` Convex. Le rendu doit donc se faire depuis une `action`
- * (runtime Node) — les mutations planifient ces actions via
+ * Le rendu React Email et l'appel HTTPS au bridge mail s'exécutent depuis
+ * une action Node. Les mutations planifient ces actions via
  * `ctx.scheduler.runAfter(0, internal.email.dispatch.xxx, {...})`.
  */
 
@@ -28,7 +26,7 @@ export const sendKyc = internalAction({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await sendKycEmail(ctx as never, args)
+    await sendKycEmail(args)
     return null
   },
 })
@@ -43,7 +41,7 @@ export const sendGeneric = internalAction({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await sendGenericEmail(ctx as never, args)
+    await sendGenericEmail(args)
     return null
   },
 })
@@ -61,7 +59,8 @@ export const sendOtp = internalAction({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await sendOtpEmail(ctx as never, args)
+    await sendOtpEmail(args)
     return null
   },
 })
+;("use node")

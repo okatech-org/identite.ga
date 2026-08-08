@@ -11,9 +11,8 @@ import schema from "../schema"
 // Cf. kyc/mutations.test.ts pour l'explication du glob root-relative.
 const modules = import.meta.glob("/convex/**/*.ts")
 
-type SchemaTables = typeof schema extends SchemaDefinition<infer S, boolean>
-  ? S
-  : never
+type SchemaTables =
+  typeof schema extends SchemaDefinition<infer S, boolean> ? S : never
 type TestClient = ReturnType<typeof convexTest<SchemaTables>>
 
 /** `send`/`generateUploadUrl` passent par `rateLimiter.limit(...)` (composant
@@ -48,7 +47,14 @@ function makeTestClient(): TestClient {
 vi.mock("../lib/auth", async () => {
   const { ConvexError: CE } = await import("convex/values")
   return {
-    requireAuth: async (ctx: { auth: { getUserIdentity: () => Promise<{ subject: string; email?: string } | null> } }) => {
+    requireAuth: async (ctx: {
+      auth: {
+        getUserIdentity: () => Promise<{
+          subject: string
+          email?: string
+        } | null>
+      }
+    }) => {
       const identity = await ctx.auth.getUserIdentity()
       if (!identity) {
         throw new CE({
@@ -75,11 +81,7 @@ vi.mock("../auth", () => ({
   },
 }))
 
-async function seedAccount(
-  t: TestClient,
-  userId: string,
-  handle: string,
-) {
+async function seedAccount(t: TestClient, userId: string, handle: string) {
   await t.mutation(internal.iboite.accounts.ensurePersonal, {
     userId,
     idnHandle: handle,
@@ -92,7 +94,8 @@ async function seedAccount(
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .unique()
   })
-  if (!account) throw new Error("seedAccount: compte introuvable après ensurePersonal")
+  if (!account)
+    throw new Error("seedAccount: compte introuvable après ensurePersonal")
   return account
 }
 
@@ -139,16 +142,19 @@ describe("messages.send — pièces jointes", () => {
 
     // Côté destinataire : copie inbox distincte, PJ dupliquée (même storageRef).
     const asRecipient = t.withIdentity({ subject: "user_recipient" })
-    const inboxPage = await asRecipient.query(api.iboite.messages.listByFolder, {
-      accountId: (await t.run(async (ctx) =>
-        ctx.db
-          .query("iboiteAccount")
-          .withIndex("by_userId", (q) => q.eq("userId", "user_recipient"))
-          .unique(),
-      ))!._id,
-      folder: "inbox",
-      paginationOpts: { numItems: 10, cursor: null },
-    })
+    const inboxPage = await asRecipient.query(
+      api.iboite.messages.listByFolder,
+      {
+        accountId: (await t.run(async (ctx) =>
+          ctx.db
+            .query("iboiteAccount")
+            .withIndex("by_userId", (q) => q.eq("userId", "user_recipient"))
+            .unique(),
+        ))!._id,
+        folder: "inbox",
+        paginationOpts: { numItems: 10, cursor: null },
+      },
+    )
     expect(inboxPage.page).toHaveLength(1)
     expect(inboxPage.page[0].hasAttachment).toBe(true)
 
@@ -223,9 +229,12 @@ describe("messages.send — pièces jointes", () => {
     // la PJ (attachmentUrl → null) — ownership check strict, pas de fuite
     // cross-user.
     const asOutsider = t.withIdentity({ subject: "user_outsider3" })
-    const outsiderMessageView = await asOutsider.query(api.iboite.messages.get, {
-      messageId: sentId,
-    })
+    const outsiderMessageView = await asOutsider.query(
+      api.iboite.messages.get,
+      {
+        messageId: sentId,
+      },
+    )
     expect(outsiderMessageView).toBeNull()
 
     const outsiderAttachmentUrl = await asOutsider.query(
@@ -256,7 +265,12 @@ describe("messages.send — pièces jointes", () => {
       subject: "Deux PJ",
       body: "Corps",
       attachments: [
-        { name: "a.pdf", size: 10, mimeType: "application/pdf", storageRef: ref1 },
+        {
+          name: "a.pdf",
+          size: 10,
+          mimeType: "application/pdf",
+          storageRef: ref1,
+        },
         { name: "b.png", size: 20, mimeType: "image/png", storageRef: ref2 },
       ],
     })
@@ -307,5 +321,94 @@ describe("messages.send — pièces jointes", () => {
         .collect(),
     )
     expect(sentMessages).toHaveLength(0)
+  })
+})
+
+describe("messages.send — transport SMTP externe", () => {
+  test("une adresse externe crée une seule copie envoyée et planifie sa livraison", async () => {
+    const t = makeTestClient()
+    const sender = await seedAccount(t, "user_external", "external-sender")
+    const asSender = t.withIdentity({ subject: "user_external" })
+
+    const sentId = await asSender.mutation(api.iboite.messages.send, {
+      accountId: sender._id,
+      recipientName: "Alice Externe",
+      recipientEmail: "alice@example.net",
+      subject: "Message vers Internet",
+      body: "Ce message doit être remis à Stalwart.",
+    })
+
+    const rows = await t.run(async (ctx) =>
+      ctx.db.query("iboiteMessage").collect(),
+    )
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({
+      _id: sentId,
+      folder: "sent",
+      transport: "smtp",
+      deliveryStatus: "queued",
+      recipientEmail: "alice@example.net",
+    })
+  })
+
+  test("une adresse externe syntaxiquement invalide est rejetée", async () => {
+    const t = makeTestClient()
+    const sender = await seedAccount(
+      t,
+      "user_invalid_external",
+      "invalid-sender",
+    )
+    const asSender = t.withIdentity({ subject: "user_invalid_external" })
+
+    await expect(
+      asSender.mutation(api.iboite.messages.send, {
+        accountId: sender._id,
+        recipientName: "Invalide",
+        recipientEmail: "pas une adresse@",
+        subject: "Objet",
+        body: "Corps",
+      }),
+    ).rejects.toThrow(ConvexError)
+  })
+})
+
+describe("réception SMTP", () => {
+  test("l'idempotence Message-ID + destinataire empêche les doublons", async () => {
+    const t = makeTestClient()
+    const recipient = await seedAccount(t, "user_inbound", "inbound")
+    const input = {
+      providerMessageId: "<external-123@example.net>",
+      fromName: "Alice Externe",
+      fromEmail: "alice@example.net",
+      recipientEmail: recipient.emailAlias,
+      subject: "Bonjour",
+      body: "Un vrai email entrant.",
+      receivedAt: Date.now(),
+      attachments: [],
+    }
+
+    const first = await t.mutation(
+      internal.iboite.mailInternal.persistInbound,
+      input,
+    )
+    const second = await t.mutation(
+      internal.iboite.mailInternal.persistInbound,
+      input,
+    )
+
+    expect(second).toBe(first)
+    const inbox = await t.run(async (ctx) =>
+      ctx.db
+        .query("iboiteMessage")
+        .withIndex("by_account_folder", (q) =>
+          q.eq("accountId", recipient._id).eq("folder", "inbox"),
+        )
+        .collect(),
+    )
+    expect(inbox).toHaveLength(1)
+    expect(inbox[0]).toMatchObject({
+      transport: "smtp",
+      senderEmail: "alice@example.net",
+    })
   })
 })

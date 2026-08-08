@@ -1,6 +1,10 @@
-const CACHE_NAME = "idn-pwa-v1";
+const CACHE_NAME = "idn-pwa-v2";
 const OFFLINE_URL = "/offline.html";
-const STATIC_ASSETS = [OFFLINE_URL, "/pwa-192x192.png", "/pwa-512x512.png"];
+const STATIC_ASSETS = [
+  OFFLINE_URL,
+  "/idn-pwa-192x192.png",
+  "/idn-pwa-512x512.png",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -56,8 +60,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(title, {
       body: data.body || "Une nouvelle information est disponible.",
-      icon: "/pwa-192x192.png",
-      badge: "/pwa-192x192.png",
+      icon: "/idn-pwa-192x192.png",
+      badge: "/idn-pwa-192x192.png",
       tag: data.tag || "idn-notification",
       renotify: true,
       data: { url: data.url || "/dashboard" },

@@ -15,7 +15,7 @@ export function organizationJsonLd() {
     name: SITE_NAME,
     alternateName: ["IDN", "Identité Numérique du Gabon"],
     url: SITE_URL,
-    logo: absoluteUrl("/icon"),
+    logo: absoluteUrl("/icon.svg"),
     description:
       "Plateforme d'identité numérique souveraine de la République Gabonaise, opérée par Ntsagui digital.",
     parentOrganization: {

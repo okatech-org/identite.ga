@@ -79,13 +79,12 @@ export function ComposeModal({
       toast.error(iboite.compose.errors.invalidRecipient)
       return
     }
-    // Mode tolérant : si l'utilisateur tape juste « jean.dupont »,
-    // on suffixe automatiquement le domaine iBoîte. Si un autre domaine
-    // est saisi, on rejette tout de suite côté client.
+    // Mode tolérant : un identifiant seul cible iBoîte ; une adresse email
+    // complète peut désormais viser un domaine externe.
     const normalizedTo = trimmedTo.includes("@")
       ? trimmedTo
       : `${trimmedTo}@idn.ga`
-    if (!normalizedTo.endsWith("@idn.ga")) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedTo)) {
       toast.error(iboite.compose.errors.invalidDomain)
       return
     }
@@ -114,7 +113,7 @@ export function ComposeModal({
       onClose()
     } catch (err) {
       // Erreur métier ConvexError → on lit `.data.code` pour afficher le
-      // message i18n correspondant (RECIPIENT_UNKNOWN, INVALID_DOMAIN…).
+      // message i18n correspondant (RECIPIENT_UNKNOWN, INVALID_EMAIL…).
       // Sinon fallback générique : surtout pas de crash de l'UI.
       if (err instanceof ConvexError) {
         const data = err.data as { code?: string; message?: string } | string
@@ -122,7 +121,7 @@ export function ComposeModal({
         const message = typeof data === "object" ? data.message : undefined
         if (code === "RECIPIENT_UNKNOWN") {
           toast.error(iboite.compose.errors.recipientUnknown)
-        } else if (code === "INVALID_DOMAIN") {
+        } else if (code === "INVALID_EMAIL") {
           toast.error(iboite.compose.errors.invalidDomain)
         } else {
           toast.error(message ?? iboite.compose.errors.sendFailed)
@@ -143,9 +142,7 @@ export function ComposeModal({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription className="sr-only">
-            {title}
-          </DialogDescription>
+          <DialogDescription className="sr-only">{title}</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={submit} className="flex flex-col gap-3">

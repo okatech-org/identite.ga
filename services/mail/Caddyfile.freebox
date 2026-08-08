@@ -1,0 +1,16 @@
+mail.idn.ga, mta-sts.idn.ga, autoconfig.idn.ga, autodiscover.idn.ga, ua-auto-config.idn.ga {
+    encode zstd gzip
+    import security
+
+    handle_path /bridge/* {
+        reverse_proxy idn-mail-bridge:3000
+    }
+
+    handle {
+        reverse_proxy https://stalwart:443 {
+            transport http {
+                tls_insecure_skip_verify
+            }
+        }
+    }
+}

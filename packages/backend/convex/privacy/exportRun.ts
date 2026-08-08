@@ -6,7 +6,6 @@ import {
   internalMutation,
   internalQuery,
 } from "../_generated/server"
-import { sendGenericEmail } from "../email/provider"
 
 /**
  * Export RGPD (loi 001/2011 + RGPD art. 20).
@@ -18,7 +17,7 @@ import { sendGenericEmail } from "../email/provider"
  *      en JSON, écrit le blob dans `_storage`.
  *   3. Génère l'URL Convex (permanente — on planifie la suppression
  *      du blob 24h plus tard).
- *   4. Envoie un email avec le lien via le wrapper Resend.
+ *   4. Envoie un email avec le lien via le serveur mail IDN.
  *
  * L'utilisateur peut redemander un export après 24h (cf.
  * `rateLimiter.dataExport`).
@@ -150,7 +149,7 @@ export const sendExportEmail = internalMutation({
     const linkLine = args.downloadUrl
       ? `Lien de téléchargement (valable 24h) :\n${args.downloadUrl}`
       : "Lien indisponible — contactez privacy@identite.ga pour récupérer votre archive."
-    await sendGenericEmail(ctx, {
+    await ctx.scheduler.runAfter(0, internal.email.dispatch.sendGeneric, {
       to: args.to,
       subject: "Votre archive de données IDN",
       title: "Votre export de données est prêt",
