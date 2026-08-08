@@ -88,6 +88,47 @@ async function assertAliasAvailable(
   }
 }
 
+async function renameStoredEmailReferences(
+  ctx: { db: any },
+  oldEmail: string,
+  newEmail: string,
+) {
+  let messagesUpdated = 0
+  const messages = await ctx.db.query("iboiteMessage").collect()
+  for (const message of messages) {
+    const update: { senderEmail?: string; recipientEmail?: string } = {}
+    if (message.senderEmail === oldEmail) update.senderEmail = newEmail
+    if (message.recipientEmail === oldEmail) update.recipientEmail = newEmail
+    if (Object.keys(update).length > 0) {
+      await ctx.db.patch(message._id, update)
+      messagesUpdated += 1
+    }
+  }
+
+  let receiptsUpdated = 0
+  const receipts = await ctx.db.query("iboiteInboundReceipt").collect()
+  for (const receipt of receipts) {
+    if (receipt.recipientEmail !== oldEmail) continue
+    const collision = await ctx.db
+      .query("iboiteInboundReceipt")
+      .withIndex("by_provider_recipient", (q: any) =>
+        q
+          .eq("providerMessageId", receipt.providerMessageId)
+          .eq("recipientEmail", newEmail),
+      )
+      .unique()
+    if (collision && collision._id !== receipt._id) {
+      throw new Error(
+        `Un reçu entrant existe déjà pour ${receipt.providerMessageId} et ${newEmail}.`,
+      )
+    }
+    await ctx.db.patch(receipt._id, { recipientEmail: newEmail })
+    receiptsUpdated += 1
+  }
+
+  return { messagesUpdated, receiptsUpdated }
+}
+
 /**
  * Charge un compte iBoîte en validant l'ownership du user courant.
  * Helper réutilisé par tous les modules iboite/*.
@@ -307,6 +348,7 @@ export const ensurePersonal = internalMutation({
       if (desiredAlias && existing.emailAlias !== desiredAlias) {
         await assertAliasAvailable(ctx, desiredAlias, existing._id)
         const oldEmail = existing.emailAlias
+        await renameStoredEmailReferences(ctx, oldEmail, desiredAlias)
         await ctx.db.patch(existing._id, {
           emailAlias: desiredAlias,
           mailboxStatus: "pending",
@@ -476,6 +518,7 @@ export const reconcilePersonalEmails = internalMutation({
       }
 
       if (iboiteEmail !== canonicalEmail) {
+        await renameStoredEmailReferences(ctx, iboiteEmail, canonicalEmail)
         await ctx.db.patch(account._id, {
           emailAlias: canonicalEmail,
           mailboxStatus: "pending",
@@ -497,5 +540,38 @@ export const reconcilePersonalEmails = internalMutation({
     }
 
     return { changed, skipped }
+  },
+})
+
+/** Migration ciblée des références historiques après renommage d'une boîte. */
+export const renameEmailReferences = internalMutation({
+  args: {
+    oldEmail: v.string(),
+    newEmail: v.string(),
+    apply: v.boolean(),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const oldEmail = normalizeIdnEmail(args.oldEmail)
+    const newEmail = normalizeIdnEmail(args.newEmail)
+    if (!oldEmail || !newEmail) throw new Error("Adresse IDN invalide.")
+
+    const messages = await ctx.db.query("iboiteMessage").collect()
+    const messageIds = messages
+      .filter(
+        (message) =>
+          message.senderEmail === oldEmail ||
+          message.recipientEmail === oldEmail,
+      )
+      .map((message) => message._id)
+    const receipts = await ctx.db.query("iboiteInboundReceipt").collect()
+    const receiptIds = receipts
+      .filter((receipt) => receipt.recipientEmail === oldEmail)
+      .map((receipt) => receipt._id)
+
+    if (args.apply) {
+      await renameStoredEmailReferences(ctx, oldEmail, newEmail)
+    }
+    return { oldEmail, newEmail, messageIds, receiptIds }
   },
 })
