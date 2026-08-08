@@ -15,6 +15,22 @@ Le conteneur Caddy existant du homelab termine HTTPS et transmet les requêtes
 à Stalwart sur le réseau Docker `homelab_default`. Le bloc Caddy à conserver
 dans la configuration du homelab se trouve dans `Caddyfile.freebox`.
 
+Le conteneur `idn-mail-bridge` relie Stalwart à l'application :
+
+- `POST /bridge/provision` crée idempotemment une vraie boîte Stalwart ;
+- `POST /bridge/send` soumet un message authentifié à Stalwart ;
+- le MTA Hook Stalwart appelle directement `/inbound` sur le réseau Docker ;
+- le bridge transmet ensuite le message MIME normalisé à l'action HTTP Convex
+  `/mail/inbound` ;
+- les appels sont protégés par deux jetons distincts et les mots de passe des
+  boîtes sont dérivés par HMAC, sans être stockés dans Convex.
+
+Les secrets du bridge sont dans `/home/berny/services/mail/bridge.env` avec le
+mode `0600`. Leurs copies d'exploitation sont dans le Trousseau macOS sous les
+services `idn-ga-mail-bridge-token`, `idn-ga-mail-hook-token`,
+`idn-ga-mail-inbound-token` et `idn-ga-mailbox-password-key` (compte
+`idn-mail`).
+
 L'administration est disponible sur `https://mail.idn.ga/admin`. Le mot de
 passe du compte `admin@idn.ga` est conservé dans le Trousseau macOS, sous le
 service `idn-ga-stalwart-admin` et le compte `admin@idn.ga`.
@@ -39,8 +55,7 @@ automatique.
 
 Le trafic SMTP sortant direct sur TCP/25 est autorisé par l'accès Free et a été
 testé vers plusieurs MX externes. Le reverse DNS Free est configuré sur
-`mail.idn.ga` ; Free peut prendre jusqu'à une heure pour le publier. Après un
-changement d'adresse, vérifier impérativement :
+`mail.idn.ga`. Après un changement d'adresse, vérifier impérativement :
 
 ```sh
 dig +short mail.idn.ga A
@@ -48,6 +63,9 @@ dig +short -x 82.66.163.161
 ```
 
 Le compte `admin@idn.ga` reçoit également l'alias `postmaster@idn.ga`.
+
+Le 8 août 2026, un test de production vers Mail Tester a obtenu `10/10` : SPF,
+DKIM RSA, DKIM Ed25519, DMARC et reverse DNS valides.
 
 ## Exploitation
 
@@ -58,6 +76,7 @@ ssh berny@192.168.1.39
 cd /home/berny/services/mail
 sudo docker compose -f compose.freebox.yaml ps
 sudo docker logs --tail 100 stalwart
+sudo docker logs --tail 100 idn-mail-bridge
 ```
 
 Pour relancer le service :
@@ -68,12 +87,24 @@ sudo docker exec caddy caddy reload \
   --config /etc/caddy/Caddyfile --adapter caddyfile
 ```
 
+Après une évolution du bridge, reconstruire uniquement ce service :
+
+```sh
+sudo docker compose -f compose.freebox.yaml up -d --build bridge
+```
+
+Le hook MTA est un objet de configuration Stalwart nommé par son identifiant
+JMAP. Il est exécuté au stage `data`, utilise une authentification Bearer et
+conserve `tempFailOnError=true` : si Convex est indisponible, l'expéditeur
+reçoit une erreur SMTP temporaire au lieu d'une fausse acceptation.
+
 ## Sauvegardes
 
 Une sauvegarde de migration est conservée dans
-`/home/berny/services/mail/backup`. Cette installation temporaire ne dispose
-pas encore d'une sauvegarde automatique hors site : il faut en ajouter une
-avant d'en faire l'hébergement définitif.
+`/home/berny/services/mail/backup`. Les données persistantes à sauvegarder sont
+`data/stalwart`, `data/etc` et `bridge-data`. Cette installation temporaire ne
+dispose pas encore d'une sauvegarde automatique hors site : il faut en ajouter
+une avant d'en faire l'hébergement définitif.
 
 ## Ancienne infrastructure Google Cloud
 

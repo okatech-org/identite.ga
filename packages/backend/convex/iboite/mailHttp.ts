@@ -58,7 +58,7 @@ export const inbound = httpAction(async (ctx, request) => {
 
   const knownRecipients = await ctx.runQuery(
     internal.iboite.mailInternal.resolveInboundRecipients,
-    { emails: recipients },
+    { emails: recipients, providerMessageId },
   )
   if (knownRecipients.length === 0) {
     return new Response(

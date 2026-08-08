@@ -25,7 +25,7 @@ export const getAccountForProvisioning = internalQuery({
 })
 
 export const resolveInboundRecipients = internalQuery({
-  args: { emails: v.array(v.string()) },
+  args: { emails: v.array(v.string()), providerMessageId: v.string() },
   returns: v.array(v.string()),
   handler: async (ctx, args) => {
     const found: string[] = []
@@ -34,7 +34,16 @@ export const resolveInboundRecipients = internalQuery({
         .query("iboiteAccount")
         .withIndex("by_emailAlias", (q) => q.eq("emailAlias", email))
         .unique()
-      if (account) found.push(email)
+      if (!account) continue
+      const receipt = await ctx.db
+        .query("iboiteInboundReceipt")
+        .withIndex("by_provider_recipient", (q) =>
+          q
+            .eq("providerMessageId", args.providerMessageId)
+            .eq("recipientEmail", email),
+        )
+        .unique()
+      if (!receipt) found.push(email)
     }
     return found
   },
