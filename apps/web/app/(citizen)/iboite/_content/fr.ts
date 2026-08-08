@@ -159,7 +159,9 @@ export const iboite = {
     errors: {
       noAccount: "Aucun compte iBoîte actif.",
       invalidRecipient: "Saisissez une adresse email valide.",
-      invalidDomain: "Adresse non valide. Seul le domaine @idn.ga est accepté.",
+      invalidEmail: "Adresse email invalide.",
+      internalRecipientOnly:
+        "Les courriers numériques sont réservés aux adresses @idn.ga.",
       recipientUnknown:
         "Aucun utilisateur ne correspond à cette adresse iBoîte.",
       subjectRequired: "Donnez un objet à votre message.",

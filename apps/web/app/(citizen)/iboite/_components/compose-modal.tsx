@@ -85,7 +85,7 @@ export function ComposeModal({
       ? trimmedTo
       : `${trimmedTo}@idn.ga`
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedTo)) {
-      toast.error(iboite.compose.errors.invalidDomain)
+      toast.error(iboite.compose.errors.invalidEmail)
       return
     }
     if (!subject.trim()) {
@@ -122,7 +122,7 @@ export function ComposeModal({
         if (code === "RECIPIENT_UNKNOWN") {
           toast.error(iboite.compose.errors.recipientUnknown)
         } else if (code === "INVALID_EMAIL") {
-          toast.error(iboite.compose.errors.invalidDomain)
+          toast.error(iboite.compose.errors.invalidEmail)
         } else {
           toast.error(message ?? iboite.compose.errors.sendFailed)
         }

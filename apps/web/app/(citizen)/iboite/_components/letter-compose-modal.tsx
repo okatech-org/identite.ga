@@ -126,7 +126,7 @@ export function LetterComposeModal({
     }
     const normalizedTo = trimmedTo.includes("@") ? trimmedTo : `${trimmedTo}@idn.ga`
     if (!normalizedTo.endsWith("@idn.ga")) {
-      toast.error(iboite.compose.errors.invalidDomain)
+      toast.error(iboite.compose.errors.internalRecipientOnly)
       return
     }
     if (!subject.trim()) {
@@ -177,7 +177,7 @@ export function LetterComposeModal({
         if (code === "RECIPIENT_UNKNOWN") {
           toast.error(iboite.compose.errors.recipientUnknown)
         } else if (code === "INVALID_DOMAIN") {
-          toast.error(iboite.compose.errors.invalidDomain)
+          toast.error(iboite.compose.errors.internalRecipientOnly)
         } else {
           toast.error(message ?? iboite.compose.errors.sendFailed)
         }
