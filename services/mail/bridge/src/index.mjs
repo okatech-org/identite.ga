@@ -237,7 +237,7 @@ async function renameMailboxNow(oldAddress, newAddress) {
     ],
   ])
   const result = updateResponses.find(([, , tag]) => tag === "rename")?.[1]
-  if (!result?.updated?.[accountId]) {
+  if (!Object.hasOwn(result?.updated ?? {}, accountId)) {
     throw new Error(`Mailbox rename failed: ${JSON.stringify(result?.notUpdated?.[accountId] ?? result)}`)
   }
   return {
