@@ -7,6 +7,12 @@ import { createAuth } from "./auth"
 import { inbound as inboundMailHandler } from "./iboite/mailHttp"
 import { getPublicJwks } from "./lib/documentSigning"
 import { parseDirectoryResolveRequest } from "./partner/resolveRequest"
+import {
+  parseAgentActedRequest,
+  parseAvailabilityRequest,
+  parseDecisionRequest,
+  parseQueueQuery,
+} from "./partner/verificationRequest"
 
 const http = httpRouter()
 
@@ -802,6 +808,297 @@ http.route({
   path: "/mail/inbound",
   method: "POST",
   handler: inboundMailHandler,
+})
+
+// ---------------------------------------------------------------------------
+// API partenaire de VÉRIFICATION D'IDENTITÉ — /api/partner/verifications/*
+//
+// Permet à une application relying party autorisée (administration.ga) de
+// traiter la file des demandes depuis sa propre plateforme : consulter, se
+// l'attribuer, ouvrir l'entretien vidéo, décider, publier des créneaux.
+//
+// Les scopes sont SÉPARÉS et non hiérarchiques (cf. developer/apiKeys.ts) :
+// lire la file n'ouvre pas les pièces, et voir les pièces n'autorise pas à
+// décider. Une clé de supervision peut donc observer sans jamais pouvoir agir
+// sur l'identité de quiconque.
+//
+// ⚠️ Le partenaire VOUCHE pour son agent via `agentSub` : identite.ga ne peut
+// pas re-vérifier les habilitations internes d'administration.ga. Chaque acte
+// enregistre donc l'agent ET la clé qui l'a affirmé — une clé compromise se
+// révoque, et tout ce qu'elle a signé reste imputable.
+// ---------------------------------------------------------------------------
+
+const JSON_HEADERS = { "Content-Type": "application/json" }
+
+function jsonResponse(payload: unknown, status: number): Response {
+  return new Response(JSON.stringify(payload), { status, headers: JSON_HEADERS })
+}
+
+/** Authentifie la clé M2M et exige le scope demandé. */
+async function requireVerificationScope(
+  ctx: Parameters<Parameters<typeof httpAction>[0]>[0],
+  request: Request,
+  scope: string,
+) {
+  const principal = await authenticateApiKey(ctx, request)
+  if (!principal) {
+    return { ok: false as const, response: jsonResponse({ error: "unauthorized" }, 401) }
+  }
+  if (!principal.scopes.includes(scope)) {
+    return {
+      ok: false as const,
+      response: jsonResponse(
+        { error: "insufficient_scope", message: `Scope requis : ${scope}.` },
+        403,
+      ),
+    }
+  }
+  return { ok: true as const, principal }
+}
+
+/** Lit et valide le corps JSON, ou rend la réponse d'erreur adéquate. */
+async function readJson(request: Request) {
+  try {
+    return { ok: true as const, body: (await request.json()) as unknown }
+  } catch {
+    return { ok: false as const, response: jsonResponse({ error: "invalid_json" }, 400) }
+  }
+}
+
+/**
+ * Traduit une ConvexError métier en réponse HTTP.
+ *
+ * Les codes métier (ALREADY_CLAIMED, DOCUMENT_TRACK_REJECTED…) doivent
+ * traverser la frontière : le partenaire construit son UX dessus. Les laisser
+ * remonter en 500 opaque obligerait ses agents à deviner pourquoi un acte a
+ * échoué — et à réessayer en boucle sur un refus définitif.
+ */
+function businessError(error: unknown): Response {
+  const data = (error as { data?: { code?: string; message?: string } })?.data
+  if (data?.code) {
+    const status =
+      data.code === "NOT_FOUND"
+        ? 404
+        : data.code === "FORBIDDEN"
+          ? 403
+          : data.code === "ALREADY_CLAIMED"
+            ? 409
+            : 422
+    return jsonResponse({ error: data.code, message: data.message }, status)
+  }
+  console.error("[partner/verifications] erreur inattendue :", error)
+  return jsonResponse({ error: "internal_error" }, 500)
+}
+
+// GET /api/partner/verifications — file de travail, ou resynchronisation
+// complète via ?updatedSince=<epoch_ms>.
+http.route({
+  path: "/api/partner/verifications",
+  method: "GET",
+  handler: httpAction(async (ctx, request) => {
+    const auth = await requireVerificationScope(ctx, request, "idn:verification:list")
+    if (!auth.ok) return auth.response
+
+    const parsed = parseQueueQuery(new URL(request.url).searchParams)
+    if (!parsed.ok) {
+      return jsonResponse({ error: parsed.error, message: parsed.message }, 400)
+    }
+    const result = await ctx.runQuery(internal.partner.verifications.listQueue, parsed.value)
+    return jsonResponse(result, 200)
+  }),
+})
+
+// GET /api/partner/verifications/detail?verificationId=…
+// Les pièces ne sont jointes qu'avec le scope `idn:verification:media`, et
+// toujours en URL signées à durée limitée — jamais inlinées dans la réponse.
+http.route({
+  path: "/api/partner/verifications/detail",
+  method: "GET",
+  handler: httpAction(async (ctx, request) => {
+    const auth = await requireVerificationScope(ctx, request, "idn:verification:list")
+    if (!auth.ok) return auth.response
+
+    const verificationId = new URL(request.url).searchParams.get("verificationId")?.trim()
+    if (!verificationId) {
+      return jsonResponse(
+        { error: "missing_verification_id", message: "verificationId est requis." },
+        400,
+      )
+    }
+    const includeMedia = auth.principal.scopes.includes("idn:verification:media")
+    try {
+      const detail = await ctx.runQuery(internal.partner.verifications.getDetail, {
+        verificationId: verificationId as never,
+        includeMedia,
+      })
+      if (!detail) return jsonResponse({ error: "NOT_FOUND" }, 404)
+      return jsonResponse({ ...detail, mediaIncluded: includeMedia }, 200)
+    } catch (error) {
+      return businessError(error)
+    }
+  }),
+})
+
+// POST /api/partner/verifications/claim
+http.route({
+  path: "/api/partner/verifications/claim",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const auth = await requireVerificationScope(ctx, request, "idn:verification:claim")
+    if (!auth.ok) return auth.response
+    const json = await readJson(request)
+    if (!json.ok) return json.response
+
+    const parsed = parseAgentActedRequest(json.body)
+    if (!parsed.ok) {
+      return jsonResponse({ error: parsed.error, message: parsed.message }, 400)
+    }
+    try {
+      await ctx.runMutation(internal.partner.verifications.claim, {
+        verificationId: parsed.value.verificationId as never,
+        agentSub: parsed.value.agentSub,
+        agentName: parsed.value.agentName,
+        partnerKeyId: auth.principal.keyId,
+      })
+      return jsonResponse({ ok: true }, 200)
+    } catch (error) {
+      return businessError(error)
+    }
+  }),
+})
+
+// POST /api/partner/verifications/begin-interview
+http.route({
+  path: "/api/partner/verifications/begin-interview",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const auth = await requireVerificationScope(ctx, request, "idn:verification:claim")
+    if (!auth.ok) return auth.response
+    const json = await readJson(request)
+    if (!json.ok) return json.response
+
+    const parsed = parseAgentActedRequest(json.body)
+    if (!parsed.ok) {
+      return jsonResponse({ error: parsed.error, message: parsed.message }, 400)
+    }
+    try {
+      await ctx.runMutation(internal.partner.verifications.beginInterview, {
+        verificationId: parsed.value.verificationId as never,
+        agentSub: parsed.value.agentSub,
+      })
+      return jsonResponse({ ok: true }, 200)
+    } catch (error) {
+      return businessError(error)
+    }
+  }),
+})
+
+// POST /api/partner/verifications/decision
+http.route({
+  path: "/api/partner/verifications/decision",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const auth = await requireVerificationScope(ctx, request, "idn:verification:decide")
+    if (!auth.ok) return auth.response
+    const json = await readJson(request)
+    if (!json.ok) return json.response
+
+    const parsed = parseDecisionRequest(json.body)
+    if (!parsed.ok) {
+      return jsonResponse({ error: parsed.error, message: parsed.message }, 400)
+    }
+    try {
+      await ctx.runMutation(internal.partner.verifications.decide, {
+        verificationId: parsed.value.verificationId as never,
+        decision: parsed.value.decision,
+        agentSub: parsed.value.agentSub,
+        notes: parsed.value.notes,
+        reason: parsed.value.reason,
+      })
+      return jsonResponse({ ok: true }, 200)
+    } catch (error) {
+      return businessError(error)
+    }
+  }),
+})
+
+// GET /api/partner/verifications/slots?agentSub=… — agenda de l'agent.
+// POST — publie une plage découpée en créneaux réservables par les citoyens.
+http.route({
+  path: "/api/partner/verifications/slots",
+  method: "GET",
+  handler: httpAction(async (ctx, request) => {
+    const auth = await requireVerificationScope(ctx, request, "idn:verification:list")
+    if (!auth.ok) return auth.response
+
+    const params = new URL(request.url).searchParams
+    const agentSub = params.get("agentSub")?.trim()
+    if (!agentSub) {
+      return jsonResponse({ error: "missing_agent", message: "agentSub est requis." }, 400)
+    }
+    const slots = await ctx.runQuery(internal.partner.verifications.listSlots, {
+      agentSub,
+      from: params.get("from") ? Number(params.get("from")) : undefined,
+      to: params.get("to") ? Number(params.get("to")) : undefined,
+    })
+    return jsonResponse({ slots }, 200)
+  }),
+})
+
+http.route({
+  path: "/api/partner/verifications/slots",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const auth = await requireVerificationScope(ctx, request, "idn:verification:claim")
+    if (!auth.ok) return auth.response
+    const json = await readJson(request)
+    if (!json.ok) return json.response
+
+    const parsed = parseAvailabilityRequest(json.body)
+    if (!parsed.ok) {
+      return jsonResponse({ error: parsed.error, message: parsed.message }, 400)
+    }
+    try {
+      const result = await ctx.runMutation(
+        internal.partner.verifications.createAvailability,
+        parsed.value,
+      )
+      return jsonResponse(result, 200)
+    } catch (error) {
+      return businessError(error)
+    }
+  }),
+})
+
+// POST /api/partner/verifications/join — jeton LiveKit de l'agent.
+// L'agent rejoint la salle du citoyen depuis administration.ga ; le citoyen
+// reste sur identite.ga ou demarche.ga. Ni l'un ni l'autre ne change de site.
+http.route({
+  path: "/api/partner/verifications/join",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const auth = await requireVerificationScope(ctx, request, "idn:verification:join")
+    if (!auth.ok) return auth.response
+    const json = await readJson(request)
+    if (!json.ok) return json.response
+
+    const parsed = parseAgentActedRequest(json.body)
+    if (!parsed.ok) {
+      return jsonResponse({ error: parsed.error, message: parsed.message }, 400)
+    }
+    try {
+      const credentials = await ctx.runAction(
+        internal.partner.verificationLivekit.issueAgentJoinToken,
+        {
+          verificationId: parsed.value.verificationId as never,
+          agentSub: parsed.value.agentSub,
+        },
+      )
+      return jsonResponse(credentials, 200)
+    } catch (error) {
+      return businessError(error)
+    }
+  }),
 })
 
 export default http

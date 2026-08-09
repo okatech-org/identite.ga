@@ -58,6 +58,7 @@ export default function KycPage() {
   const me = useQuery(api.profile.getCurrentUser);
   const latest = useQuery(api.kyc.getMyLatest);
   const initialize = useMutation(api.kyc.initialize);
+  const requestVerification = useMutation(api.verification.request);
   const generateUploadUrl = useMutation(api.kyc.generateUploadUrl);
   const setDocumentImage = useMutation(api.kyc.setDocumentImage);
   const setSelfie = useMutation(api.kyc.setSelfie);
@@ -96,6 +97,11 @@ export default function KycPage() {
   React.useEffect(() => {
     if (!flow) return;
     if (returnTo) return;
+    // Parcours fusionné Niveau 3 : les pièces soumises ne sont PAS la fin du
+    // parcours, elles en ouvrent la seconde moitié (choix du créneau, puis
+    // entretien). Rediriger vers /kyc/request ici enfermerait le citoyen sur
+    // un écran de suivi sans jamais lui proposer de rendez-vous.
+    if (targetLoa === 3) return;
     if (
       latest &&
       ["submitted", "under_review", "complement_required", "rejected"].includes(
@@ -104,7 +110,7 @@ export default function KycPage() {
     ) {
       router.replace("/kyc/request");
     }
-  }, [flow, latest, router, returnTo]);
+  }, [flow, latest, router, returnTo, targetLoa]);
 
   // Approuvée / expirée : on garde l'écran "status" en lecture seule.
   React.useEffect(() => {
@@ -140,7 +146,15 @@ export default function KycPage() {
 
   // Le Niveau 3 possède son propre parcours : entretien vidéo LiveKit puis
   // décision humaine d'un contrôleur. Il ne recycle jamais le workflow L2.
-  if (targetLoa === 3 && currentLoa >= 2) {
+  //
+  // Depuis la fusion des parcours, il est demandable directement depuis le
+  // LoA 1 : la collecte des pièces ci-dessous en devient la PREMIÈRE étape,
+  // et l'on bascule sur l'entretien dès qu'elles sont soumises. Le citoyen ne
+  // fait qu'une seule démarche, sans repasser par une validation Niveau 2.
+  const documentsSubmitted =
+    latest !== null &&
+    ["submitted", "under_review", "approved"].includes(latest.status);
+  if (targetLoa === 3 && (currentLoa >= 2 || documentsSubmitted)) {
     return <LevelThreeFlow currentLoa={currentLoa} />;
   }
 
@@ -150,7 +164,15 @@ export default function KycPage() {
   const handleStart = async () => {
     setSubmitting(true);
     try {
-      const { kycRequestId: id } = await initialize({ documentType: docType });
+      // Cible Niveau 3 : on passe par l'entrée unifiée, qui ouvre la demande
+      // d'entretien ET sa piste documentaire d'un seul geste. Passer par
+      // `kyc.initialize` créerait des pièces orphelines, que la décision du
+      // contrôleur ne saurait pas rattacher à l'entretien.
+      const { kycRequestId: id } =
+        targetLoa === 3
+          ? await requestVerification({ targetLoa: 3, documentType: docType })
+          : await initialize({ documentType: docType });
+      if (!id) throw new Error("Aucune demande de pièce n'a été ouverte.");
       setKycRequestId(id);
       setStep("document");
     } catch (err) {

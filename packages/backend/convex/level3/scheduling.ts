@@ -14,6 +14,14 @@ import {
   LEVEL3_MIN_BOOKING_NOTICE_MS,
   LEVEL3_REMINDER_LEAD_MS,
 } from "./schedulingPolicy";
+import {
+  activeLevel3Row,
+  latestKycRow,
+} from "../verification/requestFlow";
+import {
+  isDocumentTrackReadyForBooking,
+  type DocumentTrackStatus,
+} from "../verification/requestPolicy";
 
 const SLOT_DURATION = v.union(v.literal(30), v.literal(45), v.literal(60));
 
@@ -75,6 +83,31 @@ async function profileName(
   );
 }
 
+/**
+ * Le citoyen peut-il réserver son entretien Niveau 3 ?
+ *
+ * Au LoA 2 la preuve documentaire est déjà acquise. Au LoA 1 (parcours
+ * fusionné), elle doit au moins avoir été SOUMISE : réserver avant cela
+ * produirait un entretien que le contrôleur ne peut pas instruire, faute de
+ * pièces à l'écran. Le critère lui-même vit dans `requestPolicy` pour rester
+ * testable seul et partagé avec `verification.getMine`.
+ */
+async function canBookAppointment(
+  ctx: { db: QueryCtx["db"] },
+  userId: string,
+  currentLoa: number,
+): Promise<boolean> {
+  if (currentLoa >= 2) return true;
+  const level3 = await activeLevel3Row(ctx, userId);
+  const kyc = level3?.kycRequestId
+    ? await ctx.db.get(level3.kycRequestId)
+    : await latestKycRow(ctx, userId);
+  return isDocumentTrackReadyForBooking(
+    currentLoa,
+    kyc ? (kyc.status as DocumentTrackStatus) : null,
+  );
+}
+
 /** Créneaux encore réservables par le citoyen courant. */
 export const listAvailable = query({
   args: { from: v.optional(v.number()), to: v.optional(v.number()) },
@@ -85,7 +118,12 @@ export const listAvailable = query({
       .query("userProfile")
       .withIndex("by_userId", (q) => q.eq("userId", me.userId))
       .unique();
-    if (!profile || profile.loa < 2 || profile.loa >= 3) return [];
+    if (!profile || profile.loa >= 3) return [];
+    // Parcours FUSIONNÉ : le LoA 1 accède aux créneaux dès que ses pièces
+    // sont soumises. Le plancher `loa >= 2` d'origine les lui fermait, ce qui
+    // rendait le Niveau 3 direct inatteignable — il pouvait le demander mais
+    // jamais le planifier.
+    if (!(await canBookAppointment(ctx, me.userId, profile.loa))) return [];
 
     const now = Date.now();
     const from = Math.max(args.from ?? now + LEVEL3_MIN_BOOKING_NOTICE_MS, now);
@@ -353,10 +391,17 @@ export const book = mutation({
       .query("userProfile")
       .withIndex("by_userId", (q) => q.eq("userId", me.userId))
       .unique();
-    if (!profile || profile.loa !== 2) {
+    if (!profile || profile.loa >= 3) {
       throw new ConvexError({
-        code: "LEVEL2_REQUIRED",
-        message: "Le Niveau 2 est requis pour réserver cet entretien.",
+        code: "ALREADY_VERIFIED",
+        message: "Votre identité est déjà vérifiée au Niveau 3.",
+      });
+    }
+    if (!(await canBookAppointment(ctx, me.userId, profile.loa))) {
+      throw new ConvexError({
+        code: "DOCUMENTS_REQUIRED",
+        message:
+          "Envoyez votre pièce d'identité et votre selfie avant de choisir un créneau.",
       });
     }
     const slot = await ctx.db.get(args.slotId);

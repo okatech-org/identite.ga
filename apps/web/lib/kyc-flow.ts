@@ -1,15 +1,31 @@
 export type KycTargetLoa = 2 | 3
 
+/**
+ * Hôtes vers lesquels on accepte de renvoyer l'usager après une démarche KYC.
+ *
+ * C'est une ALLOWLIST de redirection : y ajouter un domaine, c'est accepter
+ * d'y renvoyer un usager qui vient de prouver son identité. `demarche.ga` y
+ * figure parce que le portail citoyen propose désormais la vérification
+ * (Niveau 2 ou Niveau 3) et doit récupérer l'usager à son retour — sans quoi
+ * il resterait échoué sur identite.ga, sa démarche interrompue.
+ *
+ * Ne JAMAIS élargir à un joker : `endsWith(".ga")` accepterait n'importe quel
+ * domaine gabonais, y compris un domaine hostile fraîchement déposé.
+ */
+const ALLOWED_RETURN_HOSTS = [
+  "identite.ga",
+  "demarche.ga",
+  "localhost",
+  "127.0.0.1",
+] as const
+
 export function isAllowedReturnTo(raw: string): boolean {
   try {
     const url = new URL(raw)
     if (url.protocol !== "https:" && url.protocol !== "http:") return false
     const host = url.hostname
-    return (
-      host === "identite.ga" ||
-      host.endsWith(".identite.ga") ||
-      host === "localhost" ||
-      host === "127.0.0.1"
+    return ALLOWED_RETURN_HOSTS.some(
+      (allowed) => host === allowed || host.endsWith(`.${allowed}`),
     )
   } catch {
     return false

@@ -277,15 +277,37 @@ export default function ProfilePage() {
         </section>
 
         {showUpgrade && (
-          <Button asChild variant="outline" size="lg" className="h-12 w-full">
-            <Link href={`/kyc?target=${loa + 1}`}>
-              <ShieldCheckIcon
-                className="text-idn-green dark:text-idn-green-on-dark"
-                aria-hidden="true"
-              />
-              {profile.upgradeCta(loa + 1)}
-            </Link>
-          </Button>
+          // Les niveaux ne s'enchaînent plus : depuis le LoA 1, le Niveau 3
+          // est demandable directement (les pièces sont collectées dans le même
+          // parcours, cf. verification/requestPolicy.ts). On propose donc les
+          // deux cibles côte à côte plutôt qu'un unique « niveau suivant ».
+          <div className="flex flex-col gap-2 sm:flex-row">
+            {loa < 2 && (
+              <Button
+                asChild
+                variant="outline"
+                size="lg"
+                className="h-12 w-full"
+              >
+                <Link href="/kyc?target=2">
+                  <ShieldCheckIcon
+                    className="text-idn-green dark:text-idn-green-on-dark"
+                    aria-hidden="true"
+                  />
+                  {profile.upgradeCta(2)}
+                </Link>
+              </Button>
+            )}
+            <Button asChild variant="outline" size="lg" className="h-12 w-full">
+              <Link href="/kyc?target=3">
+                <ShieldCheckIcon
+                  className="text-idn-green dark:text-idn-green-on-dark"
+                  aria-hidden="true"
+                />
+                {profile.upgradeCta(3)}
+              </Link>
+            </Button>
+          </div>
         )}
       </section>
     </>
