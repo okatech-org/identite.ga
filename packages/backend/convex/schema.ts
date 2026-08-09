@@ -132,6 +132,9 @@ export const AUDIT_ACTIONS = [
   "kyc_approved",
   "kyc_rejected",
   "level3_requested",
+  // Parcours fusionné : une piste documentaire (kycRequest) a été ouverte
+  // et rattachée à une demande Niveau 3 émise depuis le LoA 1.
+  "level3_document_track_opened",
   "level3_claimed",
   "level3_availability_created",
   "level3_scheduled",
@@ -381,12 +384,17 @@ export default defineSchema({
     .index("by_reviewer", ["reviewerId"]),
 
   /**
-   * Vérification Niveau 3 MVP.
+   * Vérification Niveau 3.
    *
-   * Le niveau 2 est un prérequis. Un contrôleur habilité prend la demande,
-   * réalise un entretien vidéo LiveKit avec le citoyen, puis prend lui-même
-   * la décision. Aucun croisement automatique avec l'état civil n'est requis
-   * dans cette première version.
+   * Un contrôleur habilité prend la demande, réalise un entretien vidéo
+   * LiveKit avec le citoyen, puis prend lui-même la décision. Aucun
+   * croisement automatique avec l'état civil n'est requis à ce stade.
+   *
+   * Le Niveau 2 n'est PLUS un prérequis : le parcours est fusionné (cf.
+   * `verification/requestPolicy.ts`). Une demande ouverte depuis le LoA 1
+   * embarque sa propre piste documentaire (`kycRequestId`), et son
+   * approbation accorde le Niveau 2 et le Niveau 3 du même geste. C'est ce
+   * qui préserve l'invariant « pas d'eidas3 sans preuve documentaire ».
    */
   level3Verification: defineTable({
     userId: v.string(),
@@ -395,6 +403,42 @@ export default defineSchema({
     ),
     roomName: v.string(),
     controllerId: v.optional(v.string()),
+
+    /**
+     * Nom d'affichage du contrôleur, quand il est instruit depuis une
+     * application partenaire (administration.ga). Un agent d'administration a
+     * bien un `sub` IDN — il s'authentifie par SSO — mais pas forcément de
+     * `userProfile` ici : sans ce champ, la file afficherait « Contrôleur IDN »
+     * pour tout le monde, et le citoyen ne saurait pas qui l'a reçu.
+     */
+    controllerName: v.optional(v.string()),
+
+    /**
+     * Canal de traitement. `partner` = instruit depuis une application
+     * relying party via l'API M2M ; `controller_app` = console contrôleur
+     * native d'identite.ga. Sert l'audit et le routage des notifications.
+     */
+    handledVia: v.optional(
+      v.union(v.literal("controller_app"), v.literal("partner")),
+    ),
+
+    /** Clé M2M qui a vouché pour l'agent, quand `handledVia = "partner"`. */
+    partnerKeyId: v.optional(v.id("developerApiKey")),
+
+    /**
+     * Piste documentaire rattachée (parcours fusionné depuis le LoA 1).
+     * Absente quand le citoyen détenait déjà le Niveau 2 : sa preuve
+     * documentaire est alors le `kycRequest` approuvé qui lui a valu ce
+     * niveau, et rien de neuf n'est à collecter.
+     */
+    kycRequestId: v.optional(v.id("kycRequest")),
+
+    /**
+     * LoA du profil au moment de la demande. Sert l'audit : il distingue
+     * après coup un Niveau 3 accordé en parcours fusionné (entryLoa 1) d'un
+     * Niveau 3 accordé par-dessus un Niveau 2 déjà instruit (entryLoa 2).
+     */
+    entryLoa: v.optional(v.number()),
     appointmentSlotId: v.optional(v.id("level3AppointmentSlot")),
     scheduledAt: v.optional(v.number()),
     scheduledEndAt: v.optional(v.number()),
@@ -410,7 +454,11 @@ export default defineSchema({
     .index("by_status", ["status"])
     .index("by_controllerId", ["controllerId"])
     .index("by_status_and_scheduledAt", ["status", "scheduledAt"])
-    .index("by_userId_and_status", ["userId", "status"]),
+    .index("by_userId_and_status", ["userId", "status"])
+    // Resynchronisation partenaire : rejouer tout ce qui a changé depuis un
+    // horodatage. C'est le filet quand un webhook s'est perdu — sans lui, une
+    // réplique divergente n'aurait aucun moyen de se réparer.
+    .index("by_updatedAt", ["updatedAt"]),
 
   /**
    * Créneaux concrets publiés par les contrôleurs pour les entretiens L3.

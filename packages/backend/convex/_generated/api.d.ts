@@ -74,6 +74,7 @@ import type * as kyc_actions from "../kyc/actions.js";
 import type * as kyc_mutations from "../kyc/mutations.js";
 import type * as kyc_workflow from "../kyc/workflow.js";
 import type * as level3 from "../level3.js";
+import type * as level3_decision from "../level3/decision.js";
 import type * as level3_infrastructure from "../level3/infrastructure.js";
 import type * as level3_infrastructurePolicy from "../level3/infrastructurePolicy.js";
 import type * as level3_infrastructureState from "../level3/infrastructureState.js";
@@ -103,6 +104,11 @@ import type * as oauthConsents from "../oauthConsents.js";
 import type * as onboarding from "../onboarding.js";
 import type * as partner_citizens from "../partner/citizens.js";
 import type * as partner_resolveRequest from "../partner/resolveRequest.js";
+import type * as partner_verificationLivekit from "../partner/verificationLivekit.js";
+import type * as partner_verificationRequest from "../partner/verificationRequest.js";
+import type * as partner_verificationWebhook from "../partner/verificationWebhook.js";
+import type * as partner_verifications from "../partner/verifications.js";
+import type * as partner_webhookSignature from "../partner/webhookSignature.js";
 import type * as preferences from "../preferences.js";
 import type * as presentation from "../presentation.js";
 import type * as privacy from "../privacy.js";
@@ -122,6 +128,8 @@ import type * as vault_folders from "../vault/folders.js";
 import type * as vault_items from "../vault/items.js";
 import type * as vault_keys from "../vault/keys.js";
 import type * as verification from "../verification.js";
+import type * as verification_requestFlow from "../verification/requestFlow.js";
+import type * as verification_requestPolicy from "../verification/requestPolicy.js";
 import type * as wallet from "../wallet.js";
 
 import type {
@@ -197,6 +205,7 @@ declare const fullApi: ApiFromModules<{
   "kyc/mutations": typeof kyc_mutations;
   "kyc/workflow": typeof kyc_workflow;
   level3: typeof level3;
+  "level3/decision": typeof level3_decision;
   "level3/infrastructure": typeof level3_infrastructure;
   "level3/infrastructurePolicy": typeof level3_infrastructurePolicy;
   "level3/infrastructureState": typeof level3_infrastructureState;
@@ -226,6 +235,11 @@ declare const fullApi: ApiFromModules<{
   onboarding: typeof onboarding;
   "partner/citizens": typeof partner_citizens;
   "partner/resolveRequest": typeof partner_resolveRequest;
+  "partner/verificationLivekit": typeof partner_verificationLivekit;
+  "partner/verificationRequest": typeof partner_verificationRequest;
+  "partner/verificationWebhook": typeof partner_verificationWebhook;
+  "partner/verifications": typeof partner_verifications;
+  "partner/webhookSignature": typeof partner_webhookSignature;
   preferences: typeof preferences;
   presentation: typeof presentation;
   privacy: typeof privacy;
@@ -245,6 +259,8 @@ declare const fullApi: ApiFromModules<{
   "vault/items": typeof vault_items;
   "vault/keys": typeof vault_keys;
   verification: typeof verification;
+  "verification/requestFlow": typeof verification_requestFlow;
+  "verification/requestPolicy": typeof verification_requestPolicy;
   wallet: typeof wallet;
 }>;
 

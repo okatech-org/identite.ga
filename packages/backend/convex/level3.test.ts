@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 import { register as registerAggregate } from "@convex-dev/aggregate/test"
+import { register as registerRateLimiter } from "@convex-dev/rate-limiter/test"
 import { ConvexError } from "convex/values"
 import { convexTest } from "convex-test"
 import { beforeEach, describe, expect, test, vi } from "vitest"
@@ -46,6 +47,9 @@ function makeTestClient() {
   registerAggregate(t, "kycByStatus")
   registerAggregate(t, "usersByLoa")
   registerAggregate(t, "usersByProfile")
+  // Depuis la fusion des parcours, `level3.start` peut ouvrir une piste
+  // documentaire, qui passe par le rate limiter comme `kyc.initialize`.
+  registerRateLimiter(t)
   return t
 }
 
@@ -108,12 +112,26 @@ describe("parcours Niveau 3", () => {
     expect(rows).toHaveLength(1)
   })
 
-  test("exige le Niveau 2", async () => {
+  test("n'exige plus le Niveau 2, mais exige une pièce à instruire", async () => {
+    // Le prérequis Niveau 2 a été retiré (parcours fusionné). Ce qui reste
+    // exigé, c'est la PREUVE DOCUMENTAIRE : sans type de pièce, on ne peut pas
+    // ouvrir la piste qui l'apportera, donc la demande est refusée. Un Niveau 3
+    // accordé sans pièce instruite trahirait le mapping LoA→ACR eidas3.
     const t = makeTestClient()
     await seedCitizen(t, "citizen_l1", 1)
     const citizen = t.withIdentity({ subject: "citizen_l1" })
 
     await expect(citizen.mutation(api.level3.start, {})).rejects.toThrow(ConvexError)
+
+    const { verificationId } = await citizen.mutation(api.level3.start, {
+      documentType: "cni_gabon",
+    })
+    const verification = await t.run(async (ctx) =>
+      ctx.db.get(verificationId as Id<"level3Verification">),
+    )
+    expect(verification?.status).toBe("waiting_controller")
+    expect(verification?.entryLoa).toBe(1)
+    expect(verification?.kycRequestId).toBeDefined()
   })
 
   test("crée une seule demande active et la reprend de façon idempotente", async () => {

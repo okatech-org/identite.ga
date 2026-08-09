@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values";
 
 import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import { internalQuery, query } from "./_generated/server";
 import { mutation } from "./functions";
 import {
@@ -12,12 +13,9 @@ import {
   canJoinScheduledInterview,
   joinOpensAt,
 } from "./level3/schedulingPolicy";
-
-const ACTIVE_STATUSES = [
-  "waiting_controller",
-  "claimed",
-  "in_interview",
-] as const;
+import { applyLevel3Decision } from "./level3/decision";
+import { openVerificationRequest } from "./verification/requestFlow";
+import { KYC_DOCUMENT_TYPES } from "./schema";
 
 const STATUS = v.union(
   v.literal("waiting_controller"),
@@ -44,10 +42,6 @@ const VERIFICATION = v.object({
   canJoin: v.boolean(),
   joinOpensAt: v.optional(v.number()),
 });
-
-function isActive(status: string): boolean {
-  return ACTIVE_STATUSES.includes(status as (typeof ACTIVE_STATUSES)[number]);
-}
 
 /** Dernière demande Niveau 3 du citoyen courant. */
 export const getMine = query({
@@ -84,7 +78,12 @@ export const getMine = query({
       decidedAt: verification.decidedAt,
       rejectionReason: verification.rejectionReason,
       controllerId: verification.controllerId,
+      // Le nom stocké prime : un agent d'administration.ga a un `sub` IDN mais
+      // pas forcément de `userProfile` ici, donc la recherche ci-dessus ne
+      // trouverait rien et le citoyen verrait « Contrôleur IDN » au lieu du
+      // nom de la personne qui l'a effectivement reçu.
       controllerName:
+        verification.controllerName ||
         controllerName ||
         (verification.controllerId ? "Contrôleur IDN" : undefined),
       appointmentSlotId: verification.appointmentSlotId,
@@ -100,56 +99,37 @@ export const getMine = query({
   },
 });
 
-/** Ouvre ou reprend une demande L3. Le Niveau 2 est un prérequis strict. */
+/**
+ * Ouvre ou reprend une demande Niveau 3.
+ *
+ * @deprecated Alias de compatibilité — préférer `verification.request` avec
+ * `targetLoa: 3`, l'entrée unique du parcours. Conservé parce que le front
+ * citoyen historique (`apps/web`) l'appelle encore ; il partage strictement la
+ * même implémentation (`openVerificationRequest`), donc aucune divergence de
+ * doctrine n'est possible entre les deux chemins.
+ *
+ * Le prérequis Niveau 2 a été RETIRÉ : depuis le LoA 1, la demande embarque sa
+ * propre piste documentaire. `documentType` devient alors obligatoire — sans
+ * lui, l'appel échoue en `DOCUMENT_TYPE_REQUIRED` plutôt qu'en créant une
+ * vérification qu'aucune pièce ne viendrait étayer.
+ */
 export const start = mutation({
-  args: {},
+  args: {
+    documentType: v.optional(
+      v.union(...KYC_DOCUMENT_TYPES.map((t) => v.literal(t))),
+    ),
+  },
   returns: v.object({ verificationId: v.id("level3Verification") }),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
     const me = await requireVerifiedAuth(ctx);
-    const profile = await ctx.db
-      .query("userProfile")
-      .withIndex("by_userId", (q) => q.eq("userId", me.userId))
-      .unique();
-    if (!profile || profile.loa < 2) {
-      throw new ConvexError({
-        code: "LEVEL2_REQUIRED",
-        message: "Le Niveau 2 est requis avant l'entretien Niveau 3.",
-      });
-    }
-    if (profile.loa >= 3) {
-      throw new ConvexError({
-        code: "ALREADY_VERIFIED",
-        message: "Votre identité est déjà vérifiée au Niveau 3.",
-      });
-    }
-
-    const recent = await ctx.db
-      .query("level3Verification")
-      .withIndex("by_userId", (q) => q.eq("userId", me.userId))
-      .order("desc")
-      .take(10);
-    const active = recent.find((row) => isActive(row.status));
-    if (active) return { verificationId: active._id };
-
-    const now = Date.now();
-    const verificationId = await ctx.db.insert("level3Verification", {
+    const result = await openVerificationRequest(ctx, {
       userId: me.userId,
-      status: "waiting_controller",
-      roomName: "pending",
-      requestedAt: now,
-      updatedAt: now,
+      targetLoa: 3,
+      documentType: args.documentType,
     });
-    await ctx.db.patch(verificationId, {
-      roomName: `idn-l3-${verificationId}`,
-    });
-    await ctx.runMutation(internal.audit.recordAudit, {
-      actorId: me.userId,
-      action: "level3_requested",
-      targetType: "kyc",
-      targetId: verificationId,
-      metadata: { targetLoa: 3, method: "video_manual_review" },
-    });
-    return { verificationId };
+    // `targetLoa: 3` produit toujours une vérification — l'assertion garde le
+    // contrat de retour historique sans élargir son type.
+    return { verificationId: result.verificationId! };
   },
 });
 
@@ -428,41 +408,12 @@ export const approve = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const controller = await requireController(ctx);
-    const verification = await ctx.db.get(args.verificationId);
-    assertDecidable(verification, controller.userId);
-    const now = Date.now();
-    await ctx.db.patch(args.verificationId, {
-      status: "approved",
-      decidedAt: now,
-      updatedAt: now,
-    });
-    await ctx.db.insert("level3Review", {
+    await applyLevel3Decision(ctx, {
       verificationId: args.verificationId,
-      reviewerId: controller.userId,
       decision: "approved",
-      notes: args.notes?.trim() || undefined,
-      createdAt: now,
-    });
-    const profile = await ctx.db
-      .query("userProfile")
-      .withIndex("by_userId", (q) => q.eq("userId", verification.userId))
-      .unique();
-    if (profile) await ctx.db.patch(profile._id, { loa: 3, updatedAt: now });
-    await ctx.runMutation(internal.audit.recordAudit, {
-      actorId: controller.userId,
-      action: "level3_approved",
-      targetType: "kyc",
-      targetId: args.verificationId,
-      metadata: { method: "video_manual_review" },
-    });
-    await ctx.runMutation(internal.notifications.dispatch, {
-      userId: verification.userId,
-      category: "kyc",
-      title: "Niveau 3 accordé",
-      body: "Votre entretien a été validé par le contrôleur. Votre identité numérique est désormais au Niveau 3.",
-      metadata: { level3VerificationId: args.verificationId },
-      sendEmail: true,
-      pushUrl: "/kyc?target=3",
+      reviewerId: controller.userId,
+      notes: args.notes,
+      via: "controller_app",
     });
     return null;
   },
@@ -476,41 +427,12 @@ export const reject = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const controller = await requireController(ctx);
-    const verification = await ctx.db.get(args.verificationId);
-    assertDecidable(verification, controller.userId);
-    const reason = args.reason.trim();
-    if (reason.length < 5) {
-      throw new ConvexError({ code: "INVALID", message: "Motif trop court." });
-    }
-    const now = Date.now();
-    await ctx.db.patch(args.verificationId, {
-      status: "rejected",
-      rejectionReason: reason,
-      decidedAt: now,
-      updatedAt: now,
-    });
-    await ctx.db.insert("level3Review", {
+    await applyLevel3Decision(ctx, {
       verificationId: args.verificationId,
-      reviewerId: controller.userId,
       decision: "rejected",
-      notes: reason,
-      createdAt: now,
-    });
-    await ctx.runMutation(internal.audit.recordAudit, {
-      actorId: controller.userId,
-      action: "level3_rejected",
-      targetType: "kyc",
-      targetId: args.verificationId,
-      metadata: { reason },
-    });
-    await ctx.runMutation(internal.notifications.dispatch, {
-      userId: verification.userId,
-      category: "kyc",
-      title: "Entretien Niveau 3 non validé",
-      body: `Le contrôleur n'a pas pu valider votre demande : ${reason}`,
-      metadata: { level3VerificationId: args.verificationId },
-      sendEmail: true,
-      pushUrl: "/kyc?target=3",
+      reviewerId: controller.userId,
+      reason: args.reason,
+      via: "controller_app",
     });
     return null;
   },
@@ -578,36 +500,6 @@ export const _getJoinContext = internalQuery({
     };
   },
 });
-
-type DecidableVerification = {
-  status: string;
-  controllerId?: string;
-  userId: string;
-};
-
-function assertDecidable(
-  verification: DecidableVerification | null,
-  controllerId: string,
-): asserts verification is DecidableVerification {
-  if (!verification) {
-    throw new ConvexError({
-      code: "NOT_FOUND",
-      message: "Demande introuvable.",
-    });
-  }
-  if (verification.controllerId !== controllerId) {
-    throw new ConvexError({
-      code: "NOT_CLAIMED",
-      message: "Entretien non assigné.",
-    });
-  }
-  if (verification.status !== "in_interview") {
-    throw new ConvexError({
-      code: "INTERVIEW_REQUIRED",
-      message: "Démarrez l'entretien vidéo avant de prendre une décision.",
-    });
-  }
-}
 
 function shortRef(id: string): string {
   const trimmed = id.replace(/[^a-z0-9]/gi, "").toUpperCase();

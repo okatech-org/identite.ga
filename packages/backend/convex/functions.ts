@@ -17,6 +17,7 @@ import {
 } from "convex-helpers/server/customFunctions"
 
 import { kycByStatus, usersByLoa, usersByProfile } from "./aggregates"
+import { internal } from "./_generated/api"
 import type { DataModel } from "./_generated/dataModel"
 import {
   internalMutation as rawInternalMutation,
@@ -48,6 +49,33 @@ triggers.register("kycRequest", async (ctx, change) => {
   } else if (change.operation === "delete") {
     await kycByStatus.deleteIfExists(ctx, change.oldDoc)
   }
+})
+
+// level3Verification → notification sortante vers les applications partenaires
+// (administration.ga répliquant la file de vérification).
+//
+// Le trigger est LE point de notification, plutôt qu'un appel explicite dans
+// chaque mutation : le cycle de vie d'une demande est touché par le citoyen
+// (`verification.request`, réservation), par le contrôleur natif et par les
+// agents partenaires. Notifier depuis chaque appelant reviendrait à parier
+// qu'aucun chemin présent ou futur ne sera oublié — et un chemin oublié se
+// traduit par une réplique qui diverge en silence, sans erreur nulle part.
+triggers.register("level3Verification", async (ctx, change) => {
+  const doc = change.newDoc ?? change.oldDoc
+  if (!doc) return
+  await ctx.scheduler.runAfter(
+    0,
+    internal.partner.verificationWebhook.notify,
+    {
+      verificationId: doc._id,
+      event:
+        change.operation === "insert"
+          ? "created"
+          : change.operation === "delete"
+            ? "deleted"
+            : "updated",
+    },
+  )
 })
 
 /** Mutation publique IDN avec triggers d'agrégats. */

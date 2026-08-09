@@ -49,6 +49,15 @@ export const VALID_M2M_SCOPES = [
   "idn:delegate:lookup",
   "idn:delegate:create",
   "idn:delegate:status",
+  // Traitement des demandes de vérification depuis une application partenaire
+  // (administration.ga). Scopes SÉPARÉS et non hiérarchiques : consulter la
+  // file n'autorise pas à voir les pièces, et voir les pièces n'autorise pas à
+  // décider. Une clé de supervision peut ainsi lire sans jamais pouvoir agir.
+  "idn:verification:list",
+  "idn:verification:claim",
+  "idn:verification:decide",
+  "idn:verification:media",
+  "idn:verification:join",
 ] as const
 const DAY_MS = 24 * 60 * 60 * 1000
 

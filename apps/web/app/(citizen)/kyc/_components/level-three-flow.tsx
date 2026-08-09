@@ -70,7 +70,8 @@ function groupSlots<T extends { startsAt: number }>(
 
 export function LevelThreeFlow({ currentLoa }: { currentLoa: number }) {
   const verification = useQuery(api.level3.getMine, {});
-  const start = useMutation(api.level3.start);
+  // Entrée unifiée : `level3.start` n'est plus qu'un alias de compatibilité.
+  const requestVerification = useMutation(api.verification.request);
   const cancel = useMutation(api.level3.cancel);
   const book = useMutation(api.level3.scheduling.book);
   const issueJoinToken = useAction(api.level3.livekit.issueJoinToken);
@@ -98,7 +99,7 @@ export function LevelThreeFlow({ currentLoa }: { currentLoa: number }) {
   const onStart = async () => {
     setPending("start");
     try {
-      await start({});
+      await requestVerification({ targetLoa: 3 });
       toast.success("Choisissez maintenant votre créneau d'entretien.");
     } catch (error) {
       toast.error(errorMessage(error, "Impossible de démarrer le parcours."));
