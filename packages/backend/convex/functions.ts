@@ -63,6 +63,14 @@ triggers.register("kycRequest", async (ctx, change) => {
 triggers.register("level3Verification", async (ctx, change) => {
   const doc = change.newDoc ?? change.oldDoc
   if (!doc) return
+  // Aucun partenaire configuré → on ne planifie RIEN. L'action se contentait
+  // déjà de sortir sans rien faire, mais la planifier avait deux coûts réels :
+  // une fonction planifiée par écriture sur tout déploiement sans partenaire
+  // (développement, test, préproduction), et — sous `convex-test` — une
+  // exécution APRÈS la fin de la transaction du test, que Vitest remonte en
+  // « Write outside of transaction ». Décider ici est aussi plus honnête :
+  // la condition « y a-t-il quelqu'un à prévenir ? » appartient à l'émetteur.
+  if (!process.env.IDN_PARTNER_WEBHOOK_URL?.trim()) return
   await ctx.scheduler.runAfter(
     0,
     internal.partner.verificationWebhook.notify,
