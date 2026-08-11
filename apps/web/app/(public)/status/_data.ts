@@ -1,72 +1,51 @@
-export type ServiceStatus = "operational" | "degraded" | "outage";
+/**
+ * Composants de la plateforme IDN exposés sur la page de transparence.
+ *
+ * ⚠️ Doctrine de communication publique — aucun taux de disponibilité, aucun
+ * incident et aucune mesure ne figurent ici tant qu'ils ne sont pas produits
+ * par une instrumentation réelle. Un chiffre de disponibilité inventé vaut
+ * moins que son absence : il se retourne au premier audit contradictoire.
+ * Voir ADMINISTRATION.GA, docs/00_Transverse/06_Communication_Publique.
+ *
+ * Quand l'instrumentation sera en place, c'est ici que la lecture temps réel
+ * se branchera — en remplaçant ce module par une source de données, jamais en
+ * y réintroduisant des constantes.
+ */
 
-export type StatusComponent = {
+export type PlatformComponent = {
+  /** Nom du composant tel qu'exposé publiquement. */
   name: string;
-  statusLabel: string;
-  status: ServiceStatus;
-  uptime: number;
-  /** Indices (0..89) où le service a connu un incident dans les 90 derniers jours. */
-  incidentDays?: number[];
+  /** Ce que le composant fait — et, quand c'est décisif, où il s'exécute. */
+  role: string;
 };
 
-export const STATUS_COMPONENTS: StatusComponent[] = [
+export const PLATFORM_COMPONENTS: PlatformComponent[] = [
   {
     name: "Authentification (auth.identite.ga)",
-    statusLabel: "Opérationnel",
-    status: "operational",
-    uptime: 99.99,
+    role: "Ouverture de session, passkeys, appareils et sessions actives, révocation.",
   },
   {
-    name: "OIDC / OAuth (oauth.identite.ga)",
-    statusLabel: "Opérationnel",
-    status: "operational",
-    uptime: 99.97,
+    name: "OpenID Connect / OAuth (oauth.identite.ga)",
+    role: "Serveur d'identité aux standards : autorisation, jetons signés en RS256, point de publication des clés publiques, découverte automatique, gestion du consentement et de la déconnexion.",
   },
   {
     name: "API Identité (api.identite.ga)",
-    statusLabel: "Opérationnel",
-    status: "operational",
-    uptime: 99.98,
+    role: "Interface normalisée de raccordement des administrations. Le niveau de garantie exigé est transmis dans la demande d'authentification et réellement appliqué.",
   },
   {
-    name: "KYC vidéo (kyc.identite.ga)",
-    statusLabel: "Latence dégradée",
-    status: "degraded",
-    uptime: 99.91,
-    incidentDays: [42, 43, 88, 89],
+    name: "Vérification d'identité",
+    role: "Lecture optique du document, lecture de la bande de lecture automatique du passeport selon la norme ICAO 9303, comparaison faciale et détection de présentation frauduleuse — modèles ouverts embarqués, aucune image ni gabarit transmis à un tiers.",
   },
   {
-    name: "Notifications email/SMS",
-    statusLabel: "Opérationnel",
-    status: "operational",
-    uptime: 99.96,
+    name: "Entretien vidéo (niveau de garantie élevé)",
+    role: "Prise de rendez-vous, salle chiffrée et décision humaine consignée par un contrôleur habilité. La machine propose, l'État dispose.",
   },
   {
-    name: "USSD *242#",
-    statusLabel: "Opérationnel",
-    status: "operational",
-    uptime: 99.82,
-    incidentDays: [17, 51],
+    name: "Journal d'accès",
+    role: "Journalisation en ajout seul : aucune fonction du système ne permet de modifier ni de supprimer une entrée. Plus de quarante types d'événements typés, chacun portant son auteur, son origine et son horodatage.",
   },
-];
-
-export type StatusIncident = {
-  id: string;
-  title: string;
-  status: "ongoing" | "monitoring" | "resolved";
-  severity: ServiceStatus;
-  /** Date / heure ISO. */
-  startedAt: string;
-  body: string;
-};
-
-export const RECENT_INCIDENTS: StatusIncident[] = [
   {
-    id: "inc-2026-05-10-kyc",
-    title: "Latence dégradée sur le KYC vidéo",
-    status: "ongoing",
-    severity: "degraded",
-    startedAt: "10 mai 2026 · 14:08 UTC",
-    body: "Le service de vérification vidéo connaît une latence supérieure à la normale. Les nouvelles soumissions sont mises en file d'attente. Investigation en cours.",
+    name: "Notifications",
+    role: "Avis de sécurité et notification immédiate à la personne lorsque son identité est présentée à un contrôleur.",
   },
 ];

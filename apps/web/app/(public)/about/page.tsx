@@ -20,7 +20,7 @@ export default function AboutPage() {
       />
 
       <section className="mx-auto w-full max-w-[1180px] px-4 pb-13 md:px-7">
-        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {about.stats.map((stat) => (
             <li key={stat.label}>
               <Card className="h-full">
@@ -28,8 +28,11 @@ export default function AboutPage() {
                   <p className="font-mono text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
                     {stat.value}
                   </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <p className="mt-1 text-xs font-semibold uppercase tracking-[0.06em] text-foreground/70">
                     {stat.label}
+                  </p>
+                  <p className="mt-1 text-xs italic leading-relaxed text-muted-foreground">
+                    {stat.hint}
                   </p>
                 </CardContent>
               </Card>
