@@ -547,6 +547,7 @@ const delegateCreateHandler = httpAction(async (ctx, request) => {
   // peut pas réclamer son identité, et il faut réémettre l'identité.
   return new Response(
     JSON.stringify({
+      sub: result.userId,
       idnId: result.idnId,
       delegatedIdentityId: result.delegatedIdentityId,
       assignedLoa,

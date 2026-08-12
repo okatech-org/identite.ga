@@ -245,6 +245,8 @@ export const getById = internalQuery({
     v.object({
       _id: v.id("delegatedIdentity"),
       appClientId: v.string(),
+      /** Subject OIDC stable à lier dans l'application partenaire. */
+      sub: v.string(),
       idnId: v.optional(v.string()),
       assignedLoa: v.union(v.literal(1), v.literal(2)),
       status: v.union(v.literal("created"), v.literal("claimed")),
@@ -259,6 +261,7 @@ export const getById = internalQuery({
     return {
       _id: d._id,
       appClientId: d.appClientId,
+      sub: d.targetUserId,
       idnId: profile?.idnId,
       assignedLoa: d.assignedLoa,
       status: d.status,

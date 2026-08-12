@@ -381,6 +381,8 @@ export const lookupForDelegation = internalQuery({
   returns: v.union(
     v.object({
       found: v.literal(true),
+      /** Subject OIDC stable, nécessaire au rattachement idempotent côté partenaire. */
+      sub: v.string(),
       idnId: v.optional(v.string()),
       loa: v.union(v.literal(1), v.literal(2), v.literal(3)),
       isDelegated: v.boolean(),
@@ -402,6 +404,7 @@ export const lookupForDelegation = internalQuery({
           .first()
         return {
           found: true as const,
+          sub: profile.userId,
           idnId: profile.idnId,
           loa: profile.loa,
           isDelegated: delegation?.status === "created",
@@ -434,6 +437,7 @@ export const lookupForDelegation = internalQuery({
           .first()
         return {
           found: true as const,
+          sub: match.userId,
           idnId: match.idnId,
           loa: match.loa,
           isDelegated: delegation?.status === "created",
