@@ -30,10 +30,75 @@ const AUTH_PATH = "/api/auth"
 // le discovery sous `/api/auth/.well-known/openid-configuration`. Pas
 // besoin de monter des handlers custom — tout est servi par
 // `auth.handler(request)`.
+/**
+ * Origines autorisées à appeler les routes Better Auth depuis un NAVIGATEUR.
+ *
+ * Réutilise `TRUSTED_ORIGINS`, déjà la source de vérité anti-CSRF de Better
+ * Auth : une origine de confiance pour le CSRF l'est aussi pour le CORS, et
+ * maintenir deux listes les ferait diverger.
+ *
+ * On répond avec l'origine EXACTE, jamais `*` : ces routes portent des cookies
+ * de session (`credentials: "include"`), et la spec CORS interdit le joker dès
+ * qu'il y a des credentials — le navigateur rejetterait la réponse.
+ */
+function authCorsHeaders(origin: string | null): Record<string, string> {
+  if (!origin) return {}
+  const allowed = (process.env.TRUSTED_ORIGINS ?? "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean)
+  if (!allowed.includes(origin)) return {}
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Credentials": "true",
+    "Vary": "Origin",
+  }
+}
+
 const authRequestHandler = httpAction(async (ctx, request) => {
   const origin = request.headers.get("origin")
   const auth = createAuth(ctx, origin)
-  return await auth.handler(request)
+  const response = await auth.handler(request)
+
+  // Les applications partenaires (consulat.ga) exécutent le parcours
+  // d'inscription IDN depuis leur propre origine : sans ces en-têtes, le
+  // navigateur bloque la réponse et l'appel échoue en « Failed to fetch »,
+  // sans qu'aucune erreur ne remonte côté serveur.
+  const cors = authCorsHeaders(origin)
+  if (Object.keys(cors).length === 0) return response
+
+  const headers = new Headers(response.headers)
+  for (const [k, v] of Object.entries(cors)) headers.set(k, v)
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
+})
+
+/**
+ * Préflight CORS des routes Better Auth.
+ *
+ * Sans route OPTIONS, Convex répond 404 au préflight et le navigateur n'envoie
+ * JAMAIS la vraie requête — le symptôme est un « Failed to fetch » opaque côté
+ * client, alors que le serveur n'a rien vu passer.
+ */
+const authPreflightHandler = httpAction(async (_ctx, request) => {
+  const origin = request.headers.get("origin")
+  const cors = authCorsHeaders(origin)
+  if (Object.keys(cors).length === 0) return new Response(null, { status: 403 })
+
+  return new Response(null, {
+    status: 204,
+    headers: {
+      ...cors,
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers":
+        request.headers.get("access-control-request-headers") ??
+        "Content-Type, Authorization",
+      "Access-Control-Max-Age": "86400",
+    },
+  })
 })
 
 // Override du discovery OIDC : @convex-dev/better-auth instancie en interne
@@ -803,6 +868,11 @@ http.route({
   pathPrefix: `${AUTH_PATH}/`,
   method: "POST",
   handler: authRequestHandler,
+})
+http.route({
+  pathPrefix: `${AUTH_PATH}/`,
+  method: "OPTIONS",
+  handler: authPreflightHandler,
 })
 
 http.route({

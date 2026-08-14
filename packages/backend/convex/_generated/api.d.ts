@@ -91,6 +91,7 @@ import type * as lib_ai_registry from "../lib/ai/registry.js";
 import type * as lib_ai_types from "../lib/ai/types.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_claimCode from "../lib/claimCode.js";
+import type * as lib_consentGrant from "../lib/consentGrant.js";
 import type * as lib_documentSigning from "../lib/documentSigning.js";
 import type * as lib_iboiteId from "../lib/iboiteId.js";
 import type * as lib_idnId from "../lib/idnId.js";
@@ -222,6 +223,7 @@ declare const fullApi: ApiFromModules<{
   "lib/ai/types": typeof lib_ai_types;
   "lib/auth": typeof lib_auth;
   "lib/claimCode": typeof lib_claimCode;
+  "lib/consentGrant": typeof lib_consentGrant;
   "lib/documentSigning": typeof lib_documentSigning;
   "lib/iboiteId": typeof lib_iboiteId;
   "lib/idnId": typeof lib_idnId;
