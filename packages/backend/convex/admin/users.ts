@@ -1,4 +1,3 @@
-import { paginationOptsValidator } from "convex/server"
 import { v } from "convex/values"
 
 import { usersByLoa } from "../aggregates"
@@ -15,6 +14,21 @@ import { PROFILE_TYPES } from "../schema"
 
 const PROFILE_TYPE = v.union(...PROFILE_TYPES.map((t) => v.literal(t)))
 const LOA = v.union(v.literal(1), v.literal(2), v.literal(3))
+
+/**
+ * Plafond de balayage de la table `userProfile`.
+ *
+ * La console a besoin de connaître la population entière pour deux choses
+ * qu'aucun index ne donne : le nombre de pages, et la recherche par nom
+ * (pas d'index texte sur le pivot). On lit donc au plus ce nombre de
+ * documents — largement sous la limite Convex de 16 384 par query.
+ *
+ * Au-delà de quelques milliers de comptes, il faudra dénormaliser : un
+ * champ `pivotKey` indexé pour la recherche, un rang ou un curseur pour la
+ * pagination. Tant que ce seuil n'est pas franchi, `truncated` prévient
+ * l'UI que le résultat est partiel plutôt que de mentir en silence.
+ */
+const SCAN_LIMIT = 2000
 
 const PROFILE_ROW = v.object({
   _id: v.id("userProfile"),
@@ -74,28 +88,32 @@ async function toRow(ctx: QueryCtx, d: ProfileDoc) {
 /**
  * Page de comptes IDN, du plus récent au plus ancien.
  *
- * Les comptes anonymisés (`deletedAt`) sont exclus par défaut : leur pivot
- * a été vidé par la purge RGPD, ils n'ont plus ni nom ni email exploitable
- * et pollueraient la liste. `includeDeleted` les réintègre pour les besoins
- * de contrôle.
+ * Pagination par NUMÉRO de page, pas par curseur : la console affiche des
+ * numéros cliquables et doit pouvoir sauter directement à la page 5, ce
+ * qu'un curseur Convex ne permet pas — il n'avance que d'une page à la fois.
  *
- * Le filtre rend les pages de taille inégale — comportement normal de
- * `.paginate()` avec `.filter()`, géré par `usePaginatedQuery` côté client.
+ * Savoir combien de pages existent suppose de connaître la population
+ * entière, d'où le balayage plafonné. Convex garde la query en cache tant
+ * que la table ne bouge pas, donc changer de page ne le refait pas.
  */
 export const listProfiles = query({
   args: {
-    paginationOpts: paginationOptsValidator,
+    page: v.number(),
+    pageSize: v.number(),
     profileType: v.optional(PROFILE_TYPE),
     loa: v.optional(LOA),
     includeDeleted: v.optional(v.boolean()),
   },
   returns: v.object({
-    page: v.array(PROFILE_ROW),
-    isDone: v.boolean(),
-    continueCursor: v.string(),
+    rows: v.array(PROFILE_ROW),
+    page: v.number(),
+    pageCount: v.number(),
+    total: v.number(),
+    truncated: v.boolean(),
   }),
   handler: async (ctx, args) => {
     await requireAdmin(ctx)
+    const pageSize = Math.min(Math.max(Math.trunc(args.pageSize), 1), 100)
 
     let q
     if (args.profileType) {
@@ -105,35 +123,44 @@ export const listProfiles = query({
         .withIndex("by_profileType", (i) => i.eq("profileType", pt))
     } else if (args.loa) {
       const loa = args.loa
-      q = ctx.db.query("userProfile").withIndex("by_loa", (i) => i.eq("loa", loa))
+      q = ctx.db
+        .query("userProfile")
+        .withIndex("by_loa", (i) => i.eq("loa", loa))
     } else {
       q = ctx.db.query("userProfile")
     }
 
-    const filtered = args.includeDeleted
-      ? q
-      : q.filter((i) => i.eq(i.field("deletedAt"), undefined))
+    const scanned = await q.order("desc").take(SCAN_LIMIT)
+    // Un compte anonymisé a perdu son pivot à la purge RGPD : plus de nom,
+    // plus d'email. Le lister n'apprendrait rien et fausserait le décompte
+    // des pages.
+    const matching = args.includeDeleted
+      ? scanned
+      : scanned.filter((d) => d.deletedAt === undefined)
 
-    const result = await filtered.order("desc").paginate(args.paginationOpts)
+    const pageCount = Math.max(1, Math.ceil(matching.length / pageSize))
+    const page = Math.min(Math.max(Math.trunc(args.page), 0), pageCount - 1)
+    const slice = matching.slice(page * pageSize, page * pageSize + pageSize)
 
     return {
-      page: await Promise.all(
-        result.page.map((d) => toRow(ctx, d as ProfileDoc)),
-      ),
-      isDone: result.isDone,
-      continueCursor: result.continueCursor,
+      rows: await Promise.all(slice.map((d) => toRow(ctx, d as ProfileDoc))),
+      page,
+      pageCount,
+      total: matching.length,
+      truncated: scanned.length === SCAN_LIMIT,
     }
   },
 })
 
 /**
  * Nombre total de comptes IDN, en O(log N) via l'agrégat `usersByLoa`
- * (maintenu par les triggers de `functions.ts`). Appelé par la sidebar
- * sur chaque page : un `.collect()` sur toute la table y était un coût
- * fixe croissant.
+ * (maintenu par les triggers de `functions.ts`). Appelé par la sidebar sur
+ * chaque page : un `.collect()` sur toute la table y était un coût fixe
+ * croissant.
  *
  * Comme le `.collect().length` qu'il remplace, ce total inclut les comptes
- * soft-deleted.
+ * soft-deleted — il peut donc dépasser le `total` de `listProfiles`, qui
+ * les écarte.
  */
 export const totalAccounts = query({
   args: {},
@@ -150,18 +177,6 @@ export const totalAccounts = query({
 
 const IDN_ID_RE = /^GA-[0-9A-Z]{4}-[0-9A-Z]{4}$/i
 const NIP_RE = /^\d{14}$/
-
-/**
- * Plafond du balayage nom/prénom. La table n'a pas d'index texte : à
- * défaut, on lit au plus ce nombre de profils et on filtre en mémoire.
- *
- * Tient largement sous la limite Convex de 16 384 documents lus par query.
- * Au-delà de quelques milliers de comptes, il faudra un champ dénormalisé
- * `pivotKey` indexé, maintenu à chaque écriture du pivot (`onboarding.ts`,
- * `profile.ts`, `http.ts`, `delegate/mutations.ts`, `dev.ts`).
- * `truncated` signale à l'UI que le balayage n'a pas été exhaustif.
- */
-const SCAN_LIMIT = 2000
 
 /**
  * Recherche un compte par email, ID IDN, NIP ou nom.
@@ -215,11 +230,7 @@ export const searchProfiles = query({
         {
           model: "user",
           where: [
-            {
-              field: "email",
-              value: raw.toLowerCase(),
-              operator: "contains",
-            },
+            { field: "email", value: raw.toLowerCase(), operator: "contains" },
           ],
           paginationOpts: { numItems: limit, cursor: null },
         },

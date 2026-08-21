@@ -92,33 +92,46 @@ async function seedMany(t: ReturnType<typeof convexTest>, n: number) {
 describe("liste paginée des comptes IDN", () => {
   test("toute la population reste atteignable page après page", async () => {
     // POURQUOI : c'est la régression qu'on corrige. Une pagination qui
-    // afficherait 25 comptes sans permettre d'atteindre les suivants ne
+    // afficherait 10 comptes sans permettre d'atteindre les suivants ne
     // vaudrait pas mieux que la troncature qu'elle remplace.
     const t = makeTestClient()
     await seedMany(t, 60)
     const asAdmin = t.withIdentity({ subject: ADMIN })
 
     const seen = new Set<string>()
-    let cursor: string | null = null
-    let pages = 0
+    const first = await asAdmin.query(api.admin.users.listProfiles, {
+      page: 0,
+      pageSize: 10,
+    })
+    expect(first.pageCount).toBe(6)
+    expect(first.total).toBe(60)
 
-    for (;;) {
-      const res: {
-        page: Array<{ userId: string }>
-        isDone: boolean
-        continueCursor: string
-      } = await asAdmin.query(api.admin.users.listProfiles, {
-        paginationOpts: { numItems: 25, cursor },
+    for (let p = 0; p < first.pageCount; p++) {
+      const res = await asAdmin.query(api.admin.users.listProfiles, {
+        page: p,
+        pageSize: 10,
       })
-      pages++
-      for (const r of res.page) seen.add(r.userId)
-      if (res.isDone) break
-      cursor = res.continueCursor
-      expect(pages).toBeLessThan(10) // filet anti-boucle infinie
+      expect(res.rows).toHaveLength(10)
+      for (const r of res.rows) seen.add(r.userId)
     }
 
     expect(seen.size).toBe(60)
-    expect(pages).toBeGreaterThan(1)
+  })
+
+  test("un numéro de page hors bornes retombe sur la dernière page", async () => {
+    // POURQUOI : la console laisse saisir/deviner un numéro, et le nombre de
+    // pages diminue dès qu'un compte est supprimé. Renvoyer une page vide
+    // ferait croire à l'admin que le registre s'est vidé.
+    const t = makeTestClient()
+    await seedMany(t, 25)
+
+    const res = await t
+      .withIdentity({ subject: ADMIN })
+      .query(api.admin.users.listProfiles, { page: 99, pageSize: 10 })
+
+    expect(res.page).toBe(2)
+    expect(res.pageCount).toBe(3)
+    expect(res.rows).toHaveLength(5)
   })
 
   test("la première page rend les comptes les plus récents", async () => {
@@ -130,11 +143,9 @@ describe("liste paginée des comptes IDN", () => {
 
     const res = await t
       .withIdentity({ subject: ADMIN })
-      .query(api.admin.users.listProfiles, {
-        paginationOpts: { numItems: 5, cursor: null },
-      })
+      .query(api.admin.users.listProfiles, { page: 0, pageSize: 5 })
 
-    expect(res.page.map((r) => r.idnId)).toEqual([
+    expect(res.rows.map((r) => r.idnId)).toEqual([
       "GA-0000-0029",
       "GA-0000-0028",
       "GA-0000-0027",
@@ -170,10 +181,9 @@ describe("liste paginée des comptes IDN", () => {
     const t = makeTestClient()
     await seedMany(t, 1)
     await expect(
-      t.withIdentity({ subject: "citizen_1" }).query(
-        api.admin.users.listProfiles,
-        { paginationOpts: { numItems: 25, cursor: null } },
-      ),
+      t
+        .withIdentity({ subject: "citizen_1" })
+        .query(api.admin.users.listProfiles, { page: 0, pageSize: 10 }),
     ).rejects.toThrow(/refusé/)
   })
 })

@@ -182,8 +182,11 @@ export const fr = {
     search: "Email, ID IDN, NIP, nom…",
     searchLabel: "Rechercher un compte",
     clearSearch: "Effacer la recherche",
-    loadMore: "Charger plus",
     loading: "Chargement…",
+    tabsLabel: "Vue des comptes",
+    tabList: "Tous les comptes",
+    listTruncated:
+      "Liste partielle : le registre dépasse la capacité de balayage. Utilisez la recherche pour atteindre un compte précis.",
     resultCount: (n: number) =>
       n === 0 ? "Aucun résultat" : n === 1 ? "1 résultat" : `${n} résultats`,
     searchTruncated:
@@ -212,6 +215,17 @@ export const fr = {
       anonymized: "Compte anonymisé.",
       deleted: "Compte supprimé définitivement.",
     },
+  },
+
+  pagination: {
+    label: "Pagination",
+    previous: "Précédent",
+    next: "Suivant",
+    goToPage: (n: number) => `Aller à la page ${n}`,
+    summary: (page: number, pageCount: number, total: number) =>
+      `Page ${page} sur ${pageCount} · ${total.toLocaleString("fr-FR")} compte${total > 1 ? "s" : ""}`,
+    totalOnly: (total: number) =>
+      `${total.toLocaleString("fr-FR")} compte${total > 1 ? "s" : ""}`,
   },
 
   duplicates: {

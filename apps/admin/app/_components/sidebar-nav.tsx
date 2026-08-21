@@ -36,10 +36,6 @@ export function SidebarNav() {
   const totalAccounts = useQuery(api.admin.users.totalAccounts, {}) as
     | number
     | undefined
-  const duplicateGroups = useQuery(
-    api.admin.duplicates.duplicateGroupCount,
-    {},
-  ) as number | undefined
   const apps = useQuery(api.admin.oauthApps.listApps, { limit: 500 }) as
     | { disabled: boolean }[]
     | undefined
@@ -66,13 +62,6 @@ export function SidebarNav() {
       label: "Comptes IDN",
       icon: IdnIcons.user,
       tag: fmtCompact(totalAccounts),
-    },
-    {
-      id: "duplicates",
-      href: "/duplicates",
-      label: "Doublons",
-      icon: IdnIcons.copy,
-      tag: duplicateGroups ? fmtCompact(duplicateGroups) : undefined,
     },
     {
       id: "logs",

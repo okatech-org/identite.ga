@@ -305,8 +305,9 @@ describe("suppression d'un compte par l'admin", () => {
     })
 
     const listed = await asAdmin.query(api.admin.users.listProfiles, {
-      paginationOpts: { numItems: 50, cursor: null },
+      page: 0,
+      pageSize: 50,
     })
-    expect(listed.page.map((r) => r.userId)).not.toContain(citizen.userId)
+    expect(listed.rows.map((r) => r.userId)).not.toContain(citizen.userId)
   })
 })
