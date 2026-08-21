@@ -179,13 +179,59 @@ export const fr = {
   users: {
     sub: "COMPTES · 142 318 ACTIFS",
     title: "Utilisateurs",
-    search: "Email, ID IDN, nom…",
+    search: "Email, ID IDN, NIP, nom…",
+    searchLabel: "Rechercher un compte",
+    clearSearch: "Effacer la recherche",
+    loadMore: "Charger plus",
+    loading: "Chargement…",
+    resultCount: (n: number) =>
+      n === 0 ? "Aucun résultat" : n === 1 ? "1 résultat" : `${n} résultats`,
+    searchTruncated:
+      "Recherche partielle : seuls les premiers comptes ont été balayés. Affinez avec un email ou un ID IDN.",
     cols: {
       name: "NOM",
       email: "EMAIL",
       loa: "NIVEAU",
       profile: "PROFIL",
       joined: "INSCRIT",
+    },
+    actions: {
+      anonymize: "Anonymiser",
+      delete: "Supprimer",
+      anonymizeTitle: "Anonymiser ce compte",
+      anonymizeBody:
+        "Les données personnelles (identité pivot, KYC, iBoîte, iDoc, iCV, iCarte) sont effacées et les sessions révoquées. Le compte Better Auth survit : le handle @idn.ga reste réservé et ne pourra pas être réattribué.",
+      deleteTitle: "Supprimer définitivement ce compte",
+      deleteBody:
+        "Le compte Better Auth est supprimé en plus des données personnelles. Le handle @idn.ga redevient disponible et pourra être réattribué à quelqu'un d'autre. Cette action est irréversible.",
+      auditNote:
+        "Les journaux d'audit sont conservés dans les deux cas — 5 ans, loi 001/2011.",
+      confirmLabel: (id: string) => `Saisissez « ${id} » pour confirmer`,
+      reasonLabel: "Motif (facultatif, journalisé)",
+      cancel: "Annuler",
+      anonymized: "Compte anonymisé.",
+      deleted: "Compte supprimé définitivement.",
+    },
+  },
+
+  duplicates: {
+    sub: "DOUBLONS · NOM + PRÉNOM + DATE DE NAISSANCE",
+    title: "Comptes en double",
+    navLabel: "Doublons",
+    emptyTitle: "Aucun doublon détecté",
+    emptyBody:
+      "Aucun compte ne partage nom, prénom et date de naissance avec un autre. Les comptes sans identité pivot renseignée ne sont pas comparables et n'apparaissent pas ici.",
+    groupCount: (n: number) => (n === 1 ? "1 compte" : `${n} comptes`),
+    bornOn: "né(e) le",
+    oldest: "Plus ancien",
+    bestLoa: "Mieux vérifié",
+    kycYes: "KYC",
+    truncated:
+      "Rapport partiel : le balayage a atteint sa limite, des doublons peuvent manquer.",
+    cols: {
+      account: "COMPTE",
+      loa: "NIVEAU",
+      created: "CRÉÉ LE",
     },
   },
 
