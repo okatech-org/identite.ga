@@ -98,6 +98,7 @@ import type * as lib_documentSigning from "../lib/documentSigning.js";
 import type * as lib_iboiteId from "../lib/iboiteId.js";
 import type * as lib_identity from "../lib/identity.js";
 import type * as lib_idnId from "../lib/idnId.js";
+import type * as lib_partnerOrigins from "../lib/partnerOrigins.js";
 import type * as lib_password from "../lib/password.js";
 import type * as lib_pinSignInPlugin from "../lib/pinSignInPlugin.js";
 import type * as lib_secureToken from "../lib/secureToken.js";
@@ -113,6 +114,7 @@ import type * as partner_verificationRequest from "../partner/verificationReques
 import type * as partner_verificationWebhook from "../partner/verificationWebhook.js";
 import type * as partner_verifications from "../partner/verifications.js";
 import type * as partner_webhookSignature from "../partner/webhookSignature.js";
+import type * as partnerOrigins from "../partnerOrigins.js";
 import type * as preferences from "../preferences.js";
 import type * as presentation from "../presentation.js";
 import type * as privacy from "../privacy.js";
@@ -233,6 +235,7 @@ declare const fullApi: ApiFromModules<{
   "lib/iboiteId": typeof lib_iboiteId;
   "lib/identity": typeof lib_identity;
   "lib/idnId": typeof lib_idnId;
+  "lib/partnerOrigins": typeof lib_partnerOrigins;
   "lib/password": typeof lib_password;
   "lib/pinSignInPlugin": typeof lib_pinSignInPlugin;
   "lib/secureToken": typeof lib_secureToken;
@@ -248,6 +251,7 @@ declare const fullApi: ApiFromModules<{
   "partner/verificationWebhook": typeof partner_verificationWebhook;
   "partner/verifications": typeof partner_verifications;
   "partner/webhookSignature": typeof partner_webhookSignature;
+  partnerOrigins: typeof partnerOrigins;
   preferences: typeof preferences;
   presentation: typeof presentation;
   privacy: typeof privacy;

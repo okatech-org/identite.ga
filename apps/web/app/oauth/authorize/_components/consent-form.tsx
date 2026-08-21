@@ -111,6 +111,10 @@ export function ConsentForm({
     try {
       const res = await fetch("/api/auth/oauth2/consent", {
         method: "POST",
+        // Le cookie de session doit accompagner le POST : Better Auth résout
+        // `consent_code` depuis le cookie signé `oidc_consent_prompt`. Aligné
+        // sur le rejeu de /authorize dans sign-in (`credentials: "include"`).
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           accept: decision === "allow",

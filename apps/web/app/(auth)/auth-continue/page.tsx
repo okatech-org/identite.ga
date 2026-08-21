@@ -1,7 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { ConvexHttpClient } from "convex/browser"
 
+import { api } from "@repo/backend/convex/_generated/api"
 import { authClient } from "@/lib/auth-client"
 
 /**
@@ -14,24 +16,26 @@ import { authClient } from "@/lib/auth-client"
  * PIN se le voit redemander trois secondes plus tard sur l'écran de connexion.
  *
  * Elle échange donc un jeton à usage unique (plugin `oneTimeToken`) contre une
- * vraie session locale, puis poursuit vers l'autorisation OIDC.
+ * vraie session locale, puis poursuit vers `return_to`.
  *
- * SÉCURITÉ. `return_to` est une redirection pilotée par l'appelant : il est
- * validé comme étant une URL `/api/auth/oauth2/authorize` du host IDN. Sans ce
+ * SÉCURITÉ. `return_to` est une redirection pilotée par l'appelant : sans
  * contrôle, la page devient une redirection ouverte signée par identite.ga.
- * Les paramètres OAuth de l'app (client_id, redirect_uri, PKCE…) sont recopiés
- * depuis la query, jamais interprétés.
+ * Deux voies légitimes sont acceptées (cf. `isReturnAllowed`) ; les paramètres
+ * OAuth de l'app (client_id, redirect_uri, PKCE…) sont recopiés depuis la
+ * query, jamais interprétés.
  */
 
 /**
- * Deux origines légitimes pour l'autorisation :
+ * Voie 1 — retour direct sur l'endpoint d'autorisation. Deux origines
+ * légitimes :
  *  - celle de cette app (identite.ga), désormais annoncée comme
  *    `authorization_endpoint` dans la discovery OIDC — c'est la voie normale ;
  *  - l'origine Convex, conservée pour les partenaires déjà intégrés dont les
  *    URLs pointent encore directement sur elle.
  *
- * Le pathname reste contrôlé strictement dans les deux cas : c'est lui qui
- * empêche cette page de devenir une redirection ouverte.
+ * Le pathname est contrôlé strictement (`/api/auth/oauth2/authorize`) : c'est
+ * lui qui empêche cette voie de devenir une redirection ouverte. Contrôle
+ * synchrone, sans réseau.
  */
 function isAllowedAuthorizeUrl(raw: string, currentOrigin: string): boolean {
   const allowedOrigins = [currentOrigin]
@@ -55,6 +59,38 @@ function isAllowedAuthorizeUrl(raw: string, currentOrigin: string): boolean {
   }
 }
 
+/**
+ * `return_to` est-il autorisé ?
+ *
+ * Voie 1 — une URL `/api/auth/oauth2/authorize` du host IDN ou de l'origine
+ * Convex (partenaire qui saute directement sur /authorize). Synchrone.
+ *
+ * Voie 2 — l'URL d'un partenaire dont l'ORIGINE est déclarée dans
+ * `TRUSTED_ORIGINS`, vérifiée côté serveur (`partnerOrigins.isTrusted`). C'est
+ * le cas de l'inscription embarquée : le partenaire nous renvoie sur SA page
+ * (ex. `https://consulat.ga/register?…&idn_ready=1`), qui relance ensuite le
+ * flux OIDC normal. La liste blanche n'est jamais exposée au client.
+ */
+async function isReturnAllowed(returnTo: string): Promise<boolean> {
+  if (isAllowedAuthorizeUrl(returnTo, window.location.origin)) return true
+
+  let origin: string
+  try {
+    origin = new URL(returnTo).origin
+  } catch {
+    return false
+  }
+
+  const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL
+  if (!convexUrl) return false
+  try {
+    const convex = new ConvexHttpClient(convexUrl)
+    return await convex.query(api.partnerOrigins.isTrusted, { origin })
+  } catch {
+    return false
+  }
+}
+
 export default function AuthContinuePage() {
   const [error, setError] = useState<string | null>(null)
 
@@ -66,11 +102,7 @@ export default function AuthContinuePage() {
     // Le jeton ne doit rester ni dans l'historique ni dans un referrer.
     window.history.replaceState({}, "", "/auth-continue")
 
-    if (
-      !token ||
-      !returnTo ||
-      !isAllowedAuthorizeUrl(returnTo, window.location.origin)
-    ) {
+    if (!token || !returnTo) {
       setError("Le lien de connexion est invalide ou a expiré.")
       return
     }
@@ -78,6 +110,12 @@ export default function AuthContinuePage() {
     let cancelled = false
     const resume = async () => {
       try {
+        if (!(await isReturnAllowed(returnTo))) {
+          if (!cancelled)
+            setError("Le lien de connexion est invalide ou a expiré.")
+          return
+        }
+
         const result = await authClient.oneTimeToken.verify({ token })
         const session = result?.data?.session as { token?: string } | undefined
         if (!session?.token) throw new Error("invalid handoff")
