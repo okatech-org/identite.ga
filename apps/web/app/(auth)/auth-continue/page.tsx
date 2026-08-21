@@ -16,9 +16,6 @@ import { authClient } from "@/lib/auth-client"
  * Elle échange donc un jeton à usage unique (plugin `oneTimeToken`) contre une
  * vraie session locale, puis poursuit vers l'autorisation OIDC.
  *
- * Distincte de `/session-handoff`, qui fait la même chose mais se termine
- * toujours dans le parcours KYC (`buildKycPath`).
- *
  * SÉCURITÉ. `return_to` est une redirection pilotée par l'appelant : il est
  * validé comme étant une URL `/api/auth/oauth2/authorize` du host IDN. Sans ce
  * contrôle, la page devient une redirection ouverte signée par identite.ga.
@@ -26,14 +23,31 @@ import { authClient } from "@/lib/auth-client"
  * depuis la query, jamais interprétés.
  */
 
-function isAllowedAuthorizeUrl(raw: string): boolean {
-  const siteUrl = process.env.NEXT_PUBLIC_CONVEX_SITE_URL
-  if (!siteUrl) return false
+/**
+ * Deux origines légitimes pour l'autorisation :
+ *  - celle de cette app (identite.ga), désormais annoncée comme
+ *    `authorization_endpoint` dans la discovery OIDC — c'est la voie normale ;
+ *  - l'origine Convex, conservée pour les partenaires déjà intégrés dont les
+ *    URLs pointent encore directement sur elle.
+ *
+ * Le pathname reste contrôlé strictement dans les deux cas : c'est lui qui
+ * empêche cette page de devenir une redirection ouverte.
+ */
+function isAllowedAuthorizeUrl(raw: string, currentOrigin: string): boolean {
+  const allowedOrigins = [currentOrigin]
+  const convexSiteUrl = process.env.NEXT_PUBLIC_CONVEX_SITE_URL
+  if (convexSiteUrl) {
+    try {
+      allowedOrigins.push(new URL(convexSiteUrl).origin)
+    } catch {
+      /* env malformée : on s'en tient à l'origine courante */
+    }
+  }
+
   try {
     const target = new URL(raw)
-    const allowed = new URL(siteUrl)
     return (
-      target.origin === allowed.origin &&
+      allowedOrigins.includes(target.origin) &&
       target.pathname === "/api/auth/oauth2/authorize"
     )
   } catch {
@@ -52,7 +66,11 @@ export default function AuthContinuePage() {
     // Le jeton ne doit rester ni dans l'historique ni dans un referrer.
     window.history.replaceState({}, "", "/auth-continue")
 
-    if (!token || !returnTo || !isAllowedAuthorizeUrl(returnTo)) {
+    if (
+      !token ||
+      !returnTo ||
+      !isAllowedAuthorizeUrl(returnTo, window.location.origin)
+    ) {
       setError("Le lien de connexion est invalide ou a expiré.")
       return
     }

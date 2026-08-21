@@ -32,8 +32,9 @@ Les ADR suivent un gabarit léger inspiré de Michael Nygard :
 | [ADR-0007](./adr-0007-urls-anglais-contenu-francais.md) | URLs en anglais, contenu en français | Accepté |
 | [ADR-0008](./adr-0008-design-tokens-sans-shadows.md) | Design tokens IDN sans ombres portées | Accepté |
 | [ADR-0009](./adr-0009-accessibilite-rgaa.md) | Accessibilité conforme RGAA 4.1.2 / WCAG 2.1 AA | Accepté |
-| [ADR-0010](./adr-0010-multi-apps-auth-cross-domain.md) | Auth multi-apps : `crossDomain` + checks 100 % client | Accepté |
+| [ADR-0010](./adr-0010-multi-apps-auth-cross-domain.md) | Auth multi-apps : `crossDomain` + checks 100 % client | Remplacé par ADR-0012 |
 | [ADR-0011](./adr-0011-deploiement-gcp-cloud-run.md) | Déploiement Phase 1 sur GCP Cloud Run (remplace Vercel §12.2) | Accepté |
+| [ADR-0012](./adr-0012-fusion-connect-identite-ga.md) | Fusion de `connect.identite.ga` dans `identite.ga` | Accepté |
 
 ## Quand écrire un nouvel ADR
 

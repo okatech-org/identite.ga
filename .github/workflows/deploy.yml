@@ -26,7 +26,6 @@ jobs:
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
       admin: ${{ steps.filter.outputs.admin }}
-      connect: ${{ steps.filter.outputs.connect }}
       controller: ${{ steps.filter.outputs.controller }}
       developer: ${{ steps.filter.outputs.developer }}
       web: ${{ steps.filter.outputs.web }}
@@ -53,16 +52,6 @@ jobs:
               - 'packages/eslint-config/**'
               - 'packages/typescript-config/**'
               - 'apps/admin/**'
-            connect:
-              - 'package.json'
-              - 'bun.lock'
-              - 'turbo.json'
-              - '.github/workflows/deploy.yml'
-              - 'packages/ui/**'
-              - 'packages/backend/**'
-              - 'packages/eslint-config/**'
-              - 'packages/typescript-config/**'
-              - 'apps/connect/**'
             controller:
               - 'package.json'
               - 'bun.lock'
@@ -153,49 +142,6 @@ jobs:
         with:
           context: .
           file: apps/admin/Dockerfile
-          push: true
-          tags: |
-            ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.SERVICE }}:${{ github.sha }}
-            ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.SERVICE }}:latest
-          cache-from: type=gha,scope=${{ env.SERVICE }}
-          cache-to: type=gha,scope=${{ env.SERVICE }},mode=max
-          build-args: NEXT_PUBLIC_CONVEX_URL=${{ secrets.NEXT_PUBLIC_CONVEX_URL }}
-      - name: Deploy to Cloud Run
-        uses: google-github-actions/deploy-cloudrun@v3
-        with:
-          service: ${{ env.SERVICE }}
-          region: ${{ env.GCP_REGION }}
-          image: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.SERVICE }}:${{ github.sha }}
-          env_vars: CONVEX_SITE_URL=${{ secrets.CONVEX_SITE_URL }}
-          flags: --allow-unauthenticated --port=8080
-
-  deploy-connect:
-    needs: [changes, deploy-convex]
-    if: >-
-      always() &&
-      needs.changes.outputs.connect == 'true' &&
-      needs.deploy-convex.result != 'failure' &&
-      needs.deploy-convex.result != 'cancelled'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    env:
-      SERVICE: connect
-    steps:
-      - uses: actions/checkout@v5
-      - id: auth
-        uses: google-github-actions/auth@v3
-        with:
-          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
-          service_account: ${{ secrets.GCP_SA_EMAIL }}
-      - uses: google-github-actions/setup-gcloud@v3
-      - name: Configure Docker auth for Artifact Registry
-        run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
-      - uses: docker/setup-buildx-action@v3
-      - name: Build and push image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: apps/connect/Dockerfile
           push: true
           tags: |
             ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.SERVICE }}:${{ github.sha }}

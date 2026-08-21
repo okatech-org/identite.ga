@@ -129,9 +129,8 @@ export const listMine = query({
  * POURQUOI — l'inscription fédérée. Quand un citoyen crée son identité IDN
  * depuis l'interface d'une application partenaire (consulat.ga), le parcours
  * enchaîne immédiatement sur un `/oauth2/authorize`. Sans consentement déjà
- * enregistré, Better Auth l'expédie sur l'écran de consentement de
- * connect.identite.ga — au beau milieu de son inscription, sur un domaine
- * qu'il ne reconnaît pas.
+ * enregistré, Better Auth l'expédie sur l'écran de consentement d'identite.ga —
+ * au beau milieu de son inscription, hors du parcours du partenaire.
  *
  * On ne supprime PAS l'écran : le partenaire recueille le consentement dans son
  * propre parcours, puis appelle cette mutation. Différence essentielle avec un

@@ -897,7 +897,7 @@ Configurés dans Next.js middleware par app :
 
 | App                                                                           | Hébergement                                                                |
 | :---------------------------------------------------------------------------- | :------------------------------------------------------------------------- |
-| `apps/web`, `apps/admin`, `apps/controller`, `apps/developer`, `apps/connect` | **Google Cloud Run** (région `europe-west1` — Belgique), 1 service par app |
+| `apps/web`, `apps/admin`, `apps/controller`, `apps/developer`            | **Google Cloud Run** (région `europe-west1` — Belgique), 1 service par app |
 | Images Docker                                                                 | **Artifact Registry** `identite-ga` (région `europe-west1`)                |
 | Convex                                                                        | Convex Cloud                                                               |
 | Resend                                                                        | Resend Cloud                                                               |

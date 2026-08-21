@@ -57,7 +57,7 @@ const SCOPES = ["openid", "profile", "email"]
 
 // ── Utilisateur de test ─────────────────────────────────────────────────────
 const TEST_EMAIL = "demarchetest@idn.ga"
-// Handle de connexion côté apps/connect : `demarchetest` (ou `demarchetest@idn.ga`).
+// Handle de connexion sur identite.ga : `demarchetest` (ou `demarchetest@idn.ga`).
 const TEST_PASSWORD = "Zr4t-Demarche-Local-9Kpx"
 const TEST_PIN = "246813"
 const TEST_NAME = "Citoyen Test Démarche"

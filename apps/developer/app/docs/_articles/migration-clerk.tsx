@@ -45,7 +45,7 @@ export default function MigrationClerk() {
           [
             "<SignIn>",
             "<IDNSignInButton>",
-            "Bouton CTA, redirige vers connect.identite.ga",
+            "Bouton CTA, redirige vers identite.ga",
           ],
           ["<SignedIn> / <SignedOut>", "idem", "API identique, drop-in"],
           [

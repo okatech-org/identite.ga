@@ -2,18 +2,14 @@
 
 import { useRouter, useSearchParams } from "next/navigation"
 import { useConvexAuth, useQuery } from "convex/react"
-import { Suspense, useEffect, useMemo, useState } from "react"
+import { Suspense, useEffect, useMemo } from "react"
 
 import { api } from "@repo/backend/convex/_generated/api"
 
-import { authClient } from "@/lib/auth-client"
-import { buildKycHandoffUrl, getCurrentUserLoa } from "@/lib/step-up"
+import { buildKycPath } from "@/lib/kyc-flow"
+import { getCurrentUserLoa } from "@/lib/oauth-flow"
 
 import { ConsentForm } from "./_components/consent-form"
-
-// Base de l'app web identite.ga (flux de vérification sous /kyc). En dev,
-// définir NEXT_PUBLIC_IDN_WEB_URL=http://localhost:3000.
-const IDN_WEB_URL = process.env.NEXT_PUBLIC_IDN_WEB_URL ?? "https://identite.ga"
 
 const acrToLoa = (acr: string): number =>
   acr === "eidas3" ? 3 : acr === "eidas2" ? 2 : 1
@@ -39,8 +35,9 @@ const PARAM_KEYS = [
  * Affiché aux citoyens qui se connectent à une app tierce via IDN.
  * Liste les claims qui seront partagés + boutons Refuser / Autoriser.
  *
- * Vit sur connect.identite.ga — point d'authentification fédéré isolé
- * du site principal identite.ga.
+ * Vit sur identite.ga, le domaine qui porte le cookie de session : c'est ce qui
+ * permet à /oauth2/authorize de reconnaître un usager déjà connecté sans lui
+ * réafficher d'écran de connexion.
  */
 export default function OAuthAuthorizePage() {
   return (
@@ -214,6 +211,11 @@ function OAuthAuthorizePageInner() {
   )
 }
 
+/**
+ * Le KYC vit sur la même origine que cette page : une navigation interne suffit
+ * pour y envoyer l'usager et le récupérer ensuite. Le transfert de session par
+ * jeton à usage unique qu'exigeait connect.identite.ga n'a plus lieu d'être.
+ */
 function StepUpScreen({
   appName,
   requiredLoa,
@@ -223,34 +225,7 @@ function StepUpScreen({
   requiredLoa: number
   continueUrl: string
 }) {
-  const [isRedirecting, setIsRedirecting] = useState(false)
-  const [handoffError, setHandoffError] = useState<string | null>(null)
-
-  const startVerification = async () => {
-    if (isRedirecting) return
-    setIsRedirecting(true)
-    setHandoffError(null)
-
-    try {
-      const result = await authClient.oneTimeToken.generate()
-      const token = result?.data?.token as string | undefined
-      if (!token) throw new Error("missing handoff token")
-
-      window.location.assign(
-        buildKycHandoffUrl({
-          idnWebUrl: IDN_WEB_URL,
-          continueUrl,
-          targetLoa: requiredLoa,
-          token,
-        }),
-      )
-    } catch {
-      setHandoffError(
-        "La session n’a pas pu être transférée. Reconnectez-vous puis réessayez.",
-      )
-      setIsRedirecting(false)
-    }
-  }
+  const router = useRouter()
 
   return (
     <main className="flex min-h-svh items-center justify-center bg-idn-bg p-10">
@@ -265,17 +240,18 @@ function StepUpScreen({
         </p>
         <button
           type="button"
-          onClick={() => void startVerification()}
-          disabled={isRedirecting}
+          onClick={() =>
+            router.push(
+              buildKycPath({
+                returnTo: continueUrl,
+                targetLoa: requiredLoa === 3 ? 3 : 2,
+              }),
+            )
+          }
           className="mt-6 inline-flex h-11 w-full items-center justify-center rounded-md bg-idn-green px-6 text-sm font-medium text-white hover:opacity-90"
         >
-          {isRedirecting ? "Ouverture…" : "Vérifier mon identité"}
+          Vérifier mon identité
         </button>
-        {handoffError ? (
-          <p role="alert" className="mt-3 text-xs text-red-700">
-            {handoffError}
-          </p>
-        ) : null}
       </div>
     </main>
   )

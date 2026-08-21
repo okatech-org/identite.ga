@@ -17,6 +17,8 @@ import { PinPad } from "@repo/ui/components/pin-pad"
 import { cn } from "@repo/ui/lib/utils"
 
 import { authClient } from "@/lib/auth-client"
+import { syncCrossDomainCookiesForProxy } from "@/lib/auth-cookie"
+import { buildPostLoginRedirect, isFederatedSignIn } from "@/lib/oauth-flow"
 
 import { signIn } from "../_content/fr"
 import { CrossDeviceQr } from "../_components/cross-device-qr"
@@ -65,7 +67,15 @@ export default function SignInPage() {
 function SignInPageInner() {
   const router = useRouter()
   const params = useSearchParams()
-  const redirectTo = safeRedirectTo(params.get("redirect_to"), "/dashboard")
+
+  // Deux destinations possibles après authentification :
+  //  - connexion ordinaire au portail → un chemin interne validé ;
+  //  - connexion fédérée (app partenaire) → rejeu de /oauth2/authorize via le
+  //    proxy de cette origine, seul porteur du cookie de session.
+  const isOAuthFlow = isFederatedSignIn(params)
+  const redirectTo = isOAuthFlow
+    ? buildPostLoginRedirect(params)
+    : safeRedirectTo(params.get("redirect_to"), "/dashboard")
 
   const [phase, setPhase] = React.useState<Phase>("email")
   const [email, setEmail] = React.useState("")
@@ -107,6 +117,51 @@ function SignInPageInner() {
     setPhase("pin")
   })
 
+  /**
+   * Aiguillage post-authentification.
+   *
+   * En flux fédéré on ne peut pas se contenter d'un `router.push` : le plugin
+   * crossDomainClient garde la session en localStorage, pas en cookie HTTP.
+   * Il faut donc la recopier sur `document.cookie` pour que le proxy
+   * `/api/auth/*` la transmette à Convex, puis suivre nous-mêmes la redirection
+   * que renvoie `/oauth2/authorize` (consentement, ou retour direct au
+   * partenaire si le consentement est déjà enregistré).
+   */
+  const goToDestination = async () => {
+    if (!isOAuthFlow) {
+      router.push(redirectTo)
+      router.refresh()
+      return
+    }
+
+    try {
+      syncCrossDomainCookiesForProxy(authClient)
+    } catch (err) {
+      console.error("[idn:sign-in] failed to write document.cookie", err)
+    }
+
+    let nextUrl: string | null = null
+    try {
+      const r = await fetch(redirectTo, {
+        method: "GET",
+        credentials: "include",
+        headers: { Accept: "application/json" },
+      })
+      if (r.redirected) {
+        nextUrl = r.url
+      } else {
+        const body = (await r.json().catch(() => null)) as
+          | { redirect?: boolean; url?: string }
+          | null
+        if (body?.url) nextUrl = body.url
+      }
+    } catch (err) {
+      console.error("[idn:sign-in] authorize fetch threw", err)
+    }
+
+    window.location.assign(nextUrl ?? redirectTo)
+  }
+
   const submitPin = async (entered: string) => {
     if (submitting) return
     setSubmitting(true)
@@ -134,9 +189,8 @@ function SignInPageInner() {
       }
       // Force le client à recharger sa session via le cookie cross-domain
       // qu'on vient de stocker (le set-better-auth-cookie a déjà été pris
-      // par le fetch plugin). Le router push déclenchera un fetch JWT.
-      router.push(redirectTo)
-      router.refresh()
+      // par le fetch plugin).
+      await goToDestination()
     } catch {
       setPinError(signIn.pinErrorInvalid)
       setPin("")
@@ -172,7 +226,7 @@ function SignInPageInner() {
         setSubmitting(false)
         return
       }
-      router.push(redirectTo)
+      await goToDestination()
     } catch {
       toast.error(signIn.errorGeneric)
       setSubmitting(false)
@@ -196,7 +250,7 @@ function SignInPageInner() {
         setSubmitting(false)
         return
       }
-      router.push(redirectTo)
+      await goToDestination()
     } catch {
       toast.error(signIn.errorGeneric)
       setSubmitting(false)

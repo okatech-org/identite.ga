@@ -54,7 +54,7 @@ export default async function HomePage() {
             <p className="mt-3 text-xs text-idn-muted">
               Le bouton lance le flow OAuth Code + PKCE et redirige vers{" "}
               <code className="rounded bg-idn-surface-2 px-1 py-0.5 font-mono text-[11px]">
-                connect.identite.ga
+                identite.ga
               </code>{" "}
               pour authentification + consentement.
             </p>

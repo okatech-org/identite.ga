@@ -21,8 +21,7 @@
       "bundleIdentifier": "ga.idn.mobile",
       "buildNumber": "1",
       "associatedDomains": [
-        "webcredentials:identite.ga",
-        "webcredentials:connect.identite.ga"
+        "webcredentials:identite.ga"
       ],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,

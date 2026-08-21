@@ -296,10 +296,9 @@ l'option « Demande d'examen d'app détaillé » avec les mêmes infos.
       `identite.ga` (privacy, terms, mentions, accessibilite,
       delete-account, licenses)
 - [ ] `.well-known/apple-app-site-association` retourne 200 +
-      content-type `application/json` sur identite.ga et connect.identite.ga
+      content-type `application/json` sur identite.ga
 - [ ] `.well-known/assetlinks.json` idem
-- [ ] DNS pointe `identite.ga` ET `connect.identite.ga` sur le déploiement
-      Cloud Run de `apps/web`
+- [ ] DNS pointe `identite.ga` sur le déploiement Cloud Run de `apps/web`
 - [ ] Convex prod déployé (URL distincte de dev)
 - [ ] `bunx convex env set PASSKEY_RP_ID identite.ga` sur prod
 - [ ] `bunx convex env set PASSKEY_RP_ORIGINS "..."` avec SHA-256 Play

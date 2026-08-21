@@ -69,13 +69,12 @@ ce flux. Trigger manuel (`workflow_dispatch`) ou via tag `mobile-vX.Y.Z`.
 ### Convex (à fixer une fois prod déployé)
 ```bash
 bunx convex env set PASSKEY_RP_ID identite.ga
-bunx convex env set PASSKEY_RP_ORIGINS "https://identite.ga,https://connect.identite.ga,android:apk-key-hash:<BASE64_SHA256>"
+bunx convex env set PASSKEY_RP_ORIGINS "https://identite.ga,android:apk-key-hash:<BASE64_SHA256>"
 ```
 
 ## Domaines
 
-- `identite.ga` et `connect.identite.ga` doivent servir
-  `/.well-known/apple-app-site-association` et `/.well-known/assetlinks.json`
-  (cf. `apps/web/app/.well-known/`).
+- `identite.ga` doit servir `/.well-known/apple-app-site-association` et
+  `/.well-known/assetlinks.json` (cf. `apps/web/app/.well-known/`).
 - Bundle iOS : `ga.idn.mobile` · Team ID : `5Y39TTNCM7`
 - Package Android : `ga.idn.mobile`

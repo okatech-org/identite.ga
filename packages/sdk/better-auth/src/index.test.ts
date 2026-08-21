@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test, vi } from "vitest"
 
 import { idn, type IDNProfile } from "./index.js"
 
-const discoveryUrl = "https://connect.identite.ga/.well-known/openid-configuration"
+const discoveryUrl = "https://identite.ga/.well-known/openid-configuration"
 const userInfoUrl = "https://site.identite.ga/api/auth/oauth2/userinfo"
 
 afterEach(() => {

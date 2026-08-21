@@ -234,6 +234,15 @@ const oidcDiscoveryHandler = httpAction(async (ctx, request) => {
       new Set([...baseClaims, ...IDN_EXTENDED_CLAIMS]),
     ),
     acr_values_supported: ["eidas1", "eidas2", "eidas3"],
+    // Le navigateur doit atterrir sur le domaine qui porte le cookie de session
+    // (identite.ga), pas sur l'origine Convex. Sans ça, /oauth2/authorize ne voit
+    // jamais la session d'un usager déjà connecté et le renvoie vers /sign-in.
+    //
+    // Seul cet endpoint est réécrit : il est le seul traversé par un navigateur
+    // porteur de cookie. `issuer` (claim `iss` des tokens émis), `token_endpoint`,
+    // `jwks_uri` et `userinfo_endpoint` sont back-channel et restent sur Convex —
+    // les réécrire casserait la validation chez tous les partenaires intégrés.
+    authorization_endpoint: `${siteUrl()}/api/auth/oauth2/authorize`,
   }
   return new Response(JSON.stringify(patched), {
     status: 200,

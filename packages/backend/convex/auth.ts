@@ -266,18 +266,21 @@ export const createAuth = (
     },
     plugins: [
       // Réécrit les redirects OAuth/OIDC vers l'origin de l'app appelante
-      // (web, admin, developer, controller, connect). Permet aussi au
+      // (web, admin, developer, controller). Permet aussi au
       // crossDomainClient côté navigateur d'enregistrer la session via
       // localStorage (cookies cross-domain non garantis).
       crossDomain({
         siteUrl: resolveSiteUrl(requestOrigin),
       }),
 
-      // Transfert explicite d'une session existante entre deux surfaces IDN
-      // (ex. connect.identite.ga -> identite.ga avant un step-up KYC). Le
-      // jeton est à usage unique et expire après 3 minutes. Le plugin
-      // crossDomain sait déjà le consommer côté destination ; il manquait
-      // seulement l'endpoint de génération pour une session déjà ouverte.
+      // Reprise d'une session ouverte depuis une autre origine. Sert à
+      // `/auth-continue` : une app partenaire qui fait inscrire un citoyen
+      // depuis SON domaine obtient un jeton bearer, pas un cookie identite.ga —
+      // or /oauth2/authorize ne lit que le cookie. Le jeton est à usage unique
+      // et expire après 3 minutes.
+      //
+      // NB : ne sert plus aux transferts entre surfaces IDN — depuis la fusion
+      // de connect.identite.ga dans identite.ga, il n'y a plus qu'un domaine.
       oneTimeToken(),
 
       // Sign-in par PIN à 6 chiffres — endpoint /api/auth/sign-in/pin.
@@ -349,8 +352,11 @@ export const createAuth = (
       // 0.12.2 — voir l'ancien projet /Users/berny/Developer/idn/apps/portal
       // qui utilise déjà ce pattern).
       //
-      // `loginPage` / `consentPage` sont des URLs complètes vers apps/connect
-      // (point d'authentification fédéré) — Convex ne sert pas de HTML.
+      // `loginPage` / `consentPage` sont des URLs complètes vers apps/web
+      // (identite.ga) — Convex ne sert pas de HTML. Elles DOIVENT rester sur le
+      // même domaine que `authorization_endpoint` (cf. la réécriture dans
+      // http.ts) : c'est ce domaine qui porte le cookie de session, donc le seul
+      // où un retour vers /oauth2/authorize après login voit cette session.
       // `useJWTPlugin: true` → ID tokens signés en RS256 via le plugin jwt
       // ci-dessous (§6.1) plutôt qu'en HS256 avec BETTER_AUTH_SECRET.
       oidcProvider({
@@ -362,12 +368,12 @@ export const createAuth = (
         // sans cette option, tout scope custom (ex. idn:civil_status) est
         // rejeté avec `invalid_scope`. À garder en phase avec AVAILABLE_SCOPES
         // (apps/developer/.../applications/new) et claimsForScopes
-        // (apps/connect/.../consent-form.tsx).
+        // (apps/web/app/oauth/authorize/_components/consent-form.tsx).
         scopes: ["idn:civil_status"],
         loginPage:
-          process.env.IDN_LOGIN_PAGE ?? "http://localhost:3004/sign-in",
+          process.env.IDN_LOGIN_PAGE ?? "http://localhost:3000/sign-in",
         consentPage:
-          process.env.IDN_CONSENT_PAGE ?? "http://localhost:3004/oauth/authorize",
+          process.env.IDN_CONSENT_PAGE ?? "http://localhost:3000/oauth/authorize",
         requirePKCE: true,
         useJWTPlugin: true,
         allowPlainCodeChallengeMethod: false,
