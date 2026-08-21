@@ -1,12 +1,14 @@
 "use client"
 
 import * as React from "react"
+import { useSearchParams } from "next/navigation"
 import { useMutation, useQuery } from "convex/react"
 import { ConvexError } from "convex/values"
 import { ExpandIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { api } from "@repo/backend/convex/_generated/api"
+import type { Id } from "@repo/backend/convex/_generated/dataModel"
 import { Button } from "@repo/ui/components/button"
 import {
   Dialog,
@@ -21,9 +23,19 @@ import { Textarea } from "@repo/ui/components/textarea"
 
 import { IdnCard } from "../../../_components/idn-card"
 import { queue as content } from "../../../_content/fr"
+import { StatusBadge } from "./status-badge"
 
 const STRIPED_BG =
   "repeating-linear-gradient(45deg, var(--idn-surface-2), var(--idn-surface-2) 8px, #E8E5DC 8px, #E8E5DC 16px)"
+
+const dateTimeFormatter = new Intl.DateTimeFormat("fr-FR", {
+  timeZone: "Africa/Libreville",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+})
 
 function describeError(err: unknown, fallback: string): string {
   if (err instanceof ConvexError) {
@@ -34,41 +46,86 @@ function describeError(err: unknown, fallback: string): string {
   return fallback
 }
 
-export function CaseDetail() {
-  const current = useQuery(api.controller.queue.myCurrent, {})
+/**
+ * Colonne droite — examen de la demande sélectionnée dans la liste.
+ *
+ * Pilotée par `?id`, donc par le clic du contrôleur. L'ancienne version
+ * interrogeait `myCurrent`, qui devinait le dossier « en cours » et
+ * renvoyait le plus souvent autre chose que la demande cliquée.
+ */
+export function RequestDetail() {
+  const searchParams = useSearchParams()
+  const id = searchParams.get("id") as Id<"kycRequest"> | null
+
+  const current = useQuery(
+    api.controller.queue.getForReview,
+    id ? { kycRequestId: id } : "skip",
+  )
+  const claim = useMutation(api.controller.queue.claim)
   const approve = useMutation(api.controller.queue.approve)
   const reject = useMutation(api.controller.queue.reject)
-  const requestComplement = useMutation(
-    api.controller.queue.requestComplement,
-  )
+  const requestComplement = useMutation(api.controller.queue.requestComplement)
 
   const [submitting, setSubmitting] = React.useState<
-    "approve" | "reject" | "complement" | null
+    "claim" | "approve" | "reject" | "complement" | null
   >(null)
   const [rejectOpen, setRejectOpen] = React.useState(false)
   const [reason, setReason] = React.useState("")
   const [complementOpen, setComplementOpen] = React.useState(false)
   const [complementMessage, setComplementMessage] = React.useState("")
 
+  if (!id) {
+    return (
+      <div className="flex h-full items-center justify-center p-7">
+        <p className="max-w-xs text-center text-sm text-idn-muted">
+          {content.detail.empty}
+        </p>
+      </div>
+    )
+  }
+
   if (current === undefined) {
     return (
-      <IdnCard className="mt-5">
-        <div className="h-4 w-64 animate-pulse rounded bg-idn-surface-2" />
-        <div className="mt-3.5 grid grid-cols-2 gap-3.5">
-          <div className="aspect-[1.6/1] animate-pulse rounded-[10px] bg-idn-surface-2" />
-          <div className="aspect-[1.6/1] animate-pulse rounded-[10px] bg-idn-surface-2" />
-        </div>
-      </IdnCard>
+      <div className="p-7">
+        <IdnCard>
+          <div className="h-4 w-64 animate-pulse rounded bg-idn-surface-2" />
+          <div className="mt-3.5 grid grid-cols-2 gap-3.5">
+            <div className="aspect-[1.6/1] animate-pulse rounded-[10px] bg-idn-surface-2" />
+            <div className="aspect-[1.6/1] animate-pulse rounded-[10px] bg-idn-surface-2" />
+          </div>
+        </IdnCard>
+      </div>
     )
   }
 
   if (current === null) {
-    return null
+    return (
+      <div className="flex h-full items-center justify-center p-7">
+        <p className="max-w-xs text-center text-sm text-idn-muted">
+          {content.detail.notFound}
+        </p>
+      </div>
+    )
   }
 
   const fullName = [current.citizen.firstName, current.citizen.lastName]
     .filter(Boolean)
     .join(" ")
+  const actionable = current.status === "under_review" && !current.claimedByOther
+  const canClaim = current.status === "under_review" && !current.reviewerId
+
+  const onClaim = async () => {
+    setSubmitting("claim")
+    try {
+      await claim({ kycRequestId: current._id })
+    } catch (err) {
+      toast.error(
+        describeError(err, "Impossible de prendre en charge cette demande."),
+      )
+    } finally {
+      setSubmitting(null)
+    }
+  }
 
   const onApprove = async () => {
     setSubmitting("approve")
@@ -106,9 +163,7 @@ export function CaseDetail() {
 
   const onConfirmComplement = async () => {
     if (complementMessage.trim().length < 5) {
-      toast.error(
-        "Précisez ce que doit fournir le citoyen (min. 5 caractères).",
-      )
+      toast.error("Précisez ce que doit fournir le citoyen (min. 5 caractères).")
       return
     }
     setSubmitting("complement")
@@ -121,9 +176,7 @@ export function CaseDetail() {
       setComplementOpen(false)
       setComplementMessage("")
     } catch (err) {
-      toast.error(
-        describeError(err, "Impossible de demander un complément."),
-      )
+      toast.error(describeError(err, "Impossible de demander un complément."))
     } finally {
       setSubmitting(null)
     }
@@ -131,87 +184,155 @@ export function CaseDetail() {
 
   return (
     <>
-      <IdnCard className="mt-5">
-        <div className="text-[13px] font-semibold text-idn-ink">
-          {content.caseTitlePrefix}
-          {current.ref}
-          {fullName && (
-            <span className="ml-2 font-normal text-idn-muted">· {fullName}</span>
-          )}
-        </div>
-        <div className="mt-3.5 grid grid-cols-2 gap-3.5">
-          <PreviewSlot
-            url={current.docFrontUrl}
-            label={content.preview.recto}
-          />
-          <PreviewSlot url={current.selfieUrl} label={content.preview.selfie} />
-        </div>
-        <div className="mt-3.5 rounded-[10px] border border-idn-border-soft bg-idn-surface-2 p-3.5">
-          <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-idn-muted">
-            Analyse automatique
+      <div className="p-7">
+        <IdnCard>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div className="min-w-0 flex-1 text-[13px] font-semibold text-idn-ink">
+              {content.caseTitlePrefix}
+              {current.ref}
+              {fullName && (
+                <span className="ml-2 font-normal text-idn-muted">
+                  · {fullName}
+                </span>
+              )}
+            </div>
+            <StatusBadge status={current.status} />
           </div>
-          <div className="mt-2 grid gap-2 text-xs sm:grid-cols-3">
-            <InferenceSignal
-              label="Lecture document"
-              available={current.ocrAvailable}
-              value={formatInferenceScore(current.score)}
-            />
-            <InferenceSignal
-              label="Correspondance visage"
-              available={current.biometricAvailable}
-              value={formatInferenceScore(current.faceMatchScore)}
-            />
-            <InferenceSignal
-              label="Présence"
-              available={current.biometricAvailable}
-              value={
-                current.livenessVerdict === "real"
-                  ? "Réelle"
-                  : current.livenessVerdict === "spoof"
-                    ? "Usurpation détectée"
-                    : current.livenessVerdict === "uncertain"
-                      ? "Incertaine"
-                      : "—"
-              }
-            />
-          </div>
-          {(current.ocrAvailable === false ||
-            current.biometricAvailable === false) && (
-            <p className="mt-2.5 text-xs leading-relaxed text-[#9A6700] dark:text-[#F2C94C]">
-              Une partie de l&apos;analyse automatique était indisponible. Le
-              dossier exige un contrôle humain complet avant toute décision.
+
+          {current.claimedByOther && (
+            <p
+              role="status"
+              className="mt-3.5 rounded-[10px] border border-[#9A6700]/30 bg-[#FBF0D5] px-3.5 py-2.5 text-xs leading-relaxed text-[#7A5200] dark:bg-[#3A2E14] dark:text-[#F2C94C]"
+            >
+              {content.detail.claimedByOther}
             </p>
           )}
-        </div>
-        <div className="mt-3.5 flex items-center gap-2.5">
-          <Button onClick={onApprove} disabled={submitting !== null}>
-            {submitting === "approve" ? "…" : content.approveCta}
-          </Button>
-          <Button
-            variant="outline"
-            disabled={submitting !== null}
-            onClick={() => setComplementOpen(true)}
-          >
-            {content.requestMoreCta}
-          </Button>
-          <div className="flex-1" />
-          <Button
-            variant="ghost"
-            disabled={submitting !== null}
-            onClick={() => setRejectOpen(true)}
-            className="text-[#B83A3A] hover:bg-[#FBE5E5] hover:text-[#B83A3A] dark:hover:bg-[#3A1E1E]"
-          >
-            {content.rejectCta}
-          </Button>
-        </div>
-      </IdnCard>
+
+          {(current.status === "approved" || current.status === "rejected") &&
+            current.reviewedAt && (
+              <div className="mt-3.5 rounded-[10px] border border-idn-border-soft bg-idn-surface-2 p-3.5 text-xs">
+                <div className="font-medium text-idn-ink">
+                  {content.detail.decidedAt(
+                    dateTimeFormatter.format(current.reviewedAt),
+                  )}
+                </div>
+                {current.rejectionReason && (
+                  <p className="mt-1.5 leading-relaxed text-idn-muted">
+                    <span className="font-medium text-idn-ink">
+                      {content.detail.rejectionReason} :
+                    </span>{" "}
+                    {current.rejectionReason}
+                  </p>
+                )}
+              </div>
+            )}
+
+          {current.status === "complement_required" &&
+            current.complementRequest && (
+              <div className="mt-3.5 rounded-[10px] border border-idn-border-soft bg-idn-surface-2 p-3.5 text-xs">
+                <div className="font-medium text-idn-ink">
+                  {content.detail.complementMessage}
+                </div>
+                <p className="mt-1.5 leading-relaxed text-idn-muted">
+                  {current.complementRequest.message}
+                </p>
+              </div>
+            )}
+
+          <div className="mt-3.5 grid grid-cols-2 gap-3.5">
+            <PreviewSlot url={current.docFrontUrl} label={content.preview.recto} />
+            <PreviewSlot url={current.selfieUrl} label={content.preview.selfie} />
+          </div>
+
+          <div className="mt-3.5 rounded-[10px] border border-idn-border-soft bg-idn-surface-2 p-3.5">
+            <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-idn-muted">
+              {content.detail.analysisTitle}
+            </div>
+            <div className="mt-2 grid gap-2 text-xs sm:grid-cols-3">
+              <InferenceSignal
+                label="Lecture document"
+                available={current.ocrAvailable}
+                value={formatInferenceScore(current.score)}
+              />
+              <InferenceSignal
+                label="Correspondance visage"
+                available={current.biometricAvailable}
+                value={formatInferenceScore(current.faceMatchScore)}
+              />
+              <InferenceSignal
+                label="Présence"
+                available={current.biometricAvailable}
+                value={
+                  current.livenessVerdict === "real"
+                    ? "Réelle"
+                    : current.livenessVerdict === "spoof"
+                      ? "Usurpation détectée"
+                      : current.livenessVerdict === "uncertain"
+                        ? "Incertaine"
+                        : "—"
+                }
+              />
+            </div>
+            {(current.ocrAvailable === false ||
+              current.biometricAvailable === false) && (
+              <p className="mt-2.5 text-xs leading-relaxed text-[#9A6700] dark:text-[#F2C94C]">
+                Une partie de l&apos;analyse automatique était indisponible. Le
+                dossier exige un contrôle humain complet avant toute décision.
+              </p>
+            )}
+          </div>
+
+          {actionable && (
+            <>
+              {canClaim && (
+                <div className="mt-3.5 flex flex-wrap items-center gap-2.5">
+                  <Button
+                    variant="outline"
+                    disabled={submitting !== null}
+                    onClick={onClaim}
+                  >
+                    {submitting === "claim"
+                      ? "…"
+                      : content.detail.claimCta}
+                  </Button>
+                  <p className="min-w-0 flex-1 text-xs text-idn-muted">
+                    {content.detail.claimHint}
+                  </p>
+                </div>
+              )}
+              <div className="mt-3.5 flex items-center gap-2.5">
+                <Button onClick={onApprove} disabled={submitting !== null}>
+                  {submitting === "approve" ? "…" : content.approveCta}
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={submitting !== null}
+                  onClick={() => setComplementOpen(true)}
+                >
+                  {content.requestMoreCta}
+                </Button>
+                <div className="flex-1" />
+                <Button
+                  variant="ghost"
+                  disabled={submitting !== null}
+                  onClick={() => setRejectOpen(true)}
+                  className="text-[#B83A3A] hover:bg-[#FBE5E5] hover:text-[#B83A3A] dark:hover:bg-[#3A1E1E]"
+                >
+                  {content.rejectCta}
+                </Button>
+              </div>
+            </>
+          )}
+        </IdnCard>
+      </div>
 
       <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Rejeter la demande {current.ref}</DialogTitle>
             <DialogDescription>
-              Le citoyen sera notifié. Indiquez un motif clair (min. 5 caractères).
+              Le citoyen sera notifié. Indiquez un motif clair (min. 5
+              caractères).
             </DialogDescription>
           </DialogHeader>
           <Textarea
@@ -248,9 +369,7 @@ export function CaseDetail() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              Demander un complément — {current.ref}
-            </DialogTitle>
+            <DialogTitle>Demander un complément — {current.ref}</DialogTitle>
             <DialogDescription>
               Précisez ce que le citoyen doit fournir. Il recevra une
               notification et pourra ré-uploader la pièce concernée.
@@ -265,10 +384,7 @@ export function CaseDetail() {
           />
           <DialogFooter>
             <DialogClose asChild>
-              <Button
-                variant="outline"
-                disabled={submitting === "complement"}
-              >
+              <Button variant="outline" disabled={submitting === "complement"}>
                 Annuler
               </Button>
             </DialogClose>
@@ -348,10 +464,7 @@ function PreviewSlot({ url, label }: { url: string | null; label: string }) {
           <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-white">
             {label}
           </span>
-          <ExpandIcon
-            aria-hidden="true"
-            className="size-3.5 text-white"
-          />
+          <ExpandIcon aria-hidden="true" className="size-3.5 text-white" />
         </span>
       </button>
       <DialogContent

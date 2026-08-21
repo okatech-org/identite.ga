@@ -4,7 +4,6 @@ import * as React from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { ConvexError } from "convex/values";
 import {
-  CalendarDaysIcon,
   Clock3Icon,
   PlusIcon,
   ShieldCheckIcon,
@@ -76,7 +75,7 @@ function tomorrowInLibreville(): string {
   }).format(new Date(Date.now() + 24 * 60 * 60 * 1000));
 }
 
-export function LevelThreeQueue() {
+export function Level3Agenda() {
   const appointments = useQuery(api.level3.scheduling.myAppointments, {});
   const availability = useQuery(api.level3.scheduling.myAvailability, {});
   const createAvailability = useMutation(
@@ -205,22 +204,7 @@ export function LevelThreeQueue() {
   };
 
   return (
-    <section className="mb-7 space-y-5">
-      <div className="flex items-center gap-3">
-        <div className="flex size-9 items-center justify-center rounded-full bg-idn-green-soft text-idn-green">
-          <CalendarDaysIcon className="size-4.5" aria-hidden="true" />
-        </div>
-        <div>
-          <h2 className="text-sm font-semibold text-idn-ink">
-            Agenda des entretiens Niveau 3
-          </h2>
-          <p className="text-xs text-idn-muted">
-            Disponibilités, rendez-vous et entretiens vidéo · heure de
-            Libreville
-          </p>
-        </div>
-      </div>
-
+    <div className="space-y-5">
       {credentials && activeAppointment && (
         <IdnCard className="border-idn-green/30">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -478,6 +462,6 @@ export function LevelThreeQueue() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </section>
+    </div>
   );
 }
