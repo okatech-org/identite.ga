@@ -43,18 +43,19 @@ export async function postPinned(
     const request = httpsRequest(
       {
         protocol: "https:",
-        hostname,
+        // Connexion directe à l'adresse validée : Node ne relance aucun DNS
+        // entre notre contrôle SSRF et l'ouverture de la socket.
+        hostname: address.address,
         servername: isIP(hostname) ? undefined : hostname,
         port: 443,
         method: "POST",
         path: `${url.pathname}${url.search}`,
         headers: {
+          Host: url.host,
           ...headers,
           "Content-Length": String(Buffer.byteLength(body)),
         },
         agent: false,
-        lookup: (_hostname, _options, callback) =>
-          callback(null, address.address, address.family),
       },
       (response) => {
         const chunks: Buffer[] = []

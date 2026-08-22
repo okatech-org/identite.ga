@@ -70,6 +70,14 @@ describe("transport réseau des webhooks", () => {
     ).rejects.toThrow("SSRF_ADDRESS_FORBIDDEN")
     expect(network.lookup).toHaveBeenCalledTimes(2)
     expect(network.request).toHaveBeenCalledTimes(1)
+    expect(network.request).toHaveBeenCalledWith(
+      expect.objectContaining({
+        hostname: "93.184.216.34",
+        servername: "consumer.example",
+        headers: expect.objectContaining({ Host: "consumer.example" }),
+      }),
+      expect.any(Function),
+    )
   })
 
   test("rend une redirection au moteur sans effectuer un second appel", async () => {
