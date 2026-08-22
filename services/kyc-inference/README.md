@@ -67,6 +67,13 @@ Le service **ne stocke rien durablement** : les images restent en mémoire ; les
 vidéos liveness passent par un fichier temporaire **supprimé immédiatement**
 après analyse.
 
+> ⚠️ Depuis l'ajout de la déduplication 1:N, `/v1/biometric` **renvoie**
+> l'empreinte ArcFace du selfie, que le backend conserve pour empêcher qu'un
+> même individu obtienne plusieurs identités vérifiées. Le service, lui, ne la
+> stocke toujours pas. La donnée biométrique persistée l'est donc côté Convex
+> (table `faceTemplate`) : c'est là que se traitent base légale, durée de
+> conservation et droit à l'effacement.
+
 ---
 
 ## Contrat HTTP
@@ -103,8 +110,33 @@ Authentification entrante sur toutes les routes `/v1/*` :
 // requête (selfieUrl peut pointer une image OU une courte vidéo liveness)
 { "selfieUrl": "https://…", "docFaceUrl": "https://…" }
 // réponse
-{ "faceMatch": 0.84, "liveness": "real", "livenessScore": 0.88 }
+{
+  "faceMatch": 0.84,
+  "liveness": "real",
+  "livenessScore": 0.88,
+  "embedding": [0.013, -0.072, …],   // 512 flottants, L2-normalisés
+  "embeddingModel": "buffalo_l"
+}
 ```
+
+> **`embedding` — deux échelles à ne pas confondre.** `faceMatch` est un
+> cosinus **remappé** sur [0, 1] par `_normalize_cosine`. `embedding` est le
+> vecteur ArcFace brut : la similarité entre deux embeddings est un cosinus
+> dans **[-1, 1]**. Un seuil calibré sur l'un ne vaut rien sur l'autre — c'est
+> pourquoi le backend utilise `KYC_FACE_DEDUPE_THRESHOLD` (cosinus brut) et
+> non `KYC_MATCH_THRESHOLD`.
+>
+> L'empreinte rendue est celle du **selfie**, jamais celle du document : la
+> galerie de déduplication doit contenir des captures vivantes, pas des
+> photographies de photographies.
+>
+> `embeddingModel` doit être conservé avec l'empreinte. Comparer des vecteurs
+> issus de deux packs de modèles différents produit des scores dénués de sens,
+> sans jamais lever d'erreur — une panne silencieuse.
+>
+> Les deux champs valent `null` quand le moteur est dégradé. Le backend traite
+> alors la déduplication comme indisponible et bascule en revue manuelle : une
+> recherche qui n'a pas eu lieu n'est pas une recherche sans résultat.
 
 ### `GET /healthz` (public, sans auth)
 ```json

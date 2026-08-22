@@ -41,3 +41,65 @@ export function normalizeIdentityKey(
     dateOfBirth.trim(),
   ].join("|")
 }
+
+/**
+ * NIP normalisé pour le contrôle d'unicité : majuscules, sans espaces.
+ *
+ * Le NIP admet des lettres (`/^[A-Za-z0-9]{14}$/`), donc une comparaison brute
+ * laisserait `abc…` et `ABC…` coexister alors qu'ils désignent le même numéro.
+ * Renvoie `undefined` pour une valeur vide, afin que l'absence de NIP ne
+ * produise pas une clé `""` qui rapprocherait entre eux tous les comptes sans
+ * NIP.
+ */
+export function normalizeNipKey(nip: string | undefined): string | undefined {
+  const trimmed = nip?.replace(/\s+/g, "").toUpperCase()
+  return trimmed ? trimmed : undefined
+}
+
+/**
+ * Clés dérivées d'une identité pivot. Point de passage unique : tout code qui
+ * écrit un `pivot` doit écrire ces clés dans le même `patch`/`insert`, sinon
+ * l'index part en dérive silencieuse et le contrôle anti-doublon laisse
+ * passer.
+ */
+export function derivePivotKeys(pivot: {
+  firstName: string
+  lastName: string
+  dateOfBirth: string
+  nip?: string
+}): { pivotKey: string; nipKey: string | undefined } {
+  return {
+    pivotKey: normalizeIdentityKey(
+      pivot.firstName,
+      pivot.lastName,
+      pivot.dateOfBirth,
+    ),
+    nipKey: normalizeNipKey(pivot.nip),
+  }
+}
+
+/**
+ * Verdict d'une collision d'identité.
+ *
+ *   • `refuse` — un compte **vérifié** (LoA ≥ 2) porte déjà cette identité.
+ *     C'est la seule situation de quasi-certitude : un KYC humain ou
+ *     automatique a rattaché ces informations à une personne réelle.
+ *   • `flag`   — seuls des comptes déclaratifs (LoA 1) la portent. On laisse
+ *     passer et on ouvre un dossier d'arbitrage.
+ *   • `allow`  — personne.
+ *
+ * POURQUOI NE PAS REFUSER SUR UN LoA 1 : rien n'y est vérifié. Refuser sur
+ * cette base offrirait un déni de service trivial — il suffirait de créer un
+ * compte au nom (ou au NIP) de quelqu'un pour l'empêcher à jamais de
+ * s'inscrire. Le coût d'un faux positif est porté par un citoyen innocent qui
+ * ne peut plus accéder à ses droits ; celui d'un faux négatif est un dossier
+ * de plus dans une file de revue.
+ */
+export type IdentityCollisionVerdict = "allow" | "flag" | "refuse"
+
+export function decideIdentityCollision(
+  existing: ReadonlyArray<{ loa: number }>,
+): IdentityCollisionVerdict {
+  if (existing.length === 0) return "allow"
+  return existing.some((e) => e.loa >= 2) ? "refuse" : "flag"
+}

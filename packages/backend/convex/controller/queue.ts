@@ -253,6 +253,12 @@ export const getForReview = query({
       ),
       ocrAvailable: v.optional(v.boolean()),
       biometricAvailable: v.optional(v.boolean()),
+      /**
+       * Le dossier a été retenu parce que le visage ou la pièce sont déjà
+       * rattachés à un autre compte. Le contrôleur doit le voir : approuver à
+       * la main sans le savoir annulerait la détection.
+       */
+      duplicateFlagged: v.optional(v.boolean()),
       /** `true` si le dossier est réclamé par un AUTRE contrôleur. */
       claimedByOther: v.boolean(),
       citizen: v.object({
@@ -300,6 +306,7 @@ export const getForReview = query({
       livenessVerdict: kyc.livenessVerdict,
       ocrAvailable: kyc.ocrAvailable,
       biometricAvailable: kyc.biometricAvailable,
+      duplicateFlagged: kyc.duplicateFlagged,
       claimedByOther: Boolean(kyc.reviewerId && kyc.reviewerId !== me.userId),
       citizen: {
         firstName: profile?.pivot?.firstName ?? "",
@@ -399,6 +406,14 @@ export const approve = mutation({
       await ctx.db.patch(profile._id, { loa: 2, updatedAt: now })
     }
 
+    // L'empreinte faciale entre en galerie — même effet qu'une approbation
+    // automatique. L'oublier ici créerait un angle mort exactement là où il
+    // fait le plus de dégâts : les dossiers passés en revue humaine sont ceux
+    // qui portent déjà un soupçon.
+    await ctx.runMutation(internal.kyc.mutations.activateFaceTemplate, {
+      kycRequestId: args.kycRequestId,
+    })
+
     await ctx.runMutation(internal.audit.recordAudit, {
       actorId: controller.userId,
       action: "kyc_approved",
@@ -464,6 +479,10 @@ export const reject = mutation({
       notes: args.reason.trim(),
       createdAt: now,
     })
+    await ctx.runMutation(internal.kyc.mutations.discardFaceTemplate, {
+      kycRequestId: args.kycRequestId,
+    })
+
     await ctx.runMutation(internal.audit.recordAudit, {
       actorId: controller.userId,
       action: "kyc_rejected",

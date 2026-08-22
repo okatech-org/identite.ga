@@ -53,6 +53,25 @@ class BiometricResponse(BaseModel):
     faceMatch: float = Field(..., ge=0.0, le=1.0)
     liveness: LivenessVerdict
     livenessScore: float = Field(..., ge=0.0, le=1.0)
+    embedding: list[float] | None = Field(
+        default=None,
+        description=(
+            "Empreinte ArcFace du selfie (512-d, L2-normalisée). Alimente la "
+            "galerie de déduplication 1:N côté backend. ATTENTION : la "
+            "similarité entre deux empreintes est un cosinus dans [-1, 1], "
+            "alors que `faceMatch` est déjà remappé sur [0, 1] — un seuil "
+            "calibré sur l'un ne vaut rien sur l'autre."
+        ),
+    )
+    embeddingModel: str | None = Field(
+        default=None,
+        description=(
+            "Pack de modèle ayant produit l'empreinte (ex. `buffalo_l`). "
+            "Indispensable : comparer des empreintes issues de deux packs "
+            "différents produit des scores dénués de sens, sans jamais lever "
+            "d'erreur."
+        ),
+    )
 
 
 # --------------------------------------------------------------------------- #

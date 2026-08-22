@@ -6,6 +6,7 @@ import { describe, expect, test, vi } from "vitest"
 
 import { api } from "../_generated/api"
 import schema from "../schema"
+import { derivePivotKeys } from "../lib/identity"
 
 const modules = import.meta.glob("/convex/**/*.ts")
 
@@ -63,22 +64,27 @@ async function seedProfile(
   },
 ) {
   const now = Date.now()
+  const pivot =
+    opts.pivot === false
+      ? undefined
+      : {
+          firstName: opts.firstName ?? "Jean",
+          lastName: opts.lastName ?? "Mbadinga",
+          dateOfBirth: opts.dateOfBirth ?? "1990-01-02",
+          gender: "M" as const,
+          birthPlace: "Libreville",
+          nationality: "GA",
+        }
   await t.run(async (ctx) => {
     await ctx.db.insert("userProfile", {
       userId: opts.userId,
       profileType: "citizen",
       loa: 2,
-      pivot:
-        opts.pivot === false
-          ? undefined
-          : {
-              firstName: opts.firstName ?? "Jean",
-              lastName: opts.lastName ?? "Mbadinga",
-              dateOfBirth: opts.dateOfBirth ?? "1990-01-02",
-              gender: "M" as const,
-              birthPlace: "Libreville",
-              nationality: "GA",
-            },
+      pivot,
+      // Le seed écrit en base sans passer par les mutations : il doit donc
+      // dériver la clé lui-même, exactement comme le font `completeSignup` et
+      // `updatePivot`. Sans elle, le profil est invisible de `by_pivotKey`.
+      ...(pivot ? derivePivotKeys(pivot) : {}),
       deletedAt: opts.deleted ? now : undefined,
       createdAt: now,
       updatedAt: now,

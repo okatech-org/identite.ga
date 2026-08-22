@@ -5,6 +5,9 @@ import { internalQuery, query } from "./_generated/server"
 import { mutation } from "./functions"
 import { authComponent } from "./auth"
 import { requireAuth, requireVerifiedAuth } from "./lib/auth"
+import { assessIdentityCollision } from "./lib/duplicateGuard"
+import { raiseDuplicateFlags } from "./lib/duplicateFlags"
+import { derivePivotKeys } from "./lib/identity"
 import { generateIdnId } from "./lib/idnId"
 import { PROFILE_TYPES } from "./schema"
 
@@ -158,6 +161,35 @@ export const setIdentityPivot = mutation({
         message: "Le NIP doit contenir exactement 14 caractères (chiffres ou lettres).",
       })
     }
+    // Même garde qu'à `completeSignup` : ce chemin écrit le pivot lui aussi, et
+    // un contrôle posé sur un seul des deux se contournerait par l'autre.
+    const { pivotKey, nipKey } = derivePivotKeys({
+      firstName: args.firstName,
+      lastName: args.lastName,
+      dateOfBirth: args.dateOfBirth,
+      nip: nipTrim,
+    })
+    const collision = await assessIdentityCollision(ctx, {
+      pivotKey,
+      nipKey,
+      excludeUserId: user.userId,
+    })
+    if (collision.verdict === "refuse") {
+      throw new ConvexError(
+        collision.blockedBy === "nip"
+          ? {
+              code: "NIP_ALREADY_VERIFIED",
+              message:
+                "Ce NIP est déjà rattaché à une identité vérifiée. Si vous pensez qu'il s'agit d'une erreur, contactez le support.",
+            }
+          : {
+              code: "IDENTITY_ALREADY_VERIFIED",
+              message:
+                "Une identité vérifiée correspond déjà à ces informations. Si vous pensez qu'il s'agit d'une erreur, contactez le support.",
+            },
+      )
+    }
+
     await ctx.db.patch(profile._id, {
       pivot: {
         firstName: args.firstName.trim(),
@@ -169,8 +201,14 @@ export const setIdentityPivot = mutation({
         ...(phoneTrim ? { phone: phoneTrim } : {}),
         ...(nipTrim ? { nip: nipTrim } : {}),
       },
+      pivotKey,
+      nipKey,
       updatedAt: Date.now(),
     })
+
+    if (collision.matches.length > 0) {
+      await raiseDuplicateFlags(ctx, user.userId, collision.matches)
+    }
 
     await ctx.runMutation(internal.audit.recordAudit, {
       actorId: user.userId,
@@ -495,7 +533,6 @@ export const completeSignup = mutation({
     }
 
     const now = Date.now()
-    const idnId = await generateIdnId(ctx)
     const phoneTrim = args.pivot.phone?.trim()
     const nipTrim = args.pivot.nip?.trim()
     if (nipTrim && !/^[A-Za-z0-9]{14}$/.test(nipTrim)) {
@@ -504,6 +541,46 @@ export const completeSignup = mutation({
         message: "Le NIP doit contenir exactement 14 caractères (chiffres ou lettres).",
       })
     }
+
+    // 3. Anti-doublon — une identité déjà VÉRIFIÉE ferme la porte ; une
+    //    identité seulement déclarée ouvre un dossier d'arbitrage sans bloquer.
+    //    Lecture indexée et insertion dans la même transaction : c'est ce qui
+    //    empêche deux inscriptions simultanées de passer toutes les deux
+    //    (cf. `lib/duplicateGuard.ts`).
+    const { pivotKey, nipKey } = derivePivotKeys({
+      firstName: args.pivot.firstName,
+      lastName: args.pivot.lastName,
+      dateOfBirth: args.pivot.dateOfBirth,
+      nip: nipTrim,
+    })
+    const collision = await assessIdentityCollision(ctx, { pivotKey, nipKey })
+    if (collision.verdict === "refuse") {
+      await ctx.runMutation(internal.audit.recordAudit, {
+        actorId: user.userId,
+        action: "signup_blocked_duplicate",
+        targetType: "user",
+        targetId: user.userId,
+        metadata: { blockedBy: collision.blockedBy ?? "pivot" },
+      })
+      // Le message ne révèle NI l'IDN NI l'email du compte existant : sans
+      // cette précaution, le refus transformerait l'inscription en annuaire
+      // interrogeable (« telle personne née tel jour est-elle inscrite ? »).
+      throw new ConvexError(
+        collision.blockedBy === "nip"
+          ? {
+              code: "NIP_ALREADY_VERIFIED",
+              message:
+                "Ce NIP est déjà rattaché à une identité vérifiée. Si vous pensez qu'il s'agit d'une erreur, contactez le support.",
+            }
+          : {
+              code: "IDENTITY_ALREADY_VERIFIED",
+              message:
+                "Une identité vérifiée correspond déjà à ces informations. Si vous pensez qu'il s'agit d'une erreur, contactez le support.",
+            },
+      )
+    }
+
+    const idnId = await generateIdnId(ctx)
     const profileId = await ctx.db.insert("userProfile", {
       userId: user.userId,
       profileType: args.profileType,
@@ -519,9 +596,15 @@ export const completeSignup = mutation({
         ...(phoneTrim ? { phone: phoneTrim } : {}),
         ...(nipTrim ? { nip: nipTrim } : {}),
       },
+      pivotKey,
+      ...(nipKey ? { nipKey } : {}),
       createdAt: now,
       updatedAt: now,
     })
+
+    if (collision.matches.length > 0) {
+      await raiseDuplicateFlags(ctx, user.userId, collision.matches)
+    }
 
     await ctx.db.insert("userPreference", {
       userId: user.userId,

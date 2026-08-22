@@ -120,6 +120,16 @@ export const idnSignup = {
   primarySubmitting: "Réservation…",
   errorTaken: "Cette adresse est déjà attribuée à un autre citoyen.",
   errorGeneric: "Impossible de créer le compte. Réessayez.",
+  // Refus anti-doublon. Le texte ne révèle rien du compte existant — ni son
+  // adresse, ni son identifiant : le refus ne doit pas transformer
+  // l'inscription en annuaire interrogeable. Il indique en revanche une voie
+  // de recours, parce qu'un homonyme réel doit pouvoir se faire ouvrir un
+  // compte par un agent.
+  errorIdentityVerified:
+    "Une identité vérifiée correspond déjà à ces informations. Vérifiez votre saisie ; s'il s'agit bien de vos informations, contactez le support pour faire ouvrir votre compte.",
+  errorNipVerified:
+    "Ce NIP est déjà rattaché à une identité vérifiée. Vérifiez votre saisie ; s'il s'agit bien de votre numéro, contactez le support.",
+  backToIdentity: "Corriger mes informations",
   termsPrefix: "J'accepte les ",
   termsLink: "conditions d'utilisation et la politique de confidentialité",
   validation: {

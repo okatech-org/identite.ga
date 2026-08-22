@@ -45,6 +45,30 @@ export const KYC_STATUSES = [
   "expired",
 ] as const
 
+/**
+ * Sources d'un rapprochement de comptes, par force de preuve décroissante.
+ *
+ * `nip` et `document` désignent un identifiant censé être unique : une
+ * collision y est quasi certainement un doublon. `face` est une mesure de
+ * distance, jamais une égalité — les vrais jumeaux la déclenchent. `pivot`
+ * (nom + prénom + date de naissance) est le plus faible : ce triplet n'est pas
+ * un identifiant, d'autant qu'une date de naissance déclarée au 1ᵉʳ janvier
+ * faute d'acte d'état civil est fréquente.
+ */
+export const DUPLICATE_SIGNALS = ["pivot", "nip", "face", "document"] as const
+
+/**
+ * `superseded` : le compte en regard a été supprimé définitivement. Le signal
+ * n'est plus arbitrable mais reste au dossier — le motif d'une suppression de
+ * compte doit survivre à cette suppression (conservation 5 ans).
+ */
+export const DUPLICATE_SIGNAL_STATUSES = [
+  "open",
+  "confirmed",
+  "dismissed",
+  "superseded",
+] as const
+
 /** États du parcours Niveau 3 : entretien vidéo + décision humaine. */
 export const LEVEL3_VERIFICATION_STATUSES = [
   "waiting_controller",
@@ -171,6 +195,12 @@ export const AUDIT_ACTIONS = [
   "delegated_claim_code_failed",
   "delegation_enabled",
   "delegation_disabled",
+  // Anti-doublon : un signal de rapprochement a été levé, ou arbitré par un
+  // administrateur. `signup_blocked_duplicate` trace les refus — une série sur
+  // la même identité signale soit une fraude, soit un faux positif à corriger.
+  "duplicate_flagged",
+  "duplicate_flag_resolved",
+  "signup_blocked_duplicate",
 ] as const
 
 export const AUDIT_TARGET_TYPES = [
@@ -283,6 +313,35 @@ export default defineSchema({
       }),
     ),
 
+    /**
+     * Clé de rapprochement d'identité — `normalizeIdentityKey(pivot)`, soit
+     * `nom|prénom|AAAA-MM-JJ` normalisé (cf. `lib/identity.ts`). Dérivée du
+     * pivot, jamais saisie : toute écriture du pivot doit la recalculer
+     * (`onboarding.completeSignup`, `profile.updatePivot`).
+     *
+     * Indexée parce que le contrôle anti-doublon s'exécute sur le chemin
+     * d'inscription : sans index, chaque signup scannerait la table. L'index
+     * sert aussi l'inventaire admin (`admin/duplicates.ts`), où les membres
+     * d'un même groupe sont adjacents.
+     *
+     * Absente sur les profils sans pivot (LoA 1 jamais complété) et effacée
+     * à l'anonymisation RGPD — ce qui suffit à retirer un compte supprimé
+     * des rapprochements, sans filtre supplémentaire.
+     */
+    pivotKey: v.optional(v.string()),
+
+    /**
+     * NIP normalisé (majuscules, sans espaces) — cf. `normalizeNipKey`.
+     * L'index `by_nip` porte sur `pivot.nip` **brut** et sert la résolution
+     * annuaire partenaire, où le NIP est fourni tel qu'imprimé. Il ne peut pas
+     * servir au contrôle d'unicité : le NIP admet des lettres
+     * (`/^[A-Za-z0-9]{14}$/`), donc `abc…` et `ABC…` y sont deux entrées
+     * distinctes alors qu'ils désignent le même numéro.
+     *
+     * Effacé à l'anonymisation RGPD, comme `pivotKey`.
+     */
+    nipKey: v.optional(v.string()),
+
     photoStorageRef: v.optional(v.id("_storage")),
     pinHash: v.optional(v.string()), // PBKDF2-SHA256, 600k itérations
 
@@ -311,7 +370,9 @@ export default defineSchema({
     .index("by_profileType", ["profileType"])
     .index("by_deletedAt", ["deletedAt"])
     .index("by_deletionScheduledAt", ["deletionScheduledAt"])
-    .index("by_pivot_dob", ["pivot.dateOfBirth"]),
+    .index("by_pivot_dob", ["pivot.dateOfBirth"])
+    .index("by_pivotKey", ["pivotKey"])
+    .index("by_nipKey", ["nipKey"]),
 
   /**
    * Demande KYC (L2 / L3).
@@ -360,6 +421,24 @@ export default defineSchema({
       }),
     ),
 
+    /**
+     * Empreinte du numéro de pièce lu par l'OCR — HMAC-SHA256 poivré de
+     * `type|numéro normalisé` (cf. `kyc/actions.ts`). Sert uniquement à
+     * rapprocher deux dossiers présentant la même pièce.
+     *
+     * Jamais le numéro en clair : il n'a aucun usage produit, et un numéro de
+     * CNI est de faible entropie — un hash nu serait énumérable hors ligne,
+     * d'où le poivre serveur (`IDENTITY_HASH_PEPPER`).
+     */
+    documentNumberHash: v.optional(v.string()),
+
+    /**
+     * Un signal de doublon (visage ou pièce) a été levé sur ce dossier.
+     * Remonté au contrôleur : mettre une demande en revue à cause d'un doublon
+     * sans le lui dire reviendrait à lui faire approuver le doublon à la main.
+     */
+    duplicateFlagged: v.optional(v.boolean()),
+
     submittedAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -367,7 +446,8 @@ export default defineSchema({
     .index("by_userId", ["userId"])
     .index("by_status", ["status"])
     .index("by_reviewer", ["reviewerId"])
-    .index("by_userId_status", ["userId", "status"]),
+    .index("by_userId_status", ["userId", "status"])
+    .index("by_documentNumberHash", ["documentNumberHash"]),
 
   /**
    * Trail des décisions KYC du contrôleur (un par décision).
@@ -382,6 +462,108 @@ export default defineSchema({
   })
     .index("by_kycRequest", ["kycRequestId"])
     .index("by_reviewer", ["reviewerId"]),
+
+  /**
+   * Signal de rapprochement entre deux comptes — « ces deux comptes sont
+   * peut-être la même personne ». Alimente la file d'arbitrage admin.
+   *
+   * POURQUOI UNE TABLE ET PAS UN BOOLÉEN SUR `userProfile` : un doublon est une
+   * propriété de *paire*, pas de compte. Un drapeau `estUnDoublon: true` ne dit
+   * ni avec qui, ni pourquoi, ni depuis quand — or l'administrateur qui doit
+   * choisir lequel des deux comptes conserver a besoin des trois. Un même
+   * compte peut par ailleurs porter plusieurs signaux de sources différentes
+   * (un homonyme à écarter *et* un vrai doublon biométrique à fusionner) :
+   * clore l'un ne doit pas clore l'autre.
+   *
+   * La partie *détection* (`userId`, `matchedUserId`, `signal`, `groupKey`,
+   * `score`, `detectedAt`) est un fait horodaté, jamais réécrit. Seule la
+   * partie *résolution* (`status` et les champs `resolved*`) est mutable —
+   * même contrat que `kycReview`, avec la clôture en plus parce qu'une file de
+   * revue a besoin d'être bornée.
+   *
+   * Ce signal ne décide rien et ne rétrograde aucun compte : il ouvre un
+   * dossier, l'humain tranche.
+   */
+  duplicateSignal: defineTable({
+    userId: v.string(), // compte signalé (le nouvel arrivant, en général)
+    /**
+     * Compte en regard. Optionnel : lorsque celui-ci est supprimé
+     * définitivement, la référence est effacée (donnée personnelle d'un tiers)
+     * et le signal passe en `superseded` — le fait survit, le pointeur non.
+     */
+    matchedUserId: v.optional(v.string()),
+    signal: v.union(...DUPLICATE_SIGNALS.map((x) => v.literal(x))),
+    /**
+     * Valeur ayant provoqué le rapprochement : `pivotKey`, `nipKey` ou
+     * `documentNumberHash`. Vide pour le signal biométrique, qui ne rapproche
+     * pas sur une égalité mais sur une distance.
+     */
+    groupKey: v.string(),
+    /** Similarité cosinus **brute** (−1→1) — signal `face` uniquement. */
+    score: v.optional(v.number()),
+    sourceKycRequestId: v.optional(v.id("kycRequest")),
+    status: v.union(...DUPLICATE_SIGNAL_STATUSES.map((x) => v.literal(x))),
+    detectedAt: v.number(),
+    resolvedAt: v.optional(v.number()),
+    resolvedBy: v.optional(v.string()),
+    notes: v.optional(v.string()),
+  })
+    // File de revue : les plus anciens d'abord.
+    .index("by_status", ["status", "detectedAt"])
+    .index("by_userId", ["userId"])
+    .index("by_userId_status", ["userId", "status"])
+    // Purge RGPD : retrouver les signaux qui *pointent* vers un compte détruit.
+    .index("by_matchedUserId", ["matchedUserId"])
+    // Écriture idempotente : un même couple ne doit pas re-signaler à chaque
+    // re-soumission KYC, sinon la file devient inexploitable.
+    .index("by_pair", ["userId", "matchedUserId", "signal", "status"]),
+
+  /**
+   * Empreinte faciale d'une identité vérifiée — galerie de déduplication 1:N.
+   *
+   * Table séparée de `userProfile` pour trois raisons : la purge RGPD doit
+   * pouvoir viser la biométrie seule ; un vecteur de 512 flottants alourdirait
+   * chaque lecture de profil, faite sur presque toutes les requêtes du
+   * produit ; et un résultat de recherche doit pouvoir remonter à la demande
+   * KYC d'origine.
+   *
+   * ⚠️ DONNÉE BIOMÉTRIQUE (art. 9 RGPD, loi 001/2011). Convex exige le vecteur
+   * en clair pour l'indexer : aucun chiffrement applicatif n'est possible sur
+   * ce champ. Finalité unique — empêcher qu'un même individu détienne
+   * plusieurs identités vérifiées. Un embedding ArcFace ne permet pas de
+   * reconstruire le visage, mais reste identifiant : à traiter comme tel.
+   *
+   * N'est peuplée qu'à l'**approbation** d'un KYC : la galerie protège les
+   * identités vérifiées, elle ne se remplit pas de dossiers rejetés.
+   */
+  faceTemplate: defineTable({
+    userId: v.string(),
+    kycRequestId: v.id("kycRequest"),
+    /** ArcFace 512-d, L2-normalisé (`normed_embedding` du pack InsightFace). */
+    embedding: v.array(v.float64()),
+    /**
+     * Clé de galerie composite `"<modèle>|active"` / `"<modèle>|inactive"`.
+     *
+     * Composite par contrainte : `VectorFilterBuilder` n'expose que `eq` et
+     * `or` — pas de `and` (cf. `convex/server/vector_search.d.ts`). Or il faut
+     * filtrer sur deux dimensions à la fois : l'activité (un compte anonymisé
+     * sort de la galerie) et la version du modèle (comparer des embeddings
+     * issus de deux packs différents produirait des scores dénués de sens —
+     * panne silencieuse, jamais une erreur).
+     */
+    gallery: v.string(),
+    modelVersion: v.string(), // ex. "buffalo_l"
+    active: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    // Idempotence : un rejeu de step ne doit pas créer un second template.
+    .index("by_kycRequestId", ["kycRequestId"])
+    .vectorIndex("by_embedding", {
+      vectorField: "embedding",
+      dimensions: 512,
+      filterFields: ["gallery"],
+    }),
 
   /**
    * Vérification Niveau 3.

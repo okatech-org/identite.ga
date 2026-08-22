@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as _dev_backfillPivotKey from "../_dev/backfillPivotKey.js";
 import type * as _dev_listLatestLogs from "../_dev/listLatestLogs.js";
 import type * as _dev_listRoles from "../_dev/listRoles.js";
 import type * as _dev_rebuildAggregates from "../_dev/rebuildAggregates.js";
@@ -55,6 +56,8 @@ import type * as dev from "../dev.js";
 import type * as developer_apiKeys from "../developer/apiKeys.js";
 import type * as developer_apps from "../developer/apps.js";
 import type * as documents from "../documents.js";
+import type * as duplicates_mutations from "../duplicates/mutations.js";
+import type * as duplicates_queries from "../duplicates/queries.js";
 import type * as email_dispatch from "../email/dispatch.js";
 import type * as email_provider from "../email/provider.js";
 import type * as email_templates_genericEmail from "../email/templates/genericEmail.js";
@@ -95,6 +98,8 @@ import type * as lib_auth from "../lib/auth.js";
 import type * as lib_claimCode from "../lib/claimCode.js";
 import type * as lib_consentGrant from "../lib/consentGrant.js";
 import type * as lib_documentSigning from "../lib/documentSigning.js";
+import type * as lib_duplicateFlags from "../lib/duplicateFlags.js";
+import type * as lib_duplicateGuard from "../lib/duplicateGuard.js";
 import type * as lib_iboiteId from "../lib/iboiteId.js";
 import type * as lib_identity from "../lib/identity.js";
 import type * as lib_idnId from "../lib/idnId.js";
@@ -145,6 +150,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "_dev/backfillPivotKey": typeof _dev_backfillPivotKey;
   "_dev/listLatestLogs": typeof _dev_listLatestLogs;
   "_dev/listRoles": typeof _dev_listRoles;
   "_dev/rebuildAggregates": typeof _dev_rebuildAggregates;
@@ -192,6 +198,8 @@ declare const fullApi: ApiFromModules<{
   "developer/apiKeys": typeof developer_apiKeys;
   "developer/apps": typeof developer_apps;
   documents: typeof documents;
+  "duplicates/mutations": typeof duplicates_mutations;
+  "duplicates/queries": typeof duplicates_queries;
   "email/dispatch": typeof email_dispatch;
   "email/provider": typeof email_provider;
   "email/templates/genericEmail": typeof email_templates_genericEmail;
@@ -232,6 +240,8 @@ declare const fullApi: ApiFromModules<{
   "lib/claimCode": typeof lib_claimCode;
   "lib/consentGrant": typeof lib_consentGrant;
   "lib/documentSigning": typeof lib_documentSigning;
+  "lib/duplicateFlags": typeof lib_duplicateFlags;
+  "lib/duplicateGuard": typeof lib_duplicateGuard;
   "lib/iboiteId": typeof lib_iboiteId;
   "lib/identity": typeof lib_identity;
   "lib/idnId": typeof lib_idnId;

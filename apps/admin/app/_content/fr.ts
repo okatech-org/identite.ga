@@ -242,6 +242,32 @@ export const fr = {
     kycYes: "KYC",
     truncated:
       "Rapport partiel : le balayage a atteint sa limite, des doublons peuvent manquer.",
+
+    signals: {
+      title: "Signalements à arbitrer",
+      sub: "Rapprochements détectés à l'inscription ou pendant la vérification.",
+      empty: "Aucun signalement en attente.",
+      // Chaque libellé dit sur quoi repose le rapprochement : c'est ce qui
+      // permet à l'administrateur de juger de sa force avant de trancher.
+      source: {
+        pivot: "Même nom, prénom et date de naissance",
+        nip: "Même NIP",
+        face: "Même visage",
+        document: "Même pièce d'identité",
+      },
+      // Le score n'accompagne que le signal biométrique : c'est le seul qui
+      // repose sur une distance et non sur une égalité.
+      similarity: (n: number) => `similarité ${(n * 100).toFixed(0)} %`,
+      detectedOn: "détecté le",
+      deletedAccount: "compte supprimé",
+      confirm: "Confirmer le doublon",
+      dismiss: "Écarter",
+      // La résolution ne touche à aucun compte : le dire évite qu'un
+      // administrateur croie avoir supprimé quelque chose en fermant un
+      // dossier.
+      resolveHint:
+        "Fermer un signalement ne modifie aucun compte : la suppression reste une action distincte.",
+    },
     cols: {
       account: "COMPTE",
       loa: "NIVEAU",

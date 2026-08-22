@@ -200,7 +200,9 @@ async def biometric_endpoint(
     is_video = looks_like_video(payload.selfieUrl, selfie)
 
     try:
-        face_match = engines.face.compare(selfie_bytes=selfie, doc_face_bytes=doc_face)
+        face_result = engines.face.compare_with_embedding(
+            selfie_bytes=selfie, doc_face_bytes=doc_face
+        )
         liveness_result = engines.liveness.analyze(media_bytes=selfie, is_video=is_video)
     except NoFaceDetected as exc:
         return JSONResponse(status_code=422, content={"detail": str(exc)})
@@ -208,9 +210,11 @@ async def biometric_endpoint(
         return JSONResponse(status_code=422, content={"detail": str(exc)})
 
     return BiometricResponse(
-        faceMatch=face_match,
+        faceMatch=face_result.score,
         liveness=liveness_result.verdict,
         livenessScore=liveness_result.score,
+        embedding=face_result.selfie_embedding,
+        embeddingModel=face_result.model_version,
     )
 
 

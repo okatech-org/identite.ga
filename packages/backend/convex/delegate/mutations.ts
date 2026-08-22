@@ -11,6 +11,7 @@ import {
 } from "../lib/claimCode"
 import { generateIdnId } from "../lib/idnId"
 import { KYC_DOCUMENT_TYPES } from "../schema"
+import { derivePivotKeys } from "../lib/identity"
 
 export const createDelegatedProfile = internalMutation({
   args: {
@@ -59,6 +60,10 @@ export const createDelegatedProfile = internalMutation({
       loa: args.assignedLoa,
       idnId,
       pivot: args.pivot,
+      // Clés de rapprochement — une identité créée par délégation entre dans
+      // l'index au même titre qu'une inscription en propre, sinon elle serait
+      // invisible du contrôle anti-doublon.
+      ...derivePivotKeys(args.pivot),
       createdAt: now,
       updatedAt: now,
     })

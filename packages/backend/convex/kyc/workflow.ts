@@ -35,6 +35,19 @@ export type KycBiometricResult = {
   faceMatch: number
   liveness: "real" | "spoof" | "uncertain"
 }
+
+/**
+ * Signaux de doublon issus du pipeline.
+ *
+ * `available: false` signifie « la recherche n'a pas pu être faite » — service
+ * antérieur au déploiement, moteur dégradé, ou replay d'un workflow journalisé
+ * avant l'ajout de ces champs. À traiter comme les autres indisponibilités :
+ * revue manuelle, jamais auto-approbation.
+ */
+export type KycDedupResult = {
+  duplicateFound: boolean
+  available: boolean
+}
 export type KycDecision = "approve" | "reject" | "review"
 export type KycInferenceAvailability = {
   ocrAvailable: boolean
@@ -49,10 +62,19 @@ export type KycInferenceAvailability = {
  *   • `liveness === "spoof"` → rejet automatique (anti-usurpation), quels
  *     que soient les scores OCR/face-match — un spoof avéré ne doit jamais
  *     finir en revue humaine "peut-être".
+ *   • un moteur indisponible (OCR, biométrie ou déduplication) → revue.
+ *   • un doublon détecté (visage ou pièce déjà rattachés à un autre compte)
+ *     → revue manuelle, JAMAIS rejet automatique : les vrais jumeaux ont des
+ *     empreintes ArcFace très proches, et le coût d'un faux positif est le
+ *     refus d'identité opposé à une personne réelle.
  *   • confiance OCR ET face-match au-dessus des seuils ET `liveness ===
  *     "real"` → approbation auto.
  *   • sinon (scores bas, `liveness === "uncertain"`...) → revue manuelle
  *     (fail-safe : un signal ambigu ne déclenche jamais une auto-approbation).
+ *
+ * L'ordre des règles est délibéré : le rejet pour spoof précède le doublon,
+ * parce qu'une présentation frauduleuse reste un rejet même quand elle
+ * ressemble par ailleurs à un compte existant.
  */
 export function decideKycOutcome(
   ocr: KycOcrResult,
@@ -61,11 +83,17 @@ export function decideKycOutcome(
     ocrAvailable: true,
     biometricAvailable: true,
   },
+  // Valeur par défaut neutre : les appelants qui ignorent la déduplication
+  // conservent le comportement antérieur.
+  dedup: KycDedupResult = { duplicateFound: false, available: true },
 ): KycDecision {
   if (availability.biometricAvailable && biometric.liveness === "spoof") {
     return "reject"
   }
   if (!availability.ocrAvailable || !availability.biometricAvailable) {
+    return "review"
+  }
+  if (!dedup.available || dedup.duplicateFound) {
     return "review"
   }
   if (
@@ -85,7 +113,7 @@ export const kycLevel2 = workflow.define({
   },
   handler: async (step, args): Promise<{ decision: KycDecision }> => {
     // 1. OCR — retry avec backoff exponentiel
-    let ocr: KycOcrResult
+    let ocr: KycOcrResult & { documentReuse?: boolean }
     let ocrAvailable = true
     try {
       ocr = await step.runAction(
@@ -97,12 +125,15 @@ export const kycLevel2 = workflow.define({
       // Après épuisement des retries, on ne laisse jamais le dossier bloqué
       // en `submitted`. L'absence de signal vaut score nul et impose la revue.
       console.error("[kyc/workflow] OCR indisponible, revue manuelle requise", error)
-      ocr = { confidence: 0 }
+      ocr = { confidence: 0, documentReuse: undefined }
       ocrAvailable = false
     }
 
     // 2. Liveness + face match
-    let biometric: KycBiometricResult
+    let biometric: KycBiometricResult & {
+      faceDuplicate?: boolean
+      dedupAvailable?: boolean
+    }
     let biometricAvailable = true
     try {
       biometric = await step.runAction(
@@ -115,13 +146,30 @@ export const kycLevel2 = workflow.define({
         "[kyc/workflow] biométrie indisponible, revue manuelle requise",
         error,
       )
-      biometric = { faceMatch: 0, liveness: "uncertain" }
+      biometric = {
+        faceMatch: 0,
+        liveness: "uncertain",
+        faceDuplicate: undefined,
+        dedupAvailable: false,
+      }
       biometricAvailable = false
     }
 
     // 3. Décision : rejet auto (spoof) / approbation auto / revue manuelle
     const availability = { ocrAvailable, biometricAvailable }
-    const decision = decideKycOutcome(ocr, biometric, availability)
+
+    // Signaux de doublon rendus par les deux steps ci-dessus. `undefined` sur
+    // un workflow journalisé avant le déploiement de la déduplication : on le
+    // lit alors comme « pas de recherche faite », donc revue manuelle. Le
+    // fail-safe est ici essentiel — l'interpréter comme « aucun doublon »
+    // auto-approuverait précisément les dossiers qu'on cherche à retenir.
+    const dedupAvailable =
+      biometric.dedupAvailable !== false && ocr.documentReuse !== undefined
+    const duplicateFound =
+      biometric.faceDuplicate === true || ocr.documentReuse === true
+    const dedup = { duplicateFound, available: dedupAvailable }
+
+    const decision = decideKycOutcome(ocr, biometric, availability, dedup)
 
     if (decision === "reject") {
       await step.runMutation(internal.kyc.mutations.rejectAuto, {
@@ -141,6 +189,10 @@ export const kycLevel2 = workflow.define({
         faceMatchScore: biometric.faceMatch,
         livenessVerdict: biometric.liveness,
         ...availability,
+        // Le contrôleur doit savoir qu'il regarde un dossier retenu POUR
+        // doublon : sans cette information, il approuverait à la main
+        // exactement ce que la détection venait d'arrêter.
+        duplicateFlagged: duplicateFound,
       })
     }
 

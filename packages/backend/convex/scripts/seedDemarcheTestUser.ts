@@ -4,6 +4,7 @@ import { components, internal } from "../_generated/api"
 import { action, internalMutation } from "../_generated/server"
 import { authComponent, createAuth } from "../auth"
 import { generateIdnId } from "../lib/idnId"
+import { derivePivotKeys } from "../lib/identity"
 
 /**
  * Script de seed DEV — provisionne tout ce qu'il faut pour tester
@@ -221,6 +222,7 @@ export const provision = internalMutation({
     if (profile) {
       await ctx.db.patch(profile._id, {
         pivot,
+        ...derivePivotKeys(pivot),
         pinHash: args.pinHash,
         updatedAt: now,
       })
@@ -232,6 +234,7 @@ export const provision = internalMutation({
         loa: 1,
         idnId,
         pivot,
+        ...derivePivotKeys(pivot),
         pinHash: args.pinHash,
         createdAt: now,
         updatedAt: now,

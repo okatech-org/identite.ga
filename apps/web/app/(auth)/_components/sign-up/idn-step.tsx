@@ -4,6 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useConvex, useMutation } from "convex/react"
+import { ConvexError } from "convex/values"
 import { ShieldIcon } from "lucide-react"
 import { toast } from "sonner"
 
@@ -86,6 +87,11 @@ export function IdnStep() {
   const [acceptTerms, setAcceptTerms] = React.useState(false)
   const [submitting, setSubmitting] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+  // Refus anti-doublon : l'erreur n'est pas corrigeable sur cet écran (elle
+  // porte sur l'identité saisie à l'étape précédente), d'où un chemin de
+  // retour explicite plutôt qu'un bouton « Réessayer » qui échouerait à
+  // l'identique.
+  const [blockedByDuplicate, setBlockedByDuplicate] = React.useState(false)
 
   React.useEffect(() => {
     const p = getOnboardingProfile()
@@ -169,6 +175,7 @@ export function IdnStep() {
     }
     setSubmitting(true)
     setError(null)
+    setBlockedByDuplicate(false)
     try {
       const result = await authClient.signUp.email({
         email: `${handleNormalized}@idn.ga`,
@@ -192,6 +199,32 @@ export function IdnStep() {
       setOnboardingHandle(handleNormalized)
       router.push("/sign-up?step=pin")
     } catch (err) {
+      // Refus anti-doublon : le compte Better Auth vient d'être créé, mais le
+      // profil, non. L'adresse @idn.ga réservée reste celle de l'utilisateur,
+      // qui est authentifié — il peut donc corriger son identité et relancer
+      // l'opération sans rien perdre. On le renvoie à l'étape identité plutôt
+      // que de le laisser sur un écran où il n'a plus rien à corriger.
+      if (err instanceof ConvexError) {
+        const data = err.data as { code?: string; message?: string } | string
+        const code = typeof data === "object" ? data.code : undefined
+        if (
+          code === "IDENTITY_ALREADY_VERIFIED" ||
+          code === "NIP_ALREADY_VERIFIED"
+        ) {
+          setError(
+            code === "NIP_ALREADY_VERIFIED"
+              ? idnSignup.errorNipVerified
+              : idnSignup.errorIdentityVerified,
+          )
+          setBlockedByDuplicate(true)
+          setSubmitting(false)
+          return
+        }
+        const message = typeof data === "object" ? data.message : undefined
+        toast.error(message ?? idnSignup.errorGeneric)
+        setSubmitting(false)
+        return
+      }
       toast.error(err instanceof Error ? err.message : idnSignup.errorGeneric)
       setSubmitting(false)
     }
@@ -352,9 +385,19 @@ export function IdnStep() {
         </label>
 
         {error && (
-          <p role="alert" className="text-xs text-destructive">
-            {error}
-          </p>
+          <div role="alert" className="space-y-2">
+            <p className="text-xs text-destructive">{error}</p>
+            {blockedByDuplicate && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => router.push("/sign-up?step=identity")}
+              >
+                {idnSignup.backToIdentity}
+              </Button>
+            )}
+          </div>
         )}
       </div>
     </WizardShell>

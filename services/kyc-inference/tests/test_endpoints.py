@@ -12,11 +12,13 @@ on court-circuite la récupération réseau des images.
 from __future__ import annotations
 
 import json
+import math
 
 import pytest
 from fastapi.testclient import TestClient
 
 import app.main as main
+from app.face_match import FaceMatchResult
 from app.liveness import LivenessResult
 from app.main import Engines, app
 from app.ocr import OcrResult, OcrUnavailable
@@ -58,6 +60,15 @@ class FakeFace:
 
     def compare(self, *, selfie_bytes, doc_face_bytes):
         return 0.84
+
+    def compare_with_embedding(self, *, selfie_bytes, doc_face_bytes):
+        # Vecteur unitaire de dimension 512 : la route doit rendre l'empreinte
+        # telle quelle, sans renormaliser ni tronquer.
+        embedding = [0.0] * 512
+        embedding[0] = 1.0
+        return FaceMatchResult(
+            score=0.84, selfie_embedding=embedding, model_version="buffalo_l"
+        )
 
 
 class FakeLiveness:
@@ -199,10 +210,27 @@ def test_biometric_response_shape(client, make_signed_headers):
     resp = _post_signed(client, "/v1/biometric", payload, make_signed_headers)
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    assert set(body) == {"faceMatch", "liveness", "livenessScore"}
+    assert set(body) == {
+        "faceMatch",
+        "liveness",
+        "livenessScore",
+        "embedding",
+        "embeddingModel",
+    }
     assert 0.0 <= body["faceMatch"] <= 1.0
     assert body["liveness"] in {"real", "spoof", "uncertain"}
     assert 0.0 <= body["livenessScore"] <= 1.0
+
+    # L'empreinte alimente un index vectoriel déclaré à 512 dimensions côté
+    # Convex : une dimension qui dérive y serait rejetée à l'insertion, donc
+    # après coup, sur un dossier déjà traité.
+    assert len(body["embedding"]) == 512
+    assert all(isinstance(x, float) for x in body["embedding"])
+    norm = math.sqrt(sum(x * x for x in body["embedding"]))
+    # ArcFace rend des vecteurs L2-normalisés ; c'est ce qui rend le produit
+    # scalaire directement interprétable comme un cosinus.
+    assert abs(norm - 1.0) < 1e-6
+    assert body["embeddingModel"] == "buffalo_l"
 
 
 def test_biometric_returns_503_when_liveness_not_ready(client, make_signed_headers):

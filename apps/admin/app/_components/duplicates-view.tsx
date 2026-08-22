@@ -20,6 +20,7 @@ import { LoABadge } from "@repo/ui/components/loa-badge"
 import { api } from "@repo/backend/convex/_generated/api"
 
 import { fr } from "../_content/fr"
+import { DuplicateSignals } from "./duplicate-signals"
 import { EmptyState } from "./empty-state"
 import { UserRowActions } from "./user-row-actions"
 
@@ -71,12 +72,21 @@ export function DuplicatesView() {
     return <p className="text-[13px] text-idn-muted">{fr.users.loading}</p>
   }
 
+  // La file de signalements s'affiche même sans groupe d'identités : un
+  // rapprochement biométrique ou par pièce n'apparaît PAS dans l'inventaire
+  // par nom, et la masquer laisserait ces cas invisibles.
   if (groups.length === 0) {
-    return <EmptyState title={t.emptyTitle} description={t.emptyBody} />
+    return (
+      <div className="space-y-5">
+        <DuplicateSignals />
+        <EmptyState title={t.emptyTitle} description={t.emptyBody} />
+      </div>
+    )
   }
 
   return (
     <div className="space-y-5">
+      <DuplicateSignals />
       {data.truncated ? (
         <p className="rounded-lg border border-idn-border bg-idn-surface-2 px-3 py-2 text-[12px] text-idn-muted">
           {t.truncated}
