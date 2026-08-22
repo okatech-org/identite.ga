@@ -209,9 +209,7 @@ export const fr = {
         "Le compte Better Auth est supprimé en plus des données personnelles. Le handle @idn.ga redevient disponible et pourra être réattribué à quelqu'un d'autre. Cette action est irréversible.",
       auditNote:
         "Les journaux d'audit sont conservés dans les deux cas — 5 ans, loi 001/2011.",
-      confirmLabel: "Recopiez l'identifiant du compte ci-dessous pour confirmer",
-      confirmCopy: "Copier l'identifiant",
-      confirmCopied: "Identifiant copié.",
+      confirmLabel: (id: string) => `Saisissez « ${id} » pour confirmer`,
       reasonLabel: "Motif (facultatif, journalisé)",
       cancel: "Annuler",
       anonymized: "Compte anonymisé.",
