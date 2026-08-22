@@ -2,9 +2,11 @@ import { ConvexError, v } from "convex/values"
 
 import { internal } from "../_generated/api"
 import { mutation } from "../_generated/server"
+import type { MutationCtx } from "../_generated/server"
 import type { Doc, Id } from "../_generated/dataModel"
 import { requireRole } from "../lib/auth"
 import { loadAccountByEmailAlias, loadAccountByQrCode } from "./accounts"
+import { updateAccountCounters } from "./accountSync"
 
 /**
  * iBoîte — Mutations d'ingestion réservées aux opérateurs administratifs.
@@ -45,7 +47,7 @@ function makePreview(body: string, max = 150): string {
 }
 
 async function bumpAccountCounters(
-  ctx: { db: { get: any; patch: any } },
+  ctx: MutationCtx,
   accountId: Id<"iboiteAccount">,
   delta: Partial<Doc<"iboiteAccount">["counters"]>,
 ) {
@@ -57,10 +59,7 @@ async function bumpAccountCounters(
   >) {
     c[k] = Math.max(0, c[k] + v)
   }
-  await ctx.db.patch(account._id, {
-    counters: c,
-    updatedAt: Date.now(),
-  })
+  await updateAccountCounters(ctx, account, c)
 }
 
 // ─────────────────────────────────────────────────────────────────────────

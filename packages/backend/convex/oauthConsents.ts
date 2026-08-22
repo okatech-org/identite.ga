@@ -2,6 +2,7 @@ import { ConvexError, v } from "convex/values"
 
 import { components, internal } from "./_generated/api"
 import { mutation, query } from "./_generated/server"
+import type { MutationCtx } from "./_generated/server"
 import { authComponent, createAuth } from "./auth"
 import {
   mergeConsentScopes,
@@ -9,7 +10,11 @@ import {
   resolveGrantedScopes,
   serializeConsentScopes,
 } from "./lib/consentGrant"
-import { getCurrentAuthUser, requireAuth, requireVerifiedAuth } from "./lib/auth"
+import {
+  getCurrentAuthUser,
+  requireAuth,
+  requireVerifiedAuth,
+} from "./lib/auth"
 
 /**
  * Consentements OAuth (§3.3).
@@ -41,6 +46,28 @@ function tsOf(value: Date | number | undefined | null): number {
   if (!value) return 0
   if (value instanceof Date) return value.getTime()
   return value
+}
+
+async function revokeClientTokens(
+  ctx: MutationCtx,
+  userId: string,
+  clientId: string,
+): Promise<number> {
+  const raw = (await ctx.runQuery(components.betterAuth.adapter.findMany, {
+    model: "oauthAccessToken",
+    where: [{ field: "userId", value: userId, operator: "eq" }],
+    paginationOpts: { numItems: 200, cursor: null },
+  })) as { page: Array<{ _id: string; clientId?: string | null }> }
+  const targets = raw.page.filter((token) => token.clientId === clientId)
+  for (const token of targets) {
+    await ctx.runMutation(components.betterAuth.adapter.deleteOne, {
+      input: {
+        model: "oauthAccessToken",
+        where: [{ field: "_id", value: token._id, operator: "eq" }],
+      },
+    })
+  }
+  return targets.length
 }
 
 export const listMine = query({
@@ -311,6 +338,7 @@ export const revoke = mutation({
         where: [{ field: "_id", value: args.consentId, operator: "eq" }],
       },
     })
+    await revokeClientTokens(ctx, user.userId, target.clientId)
     void auth
     void headers
 
@@ -368,6 +396,8 @@ export const revokeForClient = mutation({
         },
       })
     }
+
+    await revokeClientTokens(ctx, user.userId, args.clientId)
 
     return { revoked: targets.length }
   },

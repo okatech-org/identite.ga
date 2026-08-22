@@ -3,6 +3,7 @@ import { ConvexError, v } from "convex/values"
 import { components } from "../_generated/api"
 import { internalMutation, mutation, query } from "../_generated/server"
 import { getCurrentAuthUser, requireAuth, requireDeveloper } from "../lib/auth"
+import { GRANTABLE_SCOPES } from "../lib/consentGrant"
 
 /**
  * Portail développeur — apps OAuth (§3.11).
@@ -384,26 +385,29 @@ export const create = mutation({
       productionStatus: "none",
     }
 
-    const created = (await ctx.runMutation(components.betterAuth.adapter.create, {
-      input: {
-        model: MODEL,
-        data: {
-          clientId,
-          clientSecret: clientSecretHash,
-          name: args.name.trim(),
-          userId: user.userId,
-          // Better Auth oidc-provider stocke et lit en CSV (.split(",") dans
-          // getClient). Stocker en JSON casse la validation redirect_uri du
-          // flow /oauth2/authorize.
-          redirectUrls: args.redirectUris.join(","),
-          disabled: false,
-          type: "web",
-          metadata: JSON.stringify(metadata),
-          createdAt: now,
-          updatedAt: now,
+    const created = (await ctx.runMutation(
+      components.betterAuth.adapter.create,
+      {
+        input: {
+          model: MODEL,
+          data: {
+            clientId,
+            clientSecret: clientSecretHash,
+            name: args.name.trim(),
+            userId: user.userId,
+            // Better Auth oidc-provider stocke et lit en CSV (.split(",") dans
+            // getClient). Stocker en JSON casse la validation redirect_uri du
+            // flow /oauth2/authorize.
+            redirectUrls: args.redirectUris.join(","),
+            disabled: false,
+            type: "web",
+            metadata: JSON.stringify(metadata),
+            createdAt: now,
+            updatedAt: now,
+          },
         },
       },
-    })) as { _id: string }
+    )) as { _id: string }
 
     return {
       id: created._id,
@@ -448,6 +452,49 @@ export const rotateSecret = mutation({
     })
 
     return { clientSecret: newSecretPlain }
+  },
+})
+
+/** Met à jour les scopes OAuth déclarés par l'application. */
+export const setScopes = mutation({
+  args: { clientId: v.string(), scopes: v.array(v.string()) },
+  returns: v.object({ scopes: v.array(v.string()) }),
+  handler: async (ctx, args) => {
+    const user = await requireDeveloper(ctx)
+    const scopes = [
+      ...new Set(args.scopes.map((scope) => scope.trim()).filter(Boolean)),
+    ]
+    const unknown = scopes.find((scope) => !GRANTABLE_SCOPES.includes(scope))
+    if (unknown) {
+      throw new ConvexError({
+        code: "UNKNOWN_SCOPE",
+        message: `Scope inconnu : ${unknown}.`,
+      })
+    }
+    const raw = (await ctx.runQuery(components.betterAuth.adapter.findMany, {
+      model: MODEL,
+      where: [{ field: "clientId", value: args.clientId, operator: "eq" }],
+      paginationOpts: { numItems: 1, cursor: null },
+    })) as { page: OAuthAppDoc[] }
+    const doc = raw.page[0]
+    if (!doc || doc.userId !== user.userId) {
+      throw new ConvexError({
+        code: "FORBIDDEN",
+        message: "Application non autorisée.",
+      })
+    }
+    const meta = parseMetadata(doc.metadata)
+    await ctx.runMutation(components.betterAuth.adapter.updateOne, {
+      input: {
+        model: MODEL,
+        where: [{ field: "_id", value: doc._id, operator: "eq" }],
+        update: {
+          metadata: JSON.stringify({ ...meta, scopes }),
+          updatedAt: Date.now(),
+        },
+      },
+    })
+    return { scopes }
   },
 })
 
@@ -755,8 +802,7 @@ export const requestProduction = mutation({
     if (meta.env !== "sandbox") {
       throw new ConvexError({
         code: "NOT_SANDBOX",
-        message:
-          "La demande de production ne s'applique qu'à une app sandbox.",
+        message: "La demande de production ne s'applique qu'à une app sandbox.",
       })
     }
     if (
@@ -808,25 +854,28 @@ export const requestProduction = mutation({
       status: "pending",
     }
 
-    const created = (await ctx.runMutation(components.betterAuth.adapter.create, {
-      input: {
-        model: MODEL,
-        data: {
-          clientId: prodClientId,
-          clientSecret: prodSecretHash,
-          name: baseName,
-          userId: user.userId,
-          // Voir la note sur create() : Better Auth attend du CSV.
-          redirectUrls: redirectUris.join(","),
-          // Désactivée jusqu'à approbation admin.
-          disabled: true,
-          type: "web",
-          metadata: JSON.stringify(prodMeta),
-          createdAt: now,
-          updatedAt: now,
+    const created = (await ctx.runMutation(
+      components.betterAuth.adapter.create,
+      {
+        input: {
+          model: MODEL,
+          data: {
+            clientId: prodClientId,
+            clientSecret: prodSecretHash,
+            name: baseName,
+            userId: user.userId,
+            // Voir la note sur create() : Better Auth attend du CSV.
+            redirectUrls: redirectUris.join(","),
+            // Désactivée jusqu'à approbation admin.
+            disabled: true,
+            type: "web",
+            metadata: JSON.stringify(prodMeta),
+            createdAt: now,
+            updatedAt: now,
+          },
         },
       },
-    })) as { _id: string }
+    )) as { _id: string }
 
     const nextSandboxMeta: AppMetadata = {
       ...meta,
@@ -1026,7 +1075,10 @@ export const setRedirectUrisByClientId = internalMutation({
     clientId: v.string(),
     redirectUris: v.array(v.string()),
   },
-  returns: v.object({ updated: v.boolean(), redirectUris: v.array(v.string()) }),
+  returns: v.object({
+    updated: v.boolean(),
+    redirectUris: v.array(v.string()),
+  }),
   handler: async (ctx, args) => {
     if (args.redirectUris.length === 0) {
       throw new ConvexError({
@@ -1096,10 +1148,17 @@ export const migrateRedirectUrlsToCsv = internalMutation({
     // ne fait pas l'hypothèse d'un seul lot.
     // eslint-disable-next-line no-constant-condition
     while (true) {
-      const batch = (await ctx.runQuery(components.betterAuth.adapter.findMany, {
-        model: MODEL,
-        paginationOpts: { numItems: 200, cursor },
-      })) as { page: OAuthAppDoc[]; isDone?: boolean; continueCursor?: string | null }
+      const batch = (await ctx.runQuery(
+        components.betterAuth.adapter.findMany,
+        {
+          model: MODEL,
+          paginationOpts: { numItems: 200, cursor },
+        },
+      )) as {
+        page: OAuthAppDoc[]
+        isDone?: boolean
+        continueCursor?: string | null
+      }
       for (const doc of batch.page) {
         inspected++
         const raw = doc.redirectUrls ?? ""
@@ -1111,7 +1170,11 @@ export const migrateRedirectUrlsToCsv = internalMutation({
           continue
         }
         if (!Array.isArray(parsed)) continue
-        const csv = parsed.map(String).map((s) => s.trim()).filter(Boolean).join(",")
+        const csv = parsed
+          .map(String)
+          .map((s) => s.trim())
+          .filter(Boolean)
+          .join(",")
         await ctx.runMutation(components.betterAuth.adapter.updateOne, {
           input: {
             model: MODEL,

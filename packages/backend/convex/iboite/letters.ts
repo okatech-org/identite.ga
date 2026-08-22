@@ -8,6 +8,7 @@ import { authComponent } from "../auth"
 import { requireAuth } from "../lib/auth"
 import { rateLimiter } from "../rateLimiter"
 import { loadAccountByEmailAlias, loadOwnedAccount } from "./accounts"
+import { updateAccountCounters } from "./accountSync"
 
 /**
  * iBoîte — Courriers physiques numérisés.
@@ -212,12 +213,9 @@ export const markRead = mutation({
     if (letter.folder === "inbox") {
       const account = await ctx.db.get(letter.accountId)
       if (account) {
-        await ctx.db.patch(account._id, {
-          counters: {
-            ...account.counters,
-            unreadLetters: Math.max(0, account.counters.unreadLetters - 1),
-          },
-          updatedAt: Date.now(),
+        await updateAccountCounters(ctx, account, {
+          ...account.counters,
+          unreadLetters: Math.max(0, account.counters.unreadLetters - 1),
         })
       }
     }
@@ -274,10 +272,7 @@ export const move = mutation({
       if (args.target === "pending") {
         c.pendingLetters += 1
       }
-      await ctx.db.patch(account._id, {
-        counters: c,
-        updatedAt: Date.now(),
-      })
+      await updateAccountCounters(ctx, account, c)
     }
 
     await ctx.db.patch(letter._id, { folder: args.target })
@@ -468,13 +463,15 @@ export const send = mutation({
     }
 
     // 4) Compteur unread destinataire + notification in-app.
-    await ctx.db.patch(recipientAccount._id, {
-      counters: {
+    await updateAccountCounters(
+      ctx,
+      recipientAccount,
+      {
         ...recipientAccount.counters,
         unreadLetters: recipientAccount.counters.unreadLetters + 1,
       },
-      updatedAt: now,
-    })
+      now,
+    )
 
     await ctx.runMutation(internal.notifications.dispatch, {
       userId: recipientAccount.userId,

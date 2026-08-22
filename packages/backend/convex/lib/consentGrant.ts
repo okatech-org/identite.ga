@@ -43,7 +43,12 @@ export const STANDARD_OIDC_SCOPES = [
  * un consentement enregistré pour un scope que `/authorize` rejette ensuite en
  * `invalid_scope` — un consentement qui ne consent à rien.
  */
-export const IDN_CUSTOM_SCOPES = ["idn:civil_status"] as const
+export const IDN_CUSTOM_SCOPES = [
+  "idn:civil_status",
+  "idn:iboite.read",
+  "idn:iboite.manage",
+  "idn:iboite.send",
+] as const
 
 /** Union des scopes qu'un consentement peut légitimement porter. */
 export const GRANTABLE_SCOPES: readonly string[] = [

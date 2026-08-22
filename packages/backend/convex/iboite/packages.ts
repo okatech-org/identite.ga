@@ -4,6 +4,7 @@ import { mutation, query } from "../_generated/server"
 import type { Doc, Id } from "../_generated/dataModel"
 import { requireAuth } from "../lib/auth"
 import { loadOwnedAccount } from "./accounts"
+import { updateAccountCounters } from "./accountSync"
 
 /**
  * iBoîte — Colis (cf. SPECS_FEATURES_CITIZEN.md §2.6 + §2.9.2).
@@ -106,13 +107,18 @@ export const markPickedUp = mutation({
     })
     const account = await ctx.db.get(pkg.accountId)
     if (account) {
-      await ctx.db.patch(account._id, {
-        counters: {
+      await updateAccountCounters(
+        ctx,
+        account,
+        {
           ...account.counters,
-          availablePackages: Math.max(0, account.counters.availablePackages - 1),
+          availablePackages: Math.max(
+            0,
+            account.counters.availablePackages - 1,
+          ),
         },
-        updatedAt: now,
-      })
+        now,
+      )
     }
     return null
   },

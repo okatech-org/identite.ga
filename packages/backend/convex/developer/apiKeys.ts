@@ -1,6 +1,6 @@
 import { ConvexError, v } from "convex/values"
 
-import { internal } from "../_generated/api"
+import { components, internal } from "../_generated/api"
 import { internalMutation, mutation, query } from "../_generated/server"
 import type { ActionCtx } from "../_generated/server"
 import type { Doc, Id } from "../_generated/dataModel"
@@ -58,6 +58,7 @@ export const VALID_M2M_SCOPES = [
   "idn:verification:decide",
   "idn:verification:media",
   "idn:verification:join",
+  "idn:iboite:letters:create",
 ] as const
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -69,6 +70,7 @@ const KEY_STATUS = v.union(
 
 const KEY_DTO = v.object({
   id: v.id("developerApiKey"),
+  appClientId: v.union(v.string(), v.null()),
   name: v.string(),
   tokenPrefix: v.string(),
   scopes: v.array(v.string()),
@@ -116,6 +118,7 @@ function serializeKey(k: Doc<"developerApiKey">) {
       : "active"
   return {
     id: k._id,
+    appClientId: k.appClientId ?? null,
     name: k.name,
     tokenPrefix: k.tokenPrefix,
     scopes: k.scopes,
@@ -134,6 +137,7 @@ function serializeKey(k: Doc<"developerApiKey">) {
 export const createKey = mutation({
   args: {
     name: v.string(),
+    appClientId: v.optional(v.string()),
     scopes: v.optional(v.array(v.string())),
     expiresInDays: v.optional(v.number()),
   },
@@ -157,6 +161,35 @@ export const createKey = mutation({
     }
 
     const scopes = normalizeScopes(args.scopes)
+
+    if (args.appClientId) {
+      const apps = (await ctx.runQuery(components.betterAuth.adapter.findMany, {
+        model: "oauthApplication",
+        where: [
+          {
+            field: "clientId",
+            value: args.appClientId,
+            operator: "eq",
+          },
+        ],
+        paginationOpts: { numItems: 1, cursor: null },
+      })) as {
+        page: Array<{ userId?: string | null; disabled?: boolean | null }>
+      }
+      const app = apps.page[0]
+      if (!app || app.userId !== user.userId) {
+        throw new ConvexError({
+          code: "FORBIDDEN",
+          message: "Cette application ne vous appartient pas.",
+        })
+      }
+      if (app.disabled) {
+        throw new ConvexError({
+          code: "APP_DISABLED",
+          message: "Cette application est désactivée.",
+        })
+      }
+    }
 
     let expiresAt: number | undefined
     if (args.expiresInDays !== undefined) {
@@ -187,6 +220,7 @@ export const createKey = mutation({
     const now = Date.now()
     const id = await ctx.db.insert("developerApiKey", {
       userId: user.userId,
+      appClientId: args.appClientId,
       name,
       tokenHash,
       tokenPrefix,
@@ -201,9 +235,9 @@ export const createKey = mutation({
 
 /** Liste les clés du développeur courant — n'expose jamais le secret/hash. */
 export const listKeys = query({
-  args: {},
+  args: { appClientId: v.optional(v.string()) },
   returns: v.array(KEY_DTO),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
     // Lecture gracieuse (cf. developer/apps.listMine) : [] tant que la session
     // ou le rôle ne sont pas encore en place.
     const user = await getCurrentAuthUser(ctx)
@@ -213,7 +247,13 @@ export const listKeys = query({
       .withIndex("by_userId", (q) => q.eq("userId", user.userId))
       .order("desc")
       .take(100)
-    return rows.map(serializeKey)
+    return rows
+      .filter(
+        (row) =>
+          args.appClientId === undefined ||
+          row.appClientId === args.appClientId,
+      )
+      .map(serializeKey)
   },
 })
 
@@ -254,6 +294,7 @@ export const _verify = internalMutation({
       userId: v.string(),
       scopes: v.array(v.string()),
       keyId: v.id("developerApiKey"),
+      appClientId: v.union(v.string(), v.null()),
     }),
   ),
   handler: async (ctx, args) => {
@@ -265,7 +306,12 @@ export const _verify = internalMutation({
     if (row.revokedAt !== undefined) return null
     if (row.expiresAt !== undefined && row.expiresAt < Date.now()) return null
     await ctx.db.patch(row._id, { lastUsedAt: Date.now() })
-    return { userId: row.userId, scopes: row.scopes, keyId: row._id }
+    return {
+      userId: row.userId,
+      scopes: row.scopes,
+      keyId: row._id,
+      appClientId: row.appClientId ?? null,
+    }
   },
 })
 
@@ -282,6 +328,7 @@ export async function authenticateApiKey(
   userId: string
   scopes: string[]
   keyId: Id<"developerApiKey">
+  appClientId: string | null
 } | null> {
   const header = request.headers.get("authorization") ?? ""
   const match = /^Bearer\s+(\S+)$/i.exec(header.trim())
@@ -289,5 +336,50 @@ export async function authenticateApiKey(
   const presented = match[1]!
   if (!looksLikeApiToken(presented)) return null
   const tokenHash = await hashToken(presented)
-  return await ctx.runMutation(internal.developer.apiKeys._verify, { tokenHash })
+  return await ctx.runMutation(internal.developer.apiKeys._verify, {
+    tokenHash,
+  })
 }
+
+/** Reprise explicite d'une clé historique vers son application OAuth. */
+export const attachKeyToApp = mutation({
+  args: {
+    keyId: v.id("developerApiKey"),
+    appClientId: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const user = await requireDeveloper(ctx)
+    const key = await ctx.db.get(args.keyId)
+    if (!key) {
+      throw new ConvexError({ code: "NOT_FOUND", message: "Clé introuvable." })
+    }
+    if (key.userId !== user.userId) {
+      throw new ConvexError({
+        code: "FORBIDDEN",
+        message: "Clé non autorisée.",
+      })
+    }
+    if (key.appClientId && key.appClientId !== args.appClientId) {
+      throw new ConvexError({
+        code: "KEY_ALREADY_LINKED",
+        message: "Cette clé est déjà liée à une autre application.",
+      })
+    }
+    const apps = (await ctx.runQuery(components.betterAuth.adapter.findMany, {
+      model: "oauthApplication",
+      where: [{ field: "clientId", value: args.appClientId, operator: "eq" }],
+      paginationOpts: { numItems: 1, cursor: null },
+    })) as { page: Array<{ userId?: string | null }> }
+    if (apps.page[0]?.userId !== user.userId) {
+      throw new ConvexError({
+        code: "FORBIDDEN",
+        message: "Application non autorisée.",
+      })
+    }
+    if (!key.appClientId) {
+      await ctx.db.patch(key._id, { appClientId: args.appClientId })
+    }
+    return null
+  },
+})

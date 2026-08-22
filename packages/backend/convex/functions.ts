@@ -23,6 +23,7 @@ import {
   internalMutation as rawInternalMutation,
   mutation as rawMutation,
 } from "./_generated/server"
+import { emitWebhookEvent } from "./webhooks/emission"
 
 const triggers = new Triggers<DataModel>()
 
@@ -63,6 +64,21 @@ triggers.register("kycRequest", async (ctx, change) => {
 triggers.register("level3Verification", async (ctx, change) => {
   const doc = change.newDoc ?? change.oldDoc
   if (!doc) return
+  const event =
+    change.operation === "insert"
+      ? "created"
+      : change.operation === "delete"
+        ? "deleted"
+        : "updated"
+  await emitWebhookEvent(ctx, {
+    type: `identity.verification.${event}`,
+    subject: String(doc._id),
+    authorizationSubject: doc.userId,
+    data: {
+      verificationId: String(doc._id),
+      updatedAt: doc.updatedAt,
+    },
+  })
   // Aucun partenaire configuré → on ne planifie RIEN. L'action se contentait
   // déjà de sortir sans rien faire, mais la planifier avait deux coûts réels :
   // une fonction planifiée par écriture sur tout déploiement sans partenaire
@@ -71,19 +87,10 @@ triggers.register("level3Verification", async (ctx, change) => {
   // « Write outside of transaction ». Décider ici est aussi plus honnête :
   // la condition « y a-t-il quelqu'un à prévenir ? » appartient à l'émetteur.
   if (!process.env.IDN_PARTNER_WEBHOOK_URL?.trim()) return
-  await ctx.scheduler.runAfter(
-    0,
-    internal.partner.verificationWebhook.notify,
-    {
-      verificationId: doc._id,
-      event:
-        change.operation === "insert"
-          ? "created"
-          : change.operation === "delete"
-            ? "deleted"
-            : "updated",
-    },
-  )
+  await ctx.scheduler.runAfter(0, internal.partner.verificationWebhook.notify, {
+    verificationId: doc._id,
+    event,
+  })
 })
 
 /** Mutation publique IDN avec triggers d'agrégats. */

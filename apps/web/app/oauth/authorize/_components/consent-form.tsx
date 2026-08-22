@@ -81,6 +81,24 @@ const claimsForScopes = (
       sub: "situation matrimoniale, nationalité",
     })
   }
+  if (has("idn:iboite.read")) {
+    rows.push({
+      label: "Consulter votre iBoîte",
+      sub: "courriers, colis, messages et pièces jointes",
+    })
+  }
+  if (has("idn:iboite.manage")) {
+    rows.push({
+      label: "Organiser votre iBoîte",
+      sub: "marquer comme lu, classer et gérer les messages",
+    })
+  }
+  if (has("idn:iboite.send")) {
+    rows.push({
+      label: "Envoyer depuis votre iBoîte",
+      sub: "répondre et envoyer des messages en votre nom",
+    })
+  }
   if (has("idn:nip")) {
     rows.push({
       label: "NIP",
@@ -130,9 +148,10 @@ export function ConsentForm({
       }
       // Better Auth renvoie en JSON la prochaine étape — souvent
       // { redirectURI: "..." } qu'on doit suivre manuellement.
-      const json = (await res.json().catch(() => null)) as
-        | { redirectURI?: string; redirect_uri?: string }
-        | null
+      const json = (await res.json().catch(() => null)) as {
+        redirectURI?: string
+        redirect_uri?: string
+      } | null
       const redirectTo = json?.redirectURI ?? json?.redirect_uri
       if (redirectTo) {
         window.location.assign(redirectTo)

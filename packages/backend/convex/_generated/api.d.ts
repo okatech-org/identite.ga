@@ -65,6 +65,7 @@ import type * as email_templates_kycEmail from "../email/templates/kycEmail.js";
 import type * as email_templates_otpEmail from "../email/templates/otpEmail.js";
 import type * as functions from "../functions.js";
 import type * as http from "../http.js";
+import type * as iboite_accountSync from "../iboite/accountSync.js";
 import type * as iboite_accounts from "../iboite/accounts.js";
 import type * as iboite_admin from "../iboite/admin.js";
 import type * as iboite_letters from "../iboite/letters.js";
@@ -72,6 +73,7 @@ import type * as iboite_mailActions from "../iboite/mailActions.js";
 import type * as iboite_mailHttp from "../iboite/mailHttp.js";
 import type * as iboite_mailInternal from "../iboite/mailInternal.js";
 import type * as iboite_messages from "../iboite/messages.js";
+import type * as iboite_oauthApi from "../iboite/oauthApi.js";
 import type * as iboite_packages from "../iboite/packages.js";
 import type * as idoc from "../idoc.js";
 import type * as kyc from "../kyc.js";
@@ -142,6 +144,16 @@ import type * as verification from "../verification.js";
 import type * as verification_requestFlow from "../verification/requestFlow.js";
 import type * as verification_requestPolicy from "../verification/requestPolicy.js";
 import type * as wallet from "../wallet.js";
+import type * as webhooks_authorization from "../webhooks/authorization.js";
+import type * as webhooks_catalog from "../webhooks/catalog.js";
+import type * as webhooks_crypto from "../webhooks/crypto.js";
+import type * as webhooks_delivery from "../webhooks/delivery.js";
+import type * as webhooks_deliveryState from "../webhooks/deliveryState.js";
+import type * as webhooks_dispatch from "../webhooks/dispatch.js";
+import type * as webhooks_emission from "../webhooks/emission.js";
+import type * as webhooks_endpoints from "../webhooks/endpoints.js";
+import type * as webhooks_policy from "../webhooks/policy.js";
+import type * as webhooks_urlSafety from "../webhooks/urlSafety.js";
 
 import type {
   ApiFromModules,
@@ -207,6 +219,7 @@ declare const fullApi: ApiFromModules<{
   "email/templates/otpEmail": typeof email_templates_otpEmail;
   functions: typeof functions;
   http: typeof http;
+  "iboite/accountSync": typeof iboite_accountSync;
   "iboite/accounts": typeof iboite_accounts;
   "iboite/admin": typeof iboite_admin;
   "iboite/letters": typeof iboite_letters;
@@ -214,6 +227,7 @@ declare const fullApi: ApiFromModules<{
   "iboite/mailHttp": typeof iboite_mailHttp;
   "iboite/mailInternal": typeof iboite_mailInternal;
   "iboite/messages": typeof iboite_messages;
+  "iboite/oauthApi": typeof iboite_oauthApi;
   "iboite/packages": typeof iboite_packages;
   idoc: typeof idoc;
   kyc: typeof kyc;
@@ -284,6 +298,16 @@ declare const fullApi: ApiFromModules<{
   "verification/requestFlow": typeof verification_requestFlow;
   "verification/requestPolicy": typeof verification_requestPolicy;
   wallet: typeof wallet;
+  "webhooks/authorization": typeof webhooks_authorization;
+  "webhooks/catalog": typeof webhooks_catalog;
+  "webhooks/crypto": typeof webhooks_crypto;
+  "webhooks/delivery": typeof webhooks_delivery;
+  "webhooks/deliveryState": typeof webhooks_deliveryState;
+  "webhooks/dispatch": typeof webhooks_dispatch;
+  "webhooks/emission": typeof webhooks_emission;
+  "webhooks/endpoints": typeof webhooks_endpoints;
+  "webhooks/policy": typeof webhooks_policy;
+  "webhooks/urlSafety": typeof webhooks_urlSafety;
 }>;
 
 /**

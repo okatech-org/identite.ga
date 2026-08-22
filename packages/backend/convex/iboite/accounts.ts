@@ -407,6 +407,7 @@ export const ensurePersonal = internalMutation({
       isAddressConfigured: false,
       qrCode,
       counters: emptyCounters(),
+      syncVersion: 0,
       createdAt: now,
       updatedAt: now,
     })

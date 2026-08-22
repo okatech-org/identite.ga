@@ -3,6 +3,7 @@ import { v } from "convex/values"
 import { internal } from "../_generated/api"
 import type { Id } from "../_generated/dataModel"
 import { internalMutation, internalQuery } from "../_generated/server"
+import { updateAccountCounters } from "./accountSync"
 
 const ATTACHMENT_INPUT = v.object({
   name: v.string(),
@@ -221,12 +222,9 @@ export const persistInbound = internalMutation({
       messageId,
       receivedAt: Date.now(),
     })
-    await ctx.db.patch(account._id, {
-      counters: {
-        ...account.counters,
-        unreadMessages: account.counters.unreadMessages + 1,
-      },
-      updatedAt: Date.now(),
+    await updateAccountCounters(ctx, account, {
+      ...account.counters,
+      unreadMessages: account.counters.unreadMessages + 1,
     })
     await ctx.runMutation(internal.notifications.dispatch, {
       userId: account.userId,

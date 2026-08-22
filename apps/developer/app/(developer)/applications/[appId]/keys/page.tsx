@@ -47,10 +47,10 @@ export default function AppKeysPage() {
   const [newTestEmail, setNewTestEmail] = useState("")
   const [addingTestUser, setAddingTestUser] = useState(false)
   const [requestingProd, setRequestingProd] = useState(false)
-  const [prodCreds, setProdCreds] = useState<
-    | null
-    | { clientId: string; clientSecret: string }
-  >(null)
+  const [prodCreds, setProdCreds] = useState<null | {
+    clientId: string
+    clientSecret: string
+  }>(null)
 
   const handleAddTestUser = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -87,10 +87,9 @@ export default function AppKeysPage() {
     if (!window.confirm(fr.sandbox.productionRequest.confirm)) return
     setRequestingProd(true)
     try {
-      const res = (await convex.mutation(
-        api.developer.apps.requestProduction,
-        { clientId },
-      )) as { clientId: string; clientSecret: string }
+      const res = (await convex.mutation(api.developer.apps.requestProduction, {
+        clientId,
+      })) as { clientId: string; clientSecret: string }
       setProdCreds({ clientId: res.clientId, clientSecret: res.clientSecret })
       toast.success("Demande envoyée.")
     } catch (err) {
@@ -113,11 +112,7 @@ export default function AppKeysPage() {
   }
 
   const handleRotate = async () => {
-    if (
-      !window.confirm(
-        "Régénérer le secret invalide l'ancien. Continuer ?",
-      )
-    ) {
+    if (!window.confirm("Régénérer le secret invalide l'ancien. Continuer ?")) {
       return
     }
     setRotating(true)
@@ -142,7 +137,10 @@ export default function AppKeysPage() {
   if (app === undefined) {
     return (
       <>
-        <OpHeader sub={fr.keys.subTemplate.replace("{appName}", "…")} title={fr.keys.title} />
+        <OpHeader
+          sub={fr.keys.subTemplate.replace("{appName}", "…")}
+          title={fr.keys.title}
+        />
         <div className="flex-1 overflow-auto px-7 py-6 text-sm text-idn-muted">
           Chargement…
         </div>
@@ -184,6 +182,20 @@ export default function AppKeysPage() {
       />
       <div className="flex-1 overflow-auto px-7 py-6">
         <div className="mx-auto max-w-[820px] space-y-5">
+          <div className="flex justify-end gap-3 text-sm">
+            <Link
+              className="text-idn-green hover:underline"
+              href={`/applications/${clientId}/webhooks`}
+            >
+              Webhooks
+            </Link>
+            <Link
+              className="text-idn-green hover:underline"
+              href={`/applications/${clientId}/services`}
+            >
+              Services
+            </Link>
+          </div>
           {rotatedSecret ? (
             <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-950/30">
               <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-idn-muted">
@@ -256,7 +268,7 @@ export default function AppKeysPage() {
               {fr.keys.integrationTitle}
             </div>
             <pre className="mt-2.5 overflow-x-auto rounded-md bg-[#0E110D] p-4 font-mono text-[12px] leading-[1.7] text-[#E6F2EA]">
-{`import { genericOAuth } from "better-auth/plugins";
+              {`import { genericOAuth } from "better-auth/plugins";
 import { idn } from "@idn-ga/better-auth";
 
 export const auth = betterAuth({
@@ -379,7 +391,9 @@ function SandboxTestUsersSection({
       <div className="text-[13px] font-semibold text-idn-ink">
         {fr.sandbox.testUsersTitle}
       </div>
-      <p className="mt-1.5 text-xs text-idn-muted">{fr.sandbox.testUsersDesc}</p>
+      <p className="mt-1.5 text-xs text-idn-muted">
+        {fr.sandbox.testUsersDesc}
+      </p>
       <form onSubmit={onAdd} className="mt-4 flex gap-2">
         <Input
           type="email"

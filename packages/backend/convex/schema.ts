@@ -1,6 +1,8 @@
 import { defineSchema, defineTable } from "convex/server"
 import { v } from "convex/values"
 
+import { WEBHOOK_EVENT_TYPES } from "./webhooks/catalog"
+
 /**
  * Schéma applicatif IDN (Identité Numérique du Gabon).
  *
@@ -833,6 +835,8 @@ export default defineSchema({
    */
   developerApiKey: defineTable({
     userId: v.string(),
+    /** Application OAuth propriétaire. Optionnel pendant la reprise des clés historiques. */
+    appClientId: v.optional(v.string()),
     name: v.string(),
     tokenHash: v.string(),
     tokenPrefix: v.string(),
@@ -843,7 +847,100 @@ export default defineSchema({
     revokedAt: v.optional(v.number()),
   })
     .index("by_userId", ["userId", "createdAt"])
+    .index("by_appClientId_and_createdAt", ["appClientId", "createdAt"])
     .index("by_tokenHash", ["tokenHash"]),
+
+  /** Endpoints de webhook déclarés par les applications OAuth. */
+  webhookEndpoints: defineTable({
+    appClientId: v.string(),
+    developerUserId: v.string(),
+    environment: v.union(v.literal("sandbox"), v.literal("production")),
+    name: v.string(),
+    url: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("active"),
+      v.literal("paused"),
+      v.literal("disabled"),
+    ),
+    secretCiphertext: v.string(),
+    secretIv: v.string(),
+    previousSecretCiphertext: v.optional(v.string()),
+    previousSecretIv: v.optional(v.string()),
+    previousSecretValidUntil: v.optional(v.number()),
+    /** Lie une réponse de challenge à la version exacte demandée. */
+    challengeId: v.optional(v.string()),
+    verifiedAt: v.optional(v.number()),
+    consecutiveFailures: v.number(),
+    lastSuccessAt: v.optional(v.number()),
+    lastFailureAt: v.optional(v.number()),
+    pausedReason: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    deletedAt: v.optional(v.number()),
+  })
+    .index("by_appClientId_and_createdAt", ["appClientId", "createdAt"])
+    .index("by_appClientId_and_status", ["appClientId", "status"])
+    .index("by_status_and_updatedAt", ["status", "updatedAt"]),
+
+  /** Abonnement exact d'un endpoint à un événement du catalogue. */
+  webhookSubscriptions: defineTable({
+    endpointId: v.id("webhookEndpoints"),
+    appClientId: v.string(),
+    eventType: v.union(...WEBHOOK_EVENT_TYPES.map((t) => v.literal(t))),
+    createdAt: v.number(),
+  })
+    .index("by_endpointId_and_eventType", ["endpointId", "eventType"])
+    .index("by_eventType_and_endpointId", ["eventType", "endpointId"]),
+
+  /** Événement immuable. La charge utile JSON provient du catalogue typé. */
+  webhookEvents: defineTable({
+    eventId: v.string(),
+    type: v.union(...WEBHOOK_EVENT_TYPES.map((t) => v.literal(t))),
+    apiVersion: v.literal("1"),
+    authorization: v.union(v.literal("oauth_user"), v.literal("m2m")),
+    subject: v.optional(v.string()),
+    /** Sujet interne de l'autorisation sandbox, non présent dans payloadJson. */
+    authorizationSubject: v.optional(v.string()),
+    requiredScope: v.string(),
+    payloadJson: v.string(),
+    fanoutStatus: v.union(v.literal("pending"), v.literal("completed")),
+    createdAt: v.number(),
+    fanoutCompletedAt: v.optional(v.number()),
+    expiresAt: v.number(),
+  })
+    .index("by_eventId", ["eventId"])
+    .index("by_fanoutStatus_and_createdAt", ["fanoutStatus", "createdAt"])
+    .index("by_expiresAt", ["expiresAt"]),
+
+  /** Tentative de livraison d'un événement vers un endpoint. */
+  webhookDeliveries: defineTable({
+    eventId: v.id("webhookEvents"),
+    endpointId: v.id("webhookEndpoints"),
+    appClientId: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("delivering"),
+      v.literal("retrying"),
+      v.literal("succeeded"),
+      v.literal("failed"),
+      v.literal("canceled"),
+    ),
+    attempts: v.number(),
+    /** Départ de la politique de retry, réinitialisé lors d'un rejeu manuel. */
+    attemptCycleStartedAt: v.optional(v.number()),
+    nextAttemptAt: v.number(),
+    leaseExpiresAt: v.optional(v.number()),
+    lastHttpStatus: v.optional(v.number()),
+    lastErrorCode: v.optional(v.string()),
+    lastAttemptAt: v.optional(v.number()),
+    deliveredAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_eventId_and_endpointId", ["eventId", "endpointId"])
+    .index("by_endpointId_and_createdAt", ["endpointId", "createdAt"])
+    .index("by_status_and_nextAttemptAt", ["status", "nextAttemptAt"]),
 
   /**
    * Clé/valeur pour la configuration système modifiable par le super-admin
@@ -933,6 +1030,8 @@ export default defineSchema({
       availablePackages: v.number(),
       unreadMessages: v.number(),
     }),
+    /** Version monotone utilisée par les webhooks et la réconciliation. */
+    syncVersion: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -969,11 +1068,14 @@ export default defineSchema({
     isRead: v.boolean(),
     dueAt: v.optional(v.number()),
     originOperator: v.optional(v.string()), // userId de l'admin qui a déposé
+    /** Idempotence des courriers officiels déposés par une app M2M. */
+    partnerDeliveryKey: v.optional(v.string()),
     createdAt: v.number(),
   })
     .index("by_user_folder", ["userId", "folder", "createdAt"])
     .index("by_account_folder", ["accountId", "folder", "createdAt"])
-    .index("by_user_unread", ["userId", "folder", "isRead"]),
+    .index("by_user_unread", ["userId", "folder", "isRead"])
+    .index("by_partnerDeliveryKey", ["partnerDeliveryKey"]),
 
   iboiteLetterAttachment: defineTable({
     letterId: v.id("iboiteLetter"),

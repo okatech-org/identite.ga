@@ -28,7 +28,8 @@ const prodStatusBadge = (
   if (status === "pending") {
     return {
       label: "PROD : EN ATTENTE",
-      className: "bg-amber-100 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200",
+      className:
+        "bg-amber-100 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200",
     }
   }
   if (status === "approved") {
@@ -145,6 +146,12 @@ export default function ApplicationsPage() {
                   </div>
                 </Link>
                 <div className="mt-1 flex justify-end">
+                  <Link
+                    href={`/applications/${app.clientId}/webhooks`}
+                    className="rounded-md px-2 py-1 text-[11px] font-semibold text-idn-green hover:bg-idn-green-soft"
+                  >
+                    Webhooks →
+                  </Link>
                   <Link
                     href={`/applications/${app.clientId}/services`}
                     className="rounded-md px-2 py-1 text-[11px] font-semibold text-idn-green hover:bg-idn-green-soft"

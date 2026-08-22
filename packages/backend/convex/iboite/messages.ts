@@ -8,6 +8,7 @@ import { authComponent } from "../auth"
 import { requireAuth } from "../lib/auth"
 import { rateLimiter } from "../rateLimiter"
 import { loadAccountByEmailAlias, loadOwnedAccount } from "./accounts"
+import { updateAccountCounters } from "./accountSync"
 
 const IBOITE_DOMAIN = "idn.ga"
 
@@ -261,12 +262,9 @@ export const markRead = mutation({
     if (m.folder === "inbox") {
       const account = await ctx.db.get(m.accountId)
       if (account) {
-        await ctx.db.patch(account._id, {
-          counters: {
-            ...account.counters,
-            unreadMessages: Math.max(0, account.counters.unreadMessages - 1),
-          },
-          updatedAt: Date.now(),
+        await updateAccountCounters(ctx, account, {
+          ...account.counters,
+          unreadMessages: Math.max(0, account.counters.unreadMessages - 1),
         })
       }
     }
@@ -298,21 +296,15 @@ export const move = mutation({
 
     const account = await ctx.db.get(m.accountId)
     if (account && m.folder === "inbox" && !m.isRead) {
-      await ctx.db.patch(account._id, {
-        counters: {
-          ...account.counters,
-          unreadMessages: Math.max(0, account.counters.unreadMessages - 1),
-        },
-        updatedAt: Date.now(),
+      await updateAccountCounters(ctx, account, {
+        ...account.counters,
+        unreadMessages: Math.max(0, account.counters.unreadMessages - 1),
       })
     }
     if (account && args.target === "inbox" && !m.isRead) {
-      await ctx.db.patch(account._id, {
-        counters: {
-          ...account.counters,
-          unreadMessages: account.counters.unreadMessages + 1,
-        },
-        updatedAt: Date.now(),
+      await updateAccountCounters(ctx, account, {
+        ...account.counters,
+        unreadMessages: account.counters.unreadMessages + 1,
       })
     }
 
@@ -541,13 +533,15 @@ export const send = mutation({
     }
 
     // 3) Compteur unread + notification in-app côté destinataire.
-    await ctx.db.patch(recipientAccount._id, {
-      counters: {
+    await updateAccountCounters(
+      ctx,
+      recipientAccount,
+      {
         ...recipientAccount.counters,
         unreadMessages: recipientAccount.counters.unreadMessages + 1,
       },
-      updatedAt: now,
-    })
+      now,
+    )
 
     await ctx.runMutation(internal.notifications.dispatch, {
       userId: recipientAccount.userId,

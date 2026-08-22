@@ -17,7 +17,16 @@ import { Textarea } from "@repo/ui/components/textarea"
 import { fr } from "../../../_content/fr"
 import { OpHeader } from "../../../_components/op-header"
 
-const AVAILABLE_SCOPES = ["openid", "profile", "email", "idn:civil_status"] as const
+const AVAILABLE_SCOPES = [
+  "openid",
+  "profile",
+  "email",
+  "offline_access",
+  "idn:civil_status",
+  "idn:iboite.read",
+  "idn:iboite.manage",
+  "idn:iboite.send",
+] as const
 const LOA_OPTIONS = [1, 2, 3] as const
 
 const schema = z.object({
@@ -53,10 +62,10 @@ export default function NewApplicationPage() {
   const router = useRouter()
   const convex = useConvex()
   const [submitting, setSubmitting] = useState(false)
-  const [created, setCreated] = useState<
-    | null
-    | { clientId: string; clientSecret: string }
-  >(null)
+  const [created, setCreated] = useState<null | {
+    clientId: string
+    clientSecret: string
+  }>(null)
 
   const {
     register,
@@ -134,7 +143,9 @@ export default function NewApplicationPage() {
             </dl>
             <div className="mt-6 flex justify-end">
               <Button
-                onClick={() => router.push(`/applications/${created.clientId}/keys`)}
+                onClick={() =>
+                  router.push(`/applications/${created.clientId}/keys`)
+                }
               >
                 {fr.appCreated.continue}
               </Button>
@@ -166,7 +177,11 @@ export default function NewApplicationPage() {
               {...register("name")}
             />
             {errors.name ? (
-              <p id="app-name-error" role="alert" className="text-xs text-destructive">
+              <p
+                id="app-name-error"
+                role="alert"
+                className="text-xs text-destructive"
+              >
                 {errors.name.message}
               </p>
             ) : null}
@@ -207,7 +222,11 @@ export default function NewApplicationPage() {
               {fr.newApp.redirectHint}
             </p>
             {errors.redirectUris ? (
-              <p id="app-redirect-error" role="alert" className="text-xs text-destructive">
+              <p
+                id="app-redirect-error"
+                role="alert"
+                className="text-xs text-destructive"
+              >
                 {errors.redirectUris.message}
               </p>
             ) : null}
@@ -262,7 +281,9 @@ export default function NewApplicationPage() {
                   <button
                     key={level}
                     type="button"
-                    onClick={() => setValue("loa", level, { shouldValidate: true })}
+                    onClick={() =>
+                      setValue("loa", level, { shouldValidate: true })
+                    }
                     className={`rounded-md border px-4 py-2 text-sm transition-colors ${
                       checked
                         ? "border-idn-green bg-idn-green-soft text-idn-green dark:bg-[#0F2A18]"
