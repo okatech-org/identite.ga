@@ -18,6 +18,7 @@ import { Input } from "@repo/ui/components/input"
 import { Label } from "@repo/ui/components/label"
 
 import { fr } from "../_content/fr"
+import { IdnIcons } from "./icons"
 
 type Mode = "anonymize" | "delete"
 
@@ -125,9 +126,23 @@ export function UserRowActions({
             <p className="text-[12px] text-idn-muted">{t.auditNote}</p>
 
             <div className="space-y-1.5">
-              <Label htmlFor="confirm-account">
-                {t.confirmLabel(expected)}
-              </Label>
+              <Label htmlFor="confirm-account">{t.confirmLabel}</Label>
+              <div className="flex items-center gap-2 rounded-lg border border-idn-border bg-idn-surface-2 px-2.5 py-1.5">
+                <code className="flex-1 select-all break-all font-mono text-[13px] text-idn-ink">
+                  {expected}
+                </code>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard?.writeText(expected)
+                    toast.success(t.confirmCopied)
+                  }}
+                  aria-label={t.confirmCopy}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-medium text-idn-muted outline-none hover:text-idn-ink focus-visible:ring-2 focus-visible:ring-idn-green"
+                >
+                  {IdnIcons.copy} Copier
+                </button>
+              </div>
               <Input
                 id="confirm-account"
                 value={confirm}
