@@ -5,6 +5,7 @@ import { ConvexHttpClient } from "convex/browser"
 
 import { api } from "@repo/backend/convex/_generated/api"
 import { authClient } from "@/lib/auth-client"
+import { syncCrossDomainCookiesForProxy } from "@/lib/auth-cookie"
 
 /**
  * Reprise de session générique pour une application partenaire.
@@ -128,6 +129,19 @@ export default function AuthContinuePage() {
           },
         })
         authClient.updateSession()
+
+        // INDISPENSABLE — `crossDomainClient` garde la session en localStorage,
+        // PAS en cookie HTTP. Sans cette recopie vers `document.cookie`, le
+        // proxy `/api/auth/*` ne transmet rien à Convex : l'utilisateur paraît
+        // connecté (l'en-tête lit le localStorage) mais `/oauth2/authorize`
+        // ne voit aucune session et renvoie sur `/sign-in` avec les paramètres
+        // OAuth — la boucle observée au retour d'une inscription partenaire.
+        // Même geste que `goToDestination` dans la page `sign-in`.
+        try {
+          syncCrossDomainCookiesForProxy(authClient)
+        } catch (err) {
+          console.error("[idn:auth-continue] document.cookie sync failed", err)
+        }
 
         if (!cancelled) window.location.replace(returnTo)
       } catch {
