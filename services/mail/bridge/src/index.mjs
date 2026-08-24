@@ -86,6 +86,22 @@ function mailboxPassword(email) {
   return createHmac("sha256", MAILBOX_PASSWORD_KEY).update(`mailbox:${email}`).digest("base64url")
 }
 
+async function stalwartIsReachable() {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 5_000)
+  try {
+    const response = await fetch(new URL("/.well-known/jmap", STALWART_URL), {
+      redirect: "manual",
+      signal: controller.signal,
+    })
+    return response.status >= 200 && response.status < 400
+  } catch {
+    return false
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
 async function stalwartCall(methodCalls) {
   const response = await fetch(STALWART_URL, {
     method: "POST",
@@ -134,7 +150,33 @@ async function ensureMailboxNow(address, displayName) {
 
   const queryResponses = await stalwartCall([["x:Account/query", { accountId: principalAccountId, filter: { name }, limit: 2 }, "account"]])
   const existing = queryResponses.find(([, , tag]) => tag === "account")?.[1]?.ids ?? []
-  if (existing.length > 0) return { email, id: existing[0], created: false }
+  if (existing.length > 0) {
+    // Une boîte peut avoir été créée avec une ancienne clé HMAC ou depuis
+    // l'interface Stalwart. Son existence ne garantit donc pas que le mot de
+    // passe calculé par le bridge fonctionne encore pour la soumission SMTP.
+    // On resynchronise les identifiants à chaque provisionnement, qui reste
+    // idempotent côté Stalwart.
+    const accountId = existing[0]
+    const updateResponses = await stalwartCall([["x:Account/set", {
+      accountId: principalAccountId,
+      update: {
+        [accountId]: {
+          description: String(displayName ?? name).slice(0, 255),
+          credentials: {
+            0: {
+              "@type": "Password",
+              secret: mailboxPassword(email),
+            },
+          },
+        },
+      },
+    }, "reconcile"]])
+    const result = updateResponses.find(([, , tag]) => tag === "reconcile")?.[1]
+    if (!Object.hasOwn(result?.updated ?? {}, accountId)) {
+      throw new Error(`Mailbox credential reconciliation failed: ${JSON.stringify(result?.notUpdated?.[accountId] ?? result)}`)
+    }
+    return { email, id: accountId, created: false }
+  }
 
   const createId = `mailbox-${name.replace(/[^a-z0-9._-]/g, "-")}`
   const responses = await stalwartCall([["x:Account/set", {
@@ -361,7 +403,12 @@ const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`)
     if (req.method === "GET" && url.pathname === "/health") {
-      return json(res, 200, { ok: true, domain: DOMAIN })
+      const stalwart = await stalwartIsReachable()
+      return json(res, stalwart ? 200 : 503, {
+        ok: stalwart,
+        domain: DOMAIN,
+        stalwart,
+      })
     }
     if (req.method === "POST" && url.pathname === "/provision") {
       if (!authorized(req, BRIDGE_TOKEN)) return json(res, 401, { error: "unauthorized" })
