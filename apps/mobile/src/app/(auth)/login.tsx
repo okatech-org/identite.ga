@@ -43,6 +43,7 @@ export default function Login() {
   const [pin, setPin] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pinSetupRequired, setPinSetupRequired] = useState(false);
 
   const normalized = normalizeIdnIdentifier(identifier);
   const handleValid = normalized !== null;
@@ -53,6 +54,7 @@ export default function Login() {
       return;
     }
     setError(null);
+    setPinSetupRequired(false);
     setPin('');
     setPhase('pin');
   }
@@ -61,6 +63,7 @@ export default function Login() {
     setPhase('handle');
     setPin('');
     setError(null);
+    setPinSetupRequired(false);
   }
 
   async function routeAfterAuth() {
@@ -98,12 +101,19 @@ export default function Login() {
       if (errorBody) {
         const code = errorBody.code;
         if (code === 'EMAIL_NOT_VERIFIED') {
+          setPinSetupRequired(false);
           setError('Email non vérifié. Consultez votre boîte de réception.');
+        } else if (code === 'PIN_SETUP_REQUIRED') {
+          setPinSetupRequired(true);
+          setError("Ce compte n'a pas encore de PIN. Vérifiez votre numéro mobile pour en créer un.");
         } else if (errorBody.status === 429) {
+          setPinSetupRequired(false);
           setError('Trop de tentatives. Réessayez plus tard.');
         } else if (code === 'INVALID_PIN') {
+          setPinSetupRequired(false);
           setError('Identifiant ou PIN incorrect.');
         } else {
+          setPinSetupRequired(false);
           setError('Connexion impossible pour le moment. Réessayez.');
         }
         setPin('');
@@ -120,6 +130,7 @@ export default function Login() {
       await setOnboardingDone(true);
       await routeAfterAuth();
     } catch {
+      setPinSetupRequired(false);
       setError('Connexion impossible pour le moment. Réessayez.');
       setPin('');
       setSubmitting(false);
@@ -127,7 +138,7 @@ export default function Login() {
   }
 
   function pressPinKey(k: string) {
-    if (k === '' || submitting) return;
+    if (k === '' || submitting || pinSetupRequired) return;
     setError(null);
     if (k === '⌫') {
       setPin((v) => v.slice(0, -1));
@@ -324,7 +335,7 @@ export default function Login() {
               {PIN_KEYS.map((k, i) => (
                 <View key={i} style={{ width: '33.3333%', padding: 6 }}>
                   <Pressable
-                    disabled={k === '' || submitting}
+                    disabled={k === '' || submitting || pinSetupRequired}
                     onPress={() => pressPinKey(k)}
                     style={{
                       height: 64,
@@ -334,7 +345,7 @@ export default function Login() {
                       borderColor: t.borderSoft,
                       alignItems: 'center',
                       justifyContent: 'center',
-                      opacity: submitting ? 0.6 : 1,
+                      opacity: submitting || pinSetupRequired ? 0.6 : 1,
                     }}
                   >
                     <Text
@@ -373,20 +384,38 @@ export default function Login() {
               </View>
             ) : null}
 
-            <Pressable
-              disabled={submitting || !normalized}
-              onPress={() => {
-                if (!normalized) return;
-                router.push(
-                  `/(auth)/forgot-pin?identifier=${encodeURIComponent(normalized.email)}` as Href,
-                );
-              }}
-              style={{ alignSelf: 'center', paddingVertical: 10, marginTop: 4 }}
-            >
-              <Text style={{ color: idnTokens.green, fontSize: idnTokens.text.footnote, fontWeight: '600' }}>
-                PIN oublié ?
-              </Text>
-            </Pressable>
+            {pinSetupRequired ? (
+              <IdnButton
+                t={t}
+                variant="primary"
+                size="lg"
+                full
+                style={{ marginTop: 12 }}
+                onPress={() => {
+                  if (!normalized) return;
+                  router.push(
+                    `/(auth)/forgot-pin?identifier=${encodeURIComponent(normalized.email)}` as Href,
+                  );
+                }}
+              >
+                Configurer mon PIN
+              </IdnButton>
+            ) : (
+              <Pressable
+                disabled={submitting || !normalized}
+                onPress={() => {
+                  if (!normalized) return;
+                  router.push(
+                    `/(auth)/forgot-pin?identifier=${encodeURIComponent(normalized.email)}` as Href,
+                  );
+                }}
+                style={{ alignSelf: 'center', paddingVertical: 10, marginTop: 4 }}
+              >
+                <Text style={{ color: idnTokens.green, fontSize: idnTokens.text.footnote, fontWeight: '600' }}>
+                  PIN oublié ?
+                </Text>
+              </Pressable>
+            )}
 
             <Text
               style={{

@@ -15,10 +15,13 @@ import {
  *   body : { email, pin }
  *   200  : { token, user } (idem signInEmail) — ou `{ twoFactorRedirect: true }`
  *          si le compte a `twoFactorEnabled` (cf. plus bas)
- *   401  : INVALID_PIN  (email inconnu, PIN absent ou incorrect)
+ *   401  : INVALID_PIN  (email inconnu ou PIN incorrect)
+ *   403  : PIN_SETUP_REQUIRED (profil historique sans PIN)
  *
- * Pour éviter les attaques d'énumération d'email, on retourne **toujours**
- * la même erreur `INVALID_PIN` quand quelque chose cloche.
+ * Un email inconnu et un PIN incorrect gardent la même erreur et un coût CPU
+ * comparable. Le cas sans PIN est volontairement distingué : l'interface doit
+ * conduire le titulaire vers la vérification SMS au lieu de lui faire répéter
+ * un code qui n'existe pas.
  *
  * `verifyPinForUserId(userId, pin)` est injecté par `auth.ts` — c'est la
  * fonction qui charge `userProfile.pinHash` depuis Convex, dérive le hash
@@ -48,10 +51,12 @@ const bodySchema = z.object({
   pin: z.string().regex(PIN_REGEX),
 })
 
+export type PinVerificationResult = "valid" | "invalid" | "setup_required"
+
 export type VerifyPinForUserId = (
   userId: string,
   pin: string,
-) => Promise<boolean>
+) => Promise<PinVerificationResult>
 
 export const pinSignIn = (verifyPinForUserId: VerifyPinForUserId) => {
   return {
@@ -96,8 +101,14 @@ export const pinSignIn = (verifyPinForUserId: VerifyPinForUserId) => {
             })
           }
 
-          const ok = await verifyPinForUserId(user.user.id, pin)
-          if (!ok) return unauthorized()
+          const verification = await verifyPinForUserId(user.user.id, pin)
+          if (verification === "setup_required") {
+            throw new APIError("FORBIDDEN", {
+              code: "PIN_SETUP_REQUIRED",
+              message: "Ce compte doit configurer son PIN.",
+            })
+          }
+          if (verification !== "valid") return unauthorized()
 
           if (
             requiresTwoFactorChallenge(

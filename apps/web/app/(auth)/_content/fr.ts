@@ -224,6 +224,9 @@ export const signIn = {
   pinTitle: "Entrez votre PIN",
   pinSub: "Saisissez votre code à 6 chiffres pour vous connecter.",
   pinForgot: "PIN oublié ?",
+  pinSetupRequired:
+    "Ce compte n'a pas encore de PIN. Vérifiez votre numéro mobile pour en créer un.",
+  pinSetupAction: "Configurer mon PIN",
   pinBack: "Modifier l'identifiant",
   pinPrimary: "Se connecter",
   pinUsePassword: "Utiliser mon mot de passe à la place",
@@ -251,6 +254,9 @@ export const forgotPin = {
   codeTitle: "Code reçu par SMS",
   codeSub:
     "Saisissez le code à 6 chiffres. L'envoi peut prendre quelques instants.",
+  codeHelp:
+    "Rien reçu ? Le compte peut demander une vérification supplémentaire.",
+  supportLink: "Contacter le support",
   codeLabel: "Code SMS",
   verifyPrimary: "Vérifier le code",
   verifying: "Vérification…",

@@ -298,31 +298,37 @@ export const verifyPin = mutation({
  * Vérification PIN pour le sign-in (appelée depuis le plugin Better Auth
  * `pinSignIn` via http.ts → createAuth → ctx.runQuery).
  *
- * Renvoie `true` uniquement si le user a bien un `pinHash` enregistré et
- * que le PIN correspond. Pas de throw — l'appelant gère l'erreur.
+ * Distingue un PIN valide, un PIN incorrect et un compte historique sans PIN.
+ * Pas de throw : le plugin Better Auth traduit le résultat en réponse HTTP.
  *
  * Privée (`internalQuery`) : seul le plugin server-side peut l'invoquer.
  */
 export const verifyPinForUserId = internalQuery({
   args: { userId: v.string(), pin: v.string() },
-  returns: v.boolean(),
+  returns: v.union(
+    v.literal("valid"),
+    v.literal("invalid"),
+    v.literal("setup_required"),
+  ),
   handler: async (ctx, args) => {
-    if (!PIN_REGEX.test(args.pin)) return false
+    if (!PIN_REGEX.test(args.pin)) return "invalid" as const
     if (args.userId === "__unknown__") {
       // Path anti-énumération : on consomme du CPU pour égaliser le timing.
       await derivePinHash(args.pin, args.userId)
-      return false
+      return "invalid" as const
     }
     const profile = await ctx.db
       .query("userProfile")
       .withIndex("by_userId", (q) => q.eq("userId", args.userId))
       .unique()
-    if (!profile?.pinHash) {
+    if (!profile) {
       await derivePinHash(args.pin, args.userId)
-      return false
+      return "invalid" as const
     }
+    if (!profile.pinHash) return "setup_required" as const
+
     const candidate = await derivePinHash(args.pin, args.userId)
-    return candidate === profile.pinHash
+    return candidate === profile.pinHash ? "valid" : "invalid"
   },
 })
 

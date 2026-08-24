@@ -198,6 +198,15 @@ function ForgotPinPageInner() {
               >
                 {submitting ? forgotPin.verifying : forgotPin.verifyPrimary}
               </Button>
+              <p className="text-center text-xs leading-relaxed text-muted-foreground">
+                {forgotPin.codeHelp}{" "}
+                <Link
+                  href="/contact"
+                  className="font-medium text-idn-green hover:underline dark:text-idn-green-on-dark"
+                >
+                  {forgotPin.supportLink}
+                </Link>
+              </p>
               <button
                 type="button"
                 onClick={restart}

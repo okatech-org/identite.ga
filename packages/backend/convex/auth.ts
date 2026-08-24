@@ -295,7 +295,7 @@ export const createAuth = (
             runQuery: (
               ref: typeof internal.onboarding.verifyPinForUserId,
               args: { userId: string; pin: string },
-            ) => Promise<boolean>
+            ) => Promise<"valid" | "invalid" | "setup_required">
           }
         ).runQuery(internal.onboarding.verifyPinForUserId, {
           userId,

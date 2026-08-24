@@ -1,7 +1,8 @@
 import { ConvexError, v } from "convex/values"
 
 import { components, internal } from "./_generated/api"
-import { action } from "./_generated/server"
+import type { Doc } from "./_generated/dataModel"
+import { action, type MutationCtx } from "./_generated/server"
 import { internalMutation, mutation } from "./functions"
 import {
   BirdVerifyError,
@@ -23,6 +24,8 @@ const CODE_REGEX = /^\d{6}$/
 const CODE_TTL_MS = 10 * 60 * 1000
 const RESET_TOKEN_TTL_MS = 10 * 60 * 1000
 const MAX_LOCAL_ATTEMPTS = 5
+const MAX_IDENTITY_MATCHES = 50
+const MAX_AUTOMATIC_RECOVERY_PROFILES = 500
 
 type PreparedReset = {
   phone: string | null
@@ -154,7 +157,7 @@ export const prepareReset = internalMutation({
     const user = (await ctx.runQuery(components.betterAuth.adapter.findOne, {
       model: "user",
       where: [{ field: "email", value: args.email, operator: "eq" }],
-    })) as { _id: string } | null
+    })) as { _id: string; emailVerified?: boolean } | null
 
     const profile = user
       ? await ctx.db
@@ -162,12 +165,19 @@ export const prepareReset = internalMutation({
           .withIndex("by_userId", (q) => q.eq("userId", user._id))
           .unique()
       : null
-    const phone =
+    const normalizedPhone =
       profile && !profile.deletedAt
         ? normalizeRecoveryPhone(
             profile.pivot?.phone,
             profile.pivot?.nationality,
           )
+        : null
+    const phone =
+      profile &&
+      normalizedPhone &&
+      user?.emailVerified === true &&
+      (await canUseAutomaticSmsRecovery(ctx, profile, normalizedPhone))
+        ? normalizedPhone
         : null
     const now = Date.now()
 
@@ -418,4 +428,82 @@ function randomOpaqueToken(): string {
   const bytes = new Uint8Array(32)
   crypto.getRandomValues(bytes)
   return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("")
+}
+
+/**
+ * Le téléphone historique du pivot n'était pas vérifié à l'inscription. Un
+ * SMS automatique n'est donc autorisé que si le profil, son éventuel NIP et
+ * le numéro normalisé ne correspondent à aucun autre compte actif.
+ *
+ * Le scan des téléphones est borné et échoue fermé. Une future migration vers
+ * une clé de téléphone normalisée et indexée supprimera ce scan ; jusque-là,
+ * dépasser la borne coupe la récupération automatique au lieu de risquer une
+ * prise de contrôle de compte.
+ */
+async function canUseAutomaticSmsRecovery(
+  ctx: MutationCtx,
+  profile: Doc<"userProfile">,
+  phone: string,
+): Promise<boolean> {
+  if (!profile.pivotKey) return false
+
+  if (
+    !(await isOnlyActiveProfileWithKey(
+      ctx,
+      "by_pivotKey",
+      "pivotKey",
+      profile.pivotKey,
+      profile._id,
+    ))
+  ) {
+    return false
+  }
+
+  if (
+    profile.nipKey &&
+    !(await isOnlyActiveProfileWithKey(
+      ctx,
+      "by_nipKey",
+      "nipKey",
+      profile.nipKey,
+      profile._id,
+    ))
+  ) {
+    return false
+  }
+
+  const profiles = await ctx.db
+    .query("userProfile")
+    .take(MAX_AUTOMATIC_RECOVERY_PROFILES + 1)
+  if (profiles.length > MAX_AUTOMATIC_RECOVERY_PROFILES) return false
+
+  let matchingPhones = 0
+  for (const candidate of profiles) {
+    if (candidate.deletedAt) continue
+    const candidatePhone = normalizeRecoveryPhone(
+      candidate.pivot?.phone,
+      candidate.pivot?.nationality,
+    )
+    if (candidatePhone !== phone) continue
+    matchingPhones += 1
+    if (matchingPhones > 1) return false
+  }
+  return matchingPhones === 1
+}
+
+async function isOnlyActiveProfileWithKey(
+  ctx: MutationCtx,
+  indexName: "by_pivotKey" | "by_nipKey",
+  fieldName: "pivotKey" | "nipKey",
+  key: string,
+  expectedProfileId: Doc<"userProfile">["_id"],
+): Promise<boolean> {
+  const rows = await ctx.db
+    .query("userProfile")
+    .withIndex(indexName, (q) => q.eq(fieldName, key))
+    .take(MAX_IDENTITY_MATCHES + 1)
+  if (rows.length > MAX_IDENTITY_MATCHES) return false
+
+  const active = rows.filter((row) => !row.deletedAt)
+  return active.length === 1 && active[0]?._id === expectedProfileId
 }

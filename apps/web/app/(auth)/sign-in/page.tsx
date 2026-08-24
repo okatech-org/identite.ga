@@ -97,6 +97,7 @@ function SignInPageInner() {
   const [email, setEmail] = React.useState("")
   const [pin, setPin] = React.useState("")
   const [pinError, setPinError] = React.useState<string | null>(null)
+  const [pinSetupRequired, setPinSetupRequired] = React.useState(false)
   const [submitting, setSubmitting] = React.useState(false)
   const [qrOpen, setQrOpen] = React.useState(false)
 
@@ -138,6 +139,7 @@ function SignInPageInner() {
     setEmail(norm.email)
     setPin("")
     setPinError(null)
+    setPinSetupRequired(false)
     setPhase("pin")
   })
 
@@ -204,12 +206,19 @@ function SignInPageInner() {
       if (errorBody) {
         const code = errorBody.code
         if (code === "EMAIL_NOT_VERIFIED") {
+          setPinSetupRequired(false)
           toast.error(signIn.errorEmailNotVerified)
+        } else if (code === "PIN_SETUP_REQUIRED") {
+          setPinSetupRequired(true)
+          setPinError(signIn.pinSetupRequired)
         } else if (errorBody.status === 429) {
+          setPinSetupRequired(false)
           setPinError(signIn.pinErrorTooMany)
         } else if (code === "INVALID_PIN") {
+          setPinSetupRequired(false)
           setPinError(signIn.pinErrorInvalid)
         } else {
+          setPinSetupRequired(false)
           setPinError(signIn.errorGeneric)
         }
         setPin("")
@@ -221,6 +230,7 @@ function SignInPageInner() {
       // par le fetch plugin).
       await goToDestination()
     } catch {
+      setPinSetupRequired(false)
       setPinError(signIn.errorGeneric)
       setPin("")
       setSubmitting(false)
@@ -325,7 +335,7 @@ function SignInPageInner() {
   if (phase === "pin") {
     const pinOnChange = (v: string) => {
       setPin(v)
-      if (pinError) setPinError(null)
+      if (pinError && !pinSetupRequired) setPinError(null)
     }
 
     return (
@@ -355,7 +365,7 @@ function SignInPageInner() {
               variant="pin"
               hasError={Boolean(pinError)}
               autoFocus
-              disabled={submitting}
+              disabled={submitting || pinSetupRequired}
               ariaLabel={signIn.pinTitle}
             />
           ) : (
@@ -371,7 +381,7 @@ function SignInPageInner() {
               digitAriaLabel={signIn.pinDigitAria}
               dotsAriaLabel={signIn.pinDotsAria}
               autoFocus
-              disabled={submitting}
+              disabled={submitting || pinSetupRequired}
               resetKey={email}
             />
           )}
@@ -391,25 +401,34 @@ function SignInPageInner() {
           <Button
             type="button"
             size="lg"
-            disabled={submitting || pin.length !== 6}
+            disabled={submitting || pinSetupRequired || pin.length !== 6}
             onClick={() => void submitPin(pin)}
             className="mt-6 h-12 w-full text-base"
           >
             {submitting ? signIn.primarySubmitting : signIn.pinPrimary}
           </Button>
 
-          <Link
-            href={buildForgotPinHref(params, email)}
-            className="mt-4 text-center text-[13px] font-medium text-idn-green hover:underline dark:text-idn-green-on-dark"
-          >
-            {signIn.pinForgot}
-          </Link>
+          {pinSetupRequired ? (
+            <Button asChild size="lg" className="mt-4 h-12 w-full text-base">
+              <Link href={buildForgotPinHref(params, email)}>
+                {signIn.pinSetupAction}
+              </Link>
+            </Button>
+          ) : (
+            <Link
+              href={buildForgotPinHref(params, email)}
+              className="mt-4 text-center text-[13px] font-medium text-idn-green hover:underline dark:text-idn-green-on-dark"
+            >
+              {signIn.pinForgot}
+            </Link>
+          )}
 
           <button
             type="button"
             onClick={() => {
               setPin("")
               setPinError(null)
+              setPinSetupRequired(false)
               setPhase("email")
             }}
             className="mt-3 text-center text-[13px] text-muted-foreground hover:underline"

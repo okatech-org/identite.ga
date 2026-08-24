@@ -1,5 +1,5 @@
 import React, { useState } from "react"
-import { Pressable, ScrollView, Text, View } from "react-native"
+import { Linking, Pressable, ScrollView, Text, View } from "react-native"
 import { useLocalSearchParams, useRouter, type Href } from "expo-router"
 import { useAction, useMutation } from "convex/react"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -337,6 +337,39 @@ export default function ForgotPin() {
                     ? "Continuer"
                     : "Enregistrer le PIN"}
             </IdnButton>
+            {phase === "code" ? (
+              <View style={{ alignItems: "center", gap: 6, marginTop: 16 }}>
+                <Text
+                  style={{
+                    color: t.muted,
+                    fontSize: idnTokens.text.footnote,
+                    textAlign: "center",
+                  }}
+                >
+                  Rien reçu ? Le compte peut demander une vérification
+                  supplémentaire.
+                </Text>
+                <Pressable
+                  accessibilityRole="link"
+                  onPress={() =>
+                    void Linking.openURL(
+                      "mailto:support@identite.ga?subject=Configuration%20du%20PIN",
+                    )
+                  }
+                  style={{ paddingVertical: 6, paddingHorizontal: 12 }}
+                >
+                  <Text
+                    style={{
+                      color: idnTokens.green,
+                      fontSize: idnTokens.text.footnote,
+                      fontWeight: "600",
+                    }}
+                  >
+                    Contacter le support
+                  </Text>
+                </Pressable>
+              </View>
+            ) : null}
           </View>
         ) : null}
 
