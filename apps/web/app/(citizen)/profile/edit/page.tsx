@@ -56,7 +56,6 @@ export default function ProfileEditPage() {
   )
   const [maskedPhone, setMaskedPhone] = React.useState("")
   const [phoneCode, setPhoneCode] = React.useState("")
-  const [phonePending, setPhonePending] = React.useState(false)
   const [phoneError, setPhoneError] = React.useState<string | null>(null)
 
   const {
@@ -98,53 +97,37 @@ export default function ProfileEditPage() {
     setPhoneInitialized(true)
   }, [me?.profile, phoneInitialized, pivot?.phone])
 
-  async function sendPhoneCode(event: React.FormEvent) {
-    event.preventDefault()
-    if (!phone.trim()) return
-    setPhonePending(true)
-    setPhoneError(null)
-    try {
-      const result = await requestPhoneChange({ phone })
-      setPhoneRequestId(result.requestId)
-      setMaskedPhone(result.maskedPhone)
-      setPhoneCode("")
-    } catch (err) {
-      setPhoneError(
-        err instanceof Error ? err.message : profileEdit.fields.phone.error,
-      )
-    } finally {
-      setPhonePending(false)
-    }
-  }
-
-  async function confirmPhoneCode() {
-    if (!phoneRequestId || phoneCode.length !== 6) return
-    setPhonePending(true)
-    setPhoneError(null)
-    try {
-      const result = await verifyPhoneChange({
-        requestId: phoneRequestId,
-        code: phoneCode,
-      })
-      if (!result.verified || !result.phone) {
-        setPhoneError(profileEdit.fields.phone.invalidCode)
-        return
-      }
-      setPhone(result.phone)
-      setPhoneRequestId(null)
-      setPhoneCode("")
-      toast.success(profileEdit.fields.phone.success)
-    } catch (err) {
-      setPhoneError(
-        err instanceof Error ? err.message : profileEdit.fields.phone.error,
-      )
-    } finally {
-      setPhonePending(false)
-    }
-  }
+  const storedPhone = pivot?.phone ?? ""
+  const phoneChanged = comparablePhone(phone) !== comparablePhone(storedPhone)
 
   const onSubmit = handleSubmit(async (values) => {
+    setPhoneError(null)
     try {
+      if (phoneRequestId) {
+        if (phoneCode.length !== 6) return
+        const result = await verifyPhoneChange({
+          requestId: phoneRequestId,
+          code: phoneCode,
+        })
+        if (!result.verified || !result.phone) {
+          setPhoneError(profileEdit.fields.phone.invalidCode)
+          return
+        }
+        if (isDirty) await updatePivot(values)
+        toast.success(profileEdit.fields.phone.success)
+        router.push("/profile")
+        return
+      }
+
+      if (phoneChanged) {
+        if (!phone.trim()) return
+        const result = await requestPhoneChange({ phone })
+        setPhoneRequestId(result.requestId)
+        setMaskedPhone(result.maskedPhone)
+        setPhoneCode("")
+        return
+      }
+
       await updatePivot(values)
       toast.success(profileEdit.successToast)
       router.push("/profile")
@@ -321,6 +304,50 @@ export default function ProfileEditPage() {
           )}
         </div>
 
+        <div className="space-y-1.5">
+          <Label htmlFor="pe-phone">{profileEdit.fields.phone.label}</Label>
+          <Input
+            id="pe-phone"
+            type="tel"
+            autoComplete="tel"
+            value={phone}
+            onChange={(event) => {
+              setPhone(event.target.value)
+              setPhoneRequestId(null)
+              setPhoneCode("")
+              setPhoneError(null)
+            }}
+            placeholder={profileEdit.fields.phone.placeholder}
+            disabled={isSubmitting}
+            aria-invalid={Boolean(phoneError)}
+            className="h-12 text-base"
+          />
+          {phoneRequestId ? (
+            <div className="space-y-3 pt-2">
+              <p className="text-xs text-muted-foreground">
+                {profileEdit.fields.phone.codeSub(maskedPhone)}
+              </p>
+              <OtpInput
+                value={phoneCode}
+                onChange={(value) => {
+                  setPhoneCode(value)
+                  setPhoneError(null)
+                }}
+                length={6}
+                autoFocus
+                disabled={isSubmitting}
+                hasError={Boolean(phoneError)}
+                ariaLabel={profileEdit.fields.phone.codeLabel}
+              />
+            </div>
+          ) : null}
+          {phoneError ? (
+            <p role="alert" className="text-xs text-destructive">
+              {phoneError}
+            </p>
+          ) : null}
+        </div>
+
         <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button asChild variant="outline" size="lg" className="h-12">
             <Link href="/profile">{profileEdit.cancel}</Link>
@@ -328,114 +355,30 @@ export default function ProfileEditPage() {
           <Button
             type="submit"
             size="lg"
-            disabled={isSubmitting || !isDirty}
+            disabled={
+              isSubmitting ||
+              (phoneRequestId
+                ? phoneCode.length !== 6
+                : phoneChanged
+                  ? !phone.trim()
+                  : !isDirty)
+            }
             className="h-12"
           >
-            {isSubmitting ? "…" : profileEdit.primary}
+            {isSubmitting
+              ? "…"
+              : phoneRequestId
+                ? profileEdit.fields.phone.verify
+                : phoneChanged
+                  ? profileEdit.fields.phone.send
+                  : profileEdit.primary}
           </Button>
         </div>
       </form>
-
-      <div className="my-7 border-t border-border" />
-
-      <section aria-labelledby="phone-change-title">
-        <h2 id="phone-change-title" className="text-lg font-semibold">
-          {profileEdit.fields.phone.label}
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {pivot?.phone
-            ? me.profile?.phoneVerifiedAt
-              ? profileEdit.fields.phone.verified
-              : profileEdit.fields.phone.unverified
-            : profileEdit.fields.phone.empty}
-        </p>
-
-        {!phoneRequestId ? (
-          <form onSubmit={sendPhoneCode} className="mt-4 space-y-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="pe-phone">{profileEdit.fields.phone.label}</Label>
-              <Input
-                id="pe-phone"
-                type="tel"
-                autoComplete="tel"
-                value={phone}
-                onChange={(event) => {
-                  setPhone(event.target.value)
-                  setPhoneError(null)
-                }}
-                placeholder="+241 06 12 34 56"
-                disabled={phonePending}
-                className="h-12 text-base"
-              />
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                {profileEdit.fields.phone.hint}
-              </p>
-            </div>
-            <Button
-              type="submit"
-              variant="outline"
-              size="lg"
-              disabled={phonePending || !phone.trim()}
-              className="h-12 w-full sm:w-auto"
-            >
-              {phonePending
-                ? profileEdit.fields.phone.sending
-                : profileEdit.fields.phone.send}
-            </Button>
-          </form>
-        ) : (
-          <div className="mt-4 space-y-4">
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              {profileEdit.fields.phone.codeSub(maskedPhone)}
-            </p>
-            <OtpInput
-              value={phoneCode}
-              onChange={(value) => {
-                setPhoneCode(value)
-                setPhoneError(null)
-              }}
-              length={6}
-              autoFocus
-              disabled={phonePending}
-              hasError={Boolean(phoneError)}
-              ariaLabel={profileEdit.fields.phone.codeLabel}
-            />
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Button
-                type="button"
-                size="lg"
-                disabled={phonePending || phoneCode.length !== 6}
-                onClick={() => void confirmPhoneCode()}
-                className="h-12"
-              >
-                {phonePending
-                  ? profileEdit.fields.phone.verifying
-                  : profileEdit.fields.phone.verify}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="lg"
-                disabled={phonePending}
-                onClick={() => {
-                  setPhoneRequestId(null)
-                  setPhoneCode("")
-                  setPhoneError(null)
-                }}
-                className="h-12"
-              >
-                {profileEdit.fields.phone.restart}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {phoneError ? (
-          <p role="alert" className="mt-3 text-sm text-destructive">
-            {phoneError}
-          </p>
-        ) : null}
-      </section>
     </section>
   )
+}
+
+function comparablePhone(value: string): string {
+  return value.trim().replace(/[\s().-]/g, "")
 }

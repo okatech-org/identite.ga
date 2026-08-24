@@ -69,7 +69,6 @@ export default function ProfileEdit() {
   )
   const [maskedPhone, setMaskedPhone] = React.useState("")
   const [phoneCode, setPhoneCode] = React.useState("")
-  const [phonePending, setPhonePending] = React.useState(false)
   const [phoneError, setPhoneError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
@@ -138,7 +137,33 @@ export default function ProfileEdit() {
     }
     setSaving(true)
     setError(null)
+    setPhoneError(null)
     try {
+      if (phoneRequestId) {
+        if (phoneCode.length !== 6) return
+        const result = await verifyPhoneChange({
+          requestId: phoneRequestId,
+          code: phoneCode,
+        })
+        if (!result.verified || !result.phone) {
+          setPhoneError("Code incorrect ou expiré.")
+          return
+        }
+        await updatePivot(normalizeProfileForm(form))
+        Alert.alert("Profil mis à jour", "Le numéro a bien été enregistré.")
+        router.back()
+        return
+      }
+
+      if (phoneChanged) {
+        if (!phone.trim()) return
+        const result = await requestPhoneChange({ phone })
+        setPhoneRequestId(result.requestId)
+        setMaskedPhone(result.maskedPhone)
+        setPhoneCode("")
+        return
+      }
+
       await updatePivot(normalizeProfileForm(form))
       Alert.alert(
         "Profil mis à jour",
@@ -154,60 +179,11 @@ export default function ProfileEdit() {
     }
   }
 
-  async function sendPhoneCode() {
-    if (!phone.trim()) return
-    setPhonePending(true)
-    setPhoneError(null)
-    try {
-      const result = await requestPhoneChange({ phone })
-      setPhoneRequestId(result.requestId)
-      setMaskedPhone(result.maskedPhone)
-      setPhoneCode("")
-    } catch (caught) {
-      setPhoneError(
-        caught instanceof Error
-          ? caught.message
-          : "Le code n'a pas pu être envoyé.",
-      )
-    } finally {
-      setPhonePending(false)
-    }
-  }
-
-  async function confirmPhoneCode() {
-    if (!phoneRequestId || phoneCode.length !== 6) return
-    setPhonePending(true)
-    setPhoneError(null)
-    try {
-      const result = await verifyPhoneChange({
-        requestId: phoneRequestId,
-        code: phoneCode,
-      })
-      if (!result.verified || !result.phone) {
-        setPhoneError("Code incorrect ou expiré.")
-        return
-      }
-      setPhone(result.phone)
-      setPhoneRequestId(null)
-      setPhoneCode("")
-      Alert.alert(
-        "Numéro vérifié",
-        "Votre numéro de téléphone a bien été enregistré.",
-      )
-    } catch (caught) {
-      setPhoneError(
-        caught instanceof Error
-          ? caught.message
-          : "La vérification du numéro a échoué.",
-      )
-    } finally {
-      setPhonePending(false)
-    }
-  }
-
   const photoUri = localPhoto ?? me?.profile?.photoUrl ?? null
   const initials =
     `${form.firstName[0] ?? "?"}${form.lastName[0] ?? ""}`.toUpperCase()
+  const storedPhone = me?.profile?.pivot?.phone ?? ""
+  const phoneChanged = comparablePhone(phone) !== comparablePhone(storedPhone)
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top }}>
@@ -356,124 +332,46 @@ export default function ProfileEdit() {
         />
         <IdnInput
           t={t}
+          label="Numéro de téléphone"
+          value={phone}
+          onChangeText={(value) => {
+            setPhone(value)
+            setPhoneRequestId(null)
+            setPhoneCode("")
+            setPhoneError(null)
+          }}
+          placeholder="+241"
+          type="tel"
+          editable={!saving}
+          error={!phoneRequestId ? (phoneError ?? undefined) : undefined}
+        />
+        {phoneRequestId ? (
+          <View style={{ gap: 8 }}>
+            <Text style={{ color: t.muted, fontSize: 12 }}>
+              Code envoyé au {maskedPhone}
+            </Text>
+            <IdnInput
+              t={t}
+              value={phoneCode}
+              onChangeText={(value) => {
+                setPhoneCode(value.replace(/\D/g, "").slice(0, 6))
+                setPhoneError(null)
+              }}
+              placeholder="Code à 6 chiffres"
+              type="number"
+              editable={!saving}
+              error={phoneError ?? undefined}
+              autoFocus
+            />
+          </View>
+        ) : null}
+        <IdnInput
+          t={t}
           label="Nationalité"
           value={form.nationality}
           onChangeText={(value) => field("nationality", value)}
           hint="Code pays ou nationalité (ex. GAB)."
         />
-        <View
-          style={{
-            borderTopWidth: 1,
-            borderTopColor: t.border,
-            paddingTop: 18,
-            gap: 12,
-          }}
-        >
-          <View style={{ gap: 4 }}>
-            <Text
-              style={{
-                color: t.ink,
-                fontSize: idnTokens.text.body,
-                fontWeight: "700",
-              }}
-            >
-              Numéro de téléphone
-            </Text>
-            <Text
-              style={{
-                color: t.muted,
-                fontSize: idnTokens.text.footnote,
-                lineHeight: 18,
-              }}
-            >
-              {me?.profile?.pivot?.phone
-                ? me.profile.phoneVerifiedAt
-                  ? "Numéro vérifié par SMS."
-                  : "Ce numéro historique n'a pas encore été vérifié."
-                : "Aucun numéro n'est encore associé à ce compte."}
-            </Text>
-          </View>
-
-          {!phoneRequestId ? (
-            <>
-              <IdnInput
-                t={t}
-                label="Nouveau numéro"
-                value={phone}
-                onChangeText={(value) => {
-                  setPhone(value)
-                  setPhoneError(null)
-                }}
-                placeholder="+241 06 12 34 56"
-                type="tel"
-                editable={!phonePending}
-                hint="Numéro gabonais ou français, de préférence avec +241 ou +33."
-              />
-              <IdnButton
-                t={t}
-                variant="ghost"
-                full
-                onPress={sendPhoneCode}
-                disabled={phonePending || !phone.trim()}
-              >
-                {phonePending ? "Envoi…" : "Envoyer le code"}
-              </IdnButton>
-            </>
-          ) : (
-            <>
-              <Text
-                style={{
-                  color: t.muted,
-                  fontSize: idnTokens.text.footnote,
-                  lineHeight: 18,
-                }}
-              >
-                Saisissez le code à 6 chiffres envoyé au {maskedPhone}.
-              </Text>
-              <IdnInput
-                t={t}
-                label="Code reçu par SMS"
-                value={phoneCode}
-                onChangeText={(value) => {
-                  setPhoneCode(value.replace(/\D/g, "").slice(0, 6))
-                  setPhoneError(null)
-                }}
-                placeholder="000000"
-                type="number"
-                editable={!phonePending}
-                error={phoneError ?? undefined}
-                autoFocus
-              />
-              <IdnButton
-                t={t}
-                full
-                onPress={confirmPhoneCode}
-                disabled={phonePending || phoneCode.length !== 6}
-              >
-                {phonePending ? "Vérification…" : "Valider le numéro"}
-              </IdnButton>
-              <IdnButton
-                t={t}
-                variant="quiet"
-                full
-                onPress={() => {
-                  setPhoneRequestId(null)
-                  setPhoneCode("")
-                  setPhoneError(null)
-                }}
-                disabled={phonePending}
-              >
-                Modifier le numéro
-              </IdnButton>
-            </>
-          )}
-
-          {phoneError && !phoneRequestId ? (
-            <Text style={{ color: idnTokens.danger, fontSize: 12 }}>
-              {phoneError}
-            </Text>
-          ) : null}
-        </View>
         {error ? (
           <View
             style={{
@@ -490,11 +388,28 @@ export default function ProfileEdit() {
           size="lg"
           full
           onPress={save}
-          disabled={saving || uploading || me === undefined}
+          disabled={
+            saving ||
+            uploading ||
+            me === undefined ||
+            (phoneRequestId
+              ? phoneCode.length !== 6
+              : phoneChanged && !phone.trim())
+          }
         >
-          {saving ? "Enregistrement…" : "Enregistrer"}
+          {saving
+            ? "…"
+            : phoneRequestId
+              ? "Valider"
+              : phoneChanged
+                ? "Envoyer le code"
+                : "Enregistrer"}
         </IdnButton>
       </ScrollView>
     </View>
   )
+}
+
+function comparablePhone(value: string): string {
+  return value.trim().replace(/[\s().-]/g, "")
 }
