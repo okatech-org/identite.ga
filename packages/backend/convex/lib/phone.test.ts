@@ -8,10 +8,12 @@ describe("normalisation des téléphones de récupération", () => {
       "+24106221489",
     )
     expect(normalizeRecoveryPhone("06 22 14 89", "GA")).toBe("+24106221489")
+    expect(normalizeRecoveryPhone("06 22 14 89", "GAB")).toBe("+24106221489")
   })
 
   test("retire le zéro national d'un numéro français local", () => {
     expect(normalizeRecoveryPhone("06 12 34 56 78", "FR")).toBe("+33612345678")
+    expect(normalizeRecoveryPhone("06 12 34 56 78", "FRA")).toBe("+33612345678")
     expect(normalizeRecoveryPhone("0033 6 12 34 56 78", "FR")).toBe(
       "+33612345678",
     )

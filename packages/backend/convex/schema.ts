@@ -303,9 +303,9 @@ export default defineSchema({
         ),
         birthPlace: v.string(),
         nationality: v.string(), // ISO 3166-1 alpha-2
-        // Numéro de téléphone du citoyen. Stocké sous forme libre, format
-        // conseillé +241XXXXXXXX ; sa possession est vérifiée par SMS au
-        // moment d'une récupération de PIN.
+        // Numéro de téléphone du citoyen. Les nouvelles écritures sont
+        // normalisées en E.164 et ne sont persistées qu'après validation SMS.
+        // Les profils historiques peuvent encore contenir un format libre.
         phone: v.optional(v.string()),
         // Numéro d'Identification Personnel (NIP) — 14 chiffres, attribué
         // par le RBPP (Registre Biométrique des Personnes Physiques).
@@ -347,6 +347,9 @@ export default defineSchema({
 
     photoStorageRef: v.optional(v.id("_storage")),
     pinHash: v.optional(v.string()), // PBKDF2-SHA256, 600k itérations
+    // Renseigné uniquement après validation d'un code envoyé au numéro. Les
+    // numéros historiques restent donc distinguables des numéros vérifiés.
+    phoneVerifiedAt: v.optional(v.number()),
 
     /**
      * Suppression de compte RGPD (§3.4 + Apple Guideline 5.1.1(v)).
@@ -1343,6 +1346,25 @@ export default defineSchema({
     attempts: v.number(),
     resetTokenHash: v.optional(v.string()),
     resetTokenExpiresAt: v.optional(v.number()),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_requestId", ["requestId"])
+    .index("by_userId", ["userId"])
+    .index("by_expiresAt", ["expiresAt"]),
+
+  /**
+   * Changement de numéro initié par un utilisateur connecté. Le nouveau
+   * numéro reste ici jusqu'à la confirmation Bird ; il n'est copié dans le
+   * profil qu'après validation du code.
+   */
+  phoneChangeChallenge: defineTable({
+    requestId: v.string(),
+    userId: v.string(),
+    phone: v.string(),
+    status: v.union(v.literal("pending"), v.literal("sent")),
+    attempts: v.number(),
     expiresAt: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),

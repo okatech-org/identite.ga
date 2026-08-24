@@ -10,7 +10,7 @@ import {
 import { Image } from "expo-image"
 import * as ImagePicker from "expo-image-picker"
 import { useRouter } from "expo-router"
-import { useConvexAuth, useMutation, useQuery } from "convex/react"
+import { useAction, useConvexAuth, useMutation, useQuery } from "convex/react"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { NLargeHeader } from "@/components/chrome/large-header"
@@ -51,6 +51,8 @@ export default function ProfileEdit() {
   const { isAuthenticated } = useConvexAuth()
   const me = useQuery(api.profile.getCurrentUser, isAuthenticated ? {} : "skip")
   const updatePivot = useMutation(api.profile.updatePivot)
+  const requestPhoneChange = useAction(api.phoneChange.requestChange)
+  const verifyPhoneChange = useAction(api.phoneChange.verifyChange)
   const generateUploadUrl = useMutation(
     api.profile.generateProfilePhotoUploadUrl,
   )
@@ -61,6 +63,14 @@ export default function ProfileEdit() {
   const [uploading, setUploading] = React.useState(false)
   const [localPhoto, setLocalPhoto] = React.useState<string | null>(null)
   const [error, setError] = React.useState<string | null>(null)
+  const [phone, setPhone] = React.useState("")
+  const [phoneRequestId, setPhoneRequestId] = React.useState<string | null>(
+    null,
+  )
+  const [maskedPhone, setMaskedPhone] = React.useState("")
+  const [phoneCode, setPhoneCode] = React.useState("")
+  const [phonePending, setPhonePending] = React.useState(false)
+  const [phoneError, setPhoneError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     const pivot = me?.profile?.pivot
@@ -73,6 +83,7 @@ export default function ProfileEdit() {
       birthPlace: pivot.birthPlace,
       nationality: pivot.nationality,
     })
+    setPhone(pivot.phone ?? "")
     setInitialized(true)
   }, [initialized, me?.profile?.pivot])
 
@@ -140,6 +151,57 @@ export default function ProfileEdit() {
       )
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function sendPhoneCode() {
+    if (!phone.trim()) return
+    setPhonePending(true)
+    setPhoneError(null)
+    try {
+      const result = await requestPhoneChange({ phone })
+      setPhoneRequestId(result.requestId)
+      setMaskedPhone(result.maskedPhone)
+      setPhoneCode("")
+    } catch (caught) {
+      setPhoneError(
+        caught instanceof Error
+          ? caught.message
+          : "Le code n'a pas pu être envoyé.",
+      )
+    } finally {
+      setPhonePending(false)
+    }
+  }
+
+  async function confirmPhoneCode() {
+    if (!phoneRequestId || phoneCode.length !== 6) return
+    setPhonePending(true)
+    setPhoneError(null)
+    try {
+      const result = await verifyPhoneChange({
+        requestId: phoneRequestId,
+        code: phoneCode,
+      })
+      if (!result.verified || !result.phone) {
+        setPhoneError("Code incorrect ou expiré.")
+        return
+      }
+      setPhone(result.phone)
+      setPhoneRequestId(null)
+      setPhoneCode("")
+      Alert.alert(
+        "Numéro vérifié",
+        "Votre numéro de téléphone a bien été enregistré.",
+      )
+    } catch (caught) {
+      setPhoneError(
+        caught instanceof Error
+          ? caught.message
+          : "La vérification du numéro a échoué.",
+      )
+    } finally {
+      setPhonePending(false)
     }
   }
 
@@ -299,6 +361,119 @@ export default function ProfileEdit() {
           onChangeText={(value) => field("nationality", value)}
           hint="Code pays ou nationalité (ex. GAB)."
         />
+        <View
+          style={{
+            borderTopWidth: 1,
+            borderTopColor: t.border,
+            paddingTop: 18,
+            gap: 12,
+          }}
+        >
+          <View style={{ gap: 4 }}>
+            <Text
+              style={{
+                color: t.ink,
+                fontSize: idnTokens.text.body,
+                fontWeight: "700",
+              }}
+            >
+              Numéro de téléphone
+            </Text>
+            <Text
+              style={{
+                color: t.muted,
+                fontSize: idnTokens.text.footnote,
+                lineHeight: 18,
+              }}
+            >
+              {me?.profile?.pivot?.phone
+                ? me.profile.phoneVerifiedAt
+                  ? "Numéro vérifié par SMS."
+                  : "Ce numéro historique n'a pas encore été vérifié."
+                : "Aucun numéro n'est encore associé à ce compte."}
+            </Text>
+          </View>
+
+          {!phoneRequestId ? (
+            <>
+              <IdnInput
+                t={t}
+                label="Nouveau numéro"
+                value={phone}
+                onChangeText={(value) => {
+                  setPhone(value)
+                  setPhoneError(null)
+                }}
+                placeholder="+241 06 12 34 56"
+                type="tel"
+                editable={!phonePending}
+                hint="Numéro gabonais ou français, de préférence avec +241 ou +33."
+              />
+              <IdnButton
+                t={t}
+                variant="ghost"
+                full
+                onPress={sendPhoneCode}
+                disabled={phonePending || !phone.trim()}
+              >
+                {phonePending ? "Envoi…" : "Envoyer le code"}
+              </IdnButton>
+            </>
+          ) : (
+            <>
+              <Text
+                style={{
+                  color: t.muted,
+                  fontSize: idnTokens.text.footnote,
+                  lineHeight: 18,
+                }}
+              >
+                Saisissez le code à 6 chiffres envoyé au {maskedPhone}.
+              </Text>
+              <IdnInput
+                t={t}
+                label="Code reçu par SMS"
+                value={phoneCode}
+                onChangeText={(value) => {
+                  setPhoneCode(value.replace(/\D/g, "").slice(0, 6))
+                  setPhoneError(null)
+                }}
+                placeholder="000000"
+                type="number"
+                editable={!phonePending}
+                error={phoneError ?? undefined}
+                autoFocus
+              />
+              <IdnButton
+                t={t}
+                full
+                onPress={confirmPhoneCode}
+                disabled={phonePending || phoneCode.length !== 6}
+              >
+                {phonePending ? "Vérification…" : "Valider le numéro"}
+              </IdnButton>
+              <IdnButton
+                t={t}
+                variant="quiet"
+                full
+                onPress={() => {
+                  setPhoneRequestId(null)
+                  setPhoneCode("")
+                  setPhoneError(null)
+                }}
+                disabled={phonePending}
+              >
+                Modifier le numéro
+              </IdnButton>
+            </>
+          )}
+
+          {phoneError && !phoneRequestId ? (
+            <Text style={{ color: idnTokens.danger, fontSize: 12 }}>
+              {phoneError}
+            </Text>
+          ) : null}
+        </View>
         {error ? (
           <View
             style={{

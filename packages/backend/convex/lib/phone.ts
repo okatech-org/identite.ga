@@ -21,9 +21,9 @@ export function normalizeRecoveryPhone(
     candidate = `+${compact.slice(2)}`
   } else if (compact.startsWith("+")) {
     candidate = compact
-  } else if (nationality?.trim().toUpperCase() === "GA") {
+  } else if (["GA", "GAB"].includes(nationality?.trim().toUpperCase() ?? "")) {
     candidate = `+241${compact}`
-  } else if (nationality?.trim().toUpperCase() === "FR") {
+  } else if (["FR", "FRA"].includes(nationality?.trim().toUpperCase() ?? "")) {
     candidate = `+33${compact.startsWith("0") ? compact.slice(1) : compact}`
   } else {
     return null

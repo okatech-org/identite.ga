@@ -26,6 +26,14 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
     period: HOUR,
     capacity: 10,
   },
+  // Changement de téléphone depuis une session authentifiée.
+  phoneChangeSend: { kind: "fixed window", rate: 3, period: HOUR },
+  phoneChangeVerify: {
+    kind: "token bucket",
+    rate: 10,
+    period: HOUR,
+    capacity: 10,
+  },
   oauthToken: {
     kind: "token bucket",
     rate: 60,

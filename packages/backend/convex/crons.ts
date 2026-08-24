@@ -66,4 +66,11 @@ crons.interval(
   {},
 )
 
+crons.interval(
+  "Phone change cleanup",
+  { hours: 1 },
+  internal.phoneChange.pruneExpired,
+  {},
+)
+
 export default crons

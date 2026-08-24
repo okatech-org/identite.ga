@@ -28,6 +28,7 @@ export class BirdVerifyError extends Error {
 export async function sendBirdSmsCode(
   phone: string,
   requestId: string,
+  purpose: "pin_recovery" | "phone_change" = "pin_recovery",
 ): Promise<{ expiresAt: number | null }> {
   const { apiKey, host } = birdConfiguration()
   const response = await fetch(`${host}/v1/verify/verifications`, {
@@ -35,12 +36,12 @@ export async function sendBirdSmsCode(
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
-      "Idempotency-Key": `idn-pin-send-${requestId}`,
+      "Idempotency-Key": `idn-${purpose.replace("_", "-")}-send-${requestId}`,
     },
     body: JSON.stringify({
       to: { phone_number: phone },
       options: { channels: ["sms"], code_length: 6 },
-      metadata: { correlation_id: requestId, purpose: "pin_recovery" },
+      metadata: { correlation_id: requestId, purpose },
     }),
   })
 

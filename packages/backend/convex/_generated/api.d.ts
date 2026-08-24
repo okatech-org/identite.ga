@@ -110,6 +110,7 @@ import type * as lib_partnerOrigins from "../lib/partnerOrigins.js";
 import type * as lib_password from "../lib/password.js";
 import type * as lib_phone from "../lib/phone.js";
 import type * as lib_pin from "../lib/pin.js";
+import type * as lib_pinRecoveryEligibility from "../lib/pinRecoveryEligibility.js";
 import type * as lib_pinSignInPlugin from "../lib/pinSignInPlugin.js";
 import type * as lib_secureToken from "../lib/secureToken.js";
 import type * as lib_twoFactorGate from "../lib/twoFactorGate.js";
@@ -125,6 +126,7 @@ import type * as partner_verificationWebhook from "../partner/verificationWebhoo
 import type * as partner_verifications from "../partner/verifications.js";
 import type * as partner_webhookSignature from "../partner/webhookSignature.js";
 import type * as partnerOrigins from "../partnerOrigins.js";
+import type * as phoneChange from "../phoneChange.js";
 import type * as pinRecovery from "../pinRecovery.js";
 import type * as preferences from "../preferences.js";
 import type * as presentation from "../presentation.js";
@@ -268,6 +270,7 @@ declare const fullApi: ApiFromModules<{
   "lib/password": typeof lib_password;
   "lib/phone": typeof lib_phone;
   "lib/pin": typeof lib_pin;
+  "lib/pinRecoveryEligibility": typeof lib_pinRecoveryEligibility;
   "lib/pinSignInPlugin": typeof lib_pinSignInPlugin;
   "lib/secureToken": typeof lib_secureToken;
   "lib/twoFactorGate": typeof lib_twoFactorGate;
@@ -283,6 +286,7 @@ declare const fullApi: ApiFromModules<{
   "partner/verifications": typeof partner_verifications;
   "partner/webhookSignature": typeof partner_webhookSignature;
   partnerOrigins: typeof partnerOrigins;
+  phoneChange: typeof phoneChange;
   pinRecovery: typeof pinRecovery;
   preferences: typeof preferences;
   presentation: typeof presentation;

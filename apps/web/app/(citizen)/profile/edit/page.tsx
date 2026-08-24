@@ -4,7 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useMutation, useQuery } from "convex/react"
+import { useAction, useMutation, useQuery } from "convex/react"
 import { ChevronLeftIcon } from "lucide-react"
 import { Controller, useForm } from "react-hook-form"
 import { toast } from "sonner"
@@ -23,6 +23,7 @@ import {
 } from "@repo/ui/components/select"
 
 import { profileEdit } from "../../_content/fr"
+import { OtpInput } from "@/app/(auth)/_components/otp-input"
 
 const TODAY_ISO = new Date().toISOString().slice(0, 10)
 
@@ -44,8 +45,19 @@ export default function ProfileEditPage() {
   const router = useRouter()
   const me = useQuery(api.profile.getCurrentUser)
   const updatePivot = useMutation(api.profile.updatePivot)
+  const requestPhoneChange = useAction(api.phoneChange.requestChange)
+  const verifyPhoneChange = useAction(api.phoneChange.verifyChange)
 
   const pivot = me?.profile?.pivot
+  const [phone, setPhone] = React.useState("")
+  const [phoneInitialized, setPhoneInitialized] = React.useState(false)
+  const [phoneRequestId, setPhoneRequestId] = React.useState<string | null>(
+    null,
+  )
+  const [maskedPhone, setMaskedPhone] = React.useState("")
+  const [phoneCode, setPhoneCode] = React.useState("")
+  const [phonePending, setPhonePending] = React.useState(false)
+  const [phoneError, setPhoneError] = React.useState<string | null>(null)
 
   const {
     register,
@@ -79,6 +91,57 @@ export default function ProfileEditPage() {
       })
     }
   }, [pivot, reset])
+
+  React.useEffect(() => {
+    if (phoneInitialized || !me?.profile) return
+    setPhone(pivot?.phone ?? "")
+    setPhoneInitialized(true)
+  }, [me?.profile, phoneInitialized, pivot?.phone])
+
+  async function sendPhoneCode(event: React.FormEvent) {
+    event.preventDefault()
+    if (!phone.trim()) return
+    setPhonePending(true)
+    setPhoneError(null)
+    try {
+      const result = await requestPhoneChange({ phone })
+      setPhoneRequestId(result.requestId)
+      setMaskedPhone(result.maskedPhone)
+      setPhoneCode("")
+    } catch (err) {
+      setPhoneError(
+        err instanceof Error ? err.message : profileEdit.fields.phone.error,
+      )
+    } finally {
+      setPhonePending(false)
+    }
+  }
+
+  async function confirmPhoneCode() {
+    if (!phoneRequestId || phoneCode.length !== 6) return
+    setPhonePending(true)
+    setPhoneError(null)
+    try {
+      const result = await verifyPhoneChange({
+        requestId: phoneRequestId,
+        code: phoneCode,
+      })
+      if (!result.verified || !result.phone) {
+        setPhoneError(profileEdit.fields.phone.invalidCode)
+        return
+      }
+      setPhone(result.phone)
+      setPhoneRequestId(null)
+      setPhoneCode("")
+      toast.success(profileEdit.fields.phone.success)
+    } catch (err) {
+      setPhoneError(
+        err instanceof Error ? err.message : profileEdit.fields.phone.error,
+      )
+    } finally {
+      setPhonePending(false)
+    }
+  }
 
   const onSubmit = handleSubmit(async (values) => {
     try {
@@ -118,10 +181,17 @@ export default function ProfileEditPage() {
       </h1>
       <p className="mt-2 text-sm text-muted-foreground">{profileEdit.sub}</p>
 
-      <form id="profile-edit-form" onSubmit={onSubmit} noValidate className="mt-6 flex flex-col gap-4">
+      <form
+        id="profile-edit-form"
+        onSubmit={onSubmit}
+        noValidate
+        className="mt-6 flex flex-col gap-4"
+      >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="pe-firstName">{profileEdit.fields.firstName.label}</Label>
+            <Label htmlFor="pe-firstName">
+              {profileEdit.fields.firstName.label}
+            </Label>
             <Input
               id="pe-firstName"
               autoComplete="given-name"
@@ -138,7 +208,9 @@ export default function ProfileEditPage() {
             )}
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="pe-lastName">{profileEdit.fields.lastName.label}</Label>
+            <Label htmlFor="pe-lastName">
+              {profileEdit.fields.lastName.label}
+            </Label>
             <Input
               id="pe-lastName"
               autoComplete="family-name"
@@ -183,7 +255,10 @@ export default function ProfileEditPage() {
               name="gender"
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="pe-gender" className="!h-12 w-full !text-base">
+                  <SelectTrigger
+                    id="pe-gender"
+                    className="!h-12 w-full !text-base"
+                  >
                     <SelectValue placeholder="—" />
                   </SelectTrigger>
                   <SelectContent>
@@ -199,13 +274,18 @@ export default function ProfileEditPage() {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="pe-nationality">{profileEdit.fields.nationality.label}</Label>
+            <Label htmlFor="pe-nationality">
+              {profileEdit.fields.nationality.label}
+            </Label>
             <Controller
               control={control}
               name="nationality"
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger id="pe-nationality" className="!h-12 w-full !text-base">
+                  <SelectTrigger
+                    id="pe-nationality"
+                    className="!h-12 w-full !text-base"
+                  >
                     <SelectValue placeholder="—" />
                   </SelectTrigger>
                   <SelectContent>
@@ -222,7 +302,9 @@ export default function ProfileEditPage() {
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="pe-birthPlace">{profileEdit.fields.birthPlace.label}</Label>
+          <Label htmlFor="pe-birthPlace">
+            {profileEdit.fields.birthPlace.label}
+          </Label>
           <Input
             id="pe-birthPlace"
             autoComplete="address-level2"
@@ -253,6 +335,107 @@ export default function ProfileEditPage() {
           </Button>
         </div>
       </form>
+
+      <div className="my-7 border-t border-border" />
+
+      <section aria-labelledby="phone-change-title">
+        <h2 id="phone-change-title" className="text-lg font-semibold">
+          {profileEdit.fields.phone.label}
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {pivot?.phone
+            ? me.profile?.phoneVerifiedAt
+              ? profileEdit.fields.phone.verified
+              : profileEdit.fields.phone.unverified
+            : profileEdit.fields.phone.empty}
+        </p>
+
+        {!phoneRequestId ? (
+          <form onSubmit={sendPhoneCode} className="mt-4 space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="pe-phone">{profileEdit.fields.phone.label}</Label>
+              <Input
+                id="pe-phone"
+                type="tel"
+                autoComplete="tel"
+                value={phone}
+                onChange={(event) => {
+                  setPhone(event.target.value)
+                  setPhoneError(null)
+                }}
+                placeholder="+241 06 12 34 56"
+                disabled={phonePending}
+                className="h-12 text-base"
+              />
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                {profileEdit.fields.phone.hint}
+              </p>
+            </div>
+            <Button
+              type="submit"
+              variant="outline"
+              size="lg"
+              disabled={phonePending || !phone.trim()}
+              className="h-12 w-full sm:w-auto"
+            >
+              {phonePending
+                ? profileEdit.fields.phone.sending
+                : profileEdit.fields.phone.send}
+            </Button>
+          </form>
+        ) : (
+          <div className="mt-4 space-y-4">
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              {profileEdit.fields.phone.codeSub(maskedPhone)}
+            </p>
+            <OtpInput
+              value={phoneCode}
+              onChange={(value) => {
+                setPhoneCode(value)
+                setPhoneError(null)
+              }}
+              length={6}
+              autoFocus
+              disabled={phonePending}
+              hasError={Boolean(phoneError)}
+              ariaLabel={profileEdit.fields.phone.codeLabel}
+            />
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button
+                type="button"
+                size="lg"
+                disabled={phonePending || phoneCode.length !== 6}
+                onClick={() => void confirmPhoneCode()}
+                className="h-12"
+              >
+                {phonePending
+                  ? profileEdit.fields.phone.verifying
+                  : profileEdit.fields.phone.verify}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="lg"
+                disabled={phonePending}
+                onClick={() => {
+                  setPhoneRequestId(null)
+                  setPhoneCode("")
+                  setPhoneError(null)
+                }}
+                className="h-12"
+              >
+                {profileEdit.fields.phone.restart}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {phoneError ? (
+          <p role="alert" className="mt-3 text-sm text-destructive">
+            {phoneError}
+          </p>
+        ) : null}
+      </section>
     </section>
   )
 }

@@ -122,6 +122,7 @@ async function anonymizeProfile(ctx: MutationCtx, profileId: any) {
     nipKey: undefined,
     photoStorageRef: undefined,
     pinHash: undefined,
+    phoneVerifiedAt: undefined,
     idnId: undefined,
     deletionRequestedAt: undefined,
     deletionScheduledAt: undefined,
@@ -332,6 +333,12 @@ async function purgeUserData(ctx: MutationCtx, userId: string) {
     .filter((q) => q.eq(q.field("userId"), userId))
     .collect();
   for (const s of cdSessions) await ctx.db.delete(s._id);
+
+  const phoneChanges = await ctx.db
+    .query("phoneChangeChallenge")
+    .withIndex("by_userId", (q) => q.eq("userId", userId))
+    .collect();
+  for (const challenge of phoneChanges) await ctx.db.delete(challenge._id);
 
   const roles = await ctx.db
     .query("userRole")
