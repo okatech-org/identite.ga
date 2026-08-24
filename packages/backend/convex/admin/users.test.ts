@@ -177,6 +177,113 @@ describe("liste paginée des comptes IDN", () => {
     expect(byEmail.results.map((r) => r.idnId)).toEqual(["GA-0000-0023"])
   })
 
+  test("la fiche rassemble l'identité, l'authentification et le parcours KYC sans exposer les secrets", async () => {
+    const t = makeTestClient()
+    const now = Date.parse("2026-08-24T10:00:00Z")
+    const seeded = await t.run(async (ctx) => {
+      const user = (await ctx.runMutation(
+        components.betterAuth.adapter.create,
+        {
+          input: {
+            model: "user",
+            data: {
+              email: "ariane.nziengui@idn.ga",
+              name: "ariane.nziengui@idn.ga",
+              emailVerified: true,
+              twoFactorEnabled: false,
+              createdAt: now,
+              updatedAt: now,
+            },
+          },
+        },
+      )) as { _id: string }
+      await ctx.db.insert("userProfile", {
+        userId: user._id,
+        profileType: "citizen",
+        loa: 2,
+        idnId: "GA-TEST-0001",
+        pivot: {
+          firstName: "Ariane",
+          lastName: "Nziengui",
+          dateOfBirth: "1990-01-02",
+          gender: "F",
+          birthPlace: "Libreville",
+          nationality: "GA",
+          phone: "06 22 14 89",
+          nip: "12345678901234",
+        },
+        pivotKey: "nziengui|ariane|1990-01-02",
+        nipKey: "12345678901234",
+        pinHash: "secret-pin-hash",
+        createdAt: now,
+        updatedAt: now,
+      })
+      await ctx.db.insert("userRole", {
+        userId: user._id,
+        role: "developer",
+        assignedAt: now,
+      })
+      await ctx.db.insert("kycRequest", {
+        userId: user._id,
+        documentType: "cni_gabon",
+        documentImages: {},
+        status: "approved",
+        score: 94,
+        faceMatchScore: 91,
+        duplicateFlagged: false,
+        submittedAt: now,
+        reviewedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      })
+      await ctx.db.insert("auditLog", {
+        actorId: user._id,
+        action: "account_created",
+        targetType: "user",
+        targetId: user._id,
+        metadata: { internalNote: "ne doit pas sortir" },
+        createdAt: now,
+      })
+      return { userId: user._id }
+    })
+
+    const detail = await t
+      .withIdentity({ subject: ADMIN })
+      .query(api.admin.users.getProfile, { userId: seeded.userId })
+
+    expect(detail).toMatchObject({
+      userId: seeded.userId,
+      email: "ariane.nziengui@idn.ga",
+      emailVerified: true,
+      idnId: "GA-TEST-0001",
+      loa: 2,
+      pinConfigured: true,
+      pivot: {
+        firstName: "Ariane",
+        lastName: "Nziengui",
+        phone: "06 22 14 89",
+      },
+      smsRecovery: {
+        eligible: true,
+        normalizedPhone: "+24106221489",
+        blockers: [],
+      },
+    })
+    expect(detail?.roles).toEqual([{ role: "developer", assignedAt: now }])
+    expect(detail?.kycRequests[0]).toMatchObject({
+      documentType: "cni_gabon",
+      status: "approved",
+      score: 94,
+    })
+    expect(detail?.recentActivity[0]).toMatchObject({
+      action: "account_created",
+    })
+    expect(detail).not.toHaveProperty("pinHash")
+    expect(detail).not.toHaveProperty("pivotKey")
+    expect(detail?.kycRequests[0]).not.toHaveProperty("documentImages")
+    expect(detail?.recentActivity[0]).not.toHaveProperty("metadata")
+  })
+
   test("la liste est réservée aux administrateurs", async () => {
     const t = makeTestClient()
     await seedMany(t, 1)
@@ -184,6 +291,17 @@ describe("liste paginée des comptes IDN", () => {
       t
         .withIdentity({ subject: "citizen_1" })
         .query(api.admin.users.listProfiles, { page: 0, pageSize: 10 }),
+    ).rejects.toThrow(/refusé/)
+  })
+
+  test("la fiche d'un compte est réservée aux administrateurs", async () => {
+    const t = makeTestClient()
+    await seedMany(t, 1)
+
+    await expect(
+      t
+        .withIdentity({ subject: "citizen_1" })
+        .query(api.admin.users.getProfile, { userId: "citizen_1" }),
     ).rejects.toThrow(/refusé/)
   })
 })

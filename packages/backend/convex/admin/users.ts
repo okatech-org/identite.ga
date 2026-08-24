@@ -5,7 +5,16 @@ import { components } from "../_generated/api"
 import { query, type QueryCtx } from "../_generated/server"
 import { requireAdmin } from "../lib/auth"
 import { normalizeIdentityPart } from "../lib/identity"
-import { PROFILE_TYPES } from "../schema"
+import {
+  assessAutomaticSmsRecovery,
+  PIN_RECOVERY_BLOCKERS,
+} from "../lib/pinRecoveryEligibility"
+import {
+  KYC_DOCUMENT_TYPES,
+  KYC_STATUSES,
+  PROFILE_TYPES,
+  ROLES,
+} from "../schema"
 
 /**
  * Liste comptes IDN — §3.9 onglet "Comptes IDN".
@@ -14,6 +23,14 @@ import { PROFILE_TYPES } from "../schema"
 
 const PROFILE_TYPE = v.union(...PROFILE_TYPES.map((t) => v.literal(t)))
 const LOA = v.union(v.literal(1), v.literal(2), v.literal(3))
+const ROLE = v.union(...ROLES.map((role) => v.literal(role)))
+const KYC_DOCUMENT_TYPE = v.union(
+  ...KYC_DOCUMENT_TYPES.map((type) => v.literal(type)),
+)
+const KYC_STATUS = v.union(...KYC_STATUSES.map((status) => v.literal(status)))
+const PIN_RECOVERY_BLOCKER = v.union(
+  ...PIN_RECOVERY_BLOCKERS.map((blocker) => v.literal(blocker)),
+)
 
 /**
  * Plafond de balayage de la table `userProfile`.
@@ -168,6 +185,205 @@ export const totalAccounts = query({
   handler: async (ctx) => {
     await requireAdmin(ctx)
     return await usersByLoa.count(ctx)
+  },
+})
+
+/* -------------------------------------------------------------------------- */
+/*  Fiche d'un compte                                                         */
+/* -------------------------------------------------------------------------- */
+
+const PROFILE_DETAIL = v.object({
+  profileId: v.id("userProfile"),
+  userId: v.string(),
+  authExists: v.boolean(),
+  email: v.string(),
+  authName: v.optional(v.string()),
+  emailVerified: v.boolean(),
+  twoFactorEnabled: v.boolean(),
+  idnId: v.optional(v.string()),
+  profileType: PROFILE_TYPE,
+  loa: LOA,
+  pivot: v.optional(
+    v.object({
+      firstName: v.string(),
+      lastName: v.string(),
+      dateOfBirth: v.string(),
+      gender: v.union(
+        v.literal("M"),
+        v.literal("F"),
+        v.literal("O"),
+        v.literal("N"),
+      ),
+      birthPlace: v.string(),
+      nationality: v.string(),
+      phone: v.optional(v.string()),
+      nip: v.optional(v.string()),
+    }),
+  ),
+  pinConfigured: v.boolean(),
+  hasProfilePhoto: v.boolean(),
+  smsRecovery: v.object({
+    eligible: v.boolean(),
+    normalizedPhone: v.union(v.string(), v.null()),
+    blockers: v.array(PIN_RECOVERY_BLOCKER),
+  }),
+  roles: v.array(
+    v.object({
+      role: ROLE,
+      assignedAt: v.number(),
+    }),
+  ),
+  kycRequests: v.array(
+    v.object({
+      _id: v.id("kycRequest"),
+      documentType: KYC_DOCUMENT_TYPE,
+      status: KYC_STATUS,
+      score: v.optional(v.number()),
+      faceMatchScore: v.optional(v.number()),
+      livenessVerdict: v.optional(
+        v.union(v.literal("real"), v.literal("spoof"), v.literal("uncertain")),
+      ),
+      duplicateFlagged: v.boolean(),
+      submittedAt: v.optional(v.number()),
+      reviewedAt: v.optional(v.number()),
+      rejectionReason: v.optional(v.string()),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    }),
+  ),
+  recentActivity: v.array(
+    v.object({
+      _id: v.id("auditLog"),
+      action: v.string(),
+      targetType: v.string(),
+      createdAt: v.number(),
+    }),
+  ),
+  deletionRequestedAt: v.optional(v.number()),
+  deletionScheduledAt: v.optional(v.number()),
+  deletedAt: v.optional(v.number()),
+  createdAt: v.number(),
+  updatedAt: v.number(),
+})
+
+/**
+ * Fiche administrative d'un compte. Les empreintes, secrets de connexion,
+ * clés de rapprochement et références de pièces KYC ne quittent jamais le
+ * serveur.
+ */
+export const getProfile = query({
+  args: { userId: v.string() },
+  returns: v.union(PROFILE_DETAIL, v.null()),
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx)
+
+    const profile = await ctx.db
+      .query("userProfile")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .unique()
+    if (!profile) return null
+
+    const [authUser, roleRows, kycRequests, activityAsActor, activityOnUser] =
+      await Promise.all([
+        ctx.runQuery(components.betterAuth.adapter.findOne, {
+          model: "user",
+          where: [{ field: "_id", value: args.userId }],
+        }) as Promise<{
+          email?: string
+          name?: string
+          emailVerified?: boolean
+          twoFactorEnabled?: boolean | null
+        } | null>,
+        ctx.db
+          .query("userRole")
+          .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+          .take(20),
+        ctx.db
+          .query("kycRequest")
+          .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+          .order("desc")
+          .take(10),
+        ctx.db
+          .query("auditLog")
+          .withIndex("by_actor", (q) => q.eq("actorId", args.userId))
+          .order("desc")
+          .take(10),
+        ctx.db
+          .query("auditLog")
+          .withIndex("by_target", (q) =>
+            q.eq("targetType", "user").eq("targetId", args.userId),
+          )
+          .order("desc")
+          .take(10),
+      ])
+
+    const smsRecovery = await assessAutomaticSmsRecovery(
+      ctx,
+      profile,
+      authUser?.emailVerified === true,
+    )
+
+    const recentActivity = [
+      ...new Map(
+        [...activityAsActor, ...activityOnUser].map((row) => [row._id, row]),
+      ).values(),
+    ]
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, 10)
+
+    const authName =
+      authUser?.name && authUser.name !== authUser.email
+        ? authUser.name
+        : undefined
+
+    return {
+      profileId: profile._id,
+      userId: profile.userId,
+      authExists: authUser !== null,
+      email: authUser?.email ?? "",
+      authName,
+      emailVerified: authUser?.emailVerified === true,
+      twoFactorEnabled: authUser?.twoFactorEnabled === true,
+      idnId: profile.idnId,
+      profileType: profile.profileType,
+      loa: profile.loa,
+      pivot: profile.pivot,
+      pinConfigured: Boolean(profile.pinHash),
+      hasProfilePhoto: Boolean(profile.photoStorageRef),
+      smsRecovery: {
+        eligible: smsRecovery.eligible,
+        normalizedPhone: smsRecovery.phone,
+        blockers: smsRecovery.blockers,
+      },
+      roles: roleRows
+        .filter((row) => row.revokedAt === undefined)
+        .map((row) => ({ role: row.role, assignedAt: row.assignedAt })),
+      kycRequests: kycRequests.map((request) => ({
+        _id: request._id,
+        documentType: request.documentType,
+        status: request.status,
+        score: request.score,
+        faceMatchScore: request.faceMatchScore,
+        livenessVerdict: request.livenessVerdict,
+        duplicateFlagged: request.duplicateFlagged === true,
+        submittedAt: request.submittedAt,
+        reviewedAt: request.reviewedAt,
+        rejectionReason: request.rejectionReason,
+        createdAt: request.createdAt,
+        updatedAt: request.updatedAt,
+      })),
+      recentActivity: recentActivity.map((row) => ({
+        _id: row._id,
+        action: row.action,
+        targetType: row.targetType,
+        createdAt: row.createdAt,
+      })),
+      deletionRequestedAt: profile.deletionRequestedAt,
+      deletionScheduledAt: profile.deletionScheduledAt,
+      deletedAt: profile.deletedAt,
+      createdAt: profile.createdAt,
+      updatedAt: profile.updatedAt,
+    }
   },
 })
 

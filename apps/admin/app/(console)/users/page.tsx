@@ -18,6 +18,7 @@
  * les comptes suivants étaient simplement invisibles depuis la console.
  */
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { useQuery } from "convex/react"
 
 import { LoABadge } from "@repo/ui/components/loa-badge"
@@ -75,7 +76,7 @@ function fmtJoined(ts: number) {
   })
 }
 
-const GRID = "grid grid-cols-[2fr_2fr_1fr_1fr_1fr_180px]"
+const GRID = "grid grid-cols-[2fr_2fr_1fr_1fr_1fr_230px]"
 
 type Tab = "list" | "duplicates"
 
@@ -258,9 +259,12 @@ export default function UsersPage() {
                         >
                           {initials(u.name, u.email)}
                         </div>
-                        <span className="truncate font-medium">
+                        <Link
+                          href={`/users/${encodeURIComponent(u.userId)}`}
+                          className="truncate font-medium outline-none hover:text-idn-green hover:underline focus-visible:ring-2 focus-visible:ring-idn-green"
+                        >
                           {u.name ?? u.email.split("@")[0]}
-                        </span>
+                        </Link>
                       </div>
                       <div className="truncate font-mono text-[11px] text-idn-muted">
                         {u.email || "—"}

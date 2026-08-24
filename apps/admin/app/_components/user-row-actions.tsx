@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { useMutation } from "convex/react"
 import { ConvexError } from "convex/values"
 import { toast } from "sonner"
@@ -37,11 +38,13 @@ export function UserRowActions({
   idnId,
   email,
   deletedAt,
+  showDetails = true,
 }: {
   userId: string
   idnId?: string
   email: string
   deletedAt?: number
+  showDetails?: boolean
 }) {
   const anonymize = useMutation(api.admin.accounts.anonymizeUser)
   const hardDelete = useMutation(api.admin.accounts.deleteUserPermanently)
@@ -89,6 +92,14 @@ export function UserRowActions({
   return (
     <>
       <div className="flex items-center justify-end gap-1.5">
+        {showDetails ? (
+          <Link
+            href={`/users/${encodeURIComponent(userId)}`}
+            className="inline-flex h-7 items-center whitespace-nowrap rounded-lg border border-idn-border bg-transparent px-2.5 text-[11px] font-medium text-idn-green outline-none hover:bg-idn-green-soft focus-visible:ring-2 focus-visible:ring-idn-green"
+          >
+            Voir
+          </Link>
+        ) : null}
         <button
           type="button"
           onClick={() => setMode("anonymize")}
