@@ -223,6 +223,7 @@ export const signIn = {
   // Étape PIN (sign-in)
   pinTitle: "Entrez votre PIN",
   pinSub: "Saisissez votre code à 6 chiffres pour vous connecter.",
+  pinForgot: "PIN oublié ?",
   pinBack: "Modifier l'identifiant",
   pinPrimary: "Se connecter",
   pinUsePassword: "Utiliser mon mot de passe à la place",
@@ -237,6 +238,36 @@ export const signIn = {
   pinDigitAria: (n: number) => `Chiffre ${n}`,
   pinDotsAria: (filled: number, total: number) =>
     `PIN saisi : ${filled} chiffre${filled > 1 ? "s" : ""} sur ${total}`,
+} as const
+
+export const forgotPin = {
+  title: "Récupérer votre PIN",
+  requestSub:
+    "Saisissez votre identifiant IDN. Si un numéro mobile compatible est associé au compte, un code sera envoyé par SMS.",
+  identifierLabel: "Identifiant IDN",
+  identifierHint: "Avec ou sans @idn.ga",
+  requestPrimary: "Recevoir un code",
+  sending: "Envoi en cours…",
+  codeTitle: "Code reçu par SMS",
+  codeSub:
+    "Saisissez le code à 6 chiffres. L'envoi peut prendre quelques instants.",
+  codeLabel: "Code SMS",
+  verifyPrimary: "Vérifier le code",
+  verifying: "Vérification…",
+  codeError: "Code incorrect ou expiré. Recommencez si nécessaire.",
+  newTitle: "Choisissez un nouveau PIN",
+  newSub: "Le nouveau PIN doit contenir exactement 6 chiffres.",
+  newLabel: "Nouveau PIN",
+  confirmLabel: "Confirmer le nouveau PIN",
+  mismatch: "Les deux PIN ne correspondent pas.",
+  resetPrimary: "Enregistrer le nouveau PIN",
+  resetting: "Enregistrement…",
+  successTitle: "Votre PIN a été modifié",
+  successSub:
+    "Toutes les anciennes sessions ont été fermées. Vous pouvez maintenant vous reconnecter.",
+  backToSignIn: "Retour à la connexion",
+  restart: "Recommencer",
+  genericError: "Impossible de poursuivre pour le moment. Réessayez.",
 } as const
 
 export const forgotPassword = {

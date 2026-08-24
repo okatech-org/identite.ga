@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { KeyboardAwareScrollView, KeyboardStickyView } from 'react-native-keyboard-controller';
-import { useRouter, type Href } from 'expo-router';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import { useIdnTheme } from '@/design/theme';
@@ -34,9 +34,12 @@ function normalizeIdnIdentifier(input: string): { handle: string; email: string 
 export default function Login() {
   const t = useIdnTheme();
   const router = useRouter();
+  const params = useLocalSearchParams<{ identifier?: string | string[] }>();
   const insets = useSafeAreaInsets();
   const [phase, setPhase] = useState<Phase>('handle');
-  const [identifier, setIdentifier] = useState('');
+  const [identifier, setIdentifier] = useState(() =>
+    Array.isArray(params.identifier) ? (params.identifier[0] ?? '') : (params.identifier ?? ''),
+  );
   const [pin, setPin] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -369,6 +372,21 @@ export default function Login() {
                 </Text>
               </View>
             ) : null}
+
+            <Pressable
+              disabled={submitting || !normalized}
+              onPress={() => {
+                if (!normalized) return;
+                router.push(
+                  `/(auth)/forgot-pin?identifier=${encodeURIComponent(normalized.email)}` as Href,
+                );
+              }}
+              style={{ alignSelf: 'center', paddingVertical: 10, marginTop: 4 }}
+            >
+              <Text style={{ color: idnTokens.green, fontSize: idnTokens.text.footnote, fontWeight: '600' }}>
+                PIN oublié ?
+              </Text>
+            </Pressable>
 
             <Text
               style={{

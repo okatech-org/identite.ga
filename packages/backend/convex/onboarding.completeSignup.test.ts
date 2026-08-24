@@ -173,4 +173,39 @@ describe("finalisation atomique de l'inscription", () => {
       cvs: 1,
     })
   })
+
+  test("exige le PIN actuel dans la même mutation que le changement", async () => {
+    // POURQUOI : vérifier l'ancien PIN dans un appel client séparé permettait
+    // d'appeler directement l'écriture du nouveau PIN et de contourner le
+    // contrôle. Les deux opérations doivent rester atomiques côté serveur.
+    const t = makeTestClient()
+    const asAriane = t.withIdentity({ subject: "ariane.nziengui" })
+    await asAriane.mutation(api.onboarding.completeSignup, {
+      profileType: "citizen",
+      pivot,
+      handle: "ariane.nziengui",
+      pin: "246813",
+    })
+
+    await expect(
+      asAriane.mutation(api.onboarding.changePin, {
+        currentPin: "000000",
+        newPin: "135790",
+      }),
+    ).rejects.toThrow(ConvexError)
+    await expect(
+      asAriane.mutation(api.onboarding.createPin, { pin: "135790" }),
+    ).rejects.toThrow(ConvexError)
+
+    await asAriane.mutation(api.onboarding.changePin, {
+      currentPin: "246813",
+      newPin: "135790",
+    })
+    await expect(
+      asAriane.mutation(api.onboarding.verifyPin, { pin: "246813" }),
+    ).resolves.toEqual({ valid: false })
+    await expect(
+      asAriane.mutation(api.onboarding.verifyPin, { pin: "135790" }),
+    ).resolves.toEqual({ valid: true })
+  })
 })

@@ -92,48 +92,48 @@ function PasswordChangeModal({ visible, onClose }: { visible: boolean; onClose: 
   );
 }
 
-function PinChangeModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+function PinChangeModal({ visible, configured, onClose }: { visible: boolean; configured: boolean; onClose: () => void }) {
   const t = useIdnTheme();
-  const verifyPin = useMutation(api.onboarding.verifyPin);
   const createPin = useMutation(api.onboarding.createPin);
+  const changePin = useMutation(api.onboarding.changePin);
   const [phase, setPhase] = useState<'check' | 'new' | 'confirm'>('check');
   const [pin, setPin] = useState('');
+  const [currentPin, setCurrentPin] = useState('');
+  const [newPin, setNewPin] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const insets = useSafeAreaInsets();
 
   function reset() {
-    setPhase('check'); setPin(''); setError(null); setSubmitting(false);
+    setPhase(configured ? 'check' : 'new');
+    setPin(''); setCurrentPin(''); setNewPin(''); setError(null); setSubmitting(false);
   }
 
   async function next(pinValue: string) {
     setError(null);
     if (phase === 'check') {
-      setSubmitting(true);
-      try {
-        const r = await verifyPin({ pin: pinValue });
-        if (!r.valid) {
-          setError('PIN incorrect.');
-          setSubmitting(false);
-          setPin('');
-          return;
-        }
-        setPhase('new');
-        setPin('');
-        setSubmitting(false);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Erreur.');
-        setSubmitting(false);
-        setPin('');
-      }
+      setCurrentPin(pinValue);
+      setPhase('new');
+      setPin('');
     } else if (phase === 'new') {
+      setNewPin(pinValue);
       setPhase('confirm');
       setPin('');
     } else {
-      // confirm
+      if (pinValue !== newPin) {
+        setError('Les deux PIN ne correspondent pas.');
+        setPhase('new');
+        setPin('');
+        setNewPin('');
+        return;
+      }
       setSubmitting(true);
       try {
-        await createPin({ pin: pinValue });
+        if (configured) {
+          await changePin({ currentPin, newPin: pinValue });
+        } else {
+          await createPin({ pin: pinValue });
+        }
         reset();
         onClose();
       } catch (err) {
@@ -156,7 +156,7 @@ function PinChangeModal({ visible, onClose }: { visible: boolean; onClose: () =>
   const title = phase === 'check' ? 'Saisissez votre PIN actuel' : phase === 'new' ? 'Nouveau PIN' : 'Confirmez le nouveau PIN';
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => { reset(); onClose(); }}>
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onShow={reset} onRequestClose={() => { reset(); onClose(); }}>
       <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top + 8 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', padding: 14, borderBottomWidth: 1, borderBottomColor: t.borderSoft }}>
           <Pressable onPress={() => { reset(); onClose(); }}><Text style={{ color: idnTokens.green, fontSize: 14, fontWeight: '500' }}>Annuler</Text></Pressable>
@@ -653,7 +653,7 @@ export default function SettingsSecurity() {
         </View>
       </ScrollView>
       <PasswordChangeModal visible={pwOpen} onClose={() => setPwOpen(false)} />
-      <PinChangeModal visible={pinOpen} onClose={() => setPinOpen(false)} />
+      <PinChangeModal visible={pinOpen} configured={pinConfigured} onClose={() => setPinOpen(false)} />
       <NipChangeModal visible={nipOpen} onClose={() => setNipOpen(false)} currentNip={currentNip} />
       <TotpEnrollModal visible={totpEnrollOpen} onClose={() => setTotpEnrollOpen(false)} />
       <TotpDisableModal visible={totpDisableOpen} onClose={() => setTotpDisableOpen(false)} />

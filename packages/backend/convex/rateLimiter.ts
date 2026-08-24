@@ -18,6 +18,14 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
   otpSend: { kind: "fixed window", rate: 3, period: HOUR },
   otpVerify: { kind: "token bucket", rate: 10, period: HOUR, capacity: 10 },
   passwordReset: { kind: "fixed window", rate: 3, period: HOUR },
+  // Récupération du PIN : envoi par identifiant, vérification par demande.
+  pinRecoverySend: { kind: "fixed window", rate: 3, period: HOUR },
+  pinRecoveryVerify: {
+    kind: "token bucket",
+    rate: 10,
+    period: HOUR,
+    capacity: 10,
+  },
   oauthToken: {
     kind: "token bucket",
     rate: 60,

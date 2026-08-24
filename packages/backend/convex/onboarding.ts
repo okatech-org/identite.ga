@@ -13,6 +13,7 @@ import { assessIdentityCollision } from "./lib/duplicateGuard"
 import { raiseDuplicateFlags } from "./lib/duplicateFlags"
 import { derivePivotKeys } from "./lib/identity"
 import { generateIdnId } from "./lib/idnId"
+import { derivePinHash, PIN_REGEX } from "./lib/pin"
 import { PROFILE_TYPES } from "./schema"
 
 /**
@@ -28,8 +29,6 @@ import { PROFILE_TYPES } from "./schema"
  * À la création du userProfile, on initialise aussi userPreference et
  * notificationPreference avec les valeurs par défaut.
  */
-
-const PIN_REGEX = /^\d{6}$/
 
 export const selectProfile = mutation({
   args: {
@@ -200,6 +199,12 @@ export const createPin = mutation({
         message: "Sélectionnez votre profil d'abord.",
       })
     }
+    if (profile.pinHash) {
+      throw new ConvexError({
+        code: "PIN_ALREADY_CONFIGURED",
+        message: "Saisissez votre PIN actuel pour le modifier.",
+      })
+    }
 
     const pinHash = await derivePinHash(args.pin, user.userId)
     await ctx.db.patch(profile._id, {
@@ -218,29 +223,58 @@ export const createPin = mutation({
   },
 })
 
-/**
- * PBKDF2-SHA256, 600 000 itérations (cf. cahier §6.1).
- * Le sel par utilisateur est dérivé du userId — pas de stockage séparé
- * (on reconstruit toujours le même hash pour le même PIN+user).
- */
-async function derivePinHash(pin: string, userId: string): Promise<string> {
-  const salt = new TextEncoder().encode(`idn:pin:${userId}`)
-  const keyMaterial = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(pin),
-    { name: "PBKDF2" },
-    false,
-    ["deriveBits"],
-  )
-  const bits = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", salt, iterations: 600_000, hash: "SHA-256" },
-    keyMaterial,
-    256,
-  )
-  return [...new Uint8Array(bits)]
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("")
-}
+/** Modification atomique : l'ancien PIN et le nouveau sont contrôlés serveur. */
+export const changePin = mutation({
+  args: { currentPin: v.string(), newPin: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const user = await requireVerifiedAuth(ctx)
+    if (!PIN_REGEX.test(args.currentPin) || !PIN_REGEX.test(args.newPin)) {
+      throw new ConvexError({
+        code: "INVALID_PIN",
+        message: "Le PIN doit contenir exactement 6 chiffres.",
+      })
+    }
+    if (args.currentPin === args.newPin) {
+      throw new ConvexError({
+        code: "SAME_PIN",
+        message: "Le nouveau PIN doit être différent de l'ancien.",
+      })
+    }
+
+    const profile = await ctx.db
+      .query("userProfile")
+      .withIndex("by_userId", (q) => q.eq("userId", user.userId))
+      .unique()
+    if (!profile?.pinHash) {
+      throw new ConvexError({
+        code: "PIN_NOT_CONFIGURED",
+        message: "Aucun PIN n'est configuré sur ce compte.",
+      })
+    }
+
+    const currentHash = await derivePinHash(args.currentPin, user.userId)
+    if (currentHash !== profile.pinHash) {
+      throw new ConvexError({
+        code: "INVALID_CURRENT_PIN",
+        message: "Le PIN actuel est incorrect.",
+      })
+    }
+
+    await ctx.db.patch(profile._id, {
+      pinHash: await derivePinHash(args.newPin, user.userId),
+      updatedAt: Date.now(),
+    })
+    await ctx.runMutation(internal.audit.recordAudit, {
+      actorId: user.userId,
+      action: "pin_changed",
+      targetType: "user",
+      targetId: user.userId,
+      metadata: { method: "authenticated" },
+    })
+    return null
+  },
+})
 
 export const verifyPin = mutation({
   args: { pin: v.string() },

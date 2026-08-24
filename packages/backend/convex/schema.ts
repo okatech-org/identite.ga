@@ -303,8 +303,9 @@ export default defineSchema({
         ),
         birthPlace: v.string(),
         nationality: v.string(), // ISO 3166-1 alpha-2
-        // Numéro de téléphone du citoyen — informatif (pas de vérification SMS
-        // en V1). Stocké sous forme libre, format conseillé +241XXXXXXXX.
+        // Numéro de téléphone du citoyen. Stocké sous forme libre, format
+        // conseillé +241XXXXXXXX ; sa possession est vérifiée par SMS au
+        // moment d'une récupération de PIN.
         phone: v.optional(v.string()),
         // Numéro d'Identification Personnel (NIP) — 14 chiffres, attribué
         // par le RBPP (Registre Biométrique des Personnes Physiques).
@@ -1323,6 +1324,31 @@ export default defineSchema({
     approvedAt: v.optional(v.number()),
   })
     .index("by_sessionCode", ["sessionCode"])
+    .index("by_expiresAt", ["expiresAt"]),
+
+  /**
+   * État serveur, court et opaque, d'une récupération de PIN par SMS.
+   * Bird conserve le code : cette table ne stocke que le destinataire résolu
+   * côté serveur puis l'empreinte d'un jeton de réinitialisation à usage unique.
+   */
+  pinRecoveryChallenge: defineTable({
+    requestId: v.string(),
+    userId: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("sent"),
+      v.literal("verified"),
+    ),
+    attempts: v.number(),
+    resetTokenHash: v.optional(v.string()),
+    resetTokenExpiresAt: v.optional(v.number()),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_requestId", ["requestId"])
+    .index("by_userId", ["userId"])
     .index("by_expiresAt", ["expiresAt"]),
 
   // ─────────────────────────────────────────────────────────────────────

@@ -137,20 +137,40 @@ function PasswordChangeDialog() {
 
 function PinChangeDialog({ configured }: { configured: boolean }) {
   const [open, setOpen] = React.useState(false)
-  const [value, setValue] = React.useState("")
+  const [currentPin, setCurrentPin] = React.useState("")
+  const [newPin, setNewPin] = React.useState("")
+  const [confirmPin, setConfirmPin] = React.useState("")
+  const [error, setError] = React.useState("")
   const [submitting, setSubmitting] = React.useState(false)
   const createPin = useMutation(api.onboarding.createPin)
+  const changePin = useMutation(api.onboarding.changePin)
+
+  const reset = () => {
+    setCurrentPin("")
+    setNewPin("")
+    setConfirmPin("")
+    setError("")
+  }
 
   const submit = async () => {
-    if (value.length !== 6) return
+    if (newPin.length !== 6 || confirmPin.length !== 6) return
+    if (newPin !== confirmPin) {
+      setError("Les deux PIN ne correspondent pas.")
+      return
+    }
     setSubmitting(true)
+    setError("")
     try {
-      await createPin({ pin: value })
+      if (configured) {
+        await changePin({ currentPin, newPin })
+      } else {
+        await createPin({ pin: newPin })
+      }
       toast.success(settings.security.pin.successToast)
       setOpen(false)
-      setValue("")
+      reset()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erreur")
+      setError(err instanceof Error ? err.message : "Modification impossible.")
     } finally {
       setSubmitting(false)
     }
@@ -161,7 +181,7 @@ function PinChangeDialog({ configured }: { configured: boolean }) {
       open={open}
       onOpenChange={(o) => {
         setOpen(o)
-        if (!o) setValue("")
+        if (!o) reset()
       }}
     >
       <Button
@@ -170,32 +190,84 @@ function PinChangeDialog({ configured }: { configured: boolean }) {
         size="sm"
         onClick={() => setOpen(true)}
       >
-        {configured ? settings.security.pin.cta : settings.security.pin.ctaDefine}
+        {configured
+          ? settings.security.pin.cta
+          : settings.security.pin.ctaDefine}
       </Button>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{settings.security.pin.modalTitle}</DialogTitle>
           <DialogDescription>{settings.security.pin.newHint}</DialogDescription>
         </DialogHeader>
-        <div className="flex flex-col gap-3">
-          <Label>{settings.security.pin.newLabel}</Label>
-          <OtpInput
-            value={value}
-            onChange={setValue}
-            length={6}
-            variant="pin"
-            autoFocus
-            ariaLabel={settings.security.pin.newLabel}
-          />
+        <div className="flex flex-col gap-4">
+          {configured ? (
+            <div className="space-y-2">
+              <Label>{settings.security.pin.currentLabel}</Label>
+              <OtpInput
+                value={currentPin}
+                onChange={(value) => {
+                  setCurrentPin(value)
+                  setError("")
+                }}
+                length={6}
+                variant="pin"
+                autoFocus
+                ariaLabel={settings.security.pin.currentLabel}
+              />
+            </div>
+          ) : null}
+          <div className="space-y-2">
+            <Label>{settings.security.pin.newLabel}</Label>
+            <OtpInput
+              value={newPin}
+              onChange={(value) => {
+                setNewPin(value)
+                setError("")
+              }}
+              length={6}
+              variant="pin"
+              autoFocus={!configured}
+              ariaLabel={settings.security.pin.newLabel}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>{settings.security.pin.confirmLabel}</Label>
+            <OtpInput
+              value={confirmPin}
+              onChange={(value) => {
+                setConfirmPin(value)
+                setError("")
+              }}
+              length={6}
+              variant="pin"
+              hasError={Boolean(error)}
+              ariaLabel={settings.security.pin.confirmLabel}
+            />
+          </div>
+          {error ? (
+            <p role="alert" className="text-xs text-destructive">
+              {error}
+            </p>
+          ) : null}
         </div>
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={submitting}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setOpen(false)}
+            disabled={submitting}
+          >
             {settings.security.pin.cancel}
           </Button>
           <Button
             type="button"
             onClick={submit}
-            disabled={submitting || value.length !== 6}
+            disabled={
+              submitting ||
+              (configured && currentPin.length !== 6) ||
+              newPin.length !== 6 ||
+              confirmPin.length !== 6
+            }
           >
             {submitting ? "…" : settings.security.pin.submit}
           </Button>

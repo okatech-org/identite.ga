@@ -28,6 +28,15 @@ import { safeRedirectTo } from "../_lib/redirect"
 const HANDLE_REGEX = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/
 const IDN_DOMAIN = "@idn.ga"
 
+function buildForgotPinHref(
+  params: { toString: () => string },
+  identifier: string,
+): string {
+  const next = new URLSearchParams(params.toString())
+  next.set("identifier", identifier)
+  return `/forgot-pin?${next.toString()}`
+}
+
 /**
  * Accepte `handle` ou `handle@idn.ga` indifféremment.
  * Renvoie l'email Better Auth normalisé.
@@ -106,7 +115,7 @@ function SignInPageInner() {
 
   const emailForm = useForm<HandleValues>({
     resolver: zodResolver(handleSchema),
-    defaultValues: { identifier: "" },
+    defaultValues: { identifier: params.get("identifier") ?? "" },
     mode: "onTouched",
   })
   const passwordForm = useForm<PasswordValues>({
@@ -114,6 +123,14 @@ function SignInPageInner() {
     defaultValues: { password: "" },
     mode: "onTouched",
   })
+
+  React.useEffect(() => {
+    const identifierFromUrl =
+      new URLSearchParams(window.location.search).get("identifier") ?? ""
+    if (identifierFromUrl && !emailForm.getValues("identifier")) {
+      emailForm.setValue("identifier", identifierFromUrl)
+    }
+  }, [emailForm])
 
   const goToPin = emailForm.handleSubmit((values) => {
     const norm = normalizeIdnIdentifier(values.identifier)
@@ -381,6 +398,13 @@ function SignInPageInner() {
             {submitting ? signIn.primarySubmitting : signIn.pinPrimary}
           </Button>
 
+          <Link
+            href={buildForgotPinHref(params, email)}
+            className="mt-4 text-center text-[13px] font-medium text-idn-green hover:underline dark:text-idn-green-on-dark"
+          >
+            {signIn.pinForgot}
+          </Link>
+
           <button
             type="button"
             onClick={() => {
@@ -388,7 +412,7 @@ function SignInPageInner() {
               setPinError(null)
               setPhase("email")
             }}
-            className="mt-4 text-center text-[13px] text-muted-foreground hover:underline"
+            className="mt-3 text-center text-[13px] text-muted-foreground hover:underline"
           >
             ← {signIn.pinBack}
           </button>

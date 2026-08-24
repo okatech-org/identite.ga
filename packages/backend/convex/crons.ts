@@ -59,4 +59,11 @@ crons.interval(
   {},
 )
 
+crons.interval(
+  "PIN recovery cleanup",
+  { hours: 1 },
+  internal.pinRecovery.pruneExpired,
+  {},
+)
+
 export default crons
