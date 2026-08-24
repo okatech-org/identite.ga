@@ -284,7 +284,7 @@ export default defineSchema({
 
     /**
      * Identifiant public stable de l'utilisateur (format `GA-XXXX-XXXX`).
-     * Généré au signup (`onboarding.selectProfile`), unique global.
+     * Généré au signup (`onboarding.completeSignup`), unique global.
      * Optional pour les users créés avant l'introduction du champ.
      */
     idnId: v.optional(v.string()),

@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, ScrollView, Text, TextInput, View } from 'react-native';
 import { useAction, useQuery } from 'convex/react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { api } from '@/lib/api';
 import type { Id } from '@repo/backend/convex/_generated/dataModel';
 import { Icon } from '@/design/icons';
-import { idnTokens } from '@/design/tokens';
 import { useIdnTheme } from '@/design/theme';
 import { NSheetHeader } from '@/components/chrome/sheet-header';
 import { IdnButton } from '@/design/components/idn-button';

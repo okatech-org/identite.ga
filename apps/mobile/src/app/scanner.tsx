@@ -129,12 +129,12 @@ export default function Scanner() {
       <View style={{ paddingHorizontal: 26, paddingBottom: Math.max(insets.bottom, 30), alignItems: 'center', zIndex: 1 }}>
         {Platform.OS === 'web' ? (
           <Text style={{ fontSize: 13, color: '#fff', textAlign: 'center', lineHeight: 19 }}>
-            Le scanner QR n'est pas disponible en navigateur web. Utilisez l'app mobile.
+            Le scanner QR n’est pas disponible en navigateur web. Utilisez l’app mobile.
           </Text>
         ) : !permission?.granted ? (
           <>
             <Text style={{ fontSize: 13, color: '#fff', textAlign: 'center', lineHeight: 19 }}>
-              Autorisez l'accès à la caméra pour scanner un QR.
+              Autorisez l’accès à la caméra pour scanner un QR.
             </Text>
             <Pressable onPress={requestPermission} style={{ marginTop: 16, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 9999, backgroundColor: idnTokens.green }}>
               <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>Autoriser la caméra</Text>

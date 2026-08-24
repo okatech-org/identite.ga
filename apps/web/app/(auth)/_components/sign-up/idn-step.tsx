@@ -3,21 +3,18 @@
 import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useConvex, useMutation } from "convex/react"
-import { ConvexError } from "convex/values"
+import { useConvex } from "convex/react"
 import { ShieldIcon } from "lucide-react"
-import { toast } from "sonner"
 
 import { api } from "@repo/backend/convex/_generated/api"
 import { Button } from "@repo/ui/components/button"
 import { Label } from "@repo/ui/components/label"
 import { cn } from "@repo/ui/lib/utils"
 
-import { authClient } from "@/lib/auth-client"
-
 import { idnSignup, onboardingHeader, STEP_TOTAL } from "../../_content/fr"
 import { WizardShell } from "../wizard-shell"
 import {
+  getOnboardingHandle,
   getOnboardingPivot,
   getOnboardingProfile,
   setOnboardingHandle,
@@ -29,18 +26,6 @@ const HANDLE_REGEX = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/
 const HANDLE_MIN = 3
 const HANDLE_MAX = 32
 
-function generateInternalPassword(): string {
-  const alphabet =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-="
-  const buf = new Uint32Array(32)
-  crypto.getRandomValues(buf)
-  let s = ""
-  for (let i = 0; i < buf.length; i++) {
-    s += alphabet[buf[i]! % alphabet.length]
-  }
-  return s
-}
-
 function isHandleValid(handle: string): boolean {
   return (
     handle.length >= HANDLE_MIN &&
@@ -49,59 +34,34 @@ function isHandleValid(handle: string): boolean {
   )
 }
 
-/**
- * Attend que le JWT Better Auth → Convex soit propagé après sign-up.
- *
- * `authClient.signUp.email()` pose le cookie immédiatement, mais
- * `ConvexBetterAuthProvider` doit ensuite récupérer le JWT et le
- * transmettre au client Convex avant que les mutations authentifiées
- * passent. Sans cette attente on récolte un `UNAUTHENTICATED` direct.
- */
-async function waitForConvexAuth(
-  fetchMe: () => Promise<unknown>,
-  timeoutMs = 5000,
-): Promise<void> {
-  const start = Date.now()
-  while (Date.now() - start < timeoutMs) {
-    const me = await fetchMe()
-    if (me) return
-    await new Promise((r) => setTimeout(r, 120))
-  }
-  throw new Error("Session non synchronisée. Réessayez.")
-}
-
 type Suggestion = { handle: string; format: string; available: boolean }
 
 export function IdnStep() {
   const router = useRouter()
   const convex = useConvex()
-  const completeSignup = useMutation(api.onboarding.completeSignup)
 
   const [profile, setProfile] = React.useState<OnboardingProfile | null>(null)
   const [pivot, setPivot] = React.useState<OnboardingPivot | null>(null)
   const [handle, setHandle] = React.useState("")
   const [suggestions, setSuggestions] = React.useState<Suggestion[]>([])
-  const [availability, setAvailability] = React.useState<
-    { handle: string; available: boolean } | null
-  >(null)
+  const [availability, setAvailability] = React.useState<{
+    handle: string
+    available: boolean
+  } | null>(null)
   const [acceptTerms, setAcceptTerms] = React.useState(false)
-  const [submitting, setSubmitting] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
-  // Refus anti-doublon : l'erreur n'est pas corrigeable sur cet écran (elle
-  // porte sur l'identité saisie à l'étape précédente), d'où un chemin de
-  // retour explicite plutôt qu'un bouton « Réessayer » qui échouerait à
-  // l'identique.
-  const [blockedByDuplicate, setBlockedByDuplicate] = React.useState(false)
 
   React.useEffect(() => {
     const p = getOnboardingProfile()
     const pv = getOnboardingPivot()
+    const savedHandle = getOnboardingHandle()
     if (!p || !pv) {
       router.replace("/sign-up?step=profile")
       return
     }
     setProfile(p)
     setPivot(pv)
+    if (savedHandle) setHandle(savedHandle)
   }, [router])
 
   React.useEffect(() => {
@@ -167,67 +127,15 @@ export function IdnStep() {
           ? { tone: "ok" as const, label: idnSignup.statusAvailable }
           : { tone: "error" as const, label: idnSignup.statusTaken }
 
-  const reserve = async () => {
-    if (!profile || !pivot || !isAvailable || submitting) return
+  const reserve = () => {
+    if (!profile || !pivot || !isAvailable) return
     if (!acceptTerms) {
       setError(idnSignup.validation.termsRequired)
       return
     }
-    setSubmitting(true)
     setError(null)
-    setBlockedByDuplicate(false)
-    try {
-      const result = await authClient.signUp.email({
-        email: `${handleNormalized}@idn.ga`,
-        password: generateInternalPassword(),
-        name: handleNormalized,
-      })
-      if (result?.error) {
-        const code = result.error.code as string | undefined
-        setError(
-          code === "USER_ALREADY_EXISTS"
-            ? idnSignup.errorTaken
-            : (result.error.message ?? idnSignup.errorGeneric),
-        )
-        setSubmitting(false)
-        return
-      }
-      await waitForConvexAuth(() =>
-        convex.query(api.profile.getCurrentUser, {}),
-      )
-      await completeSignup({ profileType: profile, pivot })
-      setOnboardingHandle(handleNormalized)
-      router.push("/sign-up?step=pin")
-    } catch (err) {
-      // Refus anti-doublon : le compte Better Auth vient d'être créé, mais le
-      // profil, non. L'adresse @idn.ga réservée reste celle de l'utilisateur,
-      // qui est authentifié — il peut donc corriger son identité et relancer
-      // l'opération sans rien perdre. On le renvoie à l'étape identité plutôt
-      // que de le laisser sur un écran où il n'a plus rien à corriger.
-      if (err instanceof ConvexError) {
-        const data = err.data as { code?: string; message?: string } | string
-        const code = typeof data === "object" ? data.code : undefined
-        if (
-          code === "IDENTITY_ALREADY_VERIFIED" ||
-          code === "NIP_ALREADY_VERIFIED"
-        ) {
-          setError(
-            code === "NIP_ALREADY_VERIFIED"
-              ? idnSignup.errorNipVerified
-              : idnSignup.errorIdentityVerified,
-          )
-          setBlockedByDuplicate(true)
-          setSubmitting(false)
-          return
-        }
-        const message = typeof data === "object" ? data.message : undefined
-        toast.error(message ?? idnSignup.errorGeneric)
-        setSubmitting(false)
-        return
-      }
-      toast.error(err instanceof Error ? err.message : idnSignup.errorGeneric)
-      setSubmitting(false)
-    }
+    setOnboardingHandle(handleNormalized)
+    router.push("/sign-up?step=pin")
   }
 
   const visibleSuggestions = suggestions.slice(0, 4)
@@ -244,11 +152,11 @@ export function IdnStep() {
         <Button
           type="button"
           size="lg"
-          disabled={!isAvailable || !acceptTerms || submitting}
-          onClick={() => void reserve()}
+          disabled={!isAvailable || !acceptTerms}
+          onClick={reserve}
           className="h-14 w-full text-base"
         >
-          {submitting ? idnSignup.primarySubmitting : idnSignup.primary}
+          {idnSignup.primary}
         </Button>
       }
     >
@@ -385,19 +293,9 @@ export function IdnStep() {
         </label>
 
         {error && (
-          <div role="alert" className="space-y-2">
-            <p className="text-xs text-destructive">{error}</p>
-            {blockedByDuplicate && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => router.push("/sign-up?step=identity")}
-              >
-                {idnSignup.backToIdentity}
-              </Button>
-            )}
-          </div>
+          <p role="alert" className="text-xs text-destructive">
+            {error}
+          </p>
         )}
       </div>
     </WizardShell>

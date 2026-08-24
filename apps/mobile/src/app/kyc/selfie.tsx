@@ -4,22 +4,26 @@ import { StatusBar } from 'expo-status-bar';
 import { Image } from 'expo-image';
 import Svg, { Circle, Ellipse, Path } from 'react-native-svg';
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useConvexAuth, useMutation, useQuery } from 'convex/react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { idnTokens } from '@/design/tokens';
 import { Icon } from '@/design/icons';
 import { api } from '@/lib/api';
+import { kycPostSubmitRoute } from '@/lib/kyc-flow';
 import type { Id } from '@repo/backend/convex/_generated/dataModel';
 
 export default function KycSelfie() {
   const router = useRouter();
+  const { target } = useLocalSearchParams<{ target?: string }>();
+  const targetLoa = target === '3' ? 3 : 2;
   const insets = useSafeAreaInsets();
   const { isAuthenticated } = useConvexAuth();
   const active = useQuery(api.kyc.getActiveRequest, isAuthenticated ? {} : 'skip');
   const generateUploadUrl = useMutation(api.kyc.generateUploadUrl);
   const setSelfie = useMutation(api.kyc.setSelfie);
   const submit = useMutation(api.kyc.submit);
+  const respondComplement = useMutation(api.kyc.respondComplement);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,8 +80,11 @@ export default function KycSelfie() {
     setSubmitting(true);
     setError(null);
     try {
-      await submit({ kycRequestId });
-      router.replace('/kyc/review');
+      const wasComplement = active?.status === 'complement_required';
+      if (wasComplement) await respondComplement({ kycRequestId });
+      else await submit({ kycRequestId });
+      const destination = kycPostSubmitRoute(targetLoa, wasComplement);
+      router.replace((destination === 'level3' ? '/kyc/level3' : '/kyc/review') as never);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Soumission impossible.');
       setSubmitting(false);

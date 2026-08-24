@@ -111,7 +111,7 @@ export default function SignupDone() {
       <View style={{ flex: 1 }} />
       <IdnButton t={t} variant="primary" size="lg" full onPress={() => finish(true)}>Vérifier mon identité · Niveau 2</IdnButton>
       <Pressable style={{ alignItems: 'center', padding: 16 }} onPress={() => finish(false)}>
-        <Text style={{ color: t.muted, fontSize: idnTokens.text.callout, fontWeight: '600' }}>Continuer vers l'accueil</Text>
+        <Text style={{ color: t.muted, fontSize: idnTokens.text.callout, fontWeight: '600' }}>Continuer vers l’accueil</Text>
       </Pressable>
     </View>
   );

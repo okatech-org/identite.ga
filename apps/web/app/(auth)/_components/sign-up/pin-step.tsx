@@ -2,16 +2,24 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { useMutation, useQuery } from "convex/react"
+import { useConvex, useMutation } from "convex/react"
+import { ConvexError } from "convex/values"
 import { toast } from "sonner"
 
 import { api } from "@repo/backend/convex/_generated/api"
 import { Button } from "@repo/ui/components/button"
 import { PinPad } from "@repo/ui/components/pin-pad"
 
-import { onboardingHeader, pin, STEP_TOTAL } from "../../_content/fr"
+import { authClient } from "@/lib/auth-client"
+
+import { idnSignup, onboardingHeader, pin, STEP_TOTAL } from "../../_content/fr"
 import { WizardShell } from "../wizard-shell"
-import { clearOnboardingState } from "../../_hooks/use-onboarding-state"
+import {
+  clearOnboardingState,
+  getOnboardingHandle,
+  getOnboardingPivot,
+  getOnboardingProfile,
+} from "../../_hooks/use-onboarding-state"
 
 const FORBIDDEN_PINS = new Set([
   "000000",
@@ -47,20 +55,117 @@ function pinMatchesDob(pin: string, dob?: string): boolean {
   return candidates.includes(pin)
 }
 
+function generateInternalPassword(): string {
+  const alphabet =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-="
+  const bytes = new Uint32Array(32)
+  crypto.getRandomValues(bytes)
+  let password = ""
+  for (const byte of bytes) {
+    password += alphabet[byte % alphabet.length]
+  }
+  return password
+}
+
+type CurrentUser = { email?: string } | null
+
+/**
+ * La présence d'une session ne suffit pas : pendant un changement de compte,
+ * Convex peut encore exposer brièvement l'ancienne. On attend donc l'adresse
+ * exacte que l'utilisateur vient de réserver.
+ */
+async function waitForConvexAuth(
+  fetchMe: () => Promise<CurrentUser>,
+  expectedEmail: string,
+  timeoutMs = 5000,
+): Promise<void> {
+  const start = Date.now()
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const me = await fetchMe()
+      if (me?.email?.toLowerCase() === expectedEmail) return
+    } catch {
+      // Le provider peut être momentanément sans JWT pendant la bascule.
+    }
+    await new Promise((resolve) => setTimeout(resolve, 120))
+  }
+  throw new Error("La nouvelle session ne s'est pas synchronisée. Réessayez.")
+}
+
+function convexErrorData(
+  error: unknown,
+): { code?: string; message?: string } | null {
+  if (!(error instanceof ConvexError) || typeof error.data !== "object") {
+    return null
+  }
+  return error.data as { code?: string; message?: string }
+}
+
 type Phase = "enter" | "confirm"
 
 export function PinStep() {
   const router = useRouter()
-  const createPin = useMutation(api.onboarding.createPin)
-  const me = useQuery(api.profile.getCurrentUser)
+  const convex = useConvex()
+  const completeSignup = useMutation(api.onboarding.completeSignup)
+
+  const onboarding = React.useMemo(
+    () => ({
+      profile: getOnboardingProfile(),
+      pivot: getOnboardingPivot(),
+      handle: getOnboardingHandle(),
+    }),
+    [],
+  )
 
   const [phase, setPhase] = React.useState<Phase>("enter")
   const [first, setFirst] = React.useState("")
   const [second, setSecond] = React.useState("")
   const [error, setError] = React.useState<string | null>(null)
   const [submitting, setSubmitting] = React.useState(false)
+  const [blockedByDuplicate, setBlockedByDuplicate] = React.useState(false)
+  const submitInFlight = React.useRef(false)
 
-  const dob = me?.profile?.pivot?.dateOfBirth
+  React.useEffect(() => {
+    if (!onboarding.profile || !onboarding.pivot) {
+      router.replace("/sign-up?step=profile")
+    } else if (!onboarding.handle) {
+      router.replace("/sign-up?step=idn")
+    }
+  }, [onboarding, router])
+
+  const dob = onboarding.pivot?.dateOfBirth
+
+  const ensureExpectedSession = async (handle: string) => {
+    const expectedEmail = `${handle}@idn.ga`
+    const currentSession = await authClient.getSession()
+    const currentEmail = currentSession?.data?.user?.email?.toLowerCase()
+
+    if (currentEmail && currentEmail !== expectedEmail) {
+      await authClient.signOut()
+    }
+
+    if (currentEmail !== expectedEmail) {
+      const result = await authClient.signUp.email({
+        email: expectedEmail,
+        password: generateInternalPassword(),
+        name: handle,
+      })
+      if (result?.error) {
+        const code = result.error.code as string | undefined
+        throw new Error(
+          code === "USER_ALREADY_EXISTS"
+            ? "Cette adresse existe déjà. Si votre inscription a été interrompue, contactez le support."
+            : (result.error.message ?? idnSignup.errorGeneric),
+        )
+      }
+    }
+
+    await authClient.updateSession?.()
+    await waitForConvexAuth(
+      () => convex.query(api.profile.getCurrentUser, {}),
+      expectedEmail,
+    )
+  }
 
   const handleEnterComplete = (entered: string) => {
     setError(null)
@@ -76,19 +181,50 @@ export function PinStep() {
   }
 
   const submit = async (confirmation: string) => {
+    if (submitInFlight.current) return
     setError(null)
+    setBlockedByDuplicate(false)
     if (first !== confirmation) {
       setError(pin.validation.mismatch)
       return
     }
+    const { profile, pivot, handle } = onboarding
+    if (!profile || !pivot || !handle) {
+      router.replace("/sign-up?step=profile")
+      return
+    }
+    submitInFlight.current = true
     setSubmitting(true)
     try {
-      await createPin({ pin: first })
+      await ensureExpectedSession(handle)
+      await completeSignup({
+        profileType: profile,
+        pivot,
+        handle,
+        pin: first,
+      })
       clearOnboardingState()
       toast.success(pin.successToast)
       router.push("/dashboard")
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur")
+      const data = convexErrorData(err)
+      if (
+        data?.code === "IDENTITY_ALREADY_VERIFIED" ||
+        data?.code === "NIP_ALREADY_VERIFIED"
+      ) {
+        setError(
+          data.code === "NIP_ALREADY_VERIFIED"
+            ? idnSignup.errorNipVerified
+            : idnSignup.errorIdentityVerified,
+        )
+        setBlockedByDuplicate(true)
+      } else {
+        setError(
+          data?.message ??
+            (err instanceof Error ? err.message : idnSignup.errorGeneric),
+        )
+      }
+      submitInFlight.current = false
       setSubmitting(false)
     }
   }
@@ -153,9 +289,21 @@ export function PinStep() {
 
         <div id="pin-error" aria-live="polite" className="mt-3 min-h-[1rem]">
           {error && (
-            <p role="alert" className="text-center text-xs text-destructive">
-              {error}
-            </p>
+            <div className="space-y-2 text-center">
+              <p role="alert" className="text-xs text-destructive">
+                {error}
+              </p>
+              {blockedByDuplicate && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => router.push("/sign-up?step=identity")}
+                >
+                  {idnSignup.backToIdentity}
+                </Button>
+              )}
+            </div>
           )}
         </div>
       </div>

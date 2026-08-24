@@ -32,10 +32,14 @@ const IDN_DOMAIN = "@idn.ga"
  * Accepte `handle` ou `handle@idn.ga` indifféremment.
  * Renvoie l'email Better Auth normalisé.
  */
-function normalizeIdnIdentifier(input: string): { handle: string; email: string } | null {
+function normalizeIdnIdentifier(
+  input: string,
+): { handle: string; email: string } | null {
   const raw = input.trim().toLowerCase()
   if (!raw) return null
-  const handle = raw.endsWith(IDN_DOMAIN) ? raw.slice(0, -IDN_DOMAIN.length) : raw
+  const handle = raw.endsWith(IDN_DOMAIN)
+    ? raw.slice(0, -IDN_DOMAIN.length)
+    : raw
   if (handle.length < 3 || handle.length > 32) return null
   if (!HANDLE_REGEX.test(handle)) return null
   return { handle, email: `${handle}${IDN_DOMAIN}` }
@@ -45,7 +49,10 @@ const handleSchema = z.object({
   identifier: z
     .string()
     .trim()
-    .refine((v) => normalizeIdnIdentifier(v) !== null, "Identifiant IDN invalide."),
+    .refine(
+      (v) => normalizeIdnIdentifier(v) !== null,
+      "Identifiant IDN invalide.",
+    ),
 })
 const passwordSchema = z.object({
   password: z.string().min(1, "Mot de passe requis."),
@@ -150,9 +157,10 @@ function SignInPageInner() {
       if (r.redirected) {
         nextUrl = r.url
       } else {
-        const body = (await r.json().catch(() => null)) as
-          | { redirect?: boolean; url?: string }
-          | null
+        const body = (await r.json().catch(() => null)) as {
+          redirect?: boolean
+          url?: string
+        } | null
         if (body?.url) nextUrl = body.url
       }
     } catch (err) {
@@ -171,17 +179,21 @@ function SignInPageInner() {
         method: "POST",
         body: { email, pin: entered },
       })
-      const errorBody = (res?.error ?? null) as
-        | { code?: string; status?: number; message?: string }
-        | null
+      const errorBody = (res?.error ?? null) as {
+        code?: string
+        status?: number
+        message?: string
+      } | null
       if (errorBody) {
         const code = errorBody.code
         if (code === "EMAIL_NOT_VERIFIED") {
           toast.error(signIn.errorEmailNotVerified)
         } else if (errorBody.status === 429) {
           setPinError(signIn.pinErrorTooMany)
-        } else {
+        } else if (code === "INVALID_PIN") {
           setPinError(signIn.pinErrorInvalid)
+        } else {
+          setPinError(signIn.errorGeneric)
         }
         setPin("")
         setSubmitting(false)
@@ -192,7 +204,7 @@ function SignInPageInner() {
       // par le fetch plugin).
       await goToDestination()
     } catch {
-      setPinError(signIn.pinErrorInvalid)
+      setPinError(signIn.errorGeneric)
       setPin("")
       setSubmitting(false)
     }

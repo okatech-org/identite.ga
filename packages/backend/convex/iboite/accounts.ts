@@ -314,7 +314,7 @@ export const setAddress = mutation({
 })
 
 // ─────────────────────────────────────────────────────────────────────────
-// Internal — appelé depuis onboarding.selectProfile
+// Internal — appelé depuis onboarding.completeSignup
 // ─────────────────────────────────────────────────────────────────────────
 
 export const ensurePersonal = internalMutation({

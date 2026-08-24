@@ -20,14 +20,13 @@
       "supportsTablet": false,
       "bundleIdentifier": "ga.idn.mobile",
       "buildNumber": "1",
-      "associatedDomains": [
-        "webcredentials:identite.ga"
-      ],
+      "associatedDomains": ["webcredentials:identite.ga"],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "Identité Numérique utilise l'appareil photo pour scanner les QR codes de connexion et photographier vos pièces d'identité lors de la vérification KYC.",
         "NSPhotoLibraryUsageDescription": "Identité Numérique a besoin d'accéder à votre photothèque pour importer une pièce d'identité ou un document existant.",
         "NSLocationWhenInUseUsageDescription": "Identité Numérique utilise votre position pour pré-remplir l'adresse postale de votre iBoîte avec votre localisation actuelle.",
+        "NSMicrophoneUsageDescription": "Identité Numérique utilise le microphone pendant votre entretien vidéo de vérification d'identité.",
         "NSFaceIDUsageDescription": "Identité Numérique utilise Face ID pour vous authentifier rapidement et créer un passkey sécurisé attaché à votre compte."
       }
     },
@@ -46,6 +45,7 @@
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "READ_MEDIA_IMAGES",
+        "RECORD_AUDIO",
         "USE_BIOMETRIC",
         "USE_FINGERPRINT"
       ]
@@ -58,6 +58,8 @@
     "plugins": [
       "expo-router",
       "expo-updates",
+      "@livekit/react-native-expo-plugin",
+      "@config-plugins/react-native-webrtc",
       [
         "expo-splash-screen",
         {
@@ -93,7 +95,12 @@
           "faceIDPermission": "Identité Numérique utilise Face ID pour vous authentifier rapidement et créer un passkey sécurisé attaché à votre compte."
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      "@react-native-community/datetimepicker",
+      "expo-font",
+      "expo-image",
+      "expo-secure-store",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

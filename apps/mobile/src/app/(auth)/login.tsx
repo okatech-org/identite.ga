@@ -87,17 +87,21 @@ export default function Login() {
         method: 'POST',
         body: { email: normalized.email, pin: entered },
       });
-      const errorBody = (res?.error ?? null) as
-        | { code?: string; status?: number; message?: string }
-        | null;
+      const errorBody = (res?.error ?? null) as {
+        code?: string;
+        status?: number;
+        message?: string;
+      } | null;
       if (errorBody) {
         const code = errorBody.code;
         if (code === 'EMAIL_NOT_VERIFIED') {
           setError('Email non vérifié. Consultez votre boîte de réception.');
         } else if (errorBody.status === 429) {
           setError('Trop de tentatives. Réessayez plus tard.');
+        } else if (code === 'INVALID_PIN') {
+          setError('Identifiant ou PIN incorrect.');
         } else {
-          setError('Code PIN incorrect.');
+          setError('Connexion impossible pour le moment. Réessayez.');
         }
         setPin('');
         setSubmitting(false);
@@ -112,8 +116,8 @@ export default function Login() {
       }
       await setOnboardingDone(true);
       await routeAfterAuth();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Connexion impossible. Réessayez.');
+    } catch {
+      setError('Connexion impossible pour le moment. Réessayez.');
       setPin('');
       setSubmitting(false);
     }
@@ -161,26 +165,57 @@ export default function Login() {
     <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top + 20 }}>
       <Pressable
         onPress={() => (phase === 'pin' ? backToHandle() : router.back())}
-        style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 26 }}
+        style={{
+          alignSelf: 'flex-start',
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 6,
+          paddingVertical: 6,
+          paddingHorizontal: 26,
+        }}
       >
         <Icon name="arrowL" size={20} color={idnTokens.green} />
-        <Text style={{ color: idnTokens.green, fontSize: idnTokens.text.callout, fontWeight: '600' }}>
+        <Text
+          style={{
+            color: idnTokens.green,
+            fontSize: idnTokens.text.callout,
+            fontWeight: '600',
+          }}
+        >
           {phase === 'pin' ? "Modifier l'identifiant" : 'Retour'}
         </Text>
       </Pressable>
 
       <KeyboardAwareScrollView
-        contentContainerStyle={{ paddingHorizontal: 26, paddingBottom: 24, flexGrow: 1 }}
+        contentContainerStyle={{
+          paddingHorizontal: 26,
+          paddingBottom: 24,
+          flexGrow: 1,
+        }}
         keyboardShouldPersistTaps="handled"
         bottomOffset={20}
       >
         {phase === 'handle' ? (
           <>
             <View style={{ marginTop: 30 }}>
-              <Text style={{ fontSize: idnTokens.text.title, fontWeight: '700', color: t.ink, letterSpacing: -0.5 }}>
+              <Text
+                style={{
+                  fontSize: idnTokens.text.title,
+                  fontWeight: '700',
+                  color: t.ink,
+                  letterSpacing: -0.5,
+                }}
+              >
                 Connexion
               </Text>
-              <Text style={{ fontSize: idnTokens.text.callout, color: t.muted, marginTop: 10, lineHeight: 22 }}>
+              <Text
+                style={{
+                  fontSize: idnTokens.text.callout,
+                  color: t.muted,
+                  marginTop: 10,
+                  lineHeight: 22,
+                }}
+              >
                 Saisissez votre identifiant IDN pour continuer.
               </Text>
             </View>
@@ -207,25 +242,60 @@ export default function Login() {
                   padding: 14,
                 }}
               >
-                <Text style={{ color: idnTokens.danger, fontSize: idnTokens.text.footnote, lineHeight: 19 }}>{error}</Text>
+                <Text
+                  style={{
+                    color: idnTokens.danger,
+                    fontSize: idnTokens.text.footnote,
+                    lineHeight: 19,
+                  }}
+                >
+                  {error}
+                </Text>
               </View>
             ) : null}
           </>
         ) : (
           <>
             <View style={{ marginTop: 26, alignItems: 'center' }}>
-              <Text style={{ fontSize: idnTokens.text.title, fontWeight: '700', color: t.ink, letterSpacing: -0.4 }}>
+              <Text
+                style={{
+                  fontSize: idnTokens.text.title,
+                  fontWeight: '700',
+                  color: t.ink,
+                  letterSpacing: -0.4,
+                }}
+              >
                 Votre code PIN
               </Text>
-              <Text style={{ fontSize: idnTokens.text.callout, color: t.muted, marginTop: 10, textAlign: 'center' }}>
+              <Text
+                style={{
+                  fontSize: idnTokens.text.callout,
+                  color: t.muted,
+                  marginTop: 10,
+                  textAlign: 'center',
+                }}
+              >
                 6 chiffres pour accéder à votre compte.
               </Text>
-              <Text style={{ fontSize: idnTokens.text.footnote, color: t.muted, marginTop: 6 }}>
+              <Text
+                style={{
+                  fontSize: idnTokens.text.footnote,
+                  color: t.muted,
+                  marginTop: 6,
+                }}
+              >
                 {normalized?.email ?? ''}
               </Text>
             </View>
 
-            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 18, paddingVertical: 26 }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'center',
+                gap: 18,
+                paddingVertical: 26,
+              }}
+            >
               {[0, 1, 2, 3, 4, 5].map((i) => (
                 <View
                   key={i}
@@ -241,7 +311,13 @@ export default function Login() {
               ))}
             </View>
 
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -6 }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                flexWrap: 'wrap',
+                marginHorizontal: -6,
+              }}
+            >
               {PIN_KEYS.map((k, i) => (
                 <View key={i} style={{ width: '33.3333%', padding: 6 }}>
                   <Pressable
@@ -258,7 +334,14 @@ export default function Login() {
                       opacity: submitting ? 0.6 : 1,
                     }}
                   >
-                    <Text style={{ fontSize: 26, fontWeight: '500', color: t.ink, fontFamily: idnTokens.mono }}>
+                    <Text
+                      style={{
+                        fontSize: 26,
+                        fontWeight: '500',
+                        color: t.ink,
+                        fontFamily: idnTokens.mono,
+                      }}
+                    >
                       {k}
                     </Text>
                   </Pressable>
@@ -275,7 +358,15 @@ export default function Login() {
                   padding: 14,
                 }}
               >
-                <Text style={{ color: idnTokens.danger, fontSize: idnTokens.text.footnote, lineHeight: 19 }}>{error}</Text>
+                <Text
+                  style={{
+                    color: idnTokens.danger,
+                    fontSize: idnTokens.text.footnote,
+                    lineHeight: 19,
+                  }}
+                >
+                  {error}
+                </Text>
               </View>
             ) : null}
 
@@ -332,7 +423,13 @@ export default function Login() {
                 <Path d="M9 13c.5-1.5 2-2 3-2s2.5.5 3 2v2" stroke={t.ink2} strokeWidth={1.6} strokeLinecap="round" />
                 <Path d="M12 15v5M5 16c0 3 3 4 7 4" stroke={t.ink2} strokeWidth={1.6} strokeLinecap="round" />
               </Svg>
-              <Text style={{ color: t.ink2, fontSize: idnTokens.text.callout, fontWeight: '600' }}>
+              <Text
+                style={{
+                  color: t.ink2,
+                  fontSize: idnTokens.text.callout,
+                  fontWeight: '600',
+                }}
+              >
                 Se connecter avec un passkey
               </Text>
             </Pressable>

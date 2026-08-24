@@ -1,0 +1,5 @@
+[install]
+# Metro et les modules natifs Expo doivent résoudre une seule copie de chaque
+# dépendance. Le linker hoisté évite les graphes peer isolés de Bun qui font
+# apparaître plusieurs installations d'Expo/React Native dans un monorepo.
+linker = "hoisted"

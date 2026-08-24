@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Pressable, View } from 'react-native';
+import { Animated, Pressable } from 'react-native';
 import { idnTokens } from '../tokens';
 import type { IdnTheme } from '../tokens';
 

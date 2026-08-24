@@ -57,9 +57,6 @@ export const iboiteFr = {
     attachments: 'PIÈCES JOINTES',
     notFound: 'Courrier introuvable.',
     title: 'Courrier',
-    print: {
-      soon: "L'impression directe sera disponible dans une prochaine version.",
-    },
   },
 
   colis: {
@@ -109,7 +106,6 @@ export const iboiteFr = {
     bodyEmail: 'Votre message…',
     bodyLetter: 'Rédigez votre courrier…',
     attach: 'Joindre',
-    attachSoon: 'Les pièces jointes seront ajoutées dans une prochaine version.',
     send: 'Envoyer',
     sending: '…',
     errors: {

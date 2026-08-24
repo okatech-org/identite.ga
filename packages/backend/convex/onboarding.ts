@@ -4,7 +4,11 @@ import { components, internal } from "./_generated/api"
 import { internalQuery, query } from "./_generated/server"
 import { mutation } from "./functions"
 import { authComponent } from "./auth"
-import { requireAuth, requireVerifiedAuth } from "./lib/auth"
+import {
+  getCurrentAuthUser,
+  requireAuth,
+  requireVerifiedAuth,
+} from "./lib/auth"
 import { assessIdentityCollision } from "./lib/duplicateGuard"
 import { raiseDuplicateFlags } from "./lib/duplicateFlags"
 import { derivePivotKeys } from "./lib/identity"
@@ -40,8 +44,8 @@ export const selectProfile = mutation({
       .withIndex("by_userId", (q) => q.eq("userId", user.userId))
       .unique()
 
-    const now = Date.now()
     if (existing) {
+      const now = Date.now()
       await ctx.db.patch(existing._id, {
         profileType: args.profileType,
         updatedAt: now,
@@ -49,63 +53,13 @@ export const selectProfile = mutation({
       return { profileId: existing._id }
     }
 
-    // Identifiant public IDN (`GA-XXXX-XXXX`) — généré une seule fois à la
-    // création du profil, puis stable à vie.
-    const idnId = await generateIdnId(ctx)
-
-    const profileId = await ctx.db.insert("userProfile", {
-      userId: user.userId,
-      profileType: args.profileType,
-      loa: 1, // email vérifié = niveau 1
-      idnId,
-      createdAt: now,
-      updatedAt: now,
+    // Ce point d'entrée appartenait à l'ancien tunnel en plusieurs mutations :
+    // il créait le profil avant que le PIN existe. Le laisser actif permettrait
+    // encore à un ancien client de produire un profil impossible à connecter.
+    throw new ConvexError({
+      code: "ONBOARDING_FLOW_UPDATED",
+      message: "Mettez l'application à jour pour terminer l'inscription.",
     })
-
-    // Initialise les préférences par défaut (langue fr, thème auto)
-    await ctx.db.insert("userPreference", {
-      userId: user.userId,
-      language: "fr",
-      theme: "auto",
-      accessibility: {
-        fontSize: "md",
-        reducedMotion: false,
-        highContrast: false,
-      },
-      createdAt: now,
-      updatedAt: now,
-    })
-
-    // Préférences notifications par défaut : tout activé pour security/kyc/consent
-    // Les nouvelles catégories (documents/ai/cv/system) ne sont pas posées
-    // explicitement — le dispatcher considère leur absence comme « activé »
-    // par défaut (cf. notifications.ts/DEFAULT_PREF_VALUE).
-    await ctx.db.insert("notificationPreference", {
-      userId: user.userId,
-      email: { security: true, kyc: true, consent: true, comms: false },
-      inApp: { security: true, kyc: true, consent: true, comms: true },
-      updatedAt: now,
-    })
-
-    await ctx.runMutation(internal.audit.recordAudit, {
-      actorId: user.userId,
-      action: "account_created",
-      targetType: "user",
-      targetId: user.userId,
-      metadata: { profileType: args.profileType, idnId },
-    })
-
-    // iBoîte + iCV (idempotent — n'écrit que si vide). Pas de pré-remplissage
-    // iCarte : l'utilisateur ajoute ses cartes lui-même. iDocument démarre
-    // sans données (le vault est activé manuellement par le citoyen).
-    await ctx.runMutation(internal.iboite.accounts.ensurePersonal, {
-      userId: user.userId,
-    })
-    await ctx.runMutation(internal.cv.cvs.ensureDefaultForUser, {
-      userId: user.userId,
-    })
-
-    return { profileId }
   },
 })
 
@@ -158,7 +112,8 @@ export const setIdentityPivot = mutation({
     if (nipTrim && !/^[A-Za-z0-9]{14}$/.test(nipTrim)) {
       throw new ConvexError({
         code: "INVALID_NIP",
-        message: "Le NIP doit contenir exactement 14 caractères (chiffres ou lettres).",
+        message:
+          "Le NIP doit contenir exactement 14 caractères (chiffres ou lettres).",
       })
     }
     // Même garde qu'à `completeSignup` : ce chemin écrit le pivot lui aussi, et
@@ -454,21 +409,30 @@ export const checkIdnHandleAvailability = query({
   handler: async (ctx, args) => {
     const handle = validateHandle(args.handle)
     const existing = await findUserByEmail(ctx, `${handle}${IDN_DOMAIN}`)
-    return { handle, available: existing === null }
+    const currentUser = await getCurrentAuthUser(ctx)
+    return {
+      handle,
+      // Une inscription interrompue après la création du compte Better Auth
+      // doit pouvoir reprendre avec l'adresse qui appartient déjà à la session.
+      available: existing === null || existing._id === currentUser?.userId,
+    }
   },
 })
 
 /**
- * Finalise l'inscription après création du compte Better Auth.
+ * Finalise l'inscription après création du compte Better Auth et confirmation
+ * du PIN.
  * Le client appelle `authClient.signUp.email({ email: handle@idn.ga, ... })`
  * puis cette mutation pour :
  *   1. marquer l'email comme vérifié (l'adresse @idn.ga est créée par
  *      l'utilisateur, pas besoin d'OTP),
- *   2. créer le userProfile + idnId + préférences,
- *   3. seed iCarte / iBoîte / iCV.
+ *   2. créer le userProfile + pinHash + idnId + préférences atomiquement,
+ *   3. seed iBoîte / iCV.
  */
 export const completeSignup = mutation({
   args: {
+    handle: v.string(),
+    pin: v.string(),
     profileType: v.union(...PROFILE_TYPES.map((t) => v.literal(t))),
     pivot: v.object({
       firstName: v.string(),
@@ -493,20 +457,37 @@ export const completeSignup = mutation({
   }),
   handler: async (ctx, args) => {
     const user = await requireAuth(ctx)
+    const expectedHandle = validateHandle(args.handle)
     const email = user.email.toLowerCase()
-    if (!email.endsWith(IDN_DOMAIN)) {
+    const expectedEmail = `${expectedHandle}${IDN_DOMAIN}`
+    if (email !== expectedEmail) {
       throw new ConvexError({
-        code: "INVALID_EMAIL",
-        message: "Le compte doit utiliser une adresse @idn.ga.",
+        code: "SESSION_MISMATCH",
+        message:
+          "La session ne correspond pas à l'adresse IDN réservée. Recommencez l'inscription.",
       })
     }
-    const handle = email.slice(0, -IDN_DOMAIN.length)
+    if (!PIN_REGEX.test(args.pin)) {
+      throw new ConvexError({
+        code: "INVALID_PIN",
+        message: "Le PIN doit contenir exactement 6 chiffres.",
+      })
+    }
 
-    if (args.pivot.firstName.trim().length < 1 || args.pivot.lastName.trim().length < 1) {
-      throw new ConvexError({ code: "INVALID", message: "Nom et prénom requis." })
+    if (
+      args.pivot.firstName.trim().length < 1 ||
+      args.pivot.lastName.trim().length < 1
+    ) {
+      throw new ConvexError({
+        code: "INVALID",
+        message: "Nom et prénom requis.",
+      })
     }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(args.pivot.dateOfBirth)) {
-      throw new ConvexError({ code: "INVALID", message: "Date de naissance invalide." })
+      throw new ConvexError({
+        code: "INVALID",
+        message: "Date de naissance invalide.",
+      })
     }
 
     // 1. Auto-vérification de l'email @idn.ga (par construction)
@@ -520,12 +501,29 @@ export const completeSignup = mutation({
       })
     }
 
-    // 2. Profil existant ? (idempotent — si l'utilisateur retente après échec)
+    const pinHash = await derivePinHash(args.pin, user.userId)
+
+    // 2. Profil existant ? Une réponse perdue peut faire rejouer exactement la
+    // même finalisation : dans ce seul cas, on renvoie le résultat précédent.
     const existing = await ctx.db
       .query("userProfile")
       .withIndex("by_userId", (q) => q.eq("userId", user.userId))
       .unique()
     if (existing) {
+      if (existing.pinHash === pinHash && existing.idnId) {
+        return {
+          profileId: existing._id,
+          idnHandle: expectedHandle,
+          idnId: existing.idnId,
+        }
+      }
+      if (!existing.pinHash) {
+        throw new ConvexError({
+          code: "PIN_SETUP_REQUIRED",
+          message:
+            "Ce compte existe sans PIN. Utilisez le parcours de récupération pour rétablir l'accès.",
+        })
+      }
       throw new ConvexError({
         code: "ALREADY_REGISTERED",
         message: "Ce compte est déjà initialisé.",
@@ -538,7 +536,8 @@ export const completeSignup = mutation({
     if (nipTrim && !/^[A-Za-z0-9]{14}$/.test(nipTrim)) {
       throw new ConvexError({
         code: "INVALID_NIP",
-        message: "Le NIP doit contenir exactement 14 caractères (chiffres ou lettres).",
+        message:
+          "Le NIP doit contenir exactement 14 caractères (chiffres ou lettres).",
       })
     }
 
@@ -586,6 +585,7 @@ export const completeSignup = mutation({
       profileType: args.profileType,
       loa: 1,
       idnId,
+      pinHash,
       pivot: {
         firstName: args.pivot.firstName.trim(),
         lastName: args.pivot.lastName.trim(),
@@ -610,7 +610,11 @@ export const completeSignup = mutation({
       userId: user.userId,
       language: "fr",
       theme: "auto",
-      accessibility: { fontSize: "md", reducedMotion: false, highContrast: false },
+      accessibility: {
+        fontSize: "md",
+        reducedMotion: false,
+        highContrast: false,
+      },
       createdAt: now,
       updatedAt: now,
     })
@@ -627,7 +631,17 @@ export const completeSignup = mutation({
       action: "account_created",
       targetType: "user",
       targetId: user.userId,
-      metadata: { profileType: args.profileType, idnId, idnHandle: handle },
+      metadata: {
+        profileType: args.profileType,
+        idnId,
+        idnHandle: expectedHandle,
+      },
+    })
+    await ctx.runMutation(internal.audit.recordAudit, {
+      actorId: user.userId,
+      action: "pin_changed",
+      targetType: "user",
+      targetId: user.userId,
     })
 
     // iBoîte personnel — alias = adresse IDN choisie par l'utilisateur.
@@ -635,12 +649,12 @@ export const completeSignup = mutation({
     // lui-même quand il en a besoin.)
     await ctx.runMutation(internal.iboite.accounts.ensurePersonal, {
       userId: user.userId,
-      idnHandle: handle,
+      idnHandle: expectedHandle,
     })
     await ctx.runMutation(internal.cv.cvs.ensureDefaultForUser, {
       userId: user.userId,
     })
 
-    return { profileId, idnHandle: handle, idnId }
+    return { profileId, idnHandle: expectedHandle, idnId }
   },
 })

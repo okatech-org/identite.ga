@@ -46,6 +46,15 @@ vi.mock("../lib/auth", async () => {
   return {
     requireAuth: authUser,
     requireVerifiedAuth: authUser,
+    getCurrentAuthUser: async (ctx: {
+      auth: { getUserIdentity: () => Promise<{ subject: string } | null> }
+    }) => {
+      try {
+        return await authUser(ctx)
+      } catch {
+        return null
+      }
+    },
     requireAdmin: async (ctx: {
       auth: { getUserIdentity: () => Promise<{ subject: string } | null> }
     }) => {

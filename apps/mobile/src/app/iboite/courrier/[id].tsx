@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Alert, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActionSheetIOS, Alert, Platform, Pressable, ScrollView, Share, Text, View } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -8,8 +8,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useIdnTheme } from '@/design/theme';
 import { idnTokens } from '@/design/tokens';
 import { NSheetHeader } from '@/components/chrome/sheet-header';
+import RichLetterEditor from '@/components/rich-letter-editor';
 import { Icon, type IconName } from '@/design/icons';
 import { api } from '@/lib/api';
+import { isHtmlLetterBody, letterBodyToText } from '@/lib/letter-content';
 
 /** Échappement HTML basique pour les chaînes injectées dans le template PDF. */
 function esc(s: string): string {
@@ -60,11 +62,35 @@ export default function CourrierDetail() {
       </View>
     );
   }
+  const stableLetter = letter;
 
   const created = new Date(letter.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
   const dueLabel = letter.dueAt
     ? new Date(letter.dueAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
     : null;
+
+  function buildLetterHtml() {
+    const bodyHtml = isHtmlLetterBody(stableLetter.body)
+      ? stableLetter.body
+      : `<div style="white-space: pre-wrap;">${esc(stableLetter.body)}</div>`;
+    const attachmentsHtml = stableLetter.attachments.length === 0 ? '' : `
+      <h2 style="font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; color: #6b6b6b; margin-top: 32px;">Pièces jointes</h2>
+      <ul style="font-size: 12px; color: #2a2a2a; padding-left: 18px;">
+        ${stableLetter.attachments.map((a) => `<li>${esc(a.name)} — ${Math.max(1, Math.round(a.size / 1024))} KB</li>`).join('')}
+      </ul>`;
+    return `<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8"><title>${esc(stableLetter.subject)}</title></head>
+<body style="font-family: Georgia, 'Times New Roman', serif; color: #1a1a1a; background: #fffdf7; margin: 0; padding: 56px 56px;">
+  <div style="display: flex; justify-content: space-between; font-size: 11px; color: #3a3a3a;">
+    <div style="max-width: 48%;"><div style="font-weight: 700; color: #1a1a1a;">${esc(stableLetter.senderName)}</div><div style="white-space: pre-line;">${esc(stableLetter.senderAddress)}</div></div>
+    <div style="max-width: 48%; text-align: right;"><div style="font-weight: 700; color: #1a1a1a;">${esc(stableLetter.recipientName)}</div><div style="white-space: pre-line;">${esc(stableLetter.recipientAddress)}</div></div>
+  </div>
+  <p style="text-align: right; font-size: 11px; color: #3a3a3a; margin-top: 24px;">Libreville, le ${esc(created)}</p>
+  <h1 style="border-bottom: 1px solid #d6d2c4; padding-bottom: 8px; margin-top: 28px; font-size: 14px;">Objet : ${esc(stableLetter.subject)}</h1>
+  <div style="font-size: 13px; line-height: 1.7; margin-top: 20px; text-align: justify; color: #2a2a2a;">${bodyHtml}</div>
+  ${attachmentsHtml}
+</body></html>`;
+  }
 
   async function move(target: 'pending' | 'trash') {
     try {
@@ -75,17 +101,26 @@ export default function CourrierDetail() {
     }
   }
 
-  const replyBody = `\n\n--- Courrier d'origine ---\nDe : ${letter.senderName}\nDate : ${created}\nObjet : ${letter.subject}\n\n${letter.body}`;
+  const plainBody = letterBodyToText(letter.body);
+  const replyBody = `\n\n--- Courrier d'origine ---\nDe : ${letter.senderName}\nDate : ${created}\nObjet : ${letter.subject}\n\n${plainBody}`;
   const replyHref =
-    `/iboite/compose?subject=${encodeURIComponent(`Re: ${letter.subject.replace(/^Re:\s*/i, '')}`)}` +
+    `/iboite/courrier/compose?subject=${encodeURIComponent(`Re: ${letter.subject.replace(/^Re:\s*/i, '')}`)}` +
     `&body=${encodeURIComponent(replyBody)}`;
 
-  function onPrint() {
+  async function onPrint() {
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       window.print();
       return;
     }
-    Alert.alert('Impression', 'L\'impression directe sera disponible dans une prochaine version.');
+    try {
+      await Print.printAsync({ html: buildLetterHtml() });
+    } catch (err) {
+      Alert.alert('Impression impossible', err instanceof Error ? err.message : 'Veuillez réessayer.');
+    }
+  }
+
+  async function onShare() {
+    await Share.share({ title: stableLetter.subject, message: `${stableLetter.senderName} — ${stableLetter.subject}\n\n${plainBody}` });
   }
 
   /**
@@ -94,41 +129,13 @@ export default function CourrierDetail() {
    * page de la prévisualisation papier ivoire.
    */
   async function onDownload() {
-    if (!letter) return;
     try {
-      const attachmentsHtml = letter.attachments.length === 0 ? '' : `
-        <h2 style="font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; color: #6b6b6b; margin-top: 32px;">Pièces jointes</h2>
-        <ul style="font-size: 12px; color: #2a2a2a; padding-left: 18px;">
-          ${letter.attachments.map((a) => `<li>${esc(a.name)} — ${Math.max(1, Math.round(a.size / 1024))} KB</li>`).join('')}
-        </ul>
-      `;
-      const html = `
-<!DOCTYPE html>
-<html lang="fr"><head><meta charset="utf-8"><title>${esc(letter.subject)}</title></head>
-<body style="font-family: Georgia, 'Times New Roman', serif; color: #1a1a1a; background: #fffdf7; margin: 0; padding: 56px 56px;">
-  <div style="display: flex; justify-content: space-between; font-size: 11px; color: #3a3a3a;">
-    <div style="max-width: 48%;">
-      <div style="font-weight: 700; color: #1a1a1a;">${esc(letter.senderName)}</div>
-      <div style="white-space: pre-line;">${esc(letter.senderAddress)}</div>
-    </div>
-    <div style="max-width: 48%; text-align: right;">
-      <div style="font-weight: 700; color: #1a1a1a;">${esc(letter.recipientName)}</div>
-      <div style="white-space: pre-line;">${esc(letter.recipientAddress)}</div>
-    </div>
-  </div>
-  <p style="text-align: right; font-size: 11px; color: #3a3a3a; margin-top: 24px;">Libreville, le ${esc(created)}</p>
-  <h1 style="border-bottom: 1px solid #d6d2c4; padding-bottom: 8px; margin-top: 28px; font-size: 14px;">Objet : ${esc(letter.subject)}</h1>
-  <div style="white-space: pre-wrap; font-size: 13px; line-height: 1.7; margin-top: 20px; text-align: justify; color: #2a2a2a;">
-    ${esc(letter.body)}
-  </div>
-  ${attachmentsHtml}
-</body></html>`;
-      const { uri } = await Print.printToFileAsync({ html, base64: false });
+      const { uri } = await Print.printToFileAsync({ html: buildLetterHtml(), base64: false });
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
         await Sharing.shareAsync(uri, {
           mimeType: 'application/pdf',
-          dialogTitle: `${safeFilename(letter.subject)}.pdf`,
+          dialogTitle: `${safeFilename(stableLetter.subject)}.pdf`,
           UTI: 'com.adobe.pdf',
         });
       } else {
@@ -139,10 +146,29 @@ export default function CourrierDetail() {
     }
   }
 
+  function openMore() {
+    const run = (index: number) => {
+      if (index === 1) void onDownload();
+      if (index === 2) void onPrint();
+      if (index === 3) void onShare();
+    };
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions({ options: ['Annuler', 'Télécharger le PDF', 'Imprimer', 'Partager'], cancelButtonIndex: 0 }, run);
+    } else {
+      Alert.alert('Actions', undefined, [
+        { text: 'Télécharger le PDF', onPress: () => void onDownload() },
+        { text: 'Imprimer', onPress: () => void onPrint() },
+        { text: 'Partager', onPress: () => void onShare() },
+        { text: 'Annuler', style: 'cancel' },
+      ]);
+    }
+  }
+
   const actions: Action[] = [
     { icon: 'reply', l: 'Répondre', primary: true, onPress: () => router.push(replyHref as never) },
-    { icon: 'download', l: 'PDF', onPress: onDownload },
     { icon: 'clock', l: 'À traiter', onPress: () => move('pending') },
+    { icon: 'printer', l: 'Imprimer', onPress: () => void onPrint() },
+    { icon: 'share', l: 'Partager', onPress: () => void onShare() },
     { icon: 'trash', l: 'Suppr.', danger: true, onPress: () => move('trash') },
   ];
 
@@ -152,7 +178,7 @@ export default function CourrierDetail() {
         t={t}
         title="Courrier"
         onBack={() => router.back()}
-        right={<Pressable style={{ padding: 4 }}><Icon name="more" size={18} color={t.muted} /></Pressable>}
+        right={<Pressable onPress={openMore} style={{ padding: 4 }}><Icon name="more" size={18} color={t.muted} /></Pressable>}
       />
       <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingVertical: 14 }} showsVerticalScrollIndicator={false} style={{ flex: 1, backgroundColor: t.bg }}>
         <View style={{ backgroundColor: '#fffdf7', borderRadius: 8, paddingHorizontal: 18, paddingVertical: 24, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 24, shadowOffset: { width: 0, height: 8 }, elevation: 6 }}>
@@ -171,7 +197,7 @@ export default function CourrierDetail() {
             <Text style={{ fontSize: 12, fontWeight: '700', color: '#1a1a1a' }}>Objet : {letter.subject}</Text>
           </View>
           <View style={{ marginTop: 14 }}>
-            <Text style={{ fontSize: 11, lineHeight: 19, color: '#2a2a2a' }}>{letter.body}</Text>
+            {isHtmlLetterBody(letter.body) ? <RichLetterEditor initialHtml={letter.body} readOnly dom={{ matchContents: true, scrollEnabled: false }} /> : <Text style={{ fontSize: 11, lineHeight: 19, color: '#2a2a2a' }}>{letter.body}</Text>}
           </View>
         </View>
 

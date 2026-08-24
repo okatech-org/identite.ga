@@ -1,15 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useConvex, useMutation, useQuery } from 'convex/react';
-import * as Crypto from 'expo-crypto';
+import { useQuery } from 'convex/react';
 import { useIdnTheme } from '@/design/theme';
 import { idnTokens } from '@/design/tokens';
 import { NStepShell } from '@/components/chrome/step-shell';
 import { Icon } from '@/design/icons';
 import { api } from '@/lib/api';
-import { authClient } from '@/lib/auth-client';
 import {
+  getOnboardingHandle,
   getOnboardingPivot,
   getOnboardingProfile,
   setOnboardingHandle,
@@ -17,64 +16,28 @@ import {
   type OnboardingProfile,
 } from '@/hooks/use-onboarding-state';
 
-// Better Auth `signUp.email` exige un password. L'app ne l'expose pas à
-// l'utilisateur : on génère un secret aléatoire fort, non stocké côté
-// client. Le compte ne sera ensuite accessible que par PIN ou passkey.
-//
-// On utilise `expo-crypto` (CSPRNG natif iOS/Android) plutôt que le global
-// `crypto.getRandomValues` qui n'est pas exposé sur Hermes — il est défini
-// sur web et Node, pas en React Native par défaut.
-function generateInternalPassword(): string {
-  const alphabet =
-    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=';
-  const buf = Crypto.getRandomBytes(32);
-  let s = '';
-  for (let i = 0; i < buf.length; i++) s += alphabet[buf[i] % alphabet.length];
-  return s;
-}
-
 const HANDLE_REGEX = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/;
-
-/**
- * Attend que le JWT Better Auth → Convex soit propagé après sign-up.
- * Sans cette attente, completeSignup throw UNAUTHENTICATED juste après
- * authClient.signUp.email.
- */
-async function waitForConvexAuth(
-  fetchMe: () => Promise<unknown>,
-  timeoutMs = 5000,
-): Promise<void> {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    const me = await fetchMe();
-    if (me) return;
-    await new Promise((r) => setTimeout(r, 120));
-  }
-  throw new Error('Session non synchronisée. Réessayez.');
-}
 
 export default function SignupIdn() {
   const t = useIdnTheme();
   const router = useRouter();
-  const convex = useConvex();
   const [profile, setProfile] = useState<OnboardingProfile | null>(null);
   const [pivot, setPivot] = useState<OnboardingPivot | null>(null);
   const [handle, setHandle] = useState('');
-  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const completeSignup = useMutation(api.onboarding.completeSignup);
 
   useEffect(() => {
     (async () => {
       const p = await getOnboardingProfile();
       const pv = await getOnboardingPivot();
+      const savedHandle = await getOnboardingHandle();
       if (!p || !pv) {
         router.replace('/(auth)/signup/profil');
         return;
       }
       setProfile(p);
       setPivot(pv);
+      if (savedHandle) setHandle(savedHandle);
     })();
   }, [router]);
 
@@ -96,14 +59,8 @@ export default function SignupIdn() {
   }, [suggestions, handle]);
 
   const handleNormalized = handle.trim().toLowerCase();
-  const handleValid =
-    handleNormalized.length >= 3 &&
-    handleNormalized.length <= 32 &&
-    HANDLE_REGEX.test(handleNormalized);
-  const availability = useQuery(
-    api.onboarding.checkIdnHandleAvailability,
-    handleValid ? { handle: handleNormalized } : 'skip',
-  );
+  const handleValid = handleNormalized.length >= 3 && handleNormalized.length <= 32 && HANDLE_REGEX.test(handleNormalized);
+  const availability = useQuery(api.onboarding.checkIdnHandleAvailability, handleValid ? { handle: handleNormalized } : 'skip');
 
   const status = useMemo(() => {
     if (!handle) {
@@ -120,7 +77,11 @@ export default function SignupIdn() {
       return { ok: false, neutral: true, label: 'Vérification…' };
     }
     if (availability.available) {
-      return { ok: true, neutral: false, label: 'Disponible — vous pouvez la réserver' };
+      return {
+        ok: true,
+        neutral: false,
+        label: 'Disponible — vous pouvez la réserver',
+      };
     }
     return {
       ok: false,
@@ -132,36 +93,12 @@ export default function SignupIdn() {
   const isTaken = handleValid && availability && !availability.available;
 
   async function reserve() {
-    if (!profile || !pivot || !handleValid || !availability?.available || submitting) return;
-    setSubmitting(true);
+    if (!profile || !pivot || !handleValid || !availability?.available) return;
     setError(null);
-    try {
-      const result = await authClient.signUp.email({
-        email: `${handleNormalized}@idn.ga`,
-        password: generateInternalPassword(),
-        name: handleNormalized,
-      });
-      if (result?.error) {
-        const code = result.error.code as string | undefined;
-        setError(
-          code === 'USER_ALREADY_EXISTS'
-            ? 'Cette adresse est déjà attribuée à un autre citoyen.'
-            : (result.error.message ?? 'Impossible de créer le compte. Réessayez.'),
-        );
-        setSubmitting(false);
-        return;
-      }
-      await waitForConvexAuth(() => convex.query(api.profile.getCurrentUser, {}));
-      await completeSignup({ profileType: profile, pivot });
-      await setOnboardingHandle(handleNormalized);
-      router.push('/(auth)/signup/pin');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Une erreur est survenue. Réessayez.');
-      setSubmitting(false);
-    }
+    await setOnboardingHandle(handleNormalized);
+    router.push('/(auth)/signup/pin');
   }
 
-  const primaryLabel = submitting ? 'Réservation…' : 'Réserver cette adresse';
   const visibleSuggestions = suggestions ? suggestions.slice(0, 4) : [];
 
   return (
@@ -173,10 +110,19 @@ export default function SignupIdn() {
       sub="Choisissez l'adresse qui vous identifiera auprès de l'administration."
       onBack={() => router.back()}
       onPrimary={reserve}
-      primary={primaryLabel}
+      primary="Réserver cette adresse"
     >
       <View>
-        <Text style={{ fontSize: idnTokens.text.label, fontWeight: '600', color: t.ink, marginBottom: 8 }}>Identifiant</Text>
+        <Text
+          style={{
+            fontSize: idnTokens.text.label,
+            fontWeight: '600',
+            color: t.ink,
+            marginBottom: 8,
+          }}
+        >
+          Identifiant
+        </Text>
         <View
           style={{
             flexDirection: 'row',
@@ -206,11 +152,25 @@ export default function SignupIdn() {
               height: '100%',
             }}
           />
-          <Text style={{ fontFamily: idnTokens.mono, fontSize: 16, color: t.muted, fontWeight: '500' }}>
+          <Text
+            style={{
+              fontFamily: idnTokens.mono,
+              fontSize: 16,
+              color: t.muted,
+              fontWeight: '500',
+            }}
+          >
             @idn.ga
           </Text>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+            marginTop: 8,
+          }}
+        >
           <View
             style={{
               width: 8,
@@ -233,7 +193,15 @@ export default function SignupIdn() {
       </View>
 
       <View>
-        <Text style={{ fontSize: idnTokens.text.footnote, color: t.muted, letterSpacing: 1, fontWeight: '700', marginBottom: 12 }}>
+        <Text
+          style={{
+            fontSize: idnTokens.text.footnote,
+            color: t.muted,
+            letterSpacing: 1,
+            fontWeight: '700',
+            marginBottom: 12,
+          }}
+        >
           {isTaken ? 'DISPONIBLES POUR VOUS' : 'SUGGESTIONS'}
         </Text>
         <View style={{ gap: 8 }}>
@@ -311,15 +279,45 @@ export default function SignupIdn() {
         }}
       >
         <Icon name="shield" size={20} color={idnTokens.blue} />
-        <Text style={{ flex: 1, fontSize: idnTokens.text.footnote, color: t.ink2, lineHeight: 20 }}>
-          L'adresse <Text style={{ fontFamily: idnTokens.mono, color: t.ink, fontWeight: '600' }}>@idn.ga</Text> est
-          hébergée sur le sol gabonais. Elle est définitive et reste valide à vie.
+        <Text
+          style={{
+            flex: 1,
+            fontSize: idnTokens.text.footnote,
+            color: t.ink2,
+            lineHeight: 20,
+          }}
+        >
+          L’adresse{' '}
+          <Text
+            style={{
+              fontFamily: idnTokens.mono,
+              color: t.ink,
+              fontWeight: '600',
+            }}
+          >
+            @idn.ga
+          </Text>{' '}
+          est hébergée sur le sol gabonais. Elle est définitive et reste valide à vie.
         </Text>
       </View>
 
       {error ? (
-        <View style={{ backgroundColor: t.dark ? '#3A1212' : '#FBE5E5', borderRadius: 12, padding: 14 }}>
-          <Text style={{ color: idnTokens.danger, fontSize: idnTokens.text.footnote, lineHeight: 19 }}>{error}</Text>
+        <View
+          style={{
+            backgroundColor: t.dark ? '#3A1212' : '#FBE5E5',
+            borderRadius: 12,
+            padding: 14,
+          }}
+        >
+          <Text
+            style={{
+              color: idnTokens.danger,
+              fontSize: idnTokens.text.footnote,
+              lineHeight: 19,
+            }}
+          >
+            {error}
+          </Text>
         </View>
       ) : null}
     </NStepShell>

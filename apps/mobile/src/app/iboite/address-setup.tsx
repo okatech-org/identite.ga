@@ -256,7 +256,7 @@ export default function IBoiteAddressSetup() {
               Localisation en cours…
             </Text>
             <Text style={{ fontSize: 11, color: t.muted, textAlign: 'center', maxWidth: 260 }}>
-              Autorisez la géolocalisation à l'invite système pour continuer.
+              Autorisez la géolocalisation à l’invite système pour continuer.
             </Text>
           </View>
         ) : null}

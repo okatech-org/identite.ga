@@ -1,15 +1,20 @@
 import { ConvexBetterAuthProvider } from '@convex-dev/better-auth/react';
-import { ConvexReactClient } from 'convex/react';
+import { ConvexReactClient, useConvexAuth, useQuery } from 'convex/react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { StrictMode } from 'react';
-import { useColorScheme } from 'react-native';
+import React, { StrictMode } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { registerGlobals } from '@livekit/react-native';
 
+import { AuthRouteGuard } from '@/components/auth-route-guard';
+import { ThemePreferenceProvider, useThemePreference } from '@/design/theme';
 import { authClient } from '@/lib/auth-client';
+import { api } from '@/lib/api';
 import { VaultProvider } from '@/hooks/use-vault';
+
+registerGlobals();
 
 const convexUrl = process.env.EXPO_PUBLIC_CONVEX_URL;
 
@@ -28,15 +33,17 @@ const convex = new ConvexReactClient(convexUrl, {
 });
 
 export default function RootLayout() {
-  const scheme = useColorScheme();
   return (
     <StrictMode>
       <ConvexBetterAuthProvider client={convex} authClient={authClient}>
-        <VaultProvider>
+        <ThemePreferenceProvider>
+          <PreferenceSync />
+          <AuthRouteGuard />
+          <VaultProvider>
           <GestureHandlerRootView style={{ flex: 1 }}>
             <KeyboardProvider>
               <SafeAreaProvider>
-              <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+              <ThemedStatusBar />
               <Stack screenOptions={{ headerShown: false, animation: 'default' }}>
                 <Stack.Screen name="index" />
                 <Stack.Screen name="launcher" options={{ animation: 'fade' }} />
@@ -53,12 +60,39 @@ export default function RootLayout() {
                 <Stack.Screen name="icarte" />
                 <Stack.Screen name="iboite" />
                 <Stack.Screen name="activity" />
+                <Stack.Screen name="consents" />
+                <Stack.Screen name="profile-edit" />
               </Stack>
             </SafeAreaProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>
-        </VaultProvider>
+          </VaultProvider>
+        </ThemePreferenceProvider>
       </ConvexBetterAuthProvider>
     </StrictMode>
   );
+}
+
+function ThemedStatusBar() {
+  const { dark } = useThemePreference();
+  return <StatusBar style={dark ? 'light' : 'dark'} />;
+}
+
+function PreferenceSync() {
+  const { isAuthenticated } = useConvexAuth();
+  const preferences = useQuery(api.preferences.getMyPreferences, isAuthenticated ? {} : 'skip');
+  const { hydrated, preference, setPreference } = useThemePreference();
+  const didHydrateRemotePreference = React.useRef(false);
+
+  React.useEffect(() => {
+    if (!isAuthenticated) {
+      didHydrateRemotePreference.current = false;
+      return;
+    }
+    if (hydrated && !didHydrateRemotePreference.current && preferences?.theme) {
+      didHydrateRemotePreference.current = true;
+      if (preferences.theme !== preference) void setPreference(preferences.theme);
+    }
+  }, [hydrated, isAuthenticated, preference, preferences?.theme, setPreference]);
+  return null;
 }

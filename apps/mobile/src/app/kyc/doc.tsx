@@ -1,10 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Image } from 'expo-image';
-import Svg, { Path } from 'react-native-svg';
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useConvexAuth, useMutation, useQuery } from 'convex/react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { idnTokens } from '@/design/tokens';
@@ -29,10 +28,12 @@ function CornerBracket({ position }: { position: { top?: number; bottom?: number
 
 export default function KycDoc() {
   const router = useRouter();
+  const { target } = useLocalSearchParams<{ target?: string }>();
+  const targetLoa = target === '3' ? 3 : 2;
   const insets = useSafeAreaInsets();
   const { isAuthenticated } = useConvexAuth();
   const active = useQuery(api.kyc.getActiveRequest, isAuthenticated ? {} : 'skip');
-  const initialize = useMutation(api.kyc.initialize);
+  const requestVerification = useMutation(api.verification.request);
   const generateUploadUrl = useMutation(api.kyc.generateUploadUrl);
   const setDocumentImage = useMutation(api.kyc.setDocumentImage);
 
@@ -41,20 +42,16 @@ export default function KycDoc() {
   const [error, setError] = useState<string | null>(null);
   const [previews, setPreviews] = useState<{ front?: string; back?: string }>({});
 
-  const kycRequestId = (active?._id ?? null) as Id<'kycRequest'> | null;
-  const hasFront = !!active?.docFrontUrl || !!previews.front;
-  const hasBack = !!active?.docBackUrl || !!previews.back;
-
-  useEffect(() => {
-    if (!active && !kycRequestId) {
-      // Initialize lazily on first capture
-    }
-  }, [active, kycRequestId]);
+  const editableActive = active?.status === 'pending' || active?.status === 'complement_required' ? active : null;
+  const kycRequestId = (editableActive?._id ?? null) as Id<'kycRequest'> | null;
+  const hasFront = !!editableActive?.docFrontUrl || !!previews.front;
+  const hasBack = !!editableActive?.docBackUrl || !!previews.back;
 
   async function ensureRequest(): Promise<Id<'kycRequest'>> {
     if (kycRequestId) return kycRequestId;
-    const r = await initialize({ documentType: 'cni_gabon' });
-    return r.kycRequestId;
+    const result = await requestVerification({ targetLoa, documentType: 'cni_gabon' });
+    if (!result.kycRequestId) throw new Error('Aucune demande documentaire n’a été ouverte.');
+    return result.kycRequestId;
   }
 
   async function pick() {
@@ -92,7 +89,7 @@ export default function KycDoc() {
       // Auto avance vers verso si on vient de capturer recto
       if (side === 'front' && !hasBack) setSide('back');
       else if (side === 'back') {
-        router.push('/kyc/selfie');
+        router.push(`/kyc/selfie?target=${targetLoa}` as never);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors de la capture.');
@@ -105,7 +102,7 @@ export default function KycDoc() {
     setSide((s) => (s === 'front' ? 'back' : 'front'));
   }
 
-  const previewUri = previews[side] ?? (side === 'front' ? active?.docFrontUrl ?? undefined : active?.docBackUrl ?? undefined);
+  const previewUri = previews[side] ?? (side === 'front' ? editableActive?.docFrontUrl ?? undefined : editableActive?.docBackUrl ?? undefined);
   const sideLabel = side === 'front' ? 'Recto de la CNI' : 'Verso de la CNI';
 
   return (
@@ -130,7 +127,7 @@ export default function KycDoc() {
           ) : (
             <View style={{ position: 'absolute', inset: 14, opacity: 0.34 } as any}>
               <Text style={{ fontSize: 8, letterSpacing: 1.4, color: '#fff', fontFamily: idnTokens.mono }}>RÉPUBLIQUE GABONAISE</Text>
-              <Text style={{ fontSize: 9, color: '#fff', marginTop: 2, fontFamily: idnTokens.mono }}>CARTE NATIONALE D'IDENTITÉ</Text>
+              <Text style={{ fontSize: 9, color: '#fff', marginTop: 2, fontFamily: idnTokens.mono }}>CARTE NATIONALE D’IDENTITÉ</Text>
             </View>
           )}
           <CornerBracket position={{ top: -3, left: -3 }} />
@@ -168,7 +165,7 @@ export default function KycDoc() {
             {uploading ? <ActivityIndicator color="#0E110D" /> : null}
           </Pressable>
           {hasFront && hasBack ? (
-            <Pressable onPress={() => router.push('/kyc/selfie')} style={{ paddingHorizontal: 12, paddingVertical: 10, borderRadius: 9999, backgroundColor: idnTokens.green }}>
+            <Pressable onPress={() => router.push(`/kyc/selfie?target=${targetLoa}` as never)} style={{ paddingHorizontal: 12, paddingVertical: 10, borderRadius: 9999, backgroundColor: idnTokens.green }}>
               <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>Suivant</Text>
             </Pressable>
           ) : (

@@ -116,14 +116,14 @@ export function VaultGate({ children }: { children: React.ReactNode }) {
           </IdnButton>
           {submitting ? (
             <Text style={{ fontSize: 11, color: t.muted, textAlign: 'center', marginTop: -4 }}>
-              Cela peut prendre quelques secondes — l'app reste réactive.
+              Cela peut prendre quelques secondes — l’app reste réactive.
             </Text>
           ) : null}
 
           {activating ? (
             <Pressable style={{ paddingVertical: 8 }}>
               <Text style={{ color: t.muted, fontSize: 12, textAlign: 'center', lineHeight: 18 }}>
-                IDN n'a aucun accès à votre mot de passe ni à vos documents. En cas de perte, ils sont irrécupérables.
+                IDN n’a aucun accès à votre mot de passe ni à vos documents. En cas de perte, ils sont irrécupérables.
               </Text>
             </Pressable>
           ) : null}

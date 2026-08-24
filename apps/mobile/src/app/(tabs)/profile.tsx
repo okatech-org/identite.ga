@@ -1,6 +1,8 @@
 import React from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
+import Constants from 'expo-constants';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { useRouter } from 'expo-router';
 import { useConvexAuth, useQuery } from 'convex/react';
@@ -111,9 +113,9 @@ export default function Profile() {
       </View>
       <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 4, paddingBottom: 18 }} showsVerticalScrollIndicator={false}>
         <Group>
-          <View style={{ padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+          <Pressable onPress={() => router.push('/profile-edit' as never)} style={{ padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
             <LinearGradient colors={['#0E7C3A', '#0A5C2C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: 56, height: 56, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ color: '#fff', fontWeight: '600', fontSize: 18 }}>{initials}</Text>
+              {profile?.photoUrl ? <Image source={{ uri: profile.photoUrl }} style={{ width: '100%', height: '100%', borderRadius: 14 }} contentFit="cover" /> : <Text style={{ color: '#fff', fontWeight: '600', fontSize: 18 }}>{initials}</Text>}
             </LinearGradient>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 16, fontWeight: '600', color: t.ink }}>{prenom} {nom}</Text>
@@ -121,7 +123,7 @@ export default function Profile() {
               <View style={{ marginTop: 6 }}><LoABadge level={loa} t={t} compact /></View>
             </View>
             <Icon name="arrow" size={16} color={t.muted} />
-          </View>
+          </Pressable>
         </Group>
 
         <SectionLabel mt={6}>SÉCURITÉ</SectionLabel>
@@ -143,9 +145,10 @@ export default function Profile() {
 
         <SectionLabel>COMPTE</SectionLabel>
         <Group>
-          <Row icon={IconG('doc')} l="Mes documents" sub={`${documentsCount} document${documentsCount > 1 ? 's' : ''} stocké${documentsCount > 1 ? 's' : ''}`} />
+          <Row icon={IconG('edit')} l="Modifier mon profil" sub="Photo et identité pivot" onPress={() => router.push('/profile-edit' as never)} />
+          <Row icon={IconG('doc')} l="Mes documents" sub={`${documentsCount} document${documentsCount > 1 ? 's' : ''} stocké${documentsCount > 1 ? 's' : ''}`} onPress={() => router.push('/settings/documents' as never)} />
           <Row icon={IconG('activity')} l="Activité" sub="Tous les événements de votre compte" onPress={() => router.push('/activity')} />
-          <Row icon={IconG('shield')} l="Consentements" sub={`${consentsCount} application${consentsCount > 1 ? 's' : ''} autorisée${consentsCount > 1 ? 's' : ''}`} />
+          <Row icon={IconG('shield')} l="Consentements" sub={`${consentsCount} application${consentsCount > 1 ? 's' : ''} autorisée${consentsCount > 1 ? 's' : ''}`} onPress={() => router.push('/consents' as never)} />
           <Row
             icon={<Svg width={18} height={18} viewBox="0 0 24 24" fill="none"><Path d="M3 6h18l-2 14H5z" stroke={idnTokens.green} strokeWidth={1.6} strokeLinejoin="round" /><Path d="M9 10v6M15 10v6" stroke={idnTokens.green} strokeWidth={1.6} /></Svg>}
             l="Appareils & sessions" sub={`${sessionsCount} session${sessionsCount > 1 ? 's' : ''} active${sessionsCount > 1 ? 's' : ''}`}
@@ -155,14 +158,15 @@ export default function Profile() {
 
         <SectionLabel>PRÉFÉRENCES</SectionLabel>
         <Group>
-          <Row icon={IconG('bell')} l="Notifications" onPress={() => router.push('/notifications')} />
+          <Row icon={IconG('bell')} l="Centre de notifications" onPress={() => router.push('/notifications')} />
+          <Row icon={IconG('bell')} l="Préférences de notification" onPress={() => router.push('/settings/notification-preferences' as never)} />
           <Row
             icon={<Svg width={18} height={18} viewBox="0 0 24 24" fill="none"><Circle cx={12} cy={12} r={9} stroke={idnTokens.green} strokeWidth={1.6} /><Path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18" stroke={idnTokens.green} strokeWidth={1.6} /></Svg>}
             l="Langue" onPress={() => router.push('/settings/language')}
           />
           <Row
             icon={<Svg width={18} height={18} viewBox="0 0 24 24" fill="none"><Circle cx={12} cy={12} r={4} stroke={idnTokens.green} strokeWidth={1.6} /><Path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2" stroke={idnTokens.green} strokeWidth={1.6} strokeLinecap="round" /></Svg>}
-            l="Apparence" sub="Système" last
+            l="Apparence" sub="Clair, sombre ou système" onPress={() => router.push('/settings/appearance' as never)} last
           />
         </Group>
 
@@ -176,10 +180,11 @@ export default function Profile() {
           <Row
             icon={<Svg width={18} height={18} viewBox="0 0 24 24" fill="none"><Circle cx={12} cy={12} r={9} stroke={idnTokens.green} strokeWidth={1.6} /><Path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.5-2.5 2-2.5 3.5M12 17h.01" stroke={idnTokens.green} strokeWidth={1.6} strokeLinecap="round" /></Svg>}
             l="Aide & support"
+            onPress={() => router.push('/settings/support' as never)}
           />
           <Row
             icon={<Svg width={18} height={18} viewBox="0 0 24 24" fill="none"><Circle cx={12} cy={12} r={9} stroke={idnTokens.green} strokeWidth={1.6} /><Path d="M12 8v5M12 16h.01" stroke={idnTokens.green} strokeWidth={1.6} strokeLinecap="round" /></Svg>}
-            l="À propos d'IDN" sub="v1.2 · MVP" onPress={() => router.push('/settings/about')}
+            l="À propos d'IDN" sub={`v${Constants.expoConfig?.version ?? '1.0.0'}`} onPress={() => router.push('/settings/about')}
           />
           <Row
             icon={<Svg width={18} height={18} viewBox="0 0 24 24" fill="none"><Path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4" stroke="#B83A3A" strokeWidth={1.6} strokeLinecap="round" /><Path d="M14 17l5-5-5-5M9 12h10" stroke="#B83A3A" strokeWidth={1.6} strokeLinecap="round" /></Svg>}

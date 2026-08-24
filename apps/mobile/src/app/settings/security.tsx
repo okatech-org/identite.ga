@@ -270,14 +270,14 @@ function TotpEnrollModal({ visible, onClose }: { visible: boolean; onClose: () =
       <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top + 8 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', padding: 14, borderBottomWidth: 1, borderBottomColor: t.borderSoft }}>
           <Pressable onPress={close}><Text style={{ color: idnTokens.green, fontSize: 14, fontWeight: '500' }}>Annuler</Text></Pressable>
-          <Text style={{ flex: 1, textAlign: 'center', fontSize: 15, fontWeight: '600', color: t.ink }}>Application d'authentification</Text>
+          <Text style={{ flex: 1, textAlign: 'center', fontSize: 15, fontWeight: '600', color: t.ink }}>Application d’authentification</Text>
           <View style={{ width: 60 }} />
         </View>
         <ScrollView contentContainerStyle={{ padding: 22, gap: 14 }} keyboardShouldPersistTaps="handled">
           {phase === 'password' ? (
             <>
               <Text style={{ fontSize: 13, color: t.ink2, lineHeight: 19 }}>
-                Confirmez votre mot de passe pour générer une clé secrète et l'associer à votre application d'authentification (Google Authenticator, 1Password, etc.).
+                Confirmez votre mot de passe pour générer une clé secrète et l’associer à votre application d’authentification (Google Authenticator, 1Password, etc.).
               </Text>
               <IdnInput t={t} label="Mot de passe" value={password} onChangeText={setPassword} type="password" autoFocus />
               {error ? (
@@ -292,7 +292,7 @@ function TotpEnrollModal({ visible, onClose }: { visible: boolean; onClose: () =
           ) : (
             <>
               <Text style={{ fontSize: 13, color: t.ink2, lineHeight: 19 }}>
-                Scannez ce QR code dans votre application d'authentification, puis saisissez le code à 6 chiffres généré pour finaliser.
+                Scannez ce QR code dans votre application d’authentification, puis saisissez le code à 6 chiffres généré pour finaliser.
               </Text>
               {totpUri ? (
                 <View style={{ alignSelf: 'center', backgroundColor: '#fff', padding: 16, borderRadius: 14 }}>
@@ -394,6 +394,90 @@ function TotpDisableModal({ visible, onClose }: { visible: boolean; onClose: () 
   );
 }
 
+function NipChangeModal({ visible, onClose, currentNip }: { visible: boolean; onClose: () => void; currentNip?: string }) {
+  const t = useIdnTheme();
+  const insets = useSafeAreaInsets();
+  const updateNip = useMutation(api.profile.updateNip);
+  const [nip, setNip] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  function close() {
+    setNip('');
+    setError(null);
+    setSubmitting(false);
+    onClose();
+  }
+
+  async function submit() {
+    const value = nip.trim();
+    if (!/^[A-Za-z0-9]{14}$/.test(value)) {
+      setError('Le NIP doit contenir exactement 14 lettres ou chiffres.');
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      await updateNip({ nip: value });
+      close();
+      Alert.alert('NIP enregistré', 'Votre numéro d’identification personnelle a été mis à jour.');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Mise à jour impossible.');
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={close}>
+      <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top + 8 }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            padding: 14,
+            borderBottomWidth: 1,
+            borderBottomColor: t.borderSoft,
+          }}
+        >
+          <Pressable onPress={close}>
+            <Text style={{ color: idnTokens.green, fontSize: 14 }}>Annuler</Text>
+          </Pressable>
+          <Text
+            style={{
+              flex: 1,
+              textAlign: 'center',
+              color: t.ink,
+              fontSize: 15,
+              fontWeight: '600',
+            }}
+          >
+            {currentNip ? 'Modifier le NIP' : 'Définir le NIP'}
+          </Text>
+          <View style={{ width: 54 }} />
+        </View>
+        <ScrollView contentContainerStyle={{ padding: 22, gap: 14 }} keyboardShouldPersistTaps="handled">
+          <Text style={{ color: t.muted, fontSize: 12, lineHeight: 18 }}>Le NIP RBPP comporte exactement 14 caractères. Vérifiez-le soigneusement avant l’enregistrement.</Text>
+          <IdnInput t={t} label="NIP (RBPP)" value={nip} onChangeText={(value) => setNip(value.replace(/[^A-Za-z0-9]/g, '').slice(0, 14))} placeholder="14 caractères" autoFocus />
+          {error ? (
+            <View
+              style={{
+                backgroundColor: t.dark ? '#3A1212' : '#FBE5E5',
+                borderRadius: 10,
+                padding: 12,
+              }}
+            >
+              <Text style={{ color: '#B83A3A', fontSize: 12 }}>{error}</Text>
+            </View>
+          ) : null}
+          <IdnButton t={t} size="lg" full onPress={submit} disabled={submitting || nip.length !== 14}>
+            {submitting ? 'Enregistrement…' : 'Enregistrer le NIP'}
+          </IdnButton>
+        </ScrollView>
+      </View>
+    </Modal>
+  );
+}
+
 export default function SettingsSecurity() {
   const t = useIdnTheme();
   const router = useRouter();
@@ -404,6 +488,7 @@ export default function SettingsSecurity() {
   const twoFactorEnabled: boolean = session?.user?.twoFactorEnabled ?? false;
   const [pwOpen, setPwOpen] = useState(false);
   const [pinOpen, setPinOpen] = useState(false);
+  const [nipOpen, setNipOpen] = useState(false);
   const [totpEnrollOpen, setTotpEnrollOpen] = useState(false);
   const [totpDisableOpen, setTotpDisableOpen] = useState(false);
   const [faceUnlock, setFaceUnlock] = useState(false);
@@ -505,6 +590,7 @@ export default function SettingsSecurity() {
         : `${passkeys.length} clé${passkeys.length > 1 ? 's' : ''} enregistrée${passkeys.length > 1 ? 's' : ''}`;
 
   const pinConfigured = user?.profile?.pinConfigured ?? false;
+  const currentNip = user?.profile?.pivot?.nip;
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top }}>
@@ -514,6 +600,7 @@ export default function SettingsSecurity() {
         <View style={{ backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 14, overflow: 'hidden' }}>
           <SetMobileRow t={t} label="Mot de passe" value="Changer le mot de passe" onPress={() => setPwOpen(true)} />
           <SetMobileRow t={t} label="Code PIN" value={pinConfigured ? '6 chiffres · configuré' : 'Non configuré'} onPress={() => setPinOpen(true)} />
+          <SetMobileRow t={t} label="NIP (RBPP)" value={currentNip ? `Configuré · ${currentNip.slice(0, 4)}••••••${currentNip.slice(-4)}` : 'Non configuré'} onPress={() => setNipOpen(true)} />
         </View>
 
         <Text style={{ fontSize: 10, color: t.muted, letterSpacing: 1.2, fontWeight: '600', paddingHorizontal: 4, paddingTop: 14, paddingBottom: 6 }}>AUTHENTIFICATION À 2 FACTEURS</Text>
@@ -561,12 +648,13 @@ export default function SettingsSecurity() {
         }}>
           <Icon name="shield" size={18} color={idnTokens.blue} />
           <Text style={{ flex: 1, fontSize: 12, color: t.ink2, lineHeight: 18 }}>
-            L'application d'authentification (TOTP) et les clés matérielles (FIDO2) protègent votre compte. Conservez vos codes de secours hors ligne pour ne jamais perdre l'accès.
+            L’application d’authentification (TOTP) et les clés matérielles (FIDO2) protègent votre compte. Conservez vos codes de secours hors ligne pour ne jamais perdre l’accès.
           </Text>
         </View>
       </ScrollView>
       <PasswordChangeModal visible={pwOpen} onClose={() => setPwOpen(false)} />
       <PinChangeModal visible={pinOpen} onClose={() => setPinOpen(false)} />
+      <NipChangeModal visible={nipOpen} onClose={() => setNipOpen(false)} currentNip={currentNip} />
       <TotpEnrollModal visible={totpEnrollOpen} onClose={() => setTotpEnrollOpen(false)} />
       <TotpDisableModal visible={totpDisableOpen} onClose={() => setTotpDisableOpen(false)} />
     </View>

@@ -13,7 +13,7 @@ export type IconName =
   | 'mail2' | 'package' | 'chat' | 'pinLoc' | 'chevDn' | 'star' | 'starO'
   | 'inbox' | 'send' | 'clock' | 'reply' | 'forward' | 'printer' | 'archive' | 'truck' | 'paper' | 'building' | 'alert'
   | 'baby' | 'cap' | 'file' | 'folderO' | 'upload' | 'sparkles' | 'scale' | 'checkCir' | 'seal'
-  | 'close' | 'minus' | 'calendar';
+  | 'close' | 'minus' | 'calendar' | 'mic';
 
 type Props = { name: IconName; size?: number; color?: string };
 
@@ -93,6 +93,13 @@ export function Icon({ name, size = 20, color = '#000' }: Props) {
           <Rect x={3} y={6} width={18} height={14} rx={2} stroke={color} strokeWidth={sw} />
           <Circle cx={12} cy={13} r={4} stroke={color} strokeWidth={sw} />
           <Path d="M9 6l1.5-2h3L15 6" stroke={color} strokeWidth={sw} strokeLinecap="round" />
+        </Svg>
+      );
+    case 'mic':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <Rect x={9} y={3} width={6} height={12} rx={3} stroke={color} strokeWidth={sw} />
+          <Path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M9 21h6" stroke={color} strokeWidth={sw} strokeLinecap="round" />
         </Svg>
       );
     case 'qr':

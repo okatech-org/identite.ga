@@ -73,6 +73,12 @@ export function PinPad({
   }, [resetKey])
 
   React.useEffect(() => {
+    // Après un refus de connexion, le parent vide la valeur sans forcément
+    // changer resetKey. Le prochain PIN complet doit pouvoir être soumis.
+    if (value.length < length) completedRef.current = false
+  }, [length, value])
+
+  React.useEffect(() => {
     if (autoFocus) hiddenInputRef.current?.focus()
   }, [autoFocus])
 

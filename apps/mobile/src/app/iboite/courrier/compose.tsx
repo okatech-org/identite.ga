@@ -1,26 +1,22 @@
 import React, { useState } from 'react';
 import { Alert, Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useConvexAuth, useMutation, useQuery } from 'convex/react';
+import { useConvex, useConvexAuth, useMutation, useQuery } from 'convex/react';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
+import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useIdnTheme } from '@/design/theme';
 import { idnTokens } from '@/design/tokens';
 import { NSheetHeader } from '@/components/chrome/sheet-header';
+import RichLetterEditor from '@/components/rich-letter-editor';
 import { IdnButton } from '@/design/components/idn-button';
 import { Icon } from '@/design/icons';
 import { api } from '@/lib/api';
 import { resolveActiveAccountId, useIBoiteActiveAccount } from '@/lib/iboite-active-account';
+import { hasLetterContent } from '@/lib/letter-content';
 
-/**
- * Composition d'un courrier physique iBoîte (équivalent mobile du
- * `LetterComposeModal` web). Sans éditeur riche dans cette première
- * mouture mobile — un textarea suffit. Les pièces jointes suivent le flux
- * `expo-document-picker → generateUploadUrl → send` (même schéma que
- * `idoc/add`) ; on accumule les fichiers en mémoire puis on les uploade au
- * moment de l'envoi (parité avec la maquette web).
- */
+/** Composition d'un courrier physique iBoîte, avec éditeur riche et pièces jointes. */
 
 // Limite alignée sur le web (`letter-compose-modal`). Le backend n'impose
 // pas de plafond côté `generateUploadUrl` ; on garde donc la même garde
@@ -92,6 +88,7 @@ async function pickAttachment(): Promise<PickedAttachment | null> {
 export default function IBoiteCourrierCompose() {
   const t = useIdnTheme();
   const router = useRouter();
+  const convex = useConvex();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ to?: string; subject?: string; body?: string }>();
   const { isAuthenticated } = useConvexAuth();
@@ -102,11 +99,36 @@ export default function IBoiteCourrierCompose() {
   const accountId = resolveActiveAccountId(accounts, activeAccountId);
   const [toEmail, setToEmail] = useState((params.to as string | undefined) ?? '');
   const [subject, setSubject] = useState((params.subject as string | undefined) ?? '');
-  const [body, setBody] = useState((params.body as string | undefined) ?? '');
+  const [initialBody] = useState((params.body as string | undefined) ?? '');
+  const bodyRef = React.useRef(initialBody);
   const [attachments, setAttachments] = useState<PickedAttachment[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   const senderEmail = accounts?.find((a) => a._id === accountId)?.emailAlias ?? '—';
+
+  const onBodyChange = React.useCallback(async (html: string) => {
+    bodyRef.current = html;
+  }, []);
+
+  const onPickInlineImage = React.useCallback(async (): Promise<string | null> => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.85 });
+      if (result.canceled || !result.assets[0]) return null;
+      const asset = result.assets[0];
+      if ((asset.fileSize ?? 0) > MAX_ATTACHMENT_BYTES) throw new Error(`Chaque image est limitée à ${MAX_ATTACHMENT_LABEL}.`);
+      const mime = asset.mimeType ?? 'image/jpeg';
+      const uploadUrl = await generateUploadUrl({});
+      const upload = await fetch(uploadUrl, { method: 'POST', headers: { 'Content-Type': mime }, body: await (await fetch(asset.uri)).blob() });
+      if (!upload.ok) throw new Error(`Upload échoué (${upload.status})`);
+      const { storageId } = (await upload.json()) as { storageId: string };
+      const url = await convex.query(api.iboite.letters.getStorageUrl, { storageRef: storageId as never });
+      if (!url) throw new Error('Impossible de résoudre l’image envoyée.');
+      return url;
+    } catch (err) {
+      Alert.alert('Image non ajoutée', err instanceof Error ? err.message : 'Veuillez réessayer.');
+      return null;
+    }
+  }, [convex, generateUploadUrl]);
 
   async function onAttach() {
     try {
@@ -140,7 +162,8 @@ export default function IBoiteCourrierCompose() {
       Alert.alert('Objet requis', 'Donnez un objet à votre courrier.');
       return;
     }
-    if (!body.trim()) {
+    const body = bodyRef.current.trim();
+    if (!hasLetterContent(body)) {
       Alert.alert('Courrier vide', 'Écrivez le contenu de votre courrier.');
       return;
     }
@@ -171,7 +194,7 @@ export default function IBoiteCourrierCompose() {
         accountId: accountId as never,
         recipientEmail: toEmail.trim().toLowerCase(),
         subject: subject.trim(),
-        body: body.trim(),
+        body,
         attachments: uploaded.length > 0 ? (uploaded as never) : undefined,
       });
       router.back();
@@ -221,15 +244,9 @@ export default function IBoiteCourrierCompose() {
             style={{ fontSize: 14, color: t.ink, fontWeight: '600' }}
           />
         </View>
-        <TextInput
-          value={body}
-          onChangeText={setBody}
-          placeholder="Rédigez votre courrier…"
-          placeholderTextColor={t.muted}
-          multiline
-          textAlignVertical="top"
-          style={{ flex: 1, fontSize: 13, color: t.ink, lineHeight: 21, paddingVertical: 14 }}
-        />
+        <View style={{ flex: 1, paddingVertical: 10 }}>
+          <RichLetterEditor initialHtml={initialBody} onChange={onBodyChange} onPickImage={onPickInlineImage} dom={{ style: { flex: 1 } }} />
+        </View>
       </View>
       {attachments.length > 0 ? (
         <View style={{ borderTopWidth: 1, borderTopColor: t.borderSoft, paddingHorizontal: 22, paddingVertical: 8, gap: 6 }}>
