@@ -60,5 +60,8 @@
     "react-dom": "19.2.0",
     "sonner": "^2.0.7",
     "zod": "^4.4.3"
+  },
+  "patchedDependencies": {
+    "expo-router@55.0.18": "patches/expo-router@55.0.18.patch"
   }
 }

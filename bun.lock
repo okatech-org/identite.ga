@@ -367,6 +367,9 @@
       },
     },
   },
+  "patchedDependencies": {
+    "expo-router@55.0.18": "patches/expo-router@55.0.18.patch",
+  },
   "overrides": {
     "react": "19.2.0",
     "react-dom": "19.2.0",
