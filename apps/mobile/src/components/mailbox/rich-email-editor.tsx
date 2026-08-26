@@ -6,10 +6,20 @@ import { isHtmlLetterBody, plainTextToLetterHtml } from "@/lib/letter-content"
 type Props = {
   initialHtml: string
   onChange: (html: string) => Promise<void>
+  theme: {
+    dark: boolean
+    background: string
+    surface: string
+    foreground: string
+    muted: string
+    border: string
+    active: string
+    link: string
+  }
   dom?: import("expo/dom").DOMProps
 }
 
-export default function RichEmailEditor({ initialHtml, onChange }: Props) {
+export default function RichEmailEditor({ initialHtml, onChange, theme }: Props) {
   const editorRef = React.useRef<HTMLDivElement>(null)
   const changeTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -94,16 +104,17 @@ export default function RichEmailEditor({ initialHtml, onChange }: Props) {
       </nav>
       <style>{`
         * { box-sizing: border-box; }
-        html, body, #root, main { margin: 0; min-height: 100%; background: transparent; }
-        main { display: flex; flex-direction: column; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #202124; }
+        :root { color-scheme: ${theme.dark ? "dark" : "light"}; }
+        html, body, #root, main { margin: 0; min-height: 100%; background: ${theme.background}; }
+        main { display: flex; flex-direction: column; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: ${theme.foreground}; }
         .editor { flex: 1; min-height: 240px; padding: 16px 2px; outline: none; font-size: 15px; line-height: 1.55; overflow-wrap: anywhere; }
-        .editor:empty::before { content: attr(data-placeholder); color: #8a8d86; pointer-events: none; }
+        .editor:empty::before { content: attr(data-placeholder); color: ${theme.muted}; pointer-events: none; }
         .editor p { margin: 0 0 .75em; }
         .editor ul, .editor ol { padding-left: 1.5em; }
-        .editor a { color: #0e7c3a; }
-        nav { position: sticky; bottom: 0; display: flex; gap: 4px; padding: 7px 0; border-top: 1px solid #e4e6e1; background: #fff; }
-        button { min-width: 34px; height: 32px; padding: 0 8px; border: 0; border-radius: 7px; background: transparent; color: #4c5048; font-size: 13px; font-weight: 600; }
-        button:active { background: #eef1eb; }
+        .editor a { color: ${theme.link}; text-decoration: underline; }
+        nav { position: sticky; bottom: 0; display: flex; gap: 4px; padding: 7px 0; border-top: 1px solid ${theme.border}; background: ${theme.surface}; }
+        button { min-width: 34px; height: 32px; padding: 0 8px; border: 0; border-radius: 7px; background: transparent; color: ${theme.foreground}; font-size: 13px; font-weight: 600; }
+        button:active { background: ${theme.active}; }
       `}</style>
     </main>
   )

@@ -7,7 +7,9 @@ import {
   BoldIcon,
   FileTextIcon,
   ItalicIcon,
+  LinkIcon,
   ListIcon,
+  ListOrderedIcon,
   PaperclipIcon,
   SendIcon,
   UnderlineIcon,
@@ -44,6 +46,7 @@ export function ComposeModal({
   fromEmail,
   onClose,
   replyToId,
+  mode,
 }: {
   accountId: Id<"iboiteAccount">
   fromEmail: string
@@ -54,6 +57,7 @@ export function ComposeModal({
    * L'`inReplyTo` est passé au backend pour hériter du `threadId`.
    */
   replyToId?: Id<"iboiteMessage">
+  mode: "new" | "reply" | "replyAll" | "forward"
 }) {
   const send = useMutation(api.iboite.messages.send)
   const generateUploadUrl = useMutation(api.iboite.messages.generateUploadUrl)
@@ -101,11 +105,38 @@ export function ComposeModal({
       didPrefillRef.current = true
       return
     }
-    setTo(original.senderEmail)
+    if (mode !== "forward") setTo(original.senderEmail)
     const base = original.subject
-    setSubject(/^re:\s*/i.test(base) ? base : `Re: ${base}`)
+    const subjectPrefix = mode === "forward" ? "Tr:" : "Re:"
+    const subjectWithoutPrefix = base.replace(/^(Re|Tr|Fwd):\s*/i, "")
+    setSubject(`${subjectPrefix} ${subjectWithoutPrefix}`)
+    const date = new Date(original.createdAt).toLocaleString("fr-FR", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+    const quote = `\n\n--- Message d'origine ---\nDe : ${original.senderName} <${original.senderEmail}>\nDate : ${date}\nObjet : ${original.subject}\n\n${original.body}`
+    const escapedQuote = quote
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;")
+      .replaceAll("\n", "<br>")
+    const quoteHtml = `<p><br></p><blockquote style="margin:0;border-left:2px solid #9a9c8e;padding-left:12px">${escapedQuote}</blockquote>`
+    setBody(quote)
+    setBodyHtml(quoteHtml)
+    if (editorRef.current) editorRef.current.innerHTML = quoteHtml
     didPrefillRef.current = true
-  }, [replyToId, original])
+  }, [replyToId, original, mode])
+
+  React.useEffect(() => {
+    const editor = editorRef.current
+    if (!editor || !bodyHtml || editor.innerHTML === bodyHtml) return
+    editor.innerHTML = bodyHtml
+  }, [bodyHtml])
 
   async function submit(e?: React.FormEvent) {
     e?.preventDefault()
@@ -167,7 +198,7 @@ export function ComposeModal({
         // En mode réponse, on transmet l'id du message d'origine — le
         // backend en déduit le `threadId` et rattache la nouvelle entrée
         // à la conversation existante.
-        inReplyTo: replyToId,
+        inReplyTo: mode === "forward" ? undefined : replyToId,
       })
       toast.success(iboite.toasts.sent)
       onClose()
@@ -195,13 +226,37 @@ export function ComposeModal({
     }
   }
 
-  const title = replyToId ? iboite.compose.replyTitle : iboite.compose.title
+  const title =
+    mode === "forward"
+      ? iboite.compose.forwardTitle
+      : mode === "replyAll"
+        ? iboite.compose.replyAllTitle
+        : replyToId
+          ? iboite.compose.replyTitle
+          : iboite.compose.title
 
   function format(
-    command: "bold" | "italic" | "underline" | "insertUnorderedList",
+    command:
+      | "bold"
+      | "italic"
+      | "underline"
+      | "insertUnorderedList"
+      | "insertOrderedList",
   ) {
     editorRef.current?.focus()
     document.execCommand(command)
+    const editor = editorRef.current
+    if (editor) {
+      setBody(editor.innerText)
+      setBodyHtml(editor.innerHTML)
+    }
+  }
+
+  function addLink() {
+    const url = window.prompt("Adresse du lien (https://…)")
+    if (!url || !/^https?:\/\//i.test(url)) return
+    editorRef.current?.focus()
+    document.execCommand("createLink", false, url)
     const editor = editorRef.current
     if (editor) {
       setBody(editor.innerText)
@@ -285,6 +340,7 @@ export function ComposeModal({
                 ["italic", ItalicIcon, "Italique"],
                 ["underline", UnderlineIcon, "Souligné"],
                 ["insertUnorderedList", ListIcon, "Liste à puces"],
+                ["insertOrderedList", ListOrderedIcon, "Liste numérotée"],
               ] as const
             ).map(([command, Icon, label]) => (
               <button
@@ -297,6 +353,14 @@ export function ComposeModal({
                 <Icon className="h-4 w-4" aria-hidden="true" />
               </button>
             ))}
+            <button
+              type="button"
+              onClick={addLink}
+              aria-label="Ajouter un lien"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground"
+            >
+              <LinkIcon className="h-4 w-4" aria-hidden="true" />
+            </button>
           </div>
 
           {attachments.length > 0 ? (

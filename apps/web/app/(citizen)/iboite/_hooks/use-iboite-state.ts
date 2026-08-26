@@ -32,6 +32,15 @@ export type IBoiteState = {
   composeOpen: boolean
   /** Si renseigné, le compose s'ouvre en mode réponse au message d'id donné. */
   replyToId: string | null
+  composeMode: "new" | "reply" | "replyAll" | "forward"
+}
+
+function readComposeMode(
+  value: string | null,
+): "new" | "reply" | "replyAll" | "forward" {
+  return value === "reply" || value === "replyAll" || value === "forward"
+    ? value
+    : "new"
 }
 
 function readSection(value: string | null): SectionKey {
@@ -73,6 +82,7 @@ export function useIBoiteState() {
     selectedId: searchParams.get("id"),
     composeOpen: searchParams.get("compose") === "1",
     replyToId: searchParams.get("reply"),
+    composeMode: readComposeMode(searchParams.get("cmode")),
   }
 
   const replace = React.useCallback(
@@ -92,6 +102,8 @@ export function useIBoiteState() {
       else params.delete("compose")
       if (next.replyToId) params.set("reply", next.replyToId)
       else params.delete("reply")
+      if (next.composeMode === "new") params.delete("cmode")
+      else params.set("cmode", next.composeMode)
       const qs = params.toString()
       router.replace(qs ? `/iboite?${qs}` : "/iboite", { scroll: false })
     },
@@ -105,6 +117,7 @@ export function useIBoiteState() {
       state.selectedId,
       state.composeOpen,
       state.replyToId,
+      state.composeMode,
     ],
   )
 
@@ -120,8 +133,13 @@ export function useIBoiteState() {
      * Ouvre le compose. Si `replyToId` est fourni, le ComposeModal pré-remplit
      * destinataire + sujet en lisant le message original via Convex.
      */
-    openCompose: (replyToId?: string) =>
-      replace({ composeOpen: true, replyToId: replyToId ?? null }),
-    closeCompose: () => replace({ composeOpen: false, replyToId: null }),
+    openCompose: (
+      replyToId?: string,
+      composeMode: "new" | "reply" | "replyAll" | "forward" = replyToId
+        ? "reply"
+        : "new",
+    ) => replace({ composeOpen: true, replyToId: replyToId ?? null, composeMode }),
+    closeCompose: () =>
+      replace({ composeOpen: false, replyToId: null, composeMode: "new" }),
   }
 }

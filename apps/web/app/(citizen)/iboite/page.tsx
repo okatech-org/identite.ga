@@ -70,8 +70,11 @@ export default function IBoitePage() {
 
   // Ouvre le compose en mode réponse au message courant. `selectedId`
   // est garanti non-null par les conditions d'affichage des actions.
-  const replyToCurrent = () => {
-    if (state.selectedId) state.openCompose(state.selectedId)
+  const replyToCurrent = (mode: "reply" | "replyAll" = "reply") => {
+    if (state.selectedId) state.openCompose(state.selectedId, mode)
+  }
+  const forwardCurrent = () => {
+    if (state.selectedId) state.openCompose(state.selectedId, "forward")
   }
 
   return (
@@ -132,8 +135,9 @@ export default function IBoitePage() {
                 <EmailActionsPanel
                   messageId={state.selectedId as Id<"iboiteMessage">}
                   onBack={() => state.selectItem(null)}
-                  onCompose={() => state.openCompose()}
-                  onReply={replyToCurrent}
+                  onReply={() => replyToCurrent()}
+                  onReplyAll={() => replyToCurrent("replyAll")}
+                  onForward={forwardCurrent}
                 />
               ) : null}
             </>
@@ -196,7 +200,7 @@ export default function IBoitePage() {
               {state.selectedId ? (
                 <EmailDetail
                   messageId={state.selectedId as Id<"iboiteMessage">}
-                  onReply={replyToCurrent}
+                  onReply={() => replyToCurrent()}
                 />
               ) : (
                 <EmailList
@@ -209,8 +213,9 @@ export default function IBoitePage() {
                 <EmailActionsBar
                   messageId={state.selectedId as Id<"iboiteMessage">}
                   onBack={() => state.selectItem(null)}
-                  onCompose={() => state.openCompose()}
-                  onReply={replyToCurrent}
+                  onReply={() => replyToCurrent()}
+                  onReplyAll={() => replyToCurrent("replyAll")}
+                  onForward={forwardCurrent}
                 />
               ) : null}
             </>
@@ -253,6 +258,7 @@ export default function IBoitePage() {
               ? (state.replyToId as Id<"iboiteMessage">)
               : undefined
           }
+          mode={state.composeMode}
         />
       ) : null}
 

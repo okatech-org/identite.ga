@@ -18,6 +18,7 @@ import { NSheetHeader } from "@/components/chrome/sheet-header"
 import { Icon, type IconName } from "@/design/icons"
 import { api } from "@/lib/api"
 import { EmailHtmlView } from "@/components/mailbox/email-html-view"
+import { EmailTextBody } from "@/components/mailbox/email-text-body"
 
 type Action = {
   icon: IconName
@@ -290,16 +291,7 @@ export default function EmailDetail() {
           {email.bodyHtml ? (
             <EmailHtmlView html={email.bodyHtml} t={t} />
           ) : (
-            <Text
-              style={{
-                padding: 16,
-                fontSize: 15,
-                lineHeight: 24,
-                color: t.ink2,
-              }}
-            >
-              {email.body}
-            </Text>
+            <EmailTextBody text={email.body} t={t} />
           )}
         </View>
         {email.attachments.length > 0 ? (

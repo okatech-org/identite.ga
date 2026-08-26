@@ -19,6 +19,13 @@ type NativePushSubscription = {
   token: string
 }
 
+type ExpoPushTicket = {
+  status?: string
+  id?: string
+  message?: string
+  details?: { error?: string }
+}
+
 export const notification = internalAction({
   args: {
     userId: v.string(),
@@ -111,14 +118,26 @@ export const notification = internalAction({
           })
         } else {
           const json = (await response.json()) as {
-            data?: Array<{ status?: string; details?: { error?: string } }>
+            data?: ExpoPushTicket[]
           }
+          const receipts: Array<{
+            subscriptionId: Id<"nativePushSubscription">
+            token: string
+            ticketId: string
+          }> = []
           for (let index = 0; index < nativeSubscriptions.length; index += 1) {
             const subscription = nativeSubscriptions[index]
             const ticket = json.data?.[index]
             if (!subscription) continue
             if (ticket?.status === "ok") {
               sent += 1
+              if (ticket.id) {
+                receipts.push({
+                  subscriptionId: subscription._id,
+                  token: subscription.token,
+                  ticketId: ticket.id,
+                })
+              }
             } else if (ticket?.details?.error === "DeviceNotRegistered") {
               stale += 1
               await ctx.runMutation(
@@ -128,7 +147,19 @@ export const notification = internalAction({
                   token: subscription.token,
                 },
               )
+            } else {
+              console.warn("[expo-push] ticket refusé", {
+                error: ticket?.details?.error ?? "UnknownError",
+                message: ticket?.message ?? null,
+              })
             }
+          }
+          if (receipts.length > 0) {
+            await ctx.scheduler.runAfter(
+              15_000,
+              internal.push.deliver.checkReceipts,
+              { receipts },
+            )
           }
         }
       } catch (error) {
@@ -138,5 +169,64 @@ export const notification = internalAction({
       }
     }
     return { sent, stale }
+  },
+})
+
+export const checkReceipts = internalAction({
+  args: {
+    receipts: v.array(
+      v.object({
+        subscriptionId: v.id("nativePushSubscription"),
+        token: v.string(),
+        ticketId: v.string(),
+      }),
+    ),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    if (args.receipts.length === 0) return null
+    try {
+      const response = await fetch(
+        "https://exp.host/--/api/v2/push/getReceipts",
+        {
+          method: "POST",
+          headers: {
+            accept: "application/json",
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            ids: args.receipts.map((receipt) => receipt.ticketId),
+          }),
+        },
+      )
+      if (!response.ok) {
+        console.warn("[expo-push] lecture des reçus impossible", {
+          statusCode: response.status,
+        })
+        return null
+      }
+      const json = (await response.json()) as {
+        data?: Record<string, ExpoPushTicket>
+      }
+      for (const receipt of args.receipts) {
+        const result = json.data?.[receipt.ticketId]
+        if (!result || result.status === "ok") continue
+        if (result.details?.error === "DeviceNotRegistered") {
+          await ctx.runMutation(internal.nativePushSubscriptions.deleteStale, {
+            subscriptionId: receipt.subscriptionId,
+            token: receipt.token,
+          })
+        }
+        console.warn("[expo-push] livraison refusée", {
+          error: result.details?.error ?? "UnknownError",
+          message: result.message ?? null,
+        })
+      }
+    } catch (error) {
+      console.warn("[expo-push] lecture des reçus impossible", {
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
+    return null
   },
 })

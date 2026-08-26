@@ -26,18 +26,19 @@ import { useEmailActions } from "../_hooks/use-email-actions"
 type Props = {
   messageId: Id<"iboiteMessage">
   onBack: () => void
-  /** Ouvre le compose en mode nouveau message (cas Forward, FAB). */
-  onCompose: () => void
   /** Ouvre le compose pré-rempli en réponse au message courant. */
   onReply: () => void
+  onReplyAll: () => void
+  onForward: () => void
 }
 
 /** Panneau d'actions vertical — uniquement desktop (md+). */
 export function EmailActionsPanel({
   messageId,
   onBack,
-  onCompose,
   onReply,
+  onReplyAll,
+  onForward,
 }: Props) {
   const actions = useEmailActions({ messageId, onAfterMove: onBack })
 
@@ -63,7 +64,7 @@ export function EmailActionsPanel({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
-            <DropdownMenuItem onSelect={onReply}>
+            <DropdownMenuItem onSelect={onReplyAll}>
               <ReplyIcon className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
               {iboite.emails.actions.reply}
             </DropdownMenuItem>
@@ -76,7 +77,7 @@ export function EmailActionsPanel({
 
         <button
           type="button"
-          onClick={onCompose}
+          onClick={onForward}
           className="flex items-center justify-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-300"
         >
           <ForwardIcon className="h-3.5 w-3.5" aria-hidden="true" />
@@ -119,8 +120,9 @@ export function EmailActionsPanel({
 export function EmailActionsBar({
   messageId,
   onBack,
-  onCompose,
   onReply,
+  onReplyAll,
+  onForward,
 }: Props) {
   const actions = useEmailActions({ messageId, onAfterMove: onBack })
 
@@ -140,10 +142,16 @@ export function EmailActionsBar({
       primary: true,
     },
     {
+      key: "reply-all",
+      icon: ReplyAllIcon,
+      label: iboite.emails.actions.replyAll,
+      onClick: onReplyAll,
+    },
+    {
       key: "forward",
       icon: ForwardIcon,
       label: iboite.emails.actions.forward,
-      onClick: onCompose,
+      onClick: onForward,
     },
     {
       key: "archive",

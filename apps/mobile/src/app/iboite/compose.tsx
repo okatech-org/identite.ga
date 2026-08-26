@@ -29,6 +29,7 @@ import {
 // les fichiers en mémoire puis on les uploade au moment de l'envoi.
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
 const MAX_ATTACHMENT_LABEL = "10 Mo"
+const MAX_ATTACHMENTS = 10
 
 type PickedAttachment = {
   name: string
@@ -128,7 +129,6 @@ export default function IBoiteCompose() {
   const [toEmail, setToEmail] = useState(
     (params.to as string | undefined) ?? "",
   )
-  const [toName, setToName] = useState("")
   const [subject, setSubject] = useState(
     (params.subject as string | undefined) ?? "",
   )
@@ -155,7 +155,6 @@ export default function IBoiteCompose() {
       setSubject((prev) => prev || `Tr: ${stripPrefix(original.subject)}`)
     } else {
       setToEmail((prev) => prev || original.senderEmail)
-      setToName((prev) => prev || original.senderName)
       setSubject((prev) => prev || `Re: ${stripPrefix(original.subject)}`)
     }
     setBody((prev) => {
@@ -175,6 +174,13 @@ export default function IBoiteCompose() {
 
   async function onAttach() {
     try {
+      if (attachments.length >= MAX_ATTACHMENTS) {
+        Alert.alert(
+          "Limite atteinte",
+          `Vous pouvez joindre jusqu’à ${MAX_ATTACHMENTS} fichiers.`,
+        )
+        return
+      }
       const f = await pickAttachment()
       if (!f) return
       if (f.size > MAX_ATTACHMENT_BYTES) {
@@ -203,10 +209,14 @@ export default function IBoiteCompose() {
       Alert.alert("Aucun compte", iboiteFr.compose.errors.noAccount)
       return
     }
-    if (!toEmail.trim() || !toEmail.includes("@")) {
+    const rawRecipient = toEmail.trim().toLowerCase()
+    const recipientEmail = rawRecipient.includes("@")
+      ? rawRecipient
+      : `${rawRecipient}@idn.ga`
+    if (!rawRecipient || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail)) {
       Alert.alert(
         "Destinataire invalide",
-        "Saisissez une adresse email valide.",
+        "Saisissez une adresse email ou un identifiant iBoîte valide.",
       )
       return
     }
@@ -256,12 +266,14 @@ export default function IBoiteCompose() {
 
       await send({
         accountId: accountId as never,
-        recipientEmail: toEmail.trim().toLowerCase(),
-        recipientName: toName.trim() || toEmail.trim().split("@")[0],
+        recipientEmail,
+        recipientName: recipientEmail.split("@")[0] || recipientEmail,
         subject: subject.trim(),
         body: bodyText,
         bodyHtml,
         attachments: uploaded.length > 0 ? (uploaded as never) : undefined,
+        inReplyTo:
+          replyToId && mode !== "forward" ? (replyToId as never) : undefined,
       })
       router.back()
     } catch (err) {
@@ -274,9 +286,9 @@ export default function IBoiteCompose() {
   }
 
   return (
-    // Présenté en `formSheet` (cf. iboite/_layout) → pas de `insets.top`,
-    // iOS gère la safe area du sheet.
-    <View style={{ flex: 1, backgroundColor: t.bg }}>
+    <View
+      style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top }}
+    >
       <NSheetHeader
         t={t}
         title=""
@@ -353,34 +365,6 @@ export default function IBoiteCompose() {
             borderBottomWidth: 1,
             borderBottomColor: t.borderSoft,
             paddingVertical: 12,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 8,
-          }}
-        >
-          <Text
-            style={{
-              fontSize: 12,
-              color: t.muted,
-              width: 36,
-              fontWeight: "500",
-            }}
-          >
-            Nom
-          </Text>
-          <TextInput
-            value={toName}
-            onChangeText={setToName}
-            placeholder="Nom du destinataire (optionnel)"
-            placeholderTextColor={t.muted}
-            style={{ flex: 1, fontSize: 13, color: t.ink }}
-          />
-        </View>
-        <View
-          style={{
-            borderBottomWidth: 1,
-            borderBottomColor: t.borderSoft,
-            paddingVertical: 12,
           }}
         >
           <TextInput
@@ -395,7 +379,17 @@ export default function IBoiteCompose() {
           <RichEmailEditor
             initialHtml={body}
             onChange={onBodyChange}
-            dom={{ style: { flex: 1 } }}
+            theme={{
+              dark: t.dark,
+              background: t.bg,
+              surface: t.surface,
+              foreground: t.ink,
+              muted: t.muted,
+              border: t.borderSoft,
+              active: t.surface2,
+              link: t.dark ? "#58C985" : idnTokens.green,
+            }}
+            dom={{ style: { flex: 1, backgroundColor: t.bg } }}
           />
         </View>
       </View>

@@ -149,6 +149,8 @@ export const iboite = {
   compose: {
     title: "Nouveau message",
     replyTitle: "Répondre",
+    replyAllTitle: "Répondre à tous",
+    forwardTitle: "Transférer",
     to: "À",
     toPlaceholder: "destinataire@…",
     subject: "Objet",

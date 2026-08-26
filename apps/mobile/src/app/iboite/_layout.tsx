@@ -14,7 +14,7 @@ export default function IBoiteLayout() {
           (iOS affiche alors sa nav bar native qui masque notre `NSheetHeader`). */}
       <Stack.Screen
         name="compose"
-        options={{ presentation: 'formSheet', sheetAllowedDetents: [0.95], headerShown: false }}
+        options={{ presentation: 'fullScreenModal', headerShown: false }}
       />
       <Stack.Screen
         name="address-setup"
