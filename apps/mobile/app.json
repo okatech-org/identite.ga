@@ -21,6 +21,9 @@
       "bundleIdentifier": "ga.idn.mobile",
       "buildNumber": "1",
       "associatedDomains": ["webcredentials:identite.ga"],
+      "entitlements": {
+        "aps-environment": "production"
+      },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "Identité Numérique utilise l'appareil photo pour scanner les QR codes de connexion et photographier vos pièces d'identité lors de la vérification KYC.",
