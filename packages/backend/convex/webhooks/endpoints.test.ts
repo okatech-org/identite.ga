@@ -60,6 +60,7 @@ async function seedApp(
   userId: string,
   environment: "sandbox" | "production" = "sandbox",
   scopes = ["idn:iboite.read"],
+  metadata: Record<string, unknown> = {},
 ) {
   await t.run(async (ctx) => {
     await ctx.runMutation(components.betterAuth.adapter.create, {
@@ -75,6 +76,7 @@ async function seedApp(
             status: environment === "production" ? "production" : undefined,
             scopes,
             testUsers: ["developer@example.ga"],
+            ...metadata,
           }),
           createdAt: Date.now(),
           updatedAt: Date.now(),
@@ -101,6 +103,64 @@ async function createEndpoint(
 }
 
 describe("registre des endpoints webhook", () => {
+  test("supprimer une application retire ses deux environnements et neutralise leurs accès", async () => {
+    const t = makeTestClient()
+    await seedApp(t, "app_sandbox", "dev", "sandbox", ["idn:iboite.read"], {
+      linkedClientId: "app_production",
+      productionStatus: "approved",
+    })
+    await seedApp(
+      t,
+      "app_production",
+      "dev",
+      "production",
+      ["idn:iboite.read"],
+      { linkedClientId: "app_sandbox" },
+    )
+    const sandboxEndpoint = await createEndpoint(t, "dev", "app_sandbox", 1)
+    const productionEndpoint = await createEndpoint(
+      t,
+      "dev",
+      "app_production",
+      2,
+    )
+    const asDeveloper = t.withIdentity({ subject: "dev" })
+    const sandboxKey = await asDeveloper.mutation(
+      api.developer.apiKeys.createKey,
+      {
+        appClientId: "app_sandbox",
+        name: "Sandbox",
+        scopes: [],
+      },
+    )
+    const productionKey = await asDeveloper.mutation(
+      api.developer.apiKeys.createKey,
+      {
+        appClientId: "app_production",
+        name: "Production",
+        scopes: [],
+      },
+    )
+
+    await asDeveloper.mutation(api.developer.apps.remove, {
+      clientId: "app_sandbox",
+    })
+
+    expect(await asDeveloper.query(api.developer.apps.listMine, {})).toEqual([])
+    await t.run(async (ctx) => {
+      expect((await ctx.db.get(sandboxKey.id))?.revokedAt).toBeTypeOf("number")
+      expect((await ctx.db.get(productionKey.id))?.revokedAt).toBeTypeOf(
+        "number",
+      )
+      expect(
+        (await ctx.db.get(sandboxEndpoint.endpointId))?.deletedAt,
+      ).toBeTypeOf("number")
+      expect(
+        (await ctx.db.get(productionEndpoint.endpointId))?.deletedAt,
+      ).toBeTypeOf("number")
+    })
+  })
+
   test("le propriétaire seul gère l'endpoint et le secret n'est affiché qu'à la création", async () => {
     const t = makeTestClient()
     await seedApp(t, "app_a", "dev_a")

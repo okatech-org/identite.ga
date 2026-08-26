@@ -595,7 +595,11 @@ export const remove = mutation({
       })
     }
     const meta = parseMetadata(doc.metadata)
-    // Nettoie la référence côté jumeau survivant si la paire existe.
+    const appsToDelete = [doc]
+
+    // Sandbox et production forment une seule application dans le portail.
+    // Supprimer l'une supprime donc aussi sa jumelle, après avoir vérifié que
+    // les deux enregistrements appartiennent bien au même développeur.
     if (meta.linkedClientId) {
       const twinRaw = (await ctx.runQuery(
         components.betterAuth.adapter.findMany,
@@ -609,32 +613,96 @@ export const remove = mutation({
       )) as { page: OAuthAppDoc[] }
       const twin = twinRaw.page[0]
       if (twin) {
-        const twinMeta = parseMetadata(twin.metadata)
-        const nextTwinMeta: AppMetadata = {
-          ...twinMeta,
-          linkedClientId: undefined,
-          // Si on supprime la jumelle prod, la sandbox repasse en "none".
-          productionStatus:
-            twinMeta.env === "sandbox" ? "none" : twinMeta.productionStatus,
+        if (twin.userId !== user.userId) {
+          throw new ConvexError({
+            code: "INVALID_LINKED_APP",
+            message: "La liaison entre les environnements est invalide.",
+          })
         }
-        await ctx.runMutation(components.betterAuth.adapter.updateOne, {
-          input: {
-            model: MODEL,
-            where: [{ field: "_id", value: twin._id, operator: "eq" }],
-            update: {
-              metadata: JSON.stringify(nextTwinMeta),
-              updatedAt: Date.now(),
-            },
-          },
-        })
+        appsToDelete.push(twin)
       }
     }
-    await ctx.runMutation(components.betterAuth.adapter.deleteOne, {
-      input: {
-        model: MODEL,
-        where: [{ field: "_id", value: doc._id, operator: "eq" }],
-      },
-    })
+
+    const now = Date.now()
+    for (const app of appsToDelete) {
+      const appClientId = app.clientId
+      if (appClientId) {
+        // Révoque les sessions OAuth déjà émises et retire les consentements
+        // associés. Sans cela, un jeton existant pourrait rester valable
+        // jusqu'à son expiration malgré la disparition du client.
+        for (const model of ["oauthAccessToken", "oauthConsent"] as const) {
+          await ctx.runMutation(components.betterAuth.adapter.deleteMany, {
+            input: {
+              model,
+              where: [
+                { field: "clientId", value: appClientId, operator: "eq" },
+              ],
+            },
+            paginationOpts: { numItems: 200, cursor: null },
+          })
+        }
+
+        // Une clé liée à une application supprimée ne doit plus pouvoir
+        // authentifier d'appel serveur-à-serveur.
+        const apiKeys = await ctx.db
+          .query("developerApiKey")
+          .withIndex("by_appClientId_and_createdAt", (q) =>
+            q.eq("appClientId", appClientId),
+          )
+          .take(100)
+        for (const key of apiKeys) {
+          if (key.userId === user.userId && key.revokedAt === undefined) {
+            await ctx.db.patch(key._id, { revokedAt: now })
+          }
+        }
+
+        // Les livraisons historiques restent dans l'audit, mais les endpoints
+        // et leurs secrets sont neutralisés comme lors d'une suppression
+        // manuelle depuis la page Webhooks.
+        const endpoints = await ctx.db
+          .query("webhookEndpoints")
+          .withIndex("by_appClientId_and_createdAt", (q) =>
+            q.eq("appClientId", appClientId),
+          )
+          .take(20)
+        for (const endpoint of endpoints) {
+          if (
+            endpoint.developerUserId !== user.userId ||
+            endpoint.deletedAt !== undefined
+          ) {
+            continue
+          }
+          await ctx.db.patch(endpoint._id, {
+            status: "disabled",
+            url: "https://deleted.invalid/",
+            secretCiphertext: "",
+            secretIv: "",
+            previousSecretCiphertext: undefined,
+            previousSecretIv: undefined,
+            previousSecretValidUntil: undefined,
+            challengeId: undefined,
+            deletedAt: now,
+            updatedAt: now,
+          })
+          const subscriptions = await ctx.db
+            .query("webhookSubscriptions")
+            .withIndex("by_endpointId_and_eventType", (q) =>
+              q.eq("endpointId", endpoint._id),
+            )
+            .take(20)
+          for (const subscription of subscriptions) {
+            await ctx.db.delete(subscription._id)
+          }
+        }
+      }
+
+      await ctx.runMutation(components.betterAuth.adapter.deleteOne, {
+        input: {
+          model: MODEL,
+          where: [{ field: "_id", value: app._id, operator: "eq" }],
+        },
+      })
+    }
     return null
   },
 })

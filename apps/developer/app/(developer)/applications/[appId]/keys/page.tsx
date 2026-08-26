@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import { useConvex, useQuery } from "convex/react"
@@ -11,6 +11,7 @@ import { Button } from "@repo/ui/components/button"
 import { Input } from "@repo/ui/components/input"
 
 import { fr } from "../../../../_content/fr"
+import { ApplicationWorkspaceNav } from "../../../../_components/application-workspace-nav"
 import { CredRow } from "../../../../_components/cred-row"
 import { OpHeader } from "../../../../_components/op-header"
 
@@ -51,6 +52,12 @@ export default function AppKeysPage() {
     clientId: string
     clientSecret: string
   }>(null)
+
+  useEffect(() => {
+    setRotatedSecret(null)
+    setProdCreds(null)
+    setNewTestEmail("")
+  }, [clientId])
 
   const handleAddTestUser = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -182,20 +189,7 @@ export default function AppKeysPage() {
       />
       <div className="flex-1 overflow-auto px-7 py-6">
         <div className="mx-auto max-w-[820px] space-y-5">
-          <div className="flex justify-end gap-3 text-sm">
-            <Link
-              className="text-idn-green hover:underline"
-              href={`/applications/${clientId}/webhooks`}
-            >
-              Webhooks
-            </Link>
-            <Link
-              className="text-idn-green hover:underline"
-              href={`/applications/${clientId}/services`}
-            >
-              Services
-            </Link>
-          </div>
+          <ApplicationWorkspaceNav app={app} section="keys" />
           {rotatedSecret ? (
             <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-950/30">
               <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-idn-muted">
@@ -244,23 +238,6 @@ export default function AppKeysPage() {
                 onRequestProduction={handleRequestProduction}
               />
             </>
-          ) : null}
-
-          {app.env === "production" && app.linkedClientId ? (
-            <div className="rounded-xl border border-idn-border bg-idn-surface p-6">
-              <div className="text-[13px] font-semibold text-idn-ink">
-                Application sandbox liée
-              </div>
-              <p className="mt-2 text-sm text-idn-muted">
-                Continuez à tester vos évolutions sur la jumelle sandbox :
-              </p>
-              <Link
-                href={`/applications/${app.linkedClientId}/keys`}
-                className="mt-2 inline-block font-mono text-sm text-idn-green underline-offset-2 hover:underline"
-              >
-                {app.linkedClientId}
-              </Link>
-            </div>
           ) : null}
 
           <div className="rounded-xl border border-idn-border bg-idn-surface p-6">

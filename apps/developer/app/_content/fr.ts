@@ -45,7 +45,8 @@ export const fr = {
 
   signUp: {
     title: "Créer un compte développeur",
-    subtitle: "Quelques informations suffisent — vous pourrez enregistrer votre première application aussitôt.",
+    subtitle:
+      "Quelques informations suffisent — vous pourrez enregistrer votre première application aussitôt.",
     nameLabel: "Nom complet",
     emailLabel: "Email professionnel",
     passwordLabel: "Mot de passe",
@@ -53,7 +54,8 @@ export const fr = {
     submitting: "Création en cours…",
     haveAccount: "Vous avez déjà un compte ?",
     signInLink: "Connectez-vous",
-    consent: "En créant un compte, vous acceptez les conditions d'utilisation de la plateforme IDN.",
+    consent:
+      "En créant un compte, vous acceptez les conditions d'utilisation de la plateforme IDN.",
     errorEmailTaken: "Un compte existe déjà avec cet email.",
     errorGeneric: "Impossible de créer le compte. Réessayez dans un instant.",
   },
@@ -68,7 +70,8 @@ export const fr = {
     resentToast: "Code renvoyé.",
     successToast: "Email vérifié.",
     errorInvalid: "Code invalide. Vérifiez votre email puis réessayez.",
-    errorTooManyAttempts: "Trop de tentatives. Réessayez dans quelques minutes.",
+    errorTooManyAttempts:
+      "Trop de tentatives. Réessayez dans quelques minutes.",
     errorMissingEmail:
       "Impossible de retrouver l'email à vérifier. Recommencez l'inscription.",
     changeEmail: "Changer d'email",
@@ -86,9 +89,9 @@ export const fr = {
   },
 
   applications: {
-    sub: "VOS APPS · {count} ENREGISTRÉES",
+    sub: "VOS APPLICATIONS · {count} ENREGISTRÉES",
     title: "Applications",
-    newApp: "Nouvelle app",
+    newApp: "Nouvelle application",
     services: "Services",
     empty: {
       title: "Aucune application enregistrée",
@@ -98,10 +101,39 @@ export const fr = {
     card: {
       usage: "USAGE",
       perMonth: "/ mois",
+      environments: "ENVIRONNEMENTS",
       env: {
         production: "PRODUCTION",
         sandbox: "SANDBOX",
       },
+    },
+    delete: {
+      button: "Supprimer",
+      title: "Supprimer {appName} ?",
+      descriptionOne:
+        "L'environnement et ses identifiants OAuth seront supprimés. Les clés M2M liées seront révoquées et les endpoints webhook désactivés.",
+      descriptionBoth:
+        "Les environnements Sandbox et Production, ainsi que leurs identifiants OAuth, seront supprimés. Les clés M2M liées seront révoquées et les endpoints webhook désactivés.",
+      cancel: "Annuler",
+      confirm: "Supprimer l'application",
+      deleting: "Suppression…",
+      success: "Application supprimée.",
+      error: "Impossible de supprimer l'application.",
+    },
+  },
+
+  appWorkspace: {
+    back: "Toutes les applications",
+    environment: "Environnement",
+    sandbox: "Sandbox",
+    production: "Production",
+    productionPending: "Production — en attente",
+    productionRejected: "Production — refusée",
+    productionUnavailable: "Production — non disponible",
+    tabs: {
+      keys: "Identifiants OAuth",
+      webhooks: "Webhooks",
+      services: "Services",
     },
   },
 
@@ -119,7 +151,8 @@ export const fr = {
       "Toute nouvelle application est créée en sandbox. Le passage en production se demande depuis la fiche de l'app, après ajout de redirect URIs en HTTPS.",
     redirectLabel: "Redirect URIs",
     redirectPlaceholder: "https://yourapp.com/auth/callback",
-    redirectHint: "Une URI par ligne. HTTPS sera requis au moment de passer en production.",
+    redirectHint:
+      "Une URI par ligne. HTTPS sera requis au moment de passer en production.",
     scopesLabel: "Scopes demandés",
     loaLabel: "Niveau de garantie minimum",
     submit: "Créer l'application",
@@ -205,7 +238,8 @@ export const fr = {
     redirectUrisEditor: {
       title: "Redirect URIs",
       desc: "URLs de retour autorisées après authentification. Sandbox et production ont chacune leurs propres URIs.",
-      descProd: "URLs de retour autorisées. En production, HTTPS est obligatoire.",
+      descProd:
+        "URLs de retour autorisées. En production, HTTPS est obligatoire.",
       addBtn: "Ajouter une URI",
       save: "Enregistrer",
       saving: "Enregistrement…",
@@ -227,16 +261,16 @@ export const fr = {
     removeAriaTemplate: "Retirer {email}",
     productionRequest: {
       title: "Passer en production",
-      none: "Quand votre application est prête, demandez l'approbation pour la production. Une jumelle prod sera créée avec des credentials distincts.",
+      none: "Quand votre application est prête, demandez l'approbation pour la production. Elle gardera des identifiants distincts de ceux de la sandbox.",
       requestBtn: "Demander la production",
       requestSubmitting: "Demande en cours…",
       confirm:
-        "Une application jumelle « production » sera créée avec des credentials distincts. La sandbox restera active pour vos tests. Continuer ?",
+        "L'environnement Production sera créé avec des identifiants distincts. La Sandbox restera active pour vos tests. Continuer ?",
       pendingTitle: "Demande en cours de revue",
       pendingDesc:
         "Notre équipe vérifie la conformité (mentions légales, RGPD, scopes, redirect URIs). Délai indicatif : 48–72h ouvrées.",
       approvedTitle: "Production approuvée",
-      approvedDesc: "Votre application jumelle est active. Identifiant production : ",
+      approvedDesc: "L'environnement Production est actif. Identifiant : ",
       rejectedTitle: "Demande refusée",
       rejectedDesc:
         "Votre demande de production a été refusée. Vous pouvez ajuster votre app et la soumettre à nouveau.",
@@ -249,8 +283,10 @@ export const fr = {
       tooManyTestUsers: "Maximum 25 comptes de test par application.",
       notVerified:
         "Votre compte développeur doit être validé par un super-administrateur avant de publier en production.",
-      httpsRequired: "Toutes les redirect URIs doivent être en HTTPS pour la production.",
-      alreadyRequested: "Une demande de production existe déjà pour cette application.",
+      httpsRequired:
+        "Toutes les redirect URIs doivent être en HTTPS pour la production.",
+      alreadyRequested:
+        "Une demande de production existe déjà pour cette application.",
       generic: "Action impossible. Réessayez.",
     },
   },
@@ -331,8 +367,8 @@ export const fr = {
     title: "Usage",
     stats: {
       requests: { label: "REQUÊTES / MOIS", hint: "quota standard" },
-      latency:  { label: "LATENCE P95",     hint: "seuil SLA : 300ms" },
-      errors:   { label: "ERREURS 4XX",     hint: "invalid_grant principalement" },
+      latency: { label: "LATENCE P95", hint: "seuil SLA : 300ms" },
+      errors: { label: "ERREURS 4XX", hint: "invalid_grant principalement" },
     },
     chart: {
       title: "Requêtes — derniers 17 jours",
@@ -373,7 +409,8 @@ export const fr = {
       submit: "Modifier",
       cancel: "Annuler",
       successToast: "Mot de passe modifié.",
-      errorTooShort: "Le nouveau mot de passe doit contenir au moins 12 caractères.",
+      errorTooShort:
+        "Le nouveau mot de passe doit contenir au moins 12 caractères.",
       errorSame: "Le nouveau mot de passe doit être différent de l'ancien.",
     },
     preferences: {

@@ -7,20 +7,12 @@ import { api } from "@repo/backend/convex/_generated/api"
 import { Button } from "@repo/ui/components/button"
 
 import { fr } from "../../_content/fr"
+import { DeleteApplicationDialog } from "../../_components/delete-application-dialog"
+import { groupApplications } from "../../_components/application-groups"
 import { IdnIcons } from "../../_components/icons"
 import { OpHeader } from "../../_components/op-header"
 
 const initial = (s: string): string => (s.trim()[0] ?? "?").toUpperCase()
-
-const envBadgeClass = (env: "production" | "sandbox") =>
-  env === "production"
-    ? "bg-idn-green-soft text-idn-green dark:bg-[#0F2A18]"
-    : "bg-idn-surface-2 text-idn-muted"
-
-const envLabel = (env: "production" | "sandbox") =>
-  env === "production"
-    ? fr.applications.card.env.production
-    : fr.applications.card.env.sandbox
 
 const prodStatusBadge = (
   status: "none" | "pending" | "approved" | "rejected",
@@ -49,10 +41,11 @@ const prodStatusBadge = (
 
 export default function ApplicationsPage() {
   const apps = useQuery(api.developer.apps.listMine, {}) ?? null
+  const applicationGroups = apps === null ? null : groupApplications(apps)
 
   const subText = fr.applications.sub.replace(
     "{count}",
-    apps !== null ? String(apps.length) : "—",
+    applicationGroups !== null ? String(applicationGroups.length) : "—",
   )
 
   return (
@@ -69,11 +62,11 @@ export default function ApplicationsPage() {
         }
       />
       <div className="flex-1 overflow-auto px-7 py-6">
-        {apps === null ? (
+        {applicationGroups === null ? (
           <div className="rounded-xl border border-idn-border bg-idn-surface p-6 text-sm text-idn-muted">
             Chargement…
           </div>
-        ) : apps.length === 0 ? (
+        ) : applicationGroups.length === 0 ? (
           <div className="rounded-xl border border-idn-border bg-idn-surface p-8 text-center">
             <h2 className="text-lg font-semibold text-idn-ink">
               {fr.applications.empty.title}
@@ -89,78 +82,97 @@ export default function ApplicationsPage() {
           </div>
         ) : (
           <ul className="flex flex-col gap-3">
-            {apps.map((app) => (
-              <li key={app.id}>
-                <Link
-                  href={`/applications/${app.clientId}/keys`}
-                  className="flex items-center gap-3.5 rounded-xl border border-idn-border bg-idn-surface p-4 outline-none transition-colors hover:bg-idn-surface-2 focus-visible:ring-2 focus-visible:ring-idn-green"
-                >
-                  <div className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-lg bg-idn-surface-2 text-base font-semibold text-idn-ink">
-                    {initial(app.name)}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-[15px] font-semibold text-idn-ink">
-                      {app.name}
-                    </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                      <span
-                        className={`rounded-full px-2 py-px font-mono text-[10px] font-semibold uppercase tracking-[0.06em] ${envBadgeClass(
-                          app.env,
-                        )}`}
+            {applicationGroups.map((group) => {
+              const primary = group.sandbox ?? group.production
+              if (!primary) return null
+              const productionStatus = group.sandbox?.productionStatus ?? "none"
+              const productionBadge = group.production
+                ? prodStatusBadge(
+                    productionStatus === "none" ? "approved" : productionStatus,
+                  )
+                : prodStatusBadge(productionStatus)
+              const environmentCount =
+                Number(Boolean(group.sandbox)) +
+                Number(Boolean(group.production))
+
+              return (
+                <li key={group.id}>
+                  <article className="rounded-xl border border-idn-border bg-idn-surface transition-colors hover:bg-idn-surface-2">
+                    <div className="flex items-center gap-2 p-4">
+                      <Link
+                        href={`/applications/${primary.clientId}/keys`}
+                        className="flex min-w-0 flex-1 items-center gap-3.5 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-idn-green"
                       >
-                        {envLabel(app.env)}
-                      </span>
-                      {(() => {
-                        const badge =
-                          app.env === "sandbox"
-                            ? prodStatusBadge(app.productionStatus)
-                            : null
-                        return badge ? (
-                          <span
-                            className={`rounded-full px-2 py-px font-mono text-[10px] font-semibold uppercase tracking-[0.06em] ${badge.className}`}
-                          >
-                            {badge.label}
-                          </span>
-                        ) : null
-                      })()}
-                      <span className="rounded-full bg-idn-surface-2 px-2 py-px font-mono text-[10px] text-idn-muted">
-                        Niveau {app.loa}
-                      </span>
-                      {app.scopes.slice(0, 4).map((scope) => (
-                        <span
-                          key={scope}
-                          className="rounded-full bg-idn-surface-2 px-2 py-px font-mono text-[10px] text-idn-muted"
-                        >
-                          {scope}
-                        </span>
-                      ))}
+                        <div className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-lg bg-idn-surface-2 text-base font-semibold text-idn-ink">
+                          {initial(group.name)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-[15px] font-semibold text-idn-ink">
+                            {group.name}
+                          </div>
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                            {group.sandbox ? (
+                              <span className="rounded-full bg-idn-surface-2 px-2 py-px font-mono text-[10px] font-semibold uppercase tracking-[0.06em] text-idn-muted">
+                                {fr.applications.card.env.sandbox}
+                              </span>
+                            ) : null}
+                            {productionBadge ? (
+                              <span
+                                className={`rounded-full px-2 py-px font-mono text-[10px] font-semibold uppercase tracking-[0.06em] ${productionBadge.className}`}
+                              >
+                                {productionBadge.label}
+                              </span>
+                            ) : null}
+                            <span className="rounded-full bg-idn-surface-2 px-2 py-px font-mono text-[10px] text-idn-muted">
+                              Niveau {primary.loa}
+                            </span>
+                            {primary.scopes.slice(0, 4).map((scope) => (
+                              <span
+                                key={scope}
+                                className="rounded-full bg-idn-surface-2 px-2 py-px font-mono text-[10px] text-idn-muted"
+                              >
+                                {scope}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="hidden text-right sm:block">
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.06em] text-idn-muted">
+                            {fr.applications.card.environments}
+                          </div>
+                          <div className="mt-0.5 text-sm font-semibold text-idn-ink">
+                            {environmentCount === 2
+                              ? "Sandbox + Production"
+                              : primary.env === "sandbox"
+                                ? "Sandbox"
+                                : "Production"}
+                          </div>
+                        </div>
+                      </Link>
+                      <DeleteApplicationDialog
+                        appName={group.name}
+                        clientId={primary.clientId}
+                        hasBothEnvironments={environmentCount === 2}
+                      />
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-idn-muted">
-                      {fr.applications.card.usage}
+                    <div className="flex justify-end border-t border-idn-border-soft px-3 py-1">
+                      <Link
+                        href={`/applications/${primary.clientId}/webhooks`}
+                        className="rounded-md px-2 py-1 text-[11px] font-semibold text-idn-green hover:bg-idn-green-soft"
+                      >
+                        Webhooks →
+                      </Link>
+                      <Link
+                        href={`/applications/${primary.clientId}/services`}
+                        className="rounded-md px-2 py-1 text-[11px] font-semibold text-idn-green hover:bg-idn-green-soft"
+                      >
+                        {fr.nav.services} →
+                      </Link>
                     </div>
-                    <div className="mt-0.5 font-mono text-base font-semibold text-idn-ink">
-                      {app.services.length} {fr.nav.services.toLowerCase()}
-                    </div>
-                  </div>
-                </Link>
-                <div className="mt-1 flex justify-end">
-                  <Link
-                    href={`/applications/${app.clientId}/webhooks`}
-                    className="rounded-md px-2 py-1 text-[11px] font-semibold text-idn-green hover:bg-idn-green-soft"
-                  >
-                    Webhooks →
-                  </Link>
-                  <Link
-                    href={`/applications/${app.clientId}/services`}
-                    className="rounded-md px-2 py-1 text-[11px] font-semibold text-idn-green hover:bg-idn-green-soft"
-                  >
-                    {fr.nav.services} →
-                  </Link>
-                </div>
-              </li>
-            ))}
+                  </article>
+                </li>
+              )
+            })}
           </ul>
         )}
       </div>

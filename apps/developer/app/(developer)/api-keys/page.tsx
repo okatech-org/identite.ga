@@ -86,7 +86,11 @@ export default function ApiKeysPage() {
         title={fr.apiKeys.title}
         right={
           !showForm ? (
-            <Button size="sm" className="gap-1" onClick={() => setShowForm(true)}>
+            <Button
+              size="sm"
+              className="gap-1"
+              onClick={() => setShowForm(true)}
+            >
               {IdnIcons.plus} {fr.apiKeys.newKeyBtn}
             </Button>
           ) : undefined
@@ -113,7 +117,7 @@ export default function ApiKeysPage() {
                 className="mt-3"
                 onClick={() => setCreatedToken(null)}
               >
-                OK, j'ai copié
+                OK, j&apos;ai copié
               </Button>
             </div>
           ) : null}
@@ -124,7 +128,10 @@ export default function ApiKeysPage() {
               className="space-y-4 rounded-xl border border-idn-border bg-idn-surface p-6"
             >
               <div>
-                <Label htmlFor="key-name" className="text-xs font-semibold text-idn-ink">
+                <Label
+                  htmlFor="key-name"
+                  className="text-xs font-semibold text-idn-ink"
+                >
                   {fr.apiKeys.form.nameLabel}
                 </Label>
                 <Input
@@ -152,9 +159,15 @@ export default function ApiKeysPage() {
                         onChange={() => toggleScope(scope)}
                         className="accent-idn-green"
                       />
-                      <span className="font-mono text-xs text-idn-ink">{scope}</span>
+                      <span className="font-mono text-xs text-idn-ink">
+                        {scope}
+                      </span>
                       <span className="ml-auto text-xs text-idn-muted">
-                        {fr.apiKeys.scopeDescriptions[scope as keyof typeof fr.apiKeys.scopeDescriptions]}
+                        {
+                          fr.apiKeys.scopeDescriptions[
+                            scope as keyof typeof fr.apiKeys.scopeDescriptions
+                          ]
+                        }
                       </span>
                     </label>
                   ))}
@@ -162,7 +175,10 @@ export default function ApiKeysPage() {
               </div>
 
               <div>
-                <Label htmlFor="key-expires" className="text-xs font-semibold text-idn-ink">
+                <Label
+                  htmlFor="key-expires"
+                  className="text-xs font-semibold text-idn-ink"
+                >
                   {fr.apiKeys.form.expiresLabel}
                 </Label>
                 <Input
@@ -179,7 +195,9 @@ export default function ApiKeysPage() {
 
               <div className="flex gap-2 pt-2">
                 <Button type="submit" disabled={submitting || !name.trim()}>
-                  {submitting ? fr.apiKeys.form.submitting : fr.apiKeys.form.submit}
+                  {submitting
+                    ? fr.apiKeys.form.submitting
+                    : fr.apiKeys.form.submit}
                 </Button>
                 <Button
                   type="button"
@@ -215,19 +233,35 @@ export default function ApiKeysPage() {
               <table className="w-full text-left text-xs">
                 <thead>
                   <tr className="border-b border-idn-border bg-idn-surface-2">
-                    <th className="px-3 py-2.5 font-semibold text-idn-muted">{fr.apiKeys.table.name}</th>
-                    <th className="px-3 py-2.5 font-semibold text-idn-muted">{fr.apiKeys.table.prefix}</th>
-                    <th className="px-3 py-2.5 font-semibold text-idn-muted">{fr.apiKeys.table.scopes}</th>
-                    <th className="px-3 py-2.5 font-semibold text-idn-muted">{fr.apiKeys.table.status}</th>
-                    <th className="px-3 py-2.5 font-semibold text-idn-muted">{fr.apiKeys.table.created}</th>
-                    <th className="px-3 py-2.5 font-semibold text-idn-muted">{fr.apiKeys.table.actions}</th>
+                    <th className="px-3 py-2.5 font-semibold text-idn-muted">
+                      {fr.apiKeys.table.name}
+                    </th>
+                    <th className="px-3 py-2.5 font-semibold text-idn-muted">
+                      {fr.apiKeys.table.prefix}
+                    </th>
+                    <th className="px-3 py-2.5 font-semibold text-idn-muted">
+                      {fr.apiKeys.table.scopes}
+                    </th>
+                    <th className="px-3 py-2.5 font-semibold text-idn-muted">
+                      {fr.apiKeys.table.status}
+                    </th>
+                    <th className="px-3 py-2.5 font-semibold text-idn-muted">
+                      {fr.apiKeys.table.created}
+                    </th>
+                    <th className="px-3 py-2.5 font-semibold text-idn-muted">
+                      {fr.apiKeys.table.actions}
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-idn-border-soft">
                   {keys.map((k) => (
                     <tr key={k.id} className="bg-idn-surface">
-                      <td className="px-3 py-2.5 font-medium text-idn-ink">{k.name}</td>
-                      <td className="px-3 py-2.5 font-mono text-idn-muted">{k.tokenPrefix}</td>
+                      <td className="px-3 py-2.5 font-medium text-idn-ink">
+                        {k.name}
+                      </td>
+                      <td className="px-3 py-2.5 font-mono text-idn-muted">
+                        {k.tokenPrefix}
+                      </td>
                       <td className="px-3 py-2.5">
                         <div className="flex flex-wrap gap-1">
                           {k.scopes.map((s) => (
@@ -272,7 +306,8 @@ export default function ApiKeysPage() {
 function StatusBadge({ status }: { status: string }) {
   const colors: Record<string, string> = {
     active: "bg-idn-green-soft text-idn-green",
-    expired: "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400",
+    expired:
+      "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400",
     revoked: "bg-destructive/10 text-destructive",
   }
   return (

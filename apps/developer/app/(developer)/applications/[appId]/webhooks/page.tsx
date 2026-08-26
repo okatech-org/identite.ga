@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import { useMutation, useQuery } from "convex/react"
@@ -12,6 +12,7 @@ import { Button } from "@repo/ui/components/button"
 import { Input } from "@repo/ui/components/input"
 import { Label } from "@repo/ui/components/label"
 
+import { ApplicationWorkspaceNav } from "../../../../_components/application-workspace-nav"
 import { OpHeader } from "../../../../_components/op-header"
 
 type EventType =
@@ -214,7 +215,7 @@ function EndpointCard({
             {revealedSecret.secret}
           </code>
           <p className="mt-2 text-xs text-idn-muted">
-            Ancien secret valable jusqu'au{" "}
+            Ancien secret valable jusqu&apos;au{" "}
             {date(revealedSecret.previousValidUntil)} · valeur Unix ms{" "}
             <code>{revealedSecret.previousValidUntil}</code>
           </p>
@@ -287,6 +288,12 @@ export default function WebhooksPage() {
   ])
   const [secret, setSecret] = useState<string | null>(null)
   const [m2mSecret, setM2mSecret] = useState<string | null>(null)
+
+  useEffect(() => {
+    setSecret(null)
+    setM2mSecret(null)
+    setUrl("")
+  }, [clientId])
 
   if (
     app === undefined ||
@@ -365,27 +372,14 @@ export default function WebhooksPage() {
       />
       <div className="flex-1 overflow-auto px-7 py-6">
         <div className="mx-auto max-w-[980px] space-y-5">
-          <nav className="flex gap-3 text-sm">
-            <Link
-              className="text-idn-green hover:underline"
-              href={`/applications/${clientId}/keys`}
-            >
-              Identifiants OAuth
-            </Link>
-            <Link
-              className="text-idn-green hover:underline"
-              href={`/applications/${clientId}/services`}
-            >
-              Services
-            </Link>
-          </nav>
+          <ApplicationWorkspaceNav app={app} section="webhooks" />
 
           {missingIboiteScopes.length > 0 ? (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/30">
               <p className="text-sm text-idn-ink">
                 Déclarez les scopes{" "}
                 <code>{missingIboiteScopes.join(", ")}</code>
-                pour l'intégration iBoîte complète.
+                pour l&apos;intégration iBoîte complète.
               </p>
               <Button size="sm" onClick={enableIboiteScope}>
                 Déclarer les scopes iBoîte
@@ -461,7 +455,7 @@ export default function WebhooksPage() {
               type="submit"
               disabled={!url || selected.length === 0}
             >
-              Créer l'endpoint
+              Créer l&apos;endpoint
             </Button>
             {secret ? (
               <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs dark:border-amber-800 dark:bg-amber-950/30">

@@ -13,6 +13,7 @@ import { Label } from "@repo/ui/components/label"
 import { Textarea } from "@repo/ui/components/textarea"
 
 import { fr } from "../../../../_content/fr"
+import { ApplicationWorkspaceNav } from "../../../../_components/application-workspace-nav"
 import { OpHeader } from "../../../../_components/op-header"
 
 type Category =
@@ -61,6 +62,10 @@ export default function AppServicesPage() {
   const app = useQuery(api.developer.apps.get, { clientId })
   const [services, setServices] = useState<Service[] | null>(null)
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    setServices(null)
+  }, [clientId])
 
   useEffect(() => {
     if (app && services === null) {
@@ -129,6 +134,7 @@ export default function AppServicesPage() {
       <OpHeader sub={fr.services.sub} title={fr.services.title} />
       <div className="flex-1 overflow-auto px-7 py-6">
         <div className="mx-auto max-w-[800px] space-y-5">
+          <ApplicationWorkspaceNav app={app} section="services" />
           <p className="text-sm text-idn-muted">{fr.services.description}</p>
 
           {list.length === 0 ? (
@@ -209,9 +215,7 @@ export default function AppServicesPage() {
                 <Label>{fr.services.descriptionLabel}</Label>
                 <Textarea
                   value={service.description}
-                  onChange={(e) =>
-                    update(idx, { description: e.target.value })
-                  }
+                  onChange={(e) => update(idx, { description: e.target.value })}
                   placeholder={fr.services.descriptionPlaceholder}
                   rows={2}
                 />
@@ -233,7 +237,12 @@ export default function AppServicesPage() {
           ))}
 
           {list.length > 0 ? (
-            <Button type="button" variant="outline" onClick={add} className="w-full">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={add}
+              className="w-full"
+            >
               {fr.services.addService}
             </Button>
           ) : null}
