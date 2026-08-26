@@ -40,7 +40,7 @@ export function OpShell({
 
   return (
     <div className="flex min-h-svh bg-idn-bg">
-      <aside className="flex w-[220px] shrink-0 flex-col border-r border-idn-border bg-idn-surface">
+      <aside className="sticky top-0 flex h-svh w-[220px] shrink-0 self-start flex-col border-r border-idn-border bg-idn-surface">
         <div className="flex items-center gap-2.5 px-[18px] pt-[18px] pb-3.5">
           <IdnMark size={26} />
           <div>
