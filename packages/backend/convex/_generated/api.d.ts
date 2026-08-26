@@ -12,6 +12,7 @@ import type * as _dev_backfillPivotKey from "../_dev/backfillPivotKey.js";
 import type * as _dev_listLatestLogs from "../_dev/listLatestLogs.js";
 import type * as _dev_listRoles from "../_dev/listRoles.js";
 import type * as _dev_rebuildAggregates from "../_dev/rebuildAggregates.js";
+import type * as _dev_repairEmbeddedSignupOrphans from "../_dev/repairEmbeddedSignupOrphans.js";
 import type * as _dev_resetIboiteAddresses from "../_dev/resetIboiteAddresses.js";
 import type * as account from "../account.js";
 import type * as activity from "../activity.js";
@@ -114,6 +115,7 @@ import type * as lib_pinRecoveryEligibility from "../lib/pinRecoveryEligibility.
 import type * as lib_pinSignInPlugin from "../lib/pinSignInPlugin.js";
 import type * as lib_secureToken from "../lib/secureToken.js";
 import type * as lib_twoFactorGate from "../lib/twoFactorGate.js";
+import type * as nativePushSubscriptions from "../nativePushSubscriptions.js";
 import type * as notifications from "../notifications.js";
 import type * as oauthAuthorize from "../oauthAuthorize.js";
 import type * as oauthConsents from "../oauthConsents.js";
@@ -172,6 +174,7 @@ declare const fullApi: ApiFromModules<{
   "_dev/listLatestLogs": typeof _dev_listLatestLogs;
   "_dev/listRoles": typeof _dev_listRoles;
   "_dev/rebuildAggregates": typeof _dev_rebuildAggregates;
+  "_dev/repairEmbeddedSignupOrphans": typeof _dev_repairEmbeddedSignupOrphans;
   "_dev/resetIboiteAddresses": typeof _dev_resetIboiteAddresses;
   account: typeof account;
   activity: typeof activity;
@@ -274,6 +277,7 @@ declare const fullApi: ApiFromModules<{
   "lib/pinSignInPlugin": typeof lib_pinSignInPlugin;
   "lib/secureToken": typeof lib_secureToken;
   "lib/twoFactorGate": typeof lib_twoFactorGate;
+  nativePushSubscriptions: typeof nativePushSubscriptions;
   notifications: typeof notifications;
   oauthAuthorize: typeof oauthAuthorize;
   oauthConsents: typeof oauthConsents;

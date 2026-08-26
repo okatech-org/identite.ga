@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import {
+  ArchiveIcon,
   InboxIcon,
   PlusIcon,
   SendIcon,
@@ -31,6 +32,7 @@ const FOLDERS: ReadonlyArray<{
     counterKey: "unreadMessages",
   },
   { id: "starred", label: iboite.emails.folders.starred, icon: StarIcon },
+  { id: "archive", label: iboite.emails.folders.archive, icon: ArchiveIcon },
   { id: "sent", label: iboite.emails.folders.sent, icon: SendIcon },
   { id: "trash", label: iboite.emails.folders.trash, icon: Trash2Icon },
 ]
@@ -38,6 +40,7 @@ const FOLDERS: ReadonlyArray<{
 const MOBILE_LABELS: Record<EmailFolder, string> = {
   inbox: "Réception",
   starred: "Favoris",
+  archive: "Archives",
   sent: "Envoyés",
   trash: "Corbeille",
 }

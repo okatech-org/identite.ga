@@ -59,7 +59,8 @@ export const iboite = {
       geocoder:
         "Impossible de résoudre votre adresse depuis votre position. Saisissez-la à la main.",
       saveFailed: "Enregistrement impossible.",
-      cityRequired: "Indiquez au moins votre ville ou utilisez la géolocalisation.",
+      cityRequired:
+        "Indiquez au moins votre ville ou utilisez la géolocalisation.",
     },
     osmAttribution: "Données ©",
     osmAttributionLink: "OpenStreetMap",
@@ -67,9 +68,9 @@ export const iboite = {
   },
 
   sections: {
+    emails: "E-mails",
     courriers: "Courriers",
     colis: "Colis",
-    emails: "eMails",
   },
 
   courriers: {
@@ -122,12 +123,14 @@ export const iboite = {
     folders: {
       inbox: "Boîte de réception",
       starred: "Favoris",
+      archive: "Archives",
       sent: "Envoyés",
       trash: "Corbeille",
     },
     newMessage: "Nouveau message",
     countLabel: (n: number) => `${n} message${n > 1 ? "s" : ""}`,
     empty: "Aucun message",
+    search: "Rechercher dans les messages",
     actions: {
       title: "Actions",
       reply: "Répondre",
@@ -187,6 +190,7 @@ export const iboite = {
     movedToPending: "Courrier déplacé vers « À traiter ».",
     movedToTrash: "Courrier supprimé.",
     emailDeleted: "Message supprimé.",
+    emailArchived: "Message archivé.",
     starred: "Ajouté aux favoris.",
     unstarred: "Retiré des favoris.",
     packagePickedUp: "Colis marqué comme retiré.",

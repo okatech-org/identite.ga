@@ -1,19 +1,16 @@
 import React from "react"
-import { Pressable, Text, View } from "react-native"
-import {
-  isTrackReference,
-  LiveKitRoom,
-  useRoomContext,
-  useTracks,
-  VideoTrack,
-  type TrackReference,
-} from "@livekit/react-native"
+import { Platform, Pressable, Text, View } from "react-native"
+import type { TrackReference } from "@livekit/react-native"
 import { Track } from "livekit-client"
 
 import { Icon } from "@/design/icons"
 import { idnTokens } from "@/design/tokens"
 
 type Credentials = { serverUrl: string; token: string; roomName: string }
+
+function getNativeLiveKit() {
+  return require("@livekit/react-native") as typeof import("@livekit/react-native")
+}
 
 export function NativeLiveKitRoom({
   credentials,
@@ -24,6 +21,23 @@ export function NativeLiveKitRoom({
   onLeave: () => void
   onError: (message: string) => void
 }) {
+  if (Platform.OS === "web") {
+    return (
+      <View
+        style={{
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 28,
+        }}
+      >
+        <Text style={{ textAlign: "center" }}>
+          L’entretien vidéo est disponible dans l’application iOS ou Android.
+        </Text>
+      </View>
+    )
+  }
+  const { LiveKitRoom } = getNativeLiveKit()
   return (
     <LiveKitRoom
       serverUrl={credentials.serverUrl}
@@ -47,6 +61,8 @@ function RoomContent({
   onLeave: () => void
   onError: (message: string) => void
 }) {
+  const { isTrackReference, useRoomContext, useTracks, VideoTrack } =
+    getNativeLiveKit()
   const room = useRoomContext()
   const tracks = useTracks([Track.Source.Camera])
   const references = tracks.filter(isTrackReference) as TrackReference[]

@@ -12,6 +12,25 @@ const ATTACHMENT_INPUT = v.object({
   storageRef: v.id("_storage"),
 })
 
+function htmlToPlainText(html?: string): string {
+  if (!html) return ""
+  return html
+    .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<br\s*\/?\s*>/gi, "\n")
+    .replace(/<\/p\s*>/gi, "\n\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/[ \t]+/g, " ")
+    .replace(/ *\n */g, "\n")
+    .replace(/\n\s*\n\s*\n+/g, "\n\n")
+    .trim()
+}
+
 export const getAccountForProvisioning = internalQuery({
   args: { accountId: v.id("iboiteAccount") },
   returns: v.union(
@@ -147,6 +166,7 @@ export const persistInbound = internalMutation({
     recipientEmail: v.string(),
     subject: v.string(),
     body: v.string(),
+    bodyHtml: v.optional(v.string()),
     inReplyTo: v.optional(v.string()),
     receivedAt: v.number(),
     attachments: v.array(ATTACHMENT_INPUT),
@@ -161,7 +181,26 @@ export const persistInbound = internalMutation({
           .eq("recipientEmail", args.recipientEmail),
       )
       .unique()
-    if (existing) return existing.messageId
+    if (existing) {
+      const bodyHtml = args.bodyHtml?.trim() || undefined
+      const message = await ctx.db.get(existing.messageId)
+
+      // Un ancien déploiement ignorait la partie HTML du webhook. Un rejeu
+      // du même Message-ID doit pouvoir réparer la ligne existante sans créer
+      // de doublon ni dupliquer les pièces jointes.
+      if (message && bodyHtml && !message.bodyHtml?.trim()) {
+        const body =
+          args.body.trim() || htmlToPlainText(bodyHtml) || message.body
+        const flat = body.replace(/\s+/g, " ").trim()
+        await ctx.db.patch(message._id, {
+          body,
+          bodyHtml,
+          preview: flat.length <= 150 ? flat : `${flat.slice(0, 149)}…`,
+        })
+      }
+
+      return existing.messageId
+    }
 
     const account = await ctx.db
       .query("iboiteAccount")
@@ -186,7 +225,10 @@ export const persistInbound = internalMutation({
       if (matching) threadId = matching.threadId
     }
 
-    const body = args.body.trim() || "(Message sans contenu texte)"
+    const body =
+      args.body.trim() ||
+      htmlToPlainText(args.bodyHtml) ||
+      "(Message sans contenu texte)"
     const flat = body.replace(/\s+/g, " ").trim()
     const messageId = await ctx.db.insert("iboiteMessage", {
       accountId: account._id,
@@ -200,6 +242,7 @@ export const persistInbound = internalMutation({
       subject: args.subject.trim() || "(Sans objet)",
       preview: flat.length <= 150 ? flat : `${flat.slice(0, 149)}…`,
       body,
+      bodyHtml: args.bodyHtml?.trim() || undefined,
       folder: "inbox",
       isRead: false,
       isStarred: false,
@@ -236,6 +279,7 @@ export const persistInbound = internalMutation({
         kind: "message",
         messageId,
       },
+      pushUrl: `/iboite?section=emails&id=${messageId}`,
     })
     return messageId
   },

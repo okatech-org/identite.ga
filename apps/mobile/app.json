@@ -58,6 +58,7 @@
     "plugins": [
       "expo-router",
       "expo-updates",
+      "expo-notifications",
       "@livekit/react-native-expo-plugin",
       "@config-plugins/react-native-webrtc",
       [

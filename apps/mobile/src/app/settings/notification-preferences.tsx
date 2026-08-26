@@ -23,7 +23,7 @@ const CATEGORIES: { id: Category; label: string; help: string }[] = [
   {
     id: "security",
     label: "Sécurité",
-    help: "Connexions, mot de passe et alertes sensibles",
+    help: "Connexions, code PIN et alertes sensibles",
   },
   {
     id: "kyc",

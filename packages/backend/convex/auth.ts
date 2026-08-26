@@ -5,6 +5,7 @@ import { passkey } from "@better-auth/passkey"
 import { createAuthMiddleware } from "better-auth/api"
 import { deleteSessionCookie } from "better-auth/cookies"
 import { betterAuth } from "better-auth/minimal"
+import type { Auth } from "better-auth"
 import {
   emailOTP,
   haveIBeenPwned,
@@ -101,7 +102,7 @@ export const authComponent = createClient<DataModel>(components.betterAuth)
 export const createAuth = (
   ctx: GenericCtx<DataModel>,
   requestOrigin?: string | null,
-) => {
+): Auth => {
   return betterAuth({
     appName: "IDN",
     // baseURL = CONVEX_SITE_URL pour que le JWT `iss` corresponde à ce
@@ -440,7 +441,7 @@ export const createAuth = (
       // qui fonctionnait avec @convex-dev/better-auth 0.12.x.
       convex({ authConfig }),
     ],
-  })
+  }) as unknown as Auth
 }
 
 /**

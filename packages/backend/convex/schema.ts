@@ -771,6 +771,18 @@ export default defineSchema({
     .index("by_userId", ["userId"])
     .index("by_endpoint", ["endpoint"]),
 
+  /** Jetons Expo Push des applications iOS et Android. */
+  nativePushSubscription: defineTable({
+    userId: v.string(),
+    token: v.string(),
+    platform: v.union(v.literal("ios"), v.literal("android")),
+    deviceName: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_token", ["token"]),
+
   /**
    * Préférences UI : langue, thème, accessibilité.
    */
@@ -1122,7 +1134,13 @@ export default defineSchema({
     subject: v.string(),
     preview: v.string(),
     body: v.string(),
-    folder: v.union(v.literal("inbox"), v.literal("sent"), v.literal("trash")),
+    bodyHtml: v.optional(v.string()),
+    folder: v.union(
+      v.literal("inbox"),
+      v.literal("archive"),
+      v.literal("sent"),
+      v.literal("trash"),
+    ),
     isRead: v.boolean(),
     isStarred: v.boolean(),
     hasAttachment: v.boolean(),

@@ -18,10 +18,7 @@ import {
 import { CourrierDetail } from "./_components/courrier-detail"
 import { CourrierFolderList } from "./_components/courrier-folder-list"
 import { CourrierList } from "./_components/courrier-list"
-import {
-  EmailActionsBar,
-  EmailActionsPanel,
-} from "./_components/email-actions"
+import { EmailActionsBar, EmailActionsPanel } from "./_components/email-actions"
 import { EmailDetail } from "./_components/email-detail"
 import { EmailFolderList } from "./_components/email-folder-list"
 import { EmailList } from "./_components/email-list"
@@ -225,7 +222,7 @@ export default function IBoitePage() {
               type="button"
               onClick={() => state.openCompose()}
               aria-label={iboite.emails.newMessage}
-              className="absolute bottom-4 right-4 inline-flex h-13 w-13 items-center justify-center rounded-full bg-idn-green text-white shadow-lg shadow-idn-green/40 hover:bg-idn-green/90 md:hidden"
+              className="absolute bottom-4 right-4 inline-flex h-13 w-13 items-center justify-center rounded-full bg-idn-green text-white hover:bg-idn-green/90 md:hidden"
               style={{ height: 52, width: 52 }}
             >
               <SendIcon className="h-5 w-5" aria-hidden="true" />
@@ -237,7 +234,7 @@ export default function IBoitePage() {
               type="button"
               onClick={() => state.openCompose()}
               aria-label={iboite.courriers.newLetter}
-              className="absolute bottom-4 right-4 inline-flex items-center justify-center rounded-full bg-idn-green text-white shadow-lg shadow-idn-green/40 hover:bg-idn-green/90 md:hidden"
+              className="absolute bottom-4 right-4 inline-flex items-center justify-center rounded-full bg-idn-green text-white hover:bg-idn-green/90 md:hidden"
               style={{ height: 52, width: 52 }}
             >
               <PlusIcon className="h-5 w-5" aria-hidden="true" />
@@ -249,6 +246,7 @@ export default function IBoitePage() {
       {state.composeOpen && state.section === "emails" ? (
         <ComposeModal
           accountId={account._id}
+          fromEmail={account.emailAlias}
           onClose={state.closeCompose}
           replyToId={
             state.replyToId

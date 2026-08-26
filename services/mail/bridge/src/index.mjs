@@ -64,26 +64,35 @@ async function readJson(req) {
   let size = 0
   for await (const chunk of req) {
     size += chunk.length
-    if (size > MAX_BODY_BYTES) throw Object.assign(new Error("Payload too large"), { status: 413 })
+    if (size > MAX_BODY_BYTES)
+      throw Object.assign(new Error("Payload too large"), { status: 413 })
     chunks.push(chunk)
   }
   return JSON.parse(Buffer.concat(chunks).toString("utf8"))
 }
 
 function normalizeEmail(value) {
-  const email = String(value ?? "").trim().toLowerCase()
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw Object.assign(new Error("Invalid email address"), { status: 400 })
+  const email = String(value ?? "")
+    .trim()
+    .toLowerCase()
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+    throw Object.assign(new Error("Invalid email address"), { status: 400 })
   return email
 }
 
 function localMailbox(value) {
   const email = normalizeEmail(value)
-  if (!email.endsWith(`@${DOMAIN}`)) throw Object.assign(new Error(`Mailbox must belong to ${DOMAIN}`), { status: 400 })
+  if (!email.endsWith(`@${DOMAIN}`))
+    throw Object.assign(new Error(`Mailbox must belong to ${DOMAIN}`), {
+      status: 400,
+    })
   return { email, name: email.slice(0, -(DOMAIN.length + 1)) }
 }
 
 function mailboxPassword(email) {
-  return createHmac("sha256", MAILBOX_PASSWORD_KEY).update(`mailbox:${email}`).digest("base64url")
+  return createHmac("sha256", MAILBOX_PASSWORD_KEY)
+    .update(`mailbox:${email}`)
+    .digest("base64url")
 }
 
 async function stalwartIsReachable() {
@@ -109,15 +118,19 @@ async function stalwartCall(methodCalls) {
       authorization: `Basic ${Buffer.from(`${STALWART_ADMIN}:${STALWART_PASSWORD}`).toString("base64")}`,
       "content-type": "application/json",
     },
-    body: JSON.stringify({ using: [
-      "urn:ietf:params:jmap:core",
-      "urn:stalwart:jmap",
-    ], methodCalls }),
+    body: JSON.stringify({
+      using: ["urn:ietf:params:jmap:core", "urn:stalwart:jmap"],
+      methodCalls,
+    }),
   })
-  if (!response.ok) throw new Error(`Stalwart HTTP ${response.status}: ${await response.text()}`)
+  if (!response.ok)
+    throw new Error(
+      `Stalwart HTTP ${response.status}: ${await response.text()}`,
+    )
   const body = await response.json()
   const failure = body.methodResponses?.find(([name]) => name === "error")
-  if (failure) throw new Error(`Stalwart JMAP error: ${JSON.stringify(failure[1])}`)
+  if (failure)
+    throw new Error(`Stalwart JMAP error: ${JSON.stringify(failure[1])}`)
   return body.methodResponses
 }
 
@@ -126,21 +139,37 @@ let domainId
 
 async function loadManagementIds() {
   if (principalAccountId && domainId) return
-  const sessionResponse = await fetch(new URL("/.well-known/jmap", STALWART_URL), {
-    headers: { authorization: `Basic ${Buffer.from(`${STALWART_ADMIN}:${STALWART_PASSWORD}`).toString("base64")}` },
-    redirect: "follow",
-  })
-  if (!sessionResponse.ok) throw new Error(`Unable to load Stalwart JMAP session (${sessionResponse.status})`)
+  const sessionResponse = await fetch(
+    new URL("/.well-known/jmap", STALWART_URL),
+    {
+      headers: {
+        authorization: `Basic ${Buffer.from(`${STALWART_ADMIN}:${STALWART_PASSWORD}`).toString("base64")}`,
+      },
+      redirect: "follow",
+    },
+  )
+  if (!sessionResponse.ok)
+    throw new Error(
+      `Unable to load Stalwart JMAP session (${sessionResponse.status})`,
+    )
   const session = await sessionResponse.json()
   principalAccountId =
     session.primaryAccounts?.["urn:stalwart:jmap"] ??
     session.primaryAccounts?.["urn:ietf:params:jmap:mail"] ??
     Object.keys(session.accounts ?? {})[0]
-  if (!principalAccountId) throw new Error("Stalwart management account id missing")
+  if (!principalAccountId)
+    throw new Error("Stalwart management account id missing")
 
-  const responses = await stalwartCall([["x:Domain/query", { accountId: principalAccountId, filter: { name: DOMAIN }, limit: 2 }, "domain"]])
+  const responses = await stalwartCall([
+    [
+      "x:Domain/query",
+      { accountId: principalAccountId, filter: { name: DOMAIN }, limit: 2 },
+      "domain",
+    ],
+  ])
   const query = responses.find(([, , tag]) => tag === "domain")?.[1]
-  if (!query?.ids?.length) throw new Error(`Stalwart domain ${DOMAIN} not found`)
+  if (!query?.ids?.length)
+    throw new Error(`Stalwart domain ${DOMAIN} not found`)
   domainId = query.ids[0]
 }
 
@@ -148,8 +177,15 @@ async function ensureMailboxNow(address, displayName) {
   const { email, name } = localMailbox(address)
   await loadManagementIds()
 
-  const queryResponses = await stalwartCall([["x:Account/query", { accountId: principalAccountId, filter: { name }, limit: 2 }, "account"]])
-  const existing = queryResponses.find(([, , tag]) => tag === "account")?.[1]?.ids ?? []
+  const queryResponses = await stalwartCall([
+    [
+      "x:Account/query",
+      { accountId: principalAccountId, filter: { name }, limit: 2 },
+      "account",
+    ],
+  ])
+  const existing =
+    queryResponses.find(([, , tag]) => tag === "account")?.[1]?.ids ?? []
   if (existing.length > 0) {
     // Une boîte peut avoir été créée avec une ancienne clé HMAC ou depuis
     // l'interface Stalwart. Son existence ne garantit donc pas que le mot de
@@ -157,58 +193,79 @@ async function ensureMailboxNow(address, displayName) {
     // On resynchronise les identifiants à chaque provisionnement, qui reste
     // idempotent côté Stalwart.
     const accountId = existing[0]
-    const updateResponses = await stalwartCall([["x:Account/set", {
-      accountId: principalAccountId,
-      update: {
-        [accountId]: {
-          description: String(displayName ?? name).slice(0, 255),
-          credentials: {
-            0: {
-              "@type": "Password",
-              secret: mailboxPassword(email),
+    const updateResponses = await stalwartCall([
+      [
+        "x:Account/set",
+        {
+          accountId: principalAccountId,
+          update: {
+            [accountId]: {
+              description: String(displayName ?? name).slice(0, 255),
+              credentials: {
+                0: {
+                  "@type": "Password",
+                  secret: mailboxPassword(email),
+                },
+              },
             },
           },
         },
-      },
-    }, "reconcile"]])
+        "reconcile",
+      ],
+    ])
     const result = updateResponses.find(([, , tag]) => tag === "reconcile")?.[1]
     if (!Object.hasOwn(result?.updated ?? {}, accountId)) {
-      throw new Error(`Mailbox credential reconciliation failed: ${JSON.stringify(result?.notUpdated?.[accountId] ?? result)}`)
+      throw new Error(
+        `Mailbox credential reconciliation failed: ${JSON.stringify(result?.notUpdated?.[accountId] ?? result)}`,
+      )
     }
     return { email, id: accountId, created: false }
   }
 
   const createId = `mailbox-${name.replace(/[^a-z0-9._-]/g, "-")}`
-  const responses = await stalwartCall([["x:Account/set", {
-    accountId: principalAccountId,
-    create: {
-      [createId]: {
-        "@type": "User",
-        name,
-        domainId,
-        description: String(displayName ?? name).slice(0, 255),
-        locale: "fr_FR",
-        timeZone: "Africa/Libreville",
-        credentials: { "0": { "@type": "Password", secret: mailboxPassword(email) } },
-        memberGroupIds: {},
-        roles: { "@type": "User" },
-        permissions: { "@type": "Inherit" },
-        quotas: {},
-        aliases: {},
-        encryptionAtRest: { "@type": "Disabled" },
+  const responses = await stalwartCall([
+    [
+      "x:Account/set",
+      {
+        accountId: principalAccountId,
+        create: {
+          [createId]: {
+            "@type": "User",
+            name,
+            domainId,
+            description: String(displayName ?? name).slice(0, 255),
+            locale: "fr_FR",
+            timeZone: "Africa/Libreville",
+            credentials: {
+              0: { "@type": "Password", secret: mailboxPassword(email) },
+            },
+            memberGroupIds: {},
+            roles: { "@type": "User" },
+            permissions: { "@type": "Inherit" },
+            quotas: {},
+            aliases: {},
+            encryptionAtRest: { "@type": "Disabled" },
+          },
+        },
       },
-    },
-  }, "create"]])
+      "create",
+    ],
+  ])
   const result = responses.find(([, , tag]) => tag === "create")?.[1]
   const created = result?.created?.[createId]
-  if (!created?.id) throw new Error(`Mailbox creation failed: ${JSON.stringify(result?.notCreated?.[createId] ?? result)}`)
+  if (!created?.id)
+    throw new Error(
+      `Mailbox creation failed: ${JSON.stringify(result?.notCreated?.[createId] ?? result)}`,
+    )
   return { email, id: created.id, created: true }
 }
 
 let provisioningQueue = Promise.resolve()
 
 function ensureMailbox(address, displayName) {
-  const job = provisioningQueue.then(() => ensureMailboxNow(address, displayName))
+  const job = provisioningQueue.then(() =>
+    ensureMailboxNow(address, displayName),
+  )
   provisioningQueue = job.catch(() => undefined)
   return job
 }
@@ -243,7 +300,10 @@ async function renameMailboxNow(oldAddress, newAddress) {
 
   if (newIds.length > 0) {
     if (oldIds.length > 0 && oldIds[0] !== newIds[0]) {
-      throw Object.assign(new Error(`Target mailbox ${newMailbox.email} already exists`), { status: 409 })
+      throw Object.assign(
+        new Error(`Target mailbox ${newMailbox.email} already exists`),
+        { status: 409 },
+      )
     }
     return {
       oldEmail: oldMailbox.email,
@@ -280,7 +340,9 @@ async function renameMailboxNow(oldAddress, newAddress) {
   ])
   const result = updateResponses.find(([, , tag]) => tag === "rename")?.[1]
   if (!Object.hasOwn(result?.updated ?? {}, accountId)) {
-    throw new Error(`Mailbox rename failed: ${JSON.stringify(result?.notUpdated?.[accountId] ?? result)}`)
+    throw new Error(
+      `Mailbox rename failed: ${JSON.stringify(result?.notUpdated?.[accountId] ?? result)}`,
+    )
   }
   return {
     oldEmail: oldMailbox.email,
@@ -291,7 +353,9 @@ async function renameMailboxNow(oldAddress, newAddress) {
 }
 
 function renameMailbox(oldAddress, newAddress) {
-  const job = provisioningQueue.then(() => renameMailboxNow(oldAddress, newAddress))
+  const job = provisioningQueue.then(() =>
+    renameMailboxNow(oldAddress, newAddress),
+  )
   provisioningQueue = job.catch(() => undefined)
   return job
 }
@@ -300,14 +364,26 @@ async function sendMail(payload) {
   const from = localMailbox(payload.from?.email ?? payload.from).email
   const to = normalizeEmail(payload.to?.email ?? payload.to)
   const idempotencyKey = String(payload.idempotencyKey ?? "").trim()
-  if (!idempotencyKey || idempotencyKey.length > 255) throw Object.assign(new Error("Invalid idempotency key"), { status: 400 })
-  if (sentIds.has(idempotencyKey)) return { duplicate: true, messageId: payload.messageId ?? null }
-  if (inFlightIds.has(idempotencyKey)) throw Object.assign(new Error("Message is already being sent"), { status: 409 })
+  if (!idempotencyKey || idempotencyKey.length > 255)
+    throw Object.assign(new Error("Invalid idempotency key"), { status: 400 })
+  if (sentIds.has(idempotencyKey))
+    return { duplicate: true, messageId: payload.messageId ?? null }
+  if (inFlightIds.has(idempotencyKey))
+    throw Object.assign(new Error("Message is already being sent"), {
+      status: 409,
+    })
 
-  const attachments = Array.isArray(payload.attachments) ? payload.attachments : []
-  if (attachments.length > MAX_ATTACHMENTS) throw Object.assign(new Error("Too many attachments"), { status: 400 })
+  const attachments = Array.isArray(payload.attachments)
+    ? payload.attachments
+    : []
+  if (attachments.length > MAX_ATTACHMENTS)
+    throw Object.assign(new Error("Too many attachments"), { status: 400 })
   for (const item of attachments) {
-    if (Buffer.byteLength(item.contentBase64 ?? "", "base64") > MAX_ATTACHMENT_BYTES) throw Object.assign(new Error("Attachment too large"), { status: 400 })
+    if (
+      Buffer.byteLength(item.contentBase64 ?? "", "base64") >
+      MAX_ATTACHMENT_BYTES
+    )
+      throw Object.assign(new Error("Attachment too large"), { status: 400 })
   }
 
   await ensureMailbox(from, payload.from?.name)
@@ -318,14 +394,19 @@ async function sendMail(payload) {
   })
   try {
     const info = await transport.sendMail({
-      from: { name: String(payload.from?.name ?? "Identité Numérique"), address: from },
+      from: {
+        name: String(payload.from?.name ?? "Identité Numérique"),
+        address: from,
+      },
       to: { name: String(payload.to?.name ?? ""), address: to },
       subject: String(payload.subject ?? ""),
       text: payload.text ? String(payload.text) : undefined,
       html: payload.html ? String(payload.html) : undefined,
       messageId: payload.messageId ? String(payload.messageId) : undefined,
       inReplyTo: payload.inReplyTo ? String(payload.inReplyTo) : undefined,
-      references: Array.isArray(payload.references) ? payload.references.map(String) : undefined,
+      references: Array.isArray(payload.references)
+        ? payload.references.map(String)
+        : undefined,
       attachments: attachments.map((item) => ({
         filename: String(item.filename ?? "attachment"),
         content: Buffer.from(String(item.contentBase64 ?? ""), "base64"),
@@ -334,7 +415,12 @@ async function sendMail(payload) {
     })
     await appendFile(sentLog, `${idempotencyKey}\n`, { mode: 0o600 })
     sentIds.add(idempotencyKey)
-    return { duplicate: false, messageId: info.messageId, accepted: info.accepted, rejected: info.rejected }
+    return {
+      duplicate: false,
+      messageId: info.messageId,
+      accepted: info.accepted,
+      rejected: info.rejected,
+    }
   } finally {
     transport.close()
     inFlightIds.delete(idempotencyKey)
@@ -348,7 +434,9 @@ function rebuildRawMessage(message) {
     const value = String(rawValue).replace(/(?:\r?\n)+$/, "")
     return `${name}:${/^[ \t]/.test(value) ? "" : " "}${value}`
   })
-  return Buffer.from(`${serialized.join("\r\n")}\r\n\r\n${message.contents ?? ""}`)
+  return Buffer.from(
+    `${serialized.join("\r\n")}\r\n\r\n${message.contents ?? ""}`,
+  )
 }
 
 async function forwardInbound(payload) {
@@ -361,47 +449,94 @@ async function forwardInbound(payload) {
     return
   }
 
-  const recipients = (payload.envelope?.to ?? []).map((item) => String(item?.address ?? "").toLowerCase()).filter((email) => email.endsWith(`@${DOMAIN}`))
+  const recipients = (payload.envelope?.to ?? [])
+    .map((item) => String(item?.address ?? "").toLowerCase())
+    .filter((email) => email.endsWith(`@${DOMAIN}`))
   if (recipients.length === 0) {
     console.log("Skipping DATA hook without local recipients")
     return
   }
 
-  const parsed = await simpleParser(rebuildRawMessage(payload.message ?? {}), { skipHtmlToText: false, skipTextToHtml: true })
-  const attachments = (parsed.attachments ?? []).slice(0, MAX_ATTACHMENTS).map((item) => {
-    if (item.size > MAX_ATTACHMENT_BYTES) throw new Error(`Inbound attachment ${item.filename ?? "attachment"} is too large`)
-    return {
-      filename: item.filename ?? "attachment",
-      contentType: item.contentType ?? "application/octet-stream",
-      size: item.size,
-      contentBase64: item.content.toString("base64"),
-    }
+  const parsed = await simpleParser(rebuildRawMessage(payload.message ?? {}), {
+    skipHtmlToText: false,
+    skipTextToHtml: true,
   })
-  const messageId = parsed.messageId ?? `<stalwart-${payload.context?.queue?.id ?? Date.now()}@${DOMAIN}>`
+  const html = typeof parsed.html === "string" ? parsed.html : undefined
+  const text =
+    typeof parsed.text === "string"
+      ? parsed.text
+      : (html
+          ?.replace(/<[^>]+>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim() ?? "")
+  console.log("Inbound MIME parsed", {
+    messageId: parsed.messageId ?? null,
+    textLength: text.length,
+    htmlLength: html?.length ?? 0,
+    attachmentCount: parsed.attachments?.length ?? 0,
+  })
+  const attachments = (parsed.attachments ?? [])
+    .slice(0, MAX_ATTACHMENTS)
+    .map((item) => {
+      if (item.size > MAX_ATTACHMENT_BYTES)
+        throw new Error(
+          `Inbound attachment ${item.filename ?? "attachment"} is too large`,
+        )
+      return {
+        filename: item.filename ?? "attachment",
+        contentType: item.contentType ?? "application/octet-stream",
+        size: item.size,
+        contentBase64: item.content.toString("base64"),
+      }
+    })
+  const messageId =
+    parsed.messageId ??
+    `<stalwart-${payload.context?.queue?.id ?? Date.now()}@${DOMAIN}>`
   const response = await fetch(CONVEX_INBOUND_URL, {
     method: "POST",
-    headers: { authorization: `Bearer ${CONVEX_INBOUND_TOKEN}`, "content-type": "application/json" },
+    headers: {
+      authorization: `Bearer ${CONVEX_INBOUND_TOKEN}`,
+      "content-type": "application/json",
+    },
     body: JSON.stringify({
       providerMessageId: messageId,
-      envelopeFrom: String(payload.envelope?.from?.address ?? parsed.from?.value?.[0]?.address ?? ""),
-      from: { name: parsed.from?.value?.[0]?.name ?? "", email: parsed.from?.value?.[0]?.address ?? String(payload.envelope?.from?.address ?? "") },
+      envelopeFrom: String(
+        payload.envelope?.from?.address ??
+          parsed.from?.value?.[0]?.address ??
+          "",
+      ),
+      from: {
+        name: parsed.from?.value?.[0]?.name ?? "",
+        email:
+          parsed.from?.value?.[0]?.address ??
+          String(payload.envelope?.from?.address ?? ""),
+      },
       recipients,
       subject: parsed.subject ?? "(Sans objet)",
-      text: parsed.text ?? parsed.html?.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() ?? "",
-      html: parsed.html || undefined,
+      text,
+      html,
       inReplyTo: parsed.inReplyTo || undefined,
       references: parsed.references ?? [],
       date: parsed.date?.getTime() ?? Date.now(),
       attachments,
     }),
   })
-  if (!response.ok) throw new Error(`Convex inbound failed (${response.status}): ${await response.text()}`)
-  console.log("Inbound message forwarded", { messageId, recipientCount: recipients.length })
+  if (!response.ok)
+    throw new Error(
+      `Convex inbound failed (${response.status}): ${await response.text()}`,
+    )
+  console.log("Inbound message forwarded", {
+    messageId,
+    recipientCount: recipients.length,
+  })
 }
 
 const server = createServer(async (req, res) => {
   try {
-    const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`)
+    const url = new URL(
+      req.url ?? "/",
+      `http://${req.headers.host ?? "localhost"}`,
+    )
     if (req.method === "GET" && url.pathname === "/health") {
       const stalwart = await stalwartIsReachable()
       return json(res, stalwart ? 200 : 503, {
@@ -411,32 +546,40 @@ const server = createServer(async (req, res) => {
       })
     }
     if (req.method === "POST" && url.pathname === "/provision") {
-      if (!authorized(req, BRIDGE_TOKEN)) return json(res, 401, { error: "unauthorized" })
+      if (!authorized(req, BRIDGE_TOKEN))
+        return json(res, 401, { error: "unauthorized" })
       const body = await readJson(req)
       return json(res, 200, await ensureMailbox(body.email, body.displayName))
     }
     if (req.method === "POST" && url.pathname === "/rename") {
-      if (!authorized(req, BRIDGE_TOKEN)) return json(res, 401, { error: "unauthorized" })
+      if (!authorized(req, BRIDGE_TOKEN))
+        return json(res, 401, { error: "unauthorized" })
       const body = await readJson(req)
       return json(res, 200, await renameMailbox(body.oldEmail, body.newEmail))
     }
     if (req.method === "POST" && url.pathname === "/send") {
-      if (!authorized(req, BRIDGE_TOKEN)) return json(res, 401, { error: "unauthorized" })
+      if (!authorized(req, BRIDGE_TOKEN))
+        return json(res, 401, { error: "unauthorized" })
       return json(res, 200, await sendMail(await readJson(req)))
     }
     if (req.method === "POST" && url.pathname === "/inbound") {
-      if (!authorized(req, MTA_HOOK_TOKEN)) return json(res, 401, { error: "unauthorized" })
+      if (!authorized(req, MTA_HOOK_TOKEN))
+        return json(res, 401, { error: "unauthorized" })
       await forwardInbound(await readJson(req))
       return json(res, 200, { action: "accept" })
     }
     return json(res, 404, { error: "not_found" })
   } catch (error) {
     console.error(error)
-    return json(res, Number(error?.status ?? 500), { error: error instanceof Error ? error.message : "internal_error" })
+    return json(res, Number(error?.status ?? 500), {
+      error: error instanceof Error ? error.message : "internal_error",
+    })
   }
 })
 
-server.listen(PORT, "0.0.0.0", () => console.log(`IDN mail bridge listening on :${PORT}`))
+server.listen(PORT, "0.0.0.0", () =>
+  console.log(`IDN mail bridge listening on :${PORT}`),
+)
 
 for (const signal of ["SIGTERM", "SIGINT"]) {
   process.on(signal, async () => {

@@ -6,6 +6,7 @@ import { register as registerRateLimiter } from "@convex-dev/rate-limiter/test"
 import { describe, expect, test, vi } from "vitest"
 
 import { api, internal } from "../_generated/api"
+import type { Id } from "../_generated/dataModel"
 import schema from "../schema"
 
 // Cf. kyc/mutations.test.ts pour l'explication du glob root-relative.
@@ -194,6 +195,20 @@ describe("messages.send — pièces jointes", () => {
       { attachmentId: inboxDetail!.attachments[0]._id },
     )
     expect(recipientAttachmentUrl).toBeTruthy()
+
+    // Archiver retire le message de la réception sans le supprimer.
+    await asRecipient.mutation(api.iboite.messages.move, {
+      messageId: inboxDetail!._id,
+      target: "archive",
+    })
+    const archived = await asRecipient.query(api.iboite.messages.listByFolder, {
+      accountId: inboxDetail!.accountId,
+      folder: "archive",
+      paginationOpts: { numItems: 10, cursor: null },
+    })
+    expect(archived.page.map((message) => message._id)).toContain(
+      inboxDetail!._id,
+    )
   })
 
   test("hasAttachment reste false quand aucune PJ n'est fournie, même si le client tente de le forcer", async () => {
@@ -352,6 +367,8 @@ describe("messages.send — transport SMTP externe", () => {
       recipientEmail: "alice@example.net",
       subject: "Message vers Internet",
       body: "Ce message doit être remis à Stalwart.",
+      bodyHtml:
+        '<p onload="alert(1)"><strong>Message</strong></p><script>alert(1)</script>',
     })
 
     const rows = await t.run(async (ctx) =>
@@ -364,6 +381,7 @@ describe("messages.send — transport SMTP externe", () => {
       transport: "smtp",
       deliveryStatus: "queued",
       recipientEmail: "alice@example.net",
+      bodyHtml: "<p><strong>Message</strong></p>",
     })
   })
 
@@ -398,7 +416,9 @@ describe("réception SMTP", () => {
       fromEmail: "alice@example.net",
       recipientEmail: recipient.emailAlias,
       subject: "Bonjour",
-      body: "Un vrai email entrant.",
+      body: "",
+      bodyHtml:
+        '<div style="font-family:Arial"><h1>Bonjour</h1><p>Un vrai <strong>email</strong> entrant.</p></div>',
       receivedAt: Date.now(),
       attachments: [],
     }
@@ -425,6 +445,39 @@ describe("réception SMTP", () => {
     expect(inbox[0]).toMatchObject({
       transport: "smtp",
       senderEmail: "alice@example.net",
+      body: "Bonjour Un vrai email entrant.",
+      bodyHtml: expect.stringContaining("<strong>email</strong>"),
     })
+  })
+
+  test("un rejeu enrichit en HTML un message reçu sans HTML", async () => {
+    const t = makeTestClient()
+    const recipient = await seedAccount(t, "user_inbound_replay", "replay")
+    const base = {
+      providerMessageId: "<replay-html@example.net>",
+      fromName: "Alice Externe",
+      fromEmail: "alice@example.net",
+      recipientEmail: recipient.emailAlias,
+      subject: "Signature HTML",
+      body: "Bonjour — consulter https://example.net",
+      receivedAt: Date.now(),
+      attachments: [],
+    }
+
+    const messageId = await t.mutation(
+      internal.iboite.mailInternal.persistInbound,
+      base,
+    )
+    await t.mutation(internal.iboite.mailInternal.persistInbound, {
+      ...base,
+      bodyHtml:
+        '<p>Bonjour — consulter <a href="https://example.net">le site</a></p><img src="https://example.net/signature.png" alt="Signature">',
+    })
+
+    const message = await t.run((ctx) =>
+      ctx.db.get(messageId as Id<"iboiteMessage">),
+    )
+    expect(message?.bodyHtml).toContain('<a href="https://example.net">')
+    expect(message?.bodyHtml).toContain("signature.png")
   })
 })

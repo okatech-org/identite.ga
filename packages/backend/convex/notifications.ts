@@ -1,11 +1,11 @@
-import { ConvexError, v } from "convex/values";
+import { ConvexError, v } from "convex/values"
 
-import { internal } from "./_generated/api";
-import { internalMutation, mutation, query } from "./_generated/server";
-import { authComponent } from "./auth";
-import { requireAuth } from "./lib/auth";
-import { NOTIFICATION_CATEGORIES } from "./schema";
-import type { Doc } from "./_generated/dataModel";
+import { internal } from "./_generated/api"
+import { internalMutation, mutation, query } from "./_generated/server"
+import { authComponent } from "./auth"
+import { requireAuth } from "./lib/auth"
+import { NOTIFICATION_CATEGORIES } from "./schema"
+import type { Doc } from "./_generated/dataModel"
 
 /**
  * Notifications in-app + email (cf. §3.4 du cahier + ressources/SPECS_FEATURES_CITIZEN.md §4).
@@ -22,11 +22,11 @@ import type { Doc } from "./_generated/dataModel";
 // Constantes / validators partagés
 // ─────────────────────────────────────────────────────────────────────────
 
-type Category = (typeof NOTIFICATION_CATEGORIES)[number];
+type Category = (typeof NOTIFICATION_CATEGORIES)[number]
 
 const CATEGORY_VALIDATOR = v.union(
   ...NOTIFICATION_CATEGORIES.map((c) => v.literal(c)),
-);
+)
 
 const KYC_KIND = v.union(
   v.literal("complement_requested"),
@@ -34,7 +34,7 @@ const KYC_KIND = v.union(
   v.literal("rejected"),
   v.literal("complement_provided"),
   v.literal("under_review"),
-);
+)
 
 const KYC_IN_APP: Record<
   | "complement_requested"
@@ -73,7 +73,7 @@ const KYC_IN_APP: Record<
     body: () =>
       "Les contrôles automatiques n'ont pas permis de conclure : un agent va examiner votre dossier. Aucune action n'est attendue de votre part, vous serez notifié dès qu'une décision sera prise.",
   },
-};
+}
 
 // Préférence par défaut quand la catégorie est absente du document
 // `notificationPreference` (cas rétro-compat ou nouvelle catégorie).
@@ -86,27 +86,20 @@ const DEFAULT_PREF_VALUE: Record<Category, boolean> = {
   ai: true,
   cv: true,
   system: true,
-};
+}
 
 function getPref(
   prefs: Doc<"notificationPreference"> | null,
   channel: "email" | "inApp",
   category: Category,
 ): boolean {
-  if (!prefs) return DEFAULT_PREF_VALUE[category];
+  if (!prefs) return DEFAULT_PREF_VALUE[category]
   const matrix = (channel === "email" ? prefs.email : prefs.inApp) as Record<
     string,
     boolean | undefined
-  >;
-  const v = matrix[category];
-  return v === undefined ? DEFAULT_PREF_VALUE[category] : v;
-}
-
-function isPushConfigured(): boolean {
-  return Boolean(
-    process.env.VAPID_PUBLIC_KEY?.trim() &&
-    process.env.VAPID_PRIVATE_KEY?.trim(),
-  );
+  >
+  const v = matrix[category]
+  return v === undefined ? DEFAULT_PREF_VALUE[category] : v
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -130,13 +123,13 @@ export const dispatchKyc = internalMutation({
     const prefs = await ctx.db
       .query("notificationPreference")
       .withIndex("by_userId", (q) => q.eq("userId", args.userId))
-      .unique();
-    const wantsInApp = getPref(prefs, "inApp", "kyc");
-    const wantsEmail = getPref(prefs, "email", "kyc");
+      .unique()
+    const wantsInApp = getPref(prefs, "inApp", "kyc")
+    const wantsEmail = getPref(prefs, "email", "kyc")
 
-    const copy = KYC_IN_APP[args.kind];
-    const body = copy.body(args.detail ?? null);
-    const now = Date.now();
+    const copy = KYC_IN_APP[args.kind]
+    const body = copy.body(args.detail ?? null)
+    const now = Date.now()
 
     if (wantsInApp) {
       await ctx.db.insert("notification", {
@@ -150,32 +143,32 @@ export const dispatchKyc = internalMutation({
           kind: args.kind,
         },
         createdAt: now,
-      });
-      if (isPushConfigured()) {
+      })
+      if (process.env.NODE_ENV !== "test") {
         await ctx.scheduler.runAfter(0, internal.push.deliver.notification, {
           userId: args.userId,
           title: copy.title,
           body,
           url: "/kyc/request",
-        });
+        })
       }
     }
 
     if (wantsEmail) {
-      const user = await authComponent.getAnyUserById(ctx, args.userId);
+      const user = await authComponent.getAnyUserById(ctx, args.userId)
       if (user?.email) {
-        const recipientName = (user as { name?: string }).name ?? null;
+        const recipientName = (user as { name?: string }).name ?? null
         await ctx.scheduler.runAfter(0, internal.email.dispatch.sendKyc, {
           to: user.email,
           kind: args.kind,
           recipientName,
           detail: args.detail ?? null,
-        });
+        })
       }
     }
-    return null;
+    return null
   },
-});
+})
 
 /**
  * Dispatcher générique. Insère une ligne in-app (si autorisé par les
@@ -198,9 +191,9 @@ export const dispatch = internalMutation({
     const prefs = await ctx.db
       .query("notificationPreference")
       .withIndex("by_userId", (q) => q.eq("userId", args.userId))
-      .unique();
+      .unique()
 
-    const now = Date.now();
+    const now = Date.now()
     if (getPref(prefs, "inApp", args.category)) {
       await ctx.db.insert("notification", {
         userId: args.userId,
@@ -210,33 +203,33 @@ export const dispatch = internalMutation({
         body: args.body,
         metadata: args.metadata,
         createdAt: now,
-      });
-      if (isPushConfigured()) {
+      })
+      if (process.env.NODE_ENV !== "test") {
         await ctx.scheduler.runAfter(0, internal.push.deliver.notification, {
           userId: args.userId,
           title: args.title,
           body: args.body,
           url: args.pushUrl,
-        });
+        })
       }
     }
 
     if (args.sendEmail && getPref(prefs, "email", args.category)) {
-      const user = await authComponent.getAnyUserById(ctx, args.userId);
+      const user = await authComponent.getAnyUserById(ctx, args.userId)
       if (user?.email) {
-        const recipientName = (user as { name?: string }).name ?? null;
+        const recipientName = (user as { name?: string }).name ?? null
         await ctx.scheduler.runAfter(0, internal.email.dispatch.sendGeneric, {
           to: user.email,
           subject: args.emailSubject ?? args.title,
           title: args.title,
           body: args.body,
           recipientName,
-        });
+        })
       }
     }
-    return null;
+    return null
   },
-});
+})
 
 // ─────────────────────────────────────────────────────────────────────────
 // Queries citoyen
@@ -250,21 +243,21 @@ const NOTIF_OUT = v.object({
   metadata: v.optional(v.record(v.string(), v.any())),
   readAt: v.optional(v.number()),
   createdAt: v.number(),
-});
+})
 
 const FILTER_VALIDATOR = v.union(
   v.literal("all"),
   v.literal("unread"),
   CATEGORY_VALIDATOR,
-);
+)
 
 function applyFilter(
   notif: Doc<"notification">,
   filter: "all" | "unread" | Category,
 ): boolean {
-  if (filter === "all") return true;
-  if (filter === "unread") return !notif.readAt;
-  return notif.category === filter;
+  if (filter === "all") return true
+  if (filter === "unread") return !notif.readAt
+  return notif.category === filter
 }
 
 function serializeNotif(d: Doc<"notification">) {
@@ -276,7 +269,7 @@ function serializeNotif(d: Doc<"notification">) {
     metadata: d.metadata,
     readAt: d.readAt,
     createdAt: d.createdAt,
-  };
+  }
 }
 
 export const listMine = query({
@@ -286,9 +279,9 @@ export const listMine = query({
   },
   returns: v.array(NOTIF_OUT),
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
-    const limit = Math.min(args.limit ?? 50, 200);
-    const filter = args.filter ?? "all";
+    const user = await requireAuth(ctx)
+    const limit = Math.min(args.limit ?? 50, 200)
+    const filter = args.filter ?? "all"
 
     // On lit en `desc` puis on filtre côté JS — bornage par `limit` après filtre
     // pour éviter une lecture trop large. Acceptable pour V1 (par user, <few hundred).
@@ -296,40 +289,40 @@ export const listMine = query({
       .query("notification")
       .withIndex("by_userId", (q) => q.eq("userId", user.userId))
       .order("desc")
-      .take(limit * 3); // marge pour absorber les filtrés (deletedAt, filter)
+      .take(limit * 3) // marge pour absorber les filtrés (deletedAt, filter)
     const visible = docs.filter(
       (d) => d.deletedAt === undefined && applyFilter(d, filter),
-    );
-    return visible.slice(0, limit).map(serializeNotif);
+    )
+    return visible.slice(0, limit).map(serializeNotif)
   },
-});
+})
 
 export const unreadCount = query({
   args: {},
   returns: v.number(),
   handler: async (ctx) => {
-    const user = await requireAuth(ctx);
+    const user = await requireAuth(ctx)
     // Lecture bornée — on s'attend à peu d'éléments unread par user.
     const docs = await ctx.db
       .query("notification")
       .withIndex("by_userId_unread", (q) =>
         q.eq("userId", user.userId).eq("readAt", undefined),
       )
-      .take(200);
-    return docs.filter((d) => d.deletedAt === undefined).length;
+      .take(200)
+    return docs.filter((d) => d.deletedAt === undefined).length
   },
-});
+})
 
 const GROUPED_OUT = v.object({
   today: v.array(NOTIF_OUT),
   yesterday: v.array(NOTIF_OUT),
   earlier: v.array(NOTIF_OUT),
-});
+})
 
 function startOfLocalDay(ts: number): number {
-  const d = new Date(ts);
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
+  const d = new Date(ts)
+  d.setHours(0, 0, 0, 0)
+  return d.getTime()
 }
 
 export const groupedByDate = query({
@@ -339,38 +332,38 @@ export const groupedByDate = query({
   },
   returns: GROUPED_OUT,
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
-    const limit = Math.min(args.limit ?? 50, 200);
-    const filter = args.filter ?? "all";
+    const user = await requireAuth(ctx)
+    const limit = Math.min(args.limit ?? 50, 200)
+    const filter = args.filter ?? "all"
 
     const docs = await ctx.db
       .query("notification")
       .withIndex("by_userId", (q) => q.eq("userId", user.userId))
       .order("desc")
-      .take(limit * 3);
+      .take(limit * 3)
     const visible = docs
       .filter((d) => d.deletedAt === undefined && applyFilter(d, filter))
-      .slice(0, limit);
+      .slice(0, limit)
 
-    const now = Date.now();
-    const todayStart = startOfLocalDay(now);
-    const yesterdayStart = todayStart - 24 * 60 * 60 * 1000;
+    const now = Date.now()
+    const todayStart = startOfLocalDay(now)
+    const yesterdayStart = todayStart - 24 * 60 * 60 * 1000
 
-    const today: Doc<"notification">[] = [];
-    const yesterday: Doc<"notification">[] = [];
-    const earlier: Doc<"notification">[] = [];
+    const today: Doc<"notification">[] = []
+    const yesterday: Doc<"notification">[] = []
+    const earlier: Doc<"notification">[] = []
     for (const d of visible) {
-      if (d.createdAt >= todayStart) today.push(d);
-      else if (d.createdAt >= yesterdayStart) yesterday.push(d);
-      else earlier.push(d);
+      if (d.createdAt >= todayStart) today.push(d)
+      else if (d.createdAt >= yesterdayStart) yesterday.push(d)
+      else earlier.push(d)
     }
     return {
       today: today.map(serializeNotif),
       yesterday: yesterday.map(serializeNotif),
       earlier: earlier.map(serializeNotif),
-    };
+    }
   },
-});
+})
 
 // ─────────────────────────────────────────────────────────────────────────
 // Mutations citoyen
@@ -380,41 +373,41 @@ export const markAllRead = mutation({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
-    const user = await requireAuth(ctx);
+    const user = await requireAuth(ctx)
     const docs = await ctx.db
       .query("notification")
       .withIndex("by_userId_unread", (q) =>
         q.eq("userId", user.userId).eq("readAt", undefined),
       )
-      .take(500);
-    const now = Date.now();
+      .take(500)
+    const now = Date.now()
     for (const d of docs) {
       if (d.deletedAt === undefined) {
-        await ctx.db.patch(d._id, { readAt: now });
+        await ctx.db.patch(d._id, { readAt: now })
       }
     }
-    return null;
+    return null
   },
-});
+})
 
 export const markRead = mutation({
   args: { notificationId: v.id("notification") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
-    const notif = await ctx.db.get(args.notificationId);
+    const user = await requireAuth(ctx)
+    const notif = await ctx.db.get(args.notificationId)
     if (!notif || notif.userId !== user.userId) {
       throw new ConvexError({
         code: "NOT_FOUND",
         message: "Notification introuvable.",
-      });
+      })
     }
     if (!notif.readAt) {
-      await ctx.db.patch(args.notificationId, { readAt: Date.now() });
+      await ctx.db.patch(args.notificationId, { readAt: Date.now() })
     }
-    return null;
+    return null
   },
-});
+})
 
 /**
  * Soft-delete toutes les notifications du citoyen courant. Utilisé par
@@ -424,24 +417,24 @@ export const clearAll = mutation({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
-    const user = await requireAuth(ctx);
-    const now = Date.now();
+    const user = await requireAuth(ctx)
+    const now = Date.now()
     // On itère par batch pour rester dans les limites de transaction.
-    let cursor: string | null = null;
+    let cursor: string | null = null
     while (true) {
       const page = await ctx.db
         .query("notification")
         .withIndex("by_userId", (q) => q.eq("userId", user.userId))
         .order("desc")
-        .paginate({ numItems: 200, cursor });
+        .paginate({ numItems: 200, cursor })
       for (const d of page.page) {
         if (d.deletedAt === undefined) {
-          await ctx.db.patch(d._id, { deletedAt: now });
+          await ctx.db.patch(d._id, { deletedAt: now })
         }
       }
-      if (page.isDone) break;
-      cursor = page.continueCursor;
+      if (page.isDone) break
+      cursor = page.continueCursor
     }
-    return null;
+    return null
   },
-});
+})

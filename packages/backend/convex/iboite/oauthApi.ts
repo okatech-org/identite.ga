@@ -431,6 +431,7 @@ export const sendMessage = internalMutation({
       title: `Nouveau message de ${senderName}`,
       body: `${subject}\n\n${preview(body)}`,
       metadata: { module: "iboite", kind: "message", messageId: inboxId },
+      pushUrl: `/iboite?section=emails&id=${inboxId}`,
     })
     return sentId
   },

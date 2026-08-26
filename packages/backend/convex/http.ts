@@ -47,7 +47,19 @@ function authCorsHeaders(origin: string | null): Record<string, string> {
     .split(",")
     .map((o) => o.trim())
     .filter(Boolean)
-  if (!allowed.includes(origin)) return {}
+  let isLocalDevOrigin = false
+  if (process.env.NODE_ENV !== "production") {
+    try {
+      const url = new URL(origin)
+      isLocalDevOrigin =
+        url.hostname === "localhost" ||
+        url.hostname === "127.0.0.1" ||
+        url.hostname.endsWith(".local")
+    } catch {
+      isLocalDevOrigin = false
+    }
+  }
+  if (!allowed.includes(origin) && !isLocalDevOrigin) return {}
   return {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Credentials": "true",

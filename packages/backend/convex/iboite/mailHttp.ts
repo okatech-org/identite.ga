@@ -117,6 +117,7 @@ export const inbound = httpAction(async (ctx, request) => {
         recipientEmail,
         subject: String(body.subject ?? "(Sans objet)").slice(0, 998),
         body: String(body.text ?? "").slice(0, 5_000_000),
+        bodyHtml: body.html ? String(body.html).slice(0, 500_000) : undefined,
         inReplyTo: body.inReplyTo
           ? String(body.inReplyTo).slice(0, 1000)
           : undefined,

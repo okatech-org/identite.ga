@@ -94,7 +94,7 @@ export function AccountSelector({
           <button
             type="button"
             className={cn(
-              "flex w-full items-center gap-3 rounded-2xl bg-gradient-to-br px-3.5 py-3 text-left text-white shadow-[0_4px_12px_rgba(0,0,0,0.12)] transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background data-[state=open]:scale-[0.98]",
+              "flex w-full items-center gap-3 rounded-2xl bg-gradient-to-br px-3.5 py-3 text-left text-white transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background data-[state=open]:scale-[0.98]",
               GRADIENT_BY_TYPE[current.type],
             )}
           >

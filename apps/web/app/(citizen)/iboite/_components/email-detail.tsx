@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useMutation, useQuery } from "convex/react"
+import { useConvex, useMutation, useQuery } from "convex/react"
 import {
   Building2Icon,
   PaperclipIcon,
@@ -17,6 +17,8 @@ import { cn } from "@repo/ui/lib/utils"
 
 import { iboite } from "../_content/fr"
 import { formatDateTime } from "../_lib/format"
+import { EmailHtmlFrame } from "./email-html-frame"
+import { EmailTextBody } from "./email-text-body"
 
 export function EmailDetail({
   messageId,
@@ -26,6 +28,7 @@ export function EmailDetail({
   /** Déclenche l'ouverture du compose en mode réponse à ce message. */
   onReply: () => void
 }) {
+  const convex = useConvex()
   const email = useQuery(api.iboite.messages.get, { messageId })
   const markRead = useMutation(api.iboite.messages.markRead)
   const toggleStar = useMutation(api.iboite.messages.toggleStar)
@@ -38,10 +41,7 @@ export function EmailDetail({
 
   if (email === undefined) {
     return (
-      <div
-        className="flex flex-1 items-center justify-center"
-        aria-busy="true"
-      >
+      <div className="flex flex-1 items-center justify-center" aria-busy="true">
         <p className="text-sm text-muted-foreground">{iboite.loading}</p>
       </div>
     )
@@ -67,6 +67,20 @@ export function EmailDetail({
       )
     } catch {
       // silencieux
+    }
+  }
+
+  async function openAttachment(attachmentId: Id<"iboiteMessageAttachment">) {
+    try {
+      const url = await convex.query(api.iboite.messages.attachmentUrl, {
+        attachmentId,
+      })
+      if (!url) throw new Error(iboite.toasts.downloadFailed)
+      window.open(url, "_blank", "noopener,noreferrer")
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : iboite.toasts.downloadFailed,
+      )
     }
   }
 
@@ -132,29 +146,43 @@ export function EmailDetail({
         <h1 className="text-lg font-semibold">{email.subject}</h1>
       </div>
 
-      <div className="mx-5 mb-5 rounded-xl border border-border bg-background p-5 shadow-sm">
-        <div className="whitespace-pre-wrap text-sm leading-7 text-foreground/90">
-          {email.body}
-        </div>
+      <div className="mx-3 mb-5 overflow-hidden rounded-xl border border-border bg-background sm:mx-5">
+        {email.bodyHtml ? (
+          <EmailHtmlFrame html={email.bodyHtml} />
+        ) : (
+          <EmailTextBody text={email.body} />
+        )}
 
-        {email.hasAttachment ? (
-          <section className="mt-6 border-t border-border pt-4">
+        {email.attachments.length > 0 ? (
+          <section className="border-t border-border p-4">
             <h2 className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
               {iboite.emails.attachments}
             </h2>
-            <div className="mt-3 flex items-center gap-3 rounded-lg border border-border bg-card p-3">
-              <PaperclipIcon
-                className="h-4 w-4 text-muted-foreground"
-                aria-hidden="true"
-              />
-              <span className="flex-1 text-xs">Document.pdf</span>
-              <button
-                type="button"
-                onClick={() => toast.info(iboite.toasts.soonAvailable)}
-                className="text-xs font-semibold text-idn-green hover:underline"
-              >
-                {iboite.emails.download}
-              </button>
+            <div className="mt-3 grid gap-2">
+              {email.attachments.map((attachment) => (
+                <button
+                  key={attachment._id}
+                  type="button"
+                  onClick={() => void openAttachment(attachment._id)}
+                  className="flex items-center gap-3 rounded-lg border border-border bg-card p-3 text-left transition-colors hover:bg-secondary/50"
+                >
+                  <PaperclipIcon
+                    className="h-4 w-4 shrink-0 text-muted-foreground"
+                    aria-hidden="true"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-xs font-medium">
+                      {attachment.name}
+                    </span>
+                    <span className="block text-[11px] text-muted-foreground">
+                      {Math.max(1, Math.round(attachment.size / 1024))} Ko
+                    </span>
+                  </span>
+                  <span className="text-xs font-semibold text-idn-green">
+                    {iboite.emails.download}
+                  </span>
+                </button>
+              ))}
             </div>
           </section>
         ) : null}

@@ -27,8 +27,14 @@ export function useEmailActions({
     }
   }
 
-  function onArchive() {
-    toast.info(iboite.toasts.archiveSoon)
+  async function onArchive() {
+    try {
+      await move({ messageId, target: "archive" })
+      toast.success(iboite.toasts.emailArchived)
+      onAfterMove()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : iboite.toasts.moveFailed)
+    }
   }
 
   return { onDelete, onArchive }

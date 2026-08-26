@@ -152,6 +152,7 @@ export const deliverOutbound = internalAction({
         },
         subject: outbound.message.subject,
         text: outbound.message.body,
+        html: outbound.message.bodyHtml,
         attachments,
       })
       await ctx.runMutation(internal.iboite.mailInternal.markOutbound, {

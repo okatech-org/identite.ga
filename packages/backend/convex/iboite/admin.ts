@@ -317,6 +317,7 @@ export const sendMessageFromAdmin = mutation({
         kind: "message",
         messageId: id,
       },
+      pushUrl: `/iboite?section=emails&id=${id}`,
     })
 
     return id
