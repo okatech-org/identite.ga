@@ -14,16 +14,11 @@ export function SettingsSection({
   className?: string
 }) {
   return (
-    <section
-      className={cn(
-        "rounded-xl border border-idn-border bg-idn-surface p-5 sm:p-6",
-        className,
-      )}
-    >
+    <section className={cn("portal-panel p-5 sm:p-6", className)}>
       <h2 className="text-base font-semibold text-idn-ink">{title}</h2>
-      {sub && (
+      {sub ? (
         <p className="mt-1 text-sm leading-relaxed text-idn-muted">{sub}</p>
-      )}
+      ) : null}
       <div className="mt-4">{children}</div>
     </section>
   )
@@ -55,7 +50,7 @@ export function SettingsRow({
           </p>
         )}
       </div>
-      {trailing && <div className="shrink-0">{trailing}</div>}
+      {trailing ? <div className="shrink-0">{trailing}</div> : null}
     </div>
   )
 }

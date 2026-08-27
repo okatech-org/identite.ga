@@ -157,149 +157,156 @@ export default function UsersPage() {
         }
       />
 
-      <div className="flex-1 overflow-auto p-7">
-        <div
-          role="tablist"
-          aria-label={fr.users.tabsLabel}
-          className="mb-5 inline-flex gap-1 rounded-lg border border-idn-border bg-idn-surface p-1"
-        >
-          {(
-            [
-              ["list", fr.users.tabList, undefined],
-              ["duplicates", fr.duplicates.title, duplicateGroups],
-            ] as const
-          ).map(([id, label, count]) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={tab === id}
-              onClick={() => setTab(id as Tab)}
-              className={
-                "inline-flex h-7 items-center gap-1.5 rounded-md px-3 text-[12px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-idn-green " +
-                (tab === id
-                  ? "bg-idn-green-soft text-idn-green"
-                  : "text-idn-muted hover:bg-idn-surface-2 hover:text-idn-ink")
-              }
-            >
-              {label}
-              {count ? (
-                <span className="rounded bg-idn-surface-2 px-1 text-[10px] font-semibold text-idn-muted">
-                  {count}
-                </span>
-              ) : null}
-            </button>
-          ))}
-        </div>
-
-        {tab === "duplicates" ? (
-          <DuplicatesView />
-        ) : (
-          <>
-            {searching ? (
-              <p aria-live="polite" className="mb-3 text-[12px] text-idn-muted">
-                {loading ? fr.users.loading : fr.users.resultCount(rows.length)}
-              </p>
-            ) : null}
-
-            {searching && search?.truncated ? (
-              <p className="mb-3 rounded-lg border border-idn-border bg-idn-surface-2 px-3 py-2 text-[12px] text-idn-muted">
-                {fr.users.searchTruncated}
-              </p>
-            ) : null}
-
-            {!searching && listed?.truncated ? (
-              <p className="mb-3 rounded-lg border border-idn-border bg-idn-surface-2 px-3 py-2 text-[12px] text-idn-muted">
-                {fr.users.listTruncated}
-              </p>
-            ) : null}
-
-            {loading ? (
-              <p className="text-[13px] text-idn-muted">{fr.users.loading}</p>
-            ) : rows.length === 0 ? (
-              <EmptyState
-                title={searching ? "Aucun résultat" : "Aucun compte IDN"}
-                description={
-                  searching
-                    ? "Aucun compte ne correspond à cette recherche."
-                    : "Les comptes inscrits via apps/web apparaîtront ici dès leur première session."
+      <div className="portal-canvas flex-1 overflow-auto">
+        <div className="portal-limit">
+          <div
+            role="tablist"
+            aria-label={fr.users.tabsLabel}
+            className="mb-5 inline-flex gap-1 rounded-lg border border-idn-border bg-idn-surface p-1"
+          >
+            {(
+              [
+                ["list", fr.users.tabList, undefined],
+                ["duplicates", fr.duplicates.title, duplicateGroups],
+              ] as const
+            ).map(([id, label, count]) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={tab === id}
+                onClick={() => setTab(id as Tab)}
+                className={
+                  "inline-flex h-7 items-center gap-1.5 rounded-md px-3 text-[12px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-idn-green " +
+                  (tab === id
+                    ? "bg-idn-green-soft text-idn-green"
+                    : "text-idn-muted hover:bg-idn-surface-2 hover:text-idn-ink")
                 }
-              />
-            ) : (
-              <>
-                <div className="overflow-hidden rounded-xl border border-idn-border bg-idn-surface">
-                  <div
-                    className={`${GRID} border-b border-idn-border bg-idn-surface-2 px-[18px] py-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-idn-muted`}
-                  >
-                    <div>{fr.users.cols.name}</div>
-                    <div>{fr.users.cols.email}</div>
-                    <div>{fr.users.cols.loa}</div>
-                    <div>{fr.users.cols.profile}</div>
-                    <div>{fr.users.cols.joined}</div>
-                    <div></div>
-                  </div>
-                  {rows.map((u, i) => (
-                    <div
-                      key={u._id}
-                      className={
-                        `${GRID} items-center px-[18px] py-3.5 text-[13px] text-idn-ink ` +
-                        (i === rows.length - 1
-                          ? ""
-                          : "border-b border-idn-border-soft")
-                      }
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <div
-                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white"
-                          style={{
-                            background:
-                              "linear-gradient(135deg,#0E7C3A,#0A5C2C)",
-                          }}
-                          aria-hidden
-                        >
-                          {initials(u.name, u.email)}
-                        </div>
-                        <Link
-                          href={`/users/${encodeURIComponent(u.userId)}`}
-                          className="truncate font-medium outline-none hover:text-idn-green hover:underline focus-visible:ring-2 focus-visible:ring-idn-green"
-                        >
-                          {u.name ?? u.email.split("@")[0]}
-                        </Link>
-                      </div>
-                      <div className="truncate font-mono text-[11px] text-idn-muted">
-                        {u.email || "—"}
-                      </div>
-                      <div>
-                        <LoABadge level={(u.loa as 1 | 2 | 3) ?? 1} compact />
-                      </div>
-                      <div className="text-idn-ink-2">
-                        {PROFILE_LABEL[u.profileType] ?? u.profileType}
-                      </div>
-                      <div className="text-xs text-idn-muted">
-                        {fmtJoined(u.createdAt)}
-                      </div>
-                      <UserRowActions
-                        userId={u.userId}
-                        idnId={u.idnId}
-                        email={u.email}
-                        deletedAt={u.deletedAt}
-                      />
-                    </div>
-                  ))}
-                </div>
-
-                {!searching && listed ? (
-                  <Pagination
-                    page={listed.page}
-                    pageCount={listed.pageCount}
-                    total={listed.total}
-                    onChange={setPage}
-                  />
+              >
+                {label}
+                {count ? (
+                  <span className="rounded bg-idn-surface-2 px-1 text-[10px] font-semibold text-idn-muted">
+                    {count}
+                  </span>
                 ) : null}
-              </>
-            )}
-          </>
-        )}
+              </button>
+            ))}
+          </div>
+
+          {tab === "duplicates" ? (
+            <DuplicatesView />
+          ) : (
+            <>
+              {searching ? (
+                <p
+                  aria-live="polite"
+                  className="mb-3 text-[12px] text-idn-muted"
+                >
+                  {loading
+                    ? fr.users.loading
+                    : fr.users.resultCount(rows.length)}
+                </p>
+              ) : null}
+
+              {searching && search?.truncated ? (
+                <p className="mb-3 rounded-lg border border-idn-border bg-idn-surface-2 px-3 py-2 text-[12px] text-idn-muted">
+                  {fr.users.searchTruncated}
+                </p>
+              ) : null}
+
+              {!searching && listed?.truncated ? (
+                <p className="mb-3 rounded-lg border border-idn-border bg-idn-surface-2 px-3 py-2 text-[12px] text-idn-muted">
+                  {fr.users.listTruncated}
+                </p>
+              ) : null}
+
+              {loading ? (
+                <p className="text-[13px] text-idn-muted">{fr.users.loading}</p>
+              ) : rows.length === 0 ? (
+                <EmptyState
+                  title={searching ? "Aucun résultat" : "Aucun compte IDN"}
+                  description={
+                    searching
+                      ? "Aucun compte ne correspond à cette recherche."
+                      : "Les comptes inscrits via apps/web apparaîtront ici dès leur première session."
+                  }
+                />
+              ) : (
+                <>
+                  <div className="portal-table">
+                    <div
+                      className={`${GRID} border-b border-idn-border bg-idn-surface-2 px-[18px] py-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-idn-muted`}
+                    >
+                      <div>{fr.users.cols.name}</div>
+                      <div>{fr.users.cols.email}</div>
+                      <div>{fr.users.cols.loa}</div>
+                      <div>{fr.users.cols.profile}</div>
+                      <div>{fr.users.cols.joined}</div>
+                      <div></div>
+                    </div>
+                    {rows.map((u, i) => (
+                      <div
+                        key={u._id}
+                        className={
+                          `${GRID} items-center px-[18px] py-3.5 text-[13px] text-idn-ink ` +
+                          (i === rows.length - 1
+                            ? ""
+                            : "border-b border-idn-border-soft")
+                        }
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div
+                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white"
+                            style={{
+                              background:
+                                "linear-gradient(135deg,#0E7C3A,#0A5C2C)",
+                            }}
+                            aria-hidden
+                          >
+                            {initials(u.name, u.email)}
+                          </div>
+                          <Link
+                            href={`/users/${encodeURIComponent(u.userId)}`}
+                            className="truncate font-medium outline-none hover:text-idn-green hover:underline focus-visible:ring-2 focus-visible:ring-idn-green"
+                          >
+                            {u.name ?? u.email.split("@")[0]}
+                          </Link>
+                        </div>
+                        <div className="truncate font-mono text-[11px] text-idn-muted">
+                          {u.email || "—"}
+                        </div>
+                        <div>
+                          <LoABadge level={(u.loa as 1 | 2 | 3) ?? 1} compact />
+                        </div>
+                        <div className="text-idn-ink-2">
+                          {PROFILE_LABEL[u.profileType] ?? u.profileType}
+                        </div>
+                        <div className="text-xs text-idn-muted">
+                          {fmtJoined(u.createdAt)}
+                        </div>
+                        <UserRowActions
+                          userId={u.userId}
+                          idnId={u.idnId}
+                          email={u.email}
+                          deletedAt={u.deletedAt}
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  {!searching && listed ? (
+                    <Pagination
+                      page={listed.page}
+                      pageCount={listed.pageCount}
+                      total={listed.total}
+                      onChange={setPage}
+                    />
+                  ) : null}
+                </>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </>
   )

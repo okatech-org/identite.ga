@@ -415,15 +415,7 @@ export const fr = {
     },
     preferences: {
       title: "Préférences",
-      sub: "Langue d'interface et thème.",
-      language: {
-        label: "Langue",
-        description: "Langue d'interface et communications.",
-        options: [
-          { value: "fr", label: "Français" },
-          { value: "en", label: "English" },
-        ],
-      },
+      sub: "Apparence du portail développeur.",
       theme: {
         label: "Thème",
         description: "Apparence claire, sombre ou automatique.",

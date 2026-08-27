@@ -46,7 +46,9 @@ function AccountCell({
   }
 }) {
   if (!account.exists && !account.email) {
-    return <span className="text-[12px] text-idn-muted">{t.deletedAccount}</span>
+    return (
+      <span className="text-[12px] text-idn-muted">{t.deletedAccount}</span>
+    )
   }
   return (
     <div className="min-w-0">
@@ -92,7 +94,7 @@ export function DuplicateSignals() {
   if (data === undefined || flags.length === 0) return null
 
   return (
-    <section className="overflow-hidden rounded-xl border border-idn-border bg-idn-surface">
+    <section className="portal-table">
       <header className="border-b border-idn-border bg-idn-surface-2 px-[18px] py-3">
         <h3 className="text-[13px] font-semibold text-idn-ink">{t.title}</h3>
         <p className="text-[12px] text-idn-muted">{t.sub}</p>

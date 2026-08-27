@@ -6,9 +6,12 @@ import { fr } from "../_content/fr"
 
 export function ActivityFeed({ rows }: { rows: ActivityRow[] }) {
   return (
-    <div className="mt-3.5 rounded-xl border border-idn-border bg-idn-surface p-[18px]">
-      <div className="mb-3 text-[13px] font-semibold text-idn-ink">
-        {fr.dashboard.activity.title}
+    <section className="portal-panel mt-4 p-5">
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <h2 className="text-sm font-semibold text-idn-ink">
+          {fr.dashboard.activity.title}
+        </h2>
+        <span className="portal-section-kicker">Temps réel</span>
       </div>
       {rows.length === 0 ? (
         <p className="py-6 text-center text-xs text-idn-muted">
@@ -19,7 +22,7 @@ export function ActivityFeed({ rows }: { rows: ActivityRow[] }) {
           {rows.map((r, i) => (
             <li
               key={i}
-              className="flex items-center gap-3.5 border-b border-idn-border-soft py-2.5 last:border-b-0"
+              className="flex items-center gap-3.5 border-b border-idn-border-soft py-3 last:border-b-0"
             >
               <span className="w-14 font-mono text-[11px] text-idn-muted">
                 {r.t}
@@ -37,6 +40,6 @@ export function ActivityFeed({ rows }: { rows: ActivityRow[] }) {
           ))}
         </ul>
       )}
-    </div>
+    </section>
   )
 }

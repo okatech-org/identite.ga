@@ -178,9 +178,7 @@ function DetailCard({
   className?: string
 }) {
   return (
-    <section
-      className={`rounded-xl border border-idn-border bg-idn-surface p-5 ${className}`}
-    >
+    <section className={`portal-panel p-5 ${className}`}>
       <h2 className="mb-4 text-[13px] font-semibold text-idn-ink">{title}</h2>
       {children}
     </section>
@@ -240,7 +238,9 @@ export default function UserDetailPage() {
     return (
       <>
         <OpHeader sub="COMPTES" title="Chargement du compte…" />
-        <div className="p-7 text-sm text-idn-muted">Chargement…</div>
+        <div className="portal-canvas flex-1 text-sm text-idn-muted">
+          Chargement…
+        </div>
       </>
     )
   }
@@ -266,252 +266,260 @@ export default function UserDetailPage() {
         }
       />
 
-      <div className="flex-1 overflow-auto p-7">
-        <Link
-          href="/users"
-          className="mb-5 inline-flex items-center gap-1.5 text-xs font-medium text-idn-green outline-none hover:underline focus-visible:ring-2 focus-visible:ring-idn-green"
-        >
-          {IdnIcons.arrowL}
-          Retour aux comptes
-        </Link>
-
-        <section className="mb-5 flex flex-wrap items-center gap-4 rounded-xl border border-idn-border bg-idn-surface p-5">
-          <div
-            aria-hidden
-            className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-idn-green to-idn-green-dark text-lg font-semibold text-white"
+      <div className="portal-canvas flex-1 overflow-auto">
+        <div className="portal-limit">
+          <Link
+            href="/users"
+            className="mb-5 inline-flex items-center gap-1.5 text-xs font-medium text-idn-green outline-none hover:underline focus-visible:ring-2 focus-visible:ring-idn-green"
           >
-            {initials(account)}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="truncate text-lg font-semibold text-idn-ink">
-                {displayName}
-              </h2>
-              <LoABadge level={account.loa} compact />
-              <span className="rounded-full bg-idn-surface-2 px-2 py-0.5 text-[11px] font-medium text-idn-muted">
-                {PROFILE_LABEL[account.profileType]}
-              </span>
-              {account.deletedAt !== undefined ? (
-                <StatePill ok={false}>Anonymisé</StatePill>
-              ) : (
-                <StatePill ok>Actif</StatePill>
-              )}
+            {IdnIcons.arrowL}
+            Retour aux comptes
+          </Link>
+
+          <section className="portal-panel mb-5 flex flex-wrap items-center gap-4 p-5">
+            <div
+              aria-hidden
+              className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-idn-green to-idn-green-dark text-lg font-semibold text-white"
+            >
+              {initials(account)}
             </div>
-            <p className="mt-1 truncate font-mono text-xs text-idn-muted">
-              {account.email || "Compte Better Auth absent"}
-            </p>
-          </div>
-        </section>
-
-        <div className="grid gap-5 xl:grid-cols-2">
-          <DetailCard title="Identité déclarée">
-            <dl>
-              <DetailRow label="Prénom" value={account.pivot?.firstName} />
-              <DetailRow label="Nom" value={account.pivot?.lastName} />
-              <DetailRow
-                label="Date de naissance"
-                value={account.pivot?.dateOfBirth}
-              />
-              <DetailRow
-                label="Genre"
-                value={
-                  account.pivot ? GENDER_LABEL[account.pivot.gender] : undefined
-                }
-              />
-              <DetailRow
-                label="Lieu de naissance"
-                value={account.pivot?.birthPlace}
-              />
-              <DetailRow
-                label="Nationalité"
-                value={account.pivot?.nationality}
-              />
-              <DetailRow label="Téléphone" value={account.pivot?.phone} mono />
-              <DetailRow label="NIP" value={account.pivot?.nip} mono />
-            </dl>
-          </DetailCard>
-
-          <DetailCard title="Compte et authentification">
-            <dl>
-              <DetailRow label="ID IDN" value={account.idnId} mono />
-              <DetailRow
-                label="Compte d’authentification"
-                value={
-                  <StatePill ok={account.authExists}>
-                    {account.authExists ? "Présent" : "Absent"}
-                  </StatePill>
-                }
-              />
-              <DetailRow label="Email" value={account.email} mono />
-              <DetailRow
-                label="Email vérifié"
-                value={
-                  <StatePill ok={account.emailVerified}>
-                    {account.emailVerified ? "Oui" : "Non"}
-                  </StatePill>
-                }
-              />
-              <DetailRow
-                label="PIN configuré"
-                value={
-                  <StatePill ok={account.pinConfigured}>
-                    {account.pinConfigured ? "Oui" : "Non"}
-                  </StatePill>
-                }
-              />
-              <DetailRow
-                label="Double authentification"
-                value={account.twoFactorEnabled ? "Activée" : "Désactivée"}
-              />
-              <DetailRow
-                label="Photo de profil"
-                value={account.hasProfilePhoto ? "Présente" : "Absente"}
-              />
-              <DetailRow
-                label="Rôles actifs"
-                value={
-                  account.roles.length
-                    ? account.roles.map((role) => role.role).join(", ")
-                    : "Aucun"
-                }
-              />
-              <DetailRow label="ID technique" value={account.userId} mono />
-            </dl>
-          </DetailCard>
-
-          <DetailCard title="Récupération du PIN par SMS">
-            <dl>
-              <DetailRow
-                label="État"
-                value={
-                  <StatePill ok={account.smsRecovery.eligible}>
-                    {account.smsRecovery.eligible
-                      ? "Envoi automatique autorisé"
-                      : "Vérification supplémentaire requise"}
-                  </StatePill>
-                }
-              />
-              <DetailRow
-                label="Numéro normalisé"
-                value={account.smsRecovery.normalizedPhone}
-                mono
-              />
-            </dl>
-            {!account.smsRecovery.eligible ? (
-              <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
-                <p className="font-medium">Motif du blocage</p>
-                <ul className="mt-1.5 list-disc space-y-1 pl-4">
-                  {account.smsRecovery.blockers.map((blocker) => (
-                    <li key={blocker}>{RECOVERY_BLOCKER_LABEL[blocker]}</li>
-                  ))}
-                </ul>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="truncate text-lg font-semibold text-idn-ink">
+                  {displayName}
+                </h2>
+                <LoABadge level={account.loa} compact />
+                <span className="rounded-full bg-idn-surface-2 px-2 py-0.5 text-[11px] font-medium text-idn-muted">
+                  {PROFILE_LABEL[account.profileType]}
+                </span>
+                {account.deletedAt !== undefined ? (
+                  <StatePill ok={false}>Anonymisé</StatePill>
+                ) : (
+                  <StatePill ok>Actif</StatePill>
+                )}
               </div>
-            ) : null}
-          </DetailCard>
-
-          <DetailCard title="Cycle de vie du compte">
-            <dl>
-              <DetailRow
-                label="Inscription"
-                value={formatDate(account.createdAt, true)}
-              />
-              <DetailRow
-                label="Dernière modification"
-                value={formatDate(account.updatedAt, true)}
-              />
-              <DetailRow
-                label="Suppression demandée"
-                value={formatDate(account.deletionRequestedAt, true)}
-              />
-              <DetailRow
-                label="Suppression prévue"
-                value={formatDate(account.deletionScheduledAt, true)}
-              />
-              <DetailRow
-                label="Anonymisation"
-                value={formatDate(account.deletedAt, true)}
-              />
-            </dl>
-          </DetailCard>
-
-          <DetailCard
-            title="Parcours de vérification"
-            className="xl:col-span-2"
-          >
-            {account.kycRequests.length === 0 ? (
-              <p className="text-xs text-idn-muted">
-                Aucun dossier de vérification pour ce compte.
+              <p className="mt-1 truncate font-mono text-xs text-idn-muted">
+                {account.email || "Compte Better Auth absent"}
               </p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[760px] text-left text-xs">
-                  <thead>
-                    <tr className="border-b border-idn-border-soft text-[11px] uppercase tracking-[0.05em] text-idn-muted">
-                      <th className="pb-2 pr-4 font-medium">Document</th>
-                      <th className="pb-2 pr-4 font-medium">Statut</th>
-                      <th className="pb-2 pr-4 font-medium">Score OCR</th>
-                      <th className="pb-2 pr-4 font-medium">Visage</th>
-                      <th className="pb-2 pr-4 font-medium">Doublon</th>
-                      <th className="pb-2 font-medium">Créé le</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {account.kycRequests.map((request) => (
-                      <tr
-                        key={request._id}
-                        className="border-b border-idn-border-soft last:border-0"
-                      >
-                        <td className="py-3 pr-4 text-idn-ink">
-                          {DOCUMENT_LABEL[request.documentType] ??
-                            request.documentType}
-                        </td>
-                        <td className="py-3 pr-4 text-idn-ink">
-                          {KYC_STATUS_LABEL[request.status] ?? request.status}
-                        </td>
-                        <td className="py-3 pr-4 text-idn-ink">
-                          {request.score ?? "—"}
-                        </td>
-                        <td className="py-3 pr-4 text-idn-ink">
-                          {request.faceMatchScore ?? "—"}
-                        </td>
-                        <td className="py-3 pr-4 text-idn-ink">
-                          {request.duplicateFlagged ? "Signalé" : "Non"}
-                        </td>
-                        <td className="py-3 text-idn-muted">
-                          {formatDate(request.createdAt, true)}
-                        </td>
-                      </tr>
+            </div>
+          </section>
+
+          <div className="grid gap-5 xl:grid-cols-2">
+            <DetailCard title="Identité déclarée">
+              <dl>
+                <DetailRow label="Prénom" value={account.pivot?.firstName} />
+                <DetailRow label="Nom" value={account.pivot?.lastName} />
+                <DetailRow
+                  label="Date de naissance"
+                  value={account.pivot?.dateOfBirth}
+                />
+                <DetailRow
+                  label="Genre"
+                  value={
+                    account.pivot
+                      ? GENDER_LABEL[account.pivot.gender]
+                      : undefined
+                  }
+                />
+                <DetailRow
+                  label="Lieu de naissance"
+                  value={account.pivot?.birthPlace}
+                />
+                <DetailRow
+                  label="Nationalité"
+                  value={account.pivot?.nationality}
+                />
+                <DetailRow
+                  label="Téléphone"
+                  value={account.pivot?.phone}
+                  mono
+                />
+                <DetailRow label="NIP" value={account.pivot?.nip} mono />
+              </dl>
+            </DetailCard>
+
+            <DetailCard title="Compte et authentification">
+              <dl>
+                <DetailRow label="ID IDN" value={account.idnId} mono />
+                <DetailRow
+                  label="Compte d’authentification"
+                  value={
+                    <StatePill ok={account.authExists}>
+                      {account.authExists ? "Présent" : "Absent"}
+                    </StatePill>
+                  }
+                />
+                <DetailRow label="Email" value={account.email} mono />
+                <DetailRow
+                  label="Email vérifié"
+                  value={
+                    <StatePill ok={account.emailVerified}>
+                      {account.emailVerified ? "Oui" : "Non"}
+                    </StatePill>
+                  }
+                />
+                <DetailRow
+                  label="PIN configuré"
+                  value={
+                    <StatePill ok={account.pinConfigured}>
+                      {account.pinConfigured ? "Oui" : "Non"}
+                    </StatePill>
+                  }
+                />
+                <DetailRow
+                  label="Double authentification"
+                  value={account.twoFactorEnabled ? "Activée" : "Désactivée"}
+                />
+                <DetailRow
+                  label="Photo de profil"
+                  value={account.hasProfilePhoto ? "Présente" : "Absente"}
+                />
+                <DetailRow
+                  label="Rôles actifs"
+                  value={
+                    account.roles.length
+                      ? account.roles.map((role) => role.role).join(", ")
+                      : "Aucun"
+                  }
+                />
+                <DetailRow label="ID technique" value={account.userId} mono />
+              </dl>
+            </DetailCard>
+
+            <DetailCard title="Récupération du PIN par SMS">
+              <dl>
+                <DetailRow
+                  label="État"
+                  value={
+                    <StatePill ok={account.smsRecovery.eligible}>
+                      {account.smsRecovery.eligible
+                        ? "Envoi automatique autorisé"
+                        : "Vérification supplémentaire requise"}
+                    </StatePill>
+                  }
+                />
+                <DetailRow
+                  label="Numéro normalisé"
+                  value={account.smsRecovery.normalizedPhone}
+                  mono
+                />
+              </dl>
+              {!account.smsRecovery.eligible ? (
+                <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                  <p className="font-medium">Motif du blocage</p>
+                  <ul className="mt-1.5 list-disc space-y-1 pl-4">
+                    {account.smsRecovery.blockers.map((blocker) => (
+                      <li key={blocker}>{RECOVERY_BLOCKER_LABEL[blocker]}</li>
                     ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </DetailCard>
+                  </ul>
+                </div>
+              ) : null}
+            </DetailCard>
 
-          <DetailCard title="Activité récente" className="xl:col-span-2">
-            {account.recentActivity.length === 0 ? (
-              <p className="text-xs text-idn-muted">
-                Aucune activité journalisée pour ce compte.
-              </p>
-            ) : (
-              <div>
-                {account.recentActivity.map((activity) => (
-                  <div
-                    key={activity._id}
-                    className="flex items-center justify-between gap-4 border-b border-idn-border-soft py-2.5 text-xs last:border-0"
-                  >
-                    <span className="text-idn-ink">
-                      {ACTION_LABEL[activity.action] ??
-                        activity.action.replaceAll("_", " ")}
-                    </span>
-                    <time className="shrink-0 text-idn-muted">
-                      {formatDate(activity.createdAt, true)}
-                    </time>
-                  </div>
-                ))}
-              </div>
-            )}
-          </DetailCard>
+            <DetailCard title="Cycle de vie du compte">
+              <dl>
+                <DetailRow
+                  label="Inscription"
+                  value={formatDate(account.createdAt, true)}
+                />
+                <DetailRow
+                  label="Dernière modification"
+                  value={formatDate(account.updatedAt, true)}
+                />
+                <DetailRow
+                  label="Suppression demandée"
+                  value={formatDate(account.deletionRequestedAt, true)}
+                />
+                <DetailRow
+                  label="Suppression prévue"
+                  value={formatDate(account.deletionScheduledAt, true)}
+                />
+                <DetailRow
+                  label="Anonymisation"
+                  value={formatDate(account.deletedAt, true)}
+                />
+              </dl>
+            </DetailCard>
+
+            <DetailCard
+              title="Parcours de vérification"
+              className="xl:col-span-2"
+            >
+              {account.kycRequests.length === 0 ? (
+                <p className="text-xs text-idn-muted">
+                  Aucun dossier de vérification pour ce compte.
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[760px] text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-idn-border-soft text-[11px] uppercase tracking-[0.05em] text-idn-muted">
+                        <th className="pb-2 pr-4 font-medium">Document</th>
+                        <th className="pb-2 pr-4 font-medium">Statut</th>
+                        <th className="pb-2 pr-4 font-medium">Score OCR</th>
+                        <th className="pb-2 pr-4 font-medium">Visage</th>
+                        <th className="pb-2 pr-4 font-medium">Doublon</th>
+                        <th className="pb-2 font-medium">Créé le</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {account.kycRequests.map((request) => (
+                        <tr
+                          key={request._id}
+                          className="border-b border-idn-border-soft last:border-0"
+                        >
+                          <td className="py-3 pr-4 text-idn-ink">
+                            {DOCUMENT_LABEL[request.documentType] ??
+                              request.documentType}
+                          </td>
+                          <td className="py-3 pr-4 text-idn-ink">
+                            {KYC_STATUS_LABEL[request.status] ?? request.status}
+                          </td>
+                          <td className="py-3 pr-4 text-idn-ink">
+                            {request.score ?? "—"}
+                          </td>
+                          <td className="py-3 pr-4 text-idn-ink">
+                            {request.faceMatchScore ?? "—"}
+                          </td>
+                          <td className="py-3 pr-4 text-idn-ink">
+                            {request.duplicateFlagged ? "Signalé" : "Non"}
+                          </td>
+                          <td className="py-3 text-idn-muted">
+                            {formatDate(request.createdAt, true)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </DetailCard>
+
+            <DetailCard title="Activité récente" className="xl:col-span-2">
+              {account.recentActivity.length === 0 ? (
+                <p className="text-xs text-idn-muted">
+                  Aucune activité journalisée pour ce compte.
+                </p>
+              ) : (
+                <div>
+                  {account.recentActivity.map((activity) => (
+                    <div
+                      key={activity._id}
+                      className="flex items-center justify-between gap-4 border-b border-idn-border-soft py-2.5 text-xs last:border-0"
+                    >
+                      <span className="text-idn-ink">
+                        {ACTION_LABEL[activity.action] ??
+                          activity.action.replaceAll("_", " ")}
+                      </span>
+                      <time className="shrink-0 text-idn-muted">
+                        {formatDate(activity.createdAt, true)}
+                      </time>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </DetailCard>
+          </div>
         </div>
       </div>
     </>

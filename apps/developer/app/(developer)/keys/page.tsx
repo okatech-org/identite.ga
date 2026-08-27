@@ -24,12 +24,15 @@ export default function KeysIndexPage() {
 
   return (
     <>
-      <OpHeader sub={fr.keys.subTemplate.replace("{appName}", "—")} title={fr.keys.title} />
-      <div className="flex-1 overflow-auto px-7 py-6">
+      <OpHeader
+        sub={fr.keys.subTemplate.replace("{appName}", "—")}
+        title={fr.keys.title}
+      />
+      <div className="portal-canvas flex-1 overflow-auto">
         {apps === null ? (
           <div className="text-sm text-idn-muted">Chargement…</div>
         ) : apps.length === 0 ? (
-          <div className="rounded-xl border border-idn-border bg-idn-surface p-8 text-center">
+          <div className="portal-panel portal-limit-narrow p-10 text-center">
             <h2 className="text-lg font-semibold text-idn-ink">
               {fr.applications.empty.title}
             </h2>

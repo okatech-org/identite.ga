@@ -96,10 +96,7 @@ export function DuplicatesView() {
       {groups.map((g) => {
         const bestLoa = Math.max(...g.accounts.map((a) => a.loa))
         return (
-          <section
-            key={g.key}
-            className="overflow-hidden rounded-xl border border-idn-border bg-idn-surface"
-          >
+          <section key={g.key} className="portal-table">
             <header className="flex flex-wrap items-baseline gap-x-2 gap-y-1 border-b border-idn-border bg-idn-surface-2 px-[18px] py-3">
               <h3 className="text-[13px] font-semibold text-idn-ink">
                 {g.lastName.toUpperCase()} {g.firstName}

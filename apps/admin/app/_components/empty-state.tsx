@@ -21,10 +21,16 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center gap-2 rounded-xl border border-idn-border bg-idn-surface px-6 py-14 text-center",
+        "portal-panel flex min-h-[260px] flex-col items-center justify-center gap-2 border-dashed px-6 py-14 text-center",
         className,
       )}
     >
+      <span
+        className="mb-3 grid size-10 place-items-center rounded-xl bg-[var(--portal-accent-soft)] text-[var(--portal-accent)]"
+        aria-hidden
+      >
+        ·
+      </span>
       <p className="text-sm font-semibold text-idn-ink">{title}</p>
       {description ? (
         <p className="max-w-md text-xs text-idn-muted">{description}</p>

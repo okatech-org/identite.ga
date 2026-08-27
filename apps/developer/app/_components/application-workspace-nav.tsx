@@ -59,7 +59,7 @@ export function ApplicationWorkspaceNav({
   }
 
   return (
-    <div className="rounded-xl border border-idn-border bg-idn-surface">
+    <div className="portal-panel overflow-hidden">
       <div className="flex flex-wrap items-center gap-3 border-b border-idn-border px-4 py-3">
         <Link
           href="/applications"
@@ -116,6 +116,7 @@ export function ApplicationWorkspaceNav({
           <Link
             key={item}
             href={`/applications/${app.clientId}/${item}`}
+            scroll={false}
             aria-current={item === section ? "page" : undefined}
             className={`border-b-2 px-3 py-2.5 text-sm font-medium whitespace-nowrap transition-colors ${
               item === section

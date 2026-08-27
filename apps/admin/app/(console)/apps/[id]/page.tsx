@@ -141,7 +141,7 @@ function DelegationSection({
   }
 
   return (
-    <section className="rounded-xl border border-idn-border bg-idn-surface p-5">
+    <section className="portal-panel p-5">
       <div className="mb-3.5 flex items-center justify-between">
         <h2 className="text-[13px] font-semibold text-idn-ink">{t.title}</h2>
         <span
@@ -317,7 +317,7 @@ export default function AppDetailPage() {
           </>
         }
       />
-      <div className="grid flex-1 grid-cols-[1.4fr_1fr] gap-3.5 overflow-auto p-7">
+      <div className="portal-canvas grid flex-1 grid-cols-1 gap-4 overflow-auto xl:grid-cols-[1.4fr_1fr]">
         <div className="flex flex-col gap-3.5">
           {app.productionStatus === "pending" && app.productionClientId ? (
             <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm dark:border-amber-700 dark:bg-amber-950/30">
@@ -331,7 +331,7 @@ export default function AppDetailPage() {
               </p>
             </div>
           ) : null}
-          <section className="rounded-xl border border-idn-border bg-idn-surface p-5">
+          <section className="portal-panel p-5">
             <h2 className="mb-3.5 text-[13px] font-semibold text-idn-ink">
               {fr.appDetail.oauthConfig}
             </h2>
@@ -363,7 +363,7 @@ export default function AppDetailPage() {
           />
         </div>
 
-        <aside className="rounded-xl border border-idn-border bg-idn-surface p-5">
+        <aside className="portal-panel p-5">
           <h2 className="mb-3.5 text-[13px] font-semibold text-idn-ink">
             {fr.appDetail.eventHistory}
           </h2>

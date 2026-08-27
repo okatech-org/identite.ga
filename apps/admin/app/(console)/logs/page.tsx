@@ -100,7 +100,12 @@ function shortMeta(r: LogRow) {
 function csvCell(value: unknown): string {
   if (value === undefined || value === null) return ""
   const s = typeof value === "string" ? value : String(value)
-  if (s.includes(",") || s.includes('"') || s.includes("\n") || s.includes("\r")) {
+  if (
+    s.includes(",") ||
+    s.includes('"') ||
+    s.includes("\n") ||
+    s.includes("\r")
+  ) {
     return `"${s.replaceAll('"', '""')}"`
   }
   return s
@@ -157,9 +162,7 @@ export default function LogsPage() {
   }, [range])
 
   const queryArgs = useMemo<{ limit: number; dateFrom?: number }>(() => {
-    return dateFrom !== undefined
-      ? { limit, dateFrom }
-      : { limit }
+    return dateFrom !== undefined ? { limit, dateFrom } : { limit }
   }, [limit, dateFrom])
 
   const data = useQuery(api.admin.auditLogs.list, queryArgs) as
@@ -272,49 +275,51 @@ export default function LogsPage() {
           </div>
         </div>
       ) : null}
-      <div className="flex-1 overflow-auto p-7">
-        {logs.length === 0 ? (
-          <EmptyState
-            title="Aucun événement audité"
-            description={
-              range === "hour"
-                ? "Aucun log dans l'heure en cours. Élargissez la plage pour voir l'historique."
-                : "Aucun log dans la plage sélectionnée."
-            }
-          />
-        ) : (
-          <div className="overflow-hidden rounded-xl border border-idn-border bg-idn-surface font-mono text-xs">
-            {logs.map((l, i) => {
-              const level = LEVEL_BY_ACTION[l.action] ?? "info"
-              return (
-                <div
-                  key={l._id}
-                  className={cn(
-                    "grid grid-cols-[90px_60px_1.2fr_1.6fr_2fr] items-center gap-3 px-[18px] py-2.5",
-                    i < logs.length - 1 && "border-b border-idn-border-soft",
-                  )}
-                >
-                  <span className="text-idn-muted">{fmtTs(l.createdAt)}</span>
-                  <span
+      <div className="portal-canvas flex-1 overflow-auto">
+        <div className="portal-limit">
+          {logs.length === 0 ? (
+            <EmptyState
+              title="Aucun événement audité"
+              description={
+                range === "hour"
+                  ? "Aucun log dans l'heure en cours. Élargissez la plage pour voir l'historique."
+                  : "Aucun log dans la plage sélectionnée."
+              }
+            />
+          ) : (
+            <div className="portal-table font-mono text-xs">
+              {logs.map((l, i) => {
+                const level = LEVEL_BY_ACTION[l.action] ?? "info"
+                return (
+                  <div
+                    key={l._id}
                     className={cn(
-                      "text-[10px] font-semibold uppercase",
-                      LEVEL_COLOR[level],
+                      "grid grid-cols-[90px_60px_1.2fr_1.6fr_2fr] items-center gap-3 px-[18px] py-2.5",
+                      i < logs.length - 1 && "border-b border-idn-border-soft",
                     )}
                   >
-                    {level}
-                  </span>
-                  <span className="font-medium text-idn-ink">
-                    {shortEvent(l.action)}
-                  </span>
-                  <span className="text-idn-ink-2">{l.actorId ?? "—"}</span>
-                  <span className="truncate text-idn-muted">
-                    {shortMeta(l)}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-        )}
+                    <span className="text-idn-muted">{fmtTs(l.createdAt)}</span>
+                    <span
+                      className={cn(
+                        "text-[10px] font-semibold uppercase",
+                        LEVEL_COLOR[level],
+                      )}
+                    >
+                      {level}
+                    </span>
+                    <span className="font-medium text-idn-ink">
+                      {shortEvent(l.action)}
+                    </span>
+                    <span className="text-idn-ink-2">{l.actorId ?? "—"}</span>
+                    <span className="truncate text-idn-muted">
+                      {shortMeta(l)}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </>
   )
