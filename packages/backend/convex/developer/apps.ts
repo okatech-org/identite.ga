@@ -1127,3 +1127,126 @@ export const migrateRedirectUrlsToCsv = internalMutation({
     return { inspected, updated }
   },
 })
+
+/**
+ * Amorçage d'un client OAuth de confiance, hors portail développeur.
+ *
+ * Les applications de l'État — NDJOBI, par exemple — ne suivent pas le parcours
+ * sandbox du portail : elles sont provisionnées directement en production par un
+ * opérateur disposant de la clé d'administration Convex.
+ *
+ *   bunx convex run --prod developer/apps:bootstrapTrustedClient '{"name":"…", …}'
+ *
+ * Le secret n'est retourné qu'ici, une seule fois, et stocké haché comme pour
+ * tout client du portail. Pour le renouveler ensuite : `rotateSecret`.
+ */
+export const bootstrapTrustedClient = internalMutation({
+  args: {
+    name: v.string(),
+    description: v.optional(v.string()),
+    redirectUris: v.array(v.string()),
+    scopes: v.array(v.string()),
+    loa: v.union(v.literal(1), v.literal(2), v.literal(3)),
+    /** Développeur propriétaire, si l'app doit rester gérable au portail. */
+    ownerUserId: v.optional(v.string()),
+  },
+  returns: v.object({
+    id: v.string(),
+    clientId: v.string(),
+    clientSecret: v.string(), // ⚠️ retourné UNE SEULE FOIS
+  }),
+  handler: async (ctx, args) => {
+    const name = args.name.trim()
+    if (!name) {
+      throw new ConvexError({ code: "INVALID_INPUT", message: "Nom requis." })
+    }
+    if (args.redirectUris.length === 0) {
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message: "Au moins une redirect URI est requise.",
+      })
+    }
+    // Client de production : https obligatoire et pas de fragment. Une URI de
+    // redirection laxiste sur un fournisseur d'identité national ouvre la porte
+    // au vol de code d'autorisation.
+    for (const uri of args.redirectUris) {
+      let parsed: URL
+      try {
+        parsed = new URL(uri)
+      } catch {
+        throw new ConvexError({
+          code: "INVALID_INPUT",
+          message: `Redirect URI invalide : ${uri}`,
+        })
+      }
+      if (parsed.protocol !== "https:") {
+        throw new ConvexError({
+          code: "INVALID_INPUT",
+          message: `Redirect URI non https : ${uri}`,
+        })
+      }
+      if (parsed.hash) {
+        throw new ConvexError({
+          code: "INVALID_INPUT",
+          message: `Redirect URI avec fragment : ${uri}`,
+        })
+      }
+    }
+
+    // Idempotence : deux applications homonymes seraient indiscernables sur
+    // l'écran de consentement — exactement ce qu'un hameçonnage recherche.
+    const existing = (await ctx.runQuery(components.betterAuth.adapter.findMany, {
+      model: MODEL,
+      where: [{ field: "name", value: name, operator: "eq" }],
+      paginationOpts: { numItems: 1, cursor: null },
+    })) as { page: OAuthAppDoc[] }
+    if (existing.page[0]) {
+      throw new ConvexError({
+        code: "ALREADY_EXISTS",
+        message:
+          `Une application « ${name} » existe déjà (${existing.page[0].clientId ?? "?"}). ` +
+          `Utiliser rotateSecret pour renouveler son secret.`,
+      })
+    }
+
+    const { clientId, clientSecret: clientSecretPlain } = credentialsForEnv(
+      slugify(name),
+      "production",
+    )
+    const clientSecretHash = await hashClientSecret(clientSecretPlain)
+    const now = Date.now()
+
+    const metadata: AppMetadata = {
+      env: "production",
+      loa: args.loa,
+      description: args.description ?? "",
+      scopes: args.scopes,
+      createdBy: args.ownerUserId ?? "",
+      services: [],
+      testUsers: [],
+      productionStatus: "approved",
+      status: "production",
+    }
+
+    const created = (await ctx.runMutation(components.betterAuth.adapter.create, {
+      input: {
+        model: MODEL,
+        data: {
+          clientId,
+          clientSecret: clientSecretHash,
+          name,
+          userId: args.ownerUserId ?? "",
+          // CSV, et non JSON : `getClient` de better-auth fait un .split(",").
+          redirectUrls: args.redirectUris.join(","),
+          disabled: false,
+          type: "web",
+          metadata: JSON.stringify(metadata),
+          createdAt: now,
+          updatedAt: now,
+        },
+      },
+    })) as { _id: string }
+
+    return { id: created._id, clientId, clientSecret: clientSecretPlain }
+  },
+})
