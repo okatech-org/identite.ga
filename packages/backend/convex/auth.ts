@@ -42,6 +42,7 @@ import type { DataModel } from "./_generated/dataModel"
 import { query } from "./_generated/server"
 import authConfig from "./auth.config"
 import { pinSignIn } from "./lib/pinSignInPlugin"
+import { userinfoClaimsForScopes, type UserinfoProfile } from "./lib/userinfoClaims"
 import {
   handleSignInTwoFactorGate,
   requiresTwoFactorChallenge,
@@ -403,7 +404,7 @@ export const createAuth = (
         // réponse /oauth2/userinfo. Sert aussi de filet défensif : si un
         // utilisateur non whitelisté contourne l'UI consent en sandbox, on
         // throw — Better Auth refuse alors l'émission du token.
-        getAdditionalUserInfoClaim: (user, _scopes, client) => {
+        getAdditionalUserInfoClaim: async (user, scopes, client) => {
           const meta = (client.metadata ?? {}) as Record<string, unknown>
           const env = meta.env === "production" ? "production" : "sandbox"
           if (env === "sandbox") {
@@ -426,7 +427,11 @@ export const createAuth = (
               throw new Error("sandbox_access_denied")
             }
           }
-          return { env }
+          // Scopes fournis par le jeton validé, jamais par une query utilisateur.
+          const profile: UserinfoProfile | null = scopes.some((scope) =>
+            scope === "profile" || scope === "idn:civil_status",
+          ) ? await ctx.runQuery(internal.profile.getForUserinfo, { userId: user.id }) : null
+          return { env, ...userinfoClaimsForScopes(scopes, profile) }
         },
       }),
 

@@ -119,7 +119,7 @@ const authPreflightHandler = httpAction(async (_ctx, request) => {
 // annonce HS256 alors qu'on signe en RS256 via le plugin jwt. On intercepte
 // la route exacte (prioritaire sur le pathPrefix) et on appelle l'instance
 // oidcProvider qu'on configure dans auth.ts.
-// Claims étendus IDN exposés sous scope "profile" en plus des claims
+// Claims IDN exposés selon les scopes profile / idn:civil_status, en plus des claims
 // standards Better Auth. Maintenus en un seul endroit (utilisés à la fois
 // par le handler /userinfo pour les valeurs et par le discovery pour la
 // liste `claims_supported`).
@@ -316,13 +316,8 @@ const oidcDiscoveryHandler = httpAction(async (ctx, request) => {
   })
 })
 
-// Enrichissement de /oauth2/userinfo : Better Auth n'expose que les champs
-// de la table user de son composant (sub, email, name, picture, email_verified
-// + un given_name/family_name fait via `name.split(" ")`, souvent faux pour
-// les noms composés). Le NIP et l'identité pivot IDN sont dans la table
-// `userProfile` côté Convex. On délègue la validation du token à Better Auth
-// (call de l'endpoint original) puis on lookup `userProfile` par sub et on
-// merge les claims étendus.
+// Better Auth valide le jeton puis enrichit les claims dans auth.ts avec ses
+// scopes validés. Ne jamais réajouter ici le pivot indépendamment des scopes.
 const userinfoHandler = httpAction(async (ctx, request) => {
   const origin = request.headers.get("origin")
   const auth = createAuth(ctx, origin)
@@ -349,57 +344,10 @@ const userinfoHandler = httpAction(async (ctx, request) => {
     throw err
   }
 
-  if (!baseRes.ok) return baseRes
-
-  const baseClaims = (await baseRes.json()) as Record<string, unknown> & {
-    sub?: string
-  }
-  const sub = typeof baseClaims.sub === "string" ? baseClaims.sub : null
-  if (!sub) {
-    return new Response(JSON.stringify(baseClaims), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    })
-  }
-
-  const profile = await ctx.runQuery(internal.profile.getForUserinfo, {
-    userId: sub,
-  })
-
-  if (!profile) {
-    return new Response(JSON.stringify(baseClaims), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    })
-  }
-
-  const pivot = profile.pivot
-  const enriched: Record<string, unknown> = {
-    ...baseClaims,
-    profile_type: profile.profileType,
-    loa: profile.loa,
-    acr: loaToAcr(profile.loa),
-    ...(pivot
-      ? {
-          name: [pivot.firstName, pivot.lastName].filter(Boolean).join(" "),
-          given_name: pivot.firstName,
-          family_name: pivot.lastName,
-          birthdate: pivot.dateOfBirth,
-          birth_place: pivot.birthPlace,
-          gender: pivot.gender,
-          nationality: pivot.nationality,
-          ...(pivot.nip ? { nip: pivot.nip } : {}),
-        }
-      : {}),
-  }
-
-  return new Response(JSON.stringify(enriched), {
-    status: 200,
-    headers: {
-      "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": "*",
-    },
-  })
+  const headers = new Headers(baseRes.headers)
+  headers.set("Cache-Control", "no-store")
+  headers.set("Access-Control-Allow-Origin", "*")
+  return new Response(baseRes.body, { status: baseRes.status, headers })
 })
 
 http.route({
