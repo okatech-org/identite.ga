@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "cortex-obsidian": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/Users/okatech/Documents/Obsidian Vault"
+      ]
+    },
+    "shadcn-ui": {
+      "command": "/opt/homebrew/bin/shadcn-mcp",
+      "args": []
+    },
+    "chrome-devtools": {
+      "command": "/opt/homebrew/bin/chrome-devtools-mcp",
+      "args": []
+    }
+  }
+}

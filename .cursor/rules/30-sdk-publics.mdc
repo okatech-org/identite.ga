@@ -1,0 +1,49 @@
+---
+description: A charger pour tout travail sur les paquets npm publics @idn-ga/core, @idn-ga/react et @idn-ga/better-auth, ou sur la publication de versions.
+globs: ["packages/sdk/**", ".changeset/**"]
+alwaysApply: false
+---
+
+# Les trois SDK publics — du code qui sort du depot
+
+| Paquet | Version | Role |
+|---|---|---|
+| `@idn-ga/core` | 0.2.0 | client OIDC vanilla (PKCE), build `tsup`, double ESM/CJS |
+| `@idn-ga/react` | 0.1.2 | provider + hooks React (depend de `core` en `workspace:^`) |
+| `@idn-ga/better-auth` | 0.2.1 | helper `genericOAuth` pour Better Auth |
+
+**Ces trois paquets sont publies sur npm.** Ce ne sont pas des modules internes :
+du code tiers en depend, et une signature cassee casse des integrations qu'on ne
+voit pas depuis ce depot.
+
+## Le consommateur qu'on connait : administration.ga
+
+`@idn-ga/better-auth` est une dependance du `package.json` **racine** du monorepo
+`administration.ga`, consommee par
+`04_Socle_transition/administration_ga/convex/betterAuth/auth.ts`.
+
+⚠️ **Le lien passe par une version npm publiee, pas par un lien de fichier
+local.** Une modification du SDK ici n'est **pas visible** dans administration.ga
+tant qu'elle n'est pas publiee **et** que la version n'y a pas ete bumpee.
+Modifier le SDK et s'attendre a voir l'effet dans l'autre depot en developpement
+est une impasse silencieuse.
+
+Inversement : casser une signature exportee coupe l'authentification de la
+vingtaine d'applications d'administration.ga d'un coup.
+
+## Publier
+
+Le depot utilise **changesets** :
+
+```bash
+bun run changeset          # decrire le changement + le niveau de version
+bun run version-packages   # applique les versions et les changelogs
+bun run release            # build des @idn-ga/* PUIS changeset publish
+```
+
+⚠️ **Ne jamais publier sans demande explicite.** Une publication npm est
+irreversible : une version depubliee reste indisponible sous ce numero.
+
+Avant toute publication : verifier que `@idn-ga/better-auth` passe son test
+(`vitest run src/index.test.ts` — c'est le seul SDK qui en a un), et que le
+`peerDependencies` sur `better-auth` (`^1.4.0`) couvre encore la realite.

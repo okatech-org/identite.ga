@@ -1,0 +1,68 @@
+---
+description: Backend Convex d'IDN — schema, composants, tests, ce que le composant Better Auth possede.
+globs: ["packages/backend/**/*.ts", "packages/backend/convex/**"]
+alwaysApply: false
+---
+
+# Backend Convex — `@repo/backend`
+
+Convex `^1.38`. Tout le backend vit dans `packages/backend/convex/`
+(145 fichiers TypeScript hors `_generated`, dont 24 tests).
+
+⚠️ **Lire `packages/backend/convex/_generated/ai/guidelines.md` avant d'ecrire du
+Convex** — il est present ici et prime sur les habitudes apprises ailleurs. Six
+skills Convex sont vendorisees sous `packages/backend/.agents/skills/`,
+verrouillees par `skills-lock.json` : **ne pas les modifier a la main.**
+
+## Composants actives (`convex/convex.config.ts`)
+
+`betterAuth`, `rateLimiter`, `aggregate` **× 4 instances** (`usersByLoa`,
+`usersByProfile`, `kycByStatus`, `auditByCategory`), `workflow`, `workpool`
+(`aiWorkpool`).
+
+⚠️ **Les agregats ne s'alimentent pas seuls** : une ecriture qui contourne les
+declencheurs laisse l'agregat a zero. Il existe un
+`convex/_dev/rebuildAggregates.ts` pour rattraper.
+
+## Le schema, et ce qui n'y est PAS
+
+`convex/schema.ts` (1 253 lignes) declare **31 tables applicatives** :
+`userProfile`, `kycRequest`, `kycReview`, `auditLog`, `notification`,
+`userDocument`, `userRole`, `developerApiKey`, `walletCard`, `iboite*` (8 tables),
+`vault*`, `document*`, `crossDeviceSession`, `citizenCv*`, `delegatedIdentity`,
+`contactRequest`…
+
+⚠️ **Les tables `user` / `account` / `session` / `oauth` / `jwks` ne sont PAS dans
+ce schema** : elles appartiennent au namespace du **composant Better Auth**. Les
+chercher dans `schema.ts` ou tenter de les requeter directement est une impasse —
+passer par `authComponent`.
+
+RBAC : `export const ROLES = ["admin", "identity_controller", "developer"]`
+(`schema.ts:187`). Le role `developer` porte un drapeau `verified`
+(bac a sable → production).
+
+## Tests
+
+```bash
+bun run --filter=@repo/backend test        # vitest, watch
+bun run --filter=@repo/backend test:once   # ce que la CI execute
+```
+
+Environnement **`edge-runtime`**, avec `server.deps.inline` sur `convex-test`,
+`@convex-dev/aggregate` et `@convex-dev/rate-limiter`.
+
+⚠️ **C'est la seule suite de tests reellement executee dans ce depot**, et elle ne
+tourne qu'a l'interieur du job de deploiement — pas sur les PR. Un backend casse
+n'est donc rattrape par rien avant le deploiement : lancer la suite localement.
+
+⚠️ convex-test **n'enregistre pas `contentType`** au depot dans le stockage : un
+test vert n'y prouve pas le chemin client → storage.
+
+## Services externes appeles depuis Convex
+
+- `services/kyc-inference` (HTTP prive) — OCR MRZ, OCR plein texte, face match,
+  liveness. **Aucune donnee biometrique ne sort de l'infrastructure.**
+- `services/livekit` — jetons de salle emis par Convex (15 min, une salle),
+  entretiens Niveau 3, **pas d'enregistrement**.
+- `services/mail` — bridge vers Stalwart ; les mots de passe de boites sont
+  derives par HMAC et **jamais stockes dans Convex**.

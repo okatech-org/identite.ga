@@ -1,0 +1,57 @@
+---
+description: A charger pour tout travail sur l'authentification, Better Auth, OIDC, 2FA, passkeys, PIN, ou les sessions cross-domaine d'IDN.
+globs: ["**/auth.ts", "**/auth.config.ts", "**/auth-client.ts", "**/lib/pinSignInPlugin.ts", "**/lib/twoFactorGate.ts", "**/app/api/auth/**"]
+alwaysApply: false
+---
+
+# Authentification — Better Auth, et IDN comme fournisseur OIDC
+
+Ce qui est **reellement** utilise : **Better Auth** via le composant
+`@convex-dev/better-auth` 0.12.2. Configuration centrale :
+`packages/backend/convex/auth.ts`.
+
+⚠️ **Clerk et Convex Auth ne sont pas utilises.** `clerk` n'apparait que dans des
+skills vendorisees et dans la documentation destinee aux **integrateurs tiers qui
+migrent DE Clerk VERS IDN** (`apps/developer/app/docs/_articles/migration-clerk.tsx`).
+Aucune dependance `@clerk/*` ni `@convex-dev/auth` dans le depot.
+
+## Les onze plugins, et pourquoi l'ORDRE compte
+
+1. `crossDomain` — reecrit les redirections OAuth/OIDC vers l'origine appelante.
+2. `oneTimeToken` — transfert de session entre surfaces IDN (usage unique, 3 min).
+3. `pinSignIn` — **plugin maison** (`convex/lib/pinSignInPlugin.ts`), PIN a
+   6 chiffres verifie en PBKDF2-SHA256, endpoint `/api/auth/sign-in/pin`.
+4. `expo` — retour de session par lien profond `idn://`.
+5. `passkey`.
+6. `emailOTP` (6 chiffres, 15 min).
+7. `twoFactor` — **obligatoire pour `admin` et `identity_controller`**.
+8. `haveIBeenPwned`.
+9. **`oidcProvider`** — voir ci-dessous.
+10. `jwt` — jetons d'identite **RS256** + JWKS publique.
+11. `convex` — ⚠️ **enregistre en DERNIER volontairement** : c'est l'ordre qui
+    fonctionne avec `@convex-dev/better-auth` 0.12.x. **Ne pas le remonter.**
+
+Un **garde 2FA maison** enveloppe la connexion (`convex/lib/twoFactorGate.ts`) :
+le hook natif du plugin `twoFactor` laissait passer `/sign-in/email-otp`.
+
+## IDN est un fournisseur OIDC
+
+`oidcProvider` : **PKCE obligatoire**, `allowPlainCodeChallengeMethod: false`,
+secrets clients **haches** (`storeClientSecret: "hashed"`), scope
+`idn:civil_status`, page de connexion et page de consentement servies par
+**`apps/connect`** (`/sign-in`, `/oauth/authorize`).
+
+**Consequence : toucher a cette configuration affecte toutes les plateformes
+consommatrices**, administration.ga en tete. Une modification ici n'est pas une
+modification locale.
+
+## Sessions
+
+⚠️ **La session vit en `localStorage`, par origine** — pas en cookie : les
+cookies cross-domaine ne sont pas garantis. Une session **n'est donc pas partagee
+entre deux origines**. Le passage d'une surface a l'autre se fait par
+`oneTimeToken` ou `session-handoff`, jamais implicitement.
+
+Origines de confiance : variable d'environnement Convex **`TRUSTED_ORIGINS`**
+(CSV). En developpement, `localhost`, `127.0.0.1` et `*.local` sont acceptes
+dynamiquement.

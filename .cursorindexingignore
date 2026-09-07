@@ -1,0 +1,27 @@
+# Exclu de l'INDEX semantique, mais ouvrable a la demande.
+
+**/convex/_generated/
+**/_generated/
+bun.lock
+**/bun.lock
+skills-lock.json
+**/__snapshots__/
+**/coverage/
+*.log
+
+# Modeles et poids (kyc-inference)
+**/*.onnx
+**/*.pth
+**/*.tflite
+
+# Binaires
+**/*.png
+**/*.jpg
+**/*.jpeg
+**/*.webp
+**/*.ico
+**/*.pdf
+**/*.woff
+**/*.woff2
+**/*.ttf
+**/*.mp4

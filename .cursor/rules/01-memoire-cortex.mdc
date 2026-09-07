@@ -1,0 +1,35 @@
+---
+description: Protocole de memoire persistante — le vault Obsidian « Cortex OkaTech » est le seul canal entre sessions. Toujours actif.
+alwaysApply: true
+---
+
+# Cortex — la memoire entre les sessions
+
+VAULT = `/Users/okatech/Documents/Obsidian Vault/` — monte comme troisieme racine
+de cet espace de travail et joignable par le serveur MCP `cortex-obsidian`.
+Manuel : `VAULT/CLAUDE.md`.
+
+Ce projet est suivi sous le slug **`identite-ga`**. Le projet frere, qui consomme
+le SDK publie ici, est **`digital-gabon`** (administration.ga).
+
+## Au debut d'une tache substantielle
+
+Lis `10-PROJETS/identite-ga/` : `contexte-actif.md`, `avancement.md`,
+`fiche.md` (dont les **gotchas**), `architecture.md`, `decisions/`.
+Puis `30-TRANSVERSE/chantiers.md` pour les chantiers ouverts, et
+`30-TRANSVERSE/modules/_index.md` — **ne jamais reconstruire un module existant**.
+
+⚠️ **Confronte a `git log` tout ce que la memoire affirme de « livre / merge /
+deploye ».** Une fiche dit ce qui etait vrai quand elle a ete ecrite.
+
+## A la fin d'un travail significatif
+
+Commande `/memoire-maj` : actualiser `contexte-actif.md` (sous 60 lignes) et
+`avancement.md`, capturer les decisions en ADR, les pieges en gotchas.
+
+⚠️ **Corriger en priorite ce que la memoire affirme de FAUX**, avant meme
+d'ajouter ce qu'on vient de faire : une affirmation perimee fabrique le conflit
+suivant.
+
+Frontmatter YAML obligatoire (`type`, `projet`, `statut`, `maj`, `tags`),
+wikilinks `[[...]]`, francais, une information a un seul endroit.

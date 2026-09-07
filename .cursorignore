@@ -1,0 +1,34 @@
+# .cursorignore — ce que l'assistant Cursor ne doit NI lire NI indexer.
+# Seulement ce dont la lecture serait NUISIBLE : secrets et artefacts.
+
+# --- DEPENDANCES ET BUILD ---
+node_modules/
+.next/
+.turbo/
+.expo/
+dist/
+out/
+build/
+
+# --- PYTHON (services/kyc-inference) ---
+__pycache__/
+*.pyc
+.venv/
+venv/
+services/kyc-inference/vendor/
+
+# --- SECRETS ---
+# NEXT_PUBLIC_* est inline dans le bundle client, donc publie.
+.env
+.env.*
+**/.env
+**/.env.*
+*.pem
+*.key
+*-key.json
+google-services.json
+GoogleService-Info.plist
+
+# Les gabarits restent utiles (negations en dernier)
+!.env.example
+!**/.env.example
