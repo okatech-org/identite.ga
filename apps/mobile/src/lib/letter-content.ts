@@ -1,0 +1,25 @@
+export function isHtmlLetterBody(body: string): boolean {
+  return body.trimStart().startsWith('<');
+}
+
+export function plainTextToLetterHtml(value: string): string {
+  const escaped = value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return escaped.split(/\n{2,}/).map((paragraph) => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`).join('');
+}
+
+export function letterBodyToText(body: string): string {
+  return body
+    .replace(/<br\s*\/?\s*>/gi, '\n')
+    .replace(/<\/(p|div|h[1-6]|li)>/gi, '\n')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+export function hasLetterContent(body: string): boolean {
+  return letterBodyToText(body).length > 0 || /<img\b/i.test(body);
+}

@@ -314,7 +314,7 @@ export const setAddress = mutation({
 })
 
 // ─────────────────────────────────────────────────────────────────────────
-// Internal — appelé depuis onboarding.selectProfile
+// Internal — appelé depuis onboarding.completeSignup
 // ─────────────────────────────────────────────────────────────────────────
 
 export const ensurePersonal = internalMutation({
@@ -407,6 +407,7 @@ export const ensurePersonal = internalMutation({
       isAddressConfigured: false,
       qrCode,
       counters: emptyCounters(),
+      syncVersion: 0,
       createdAt: now,
       updatedAt: now,
     })

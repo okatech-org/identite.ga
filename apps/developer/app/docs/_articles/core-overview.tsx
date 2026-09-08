@@ -54,7 +54,7 @@ export default function CoreOverview() {
             <span className="font-mono font-semibold text-idn-green">2.</span>{" "}
             <strong>IDN</strong> authentifie l&apos;utilisateur (mot de passe,
             2FA, KYC si LoA exigé) et demande le consentement sur{" "}
-            <Code>connect.identite.ga</Code>.
+            <Code>identite.ga</Code>.
           </li>
           <li>
             <span className="font-mono font-semibold text-idn-green">3.</span>{" "}

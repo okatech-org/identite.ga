@@ -1,10 +1,11 @@
-import { createClient, type GenericCtx } from "@convex-dev/better-auth";
-import { convex, crossDomain } from "@convex-dev/better-auth/plugins";
-import { expo } from "@better-auth/expo";
-import { passkey } from "@better-auth/passkey";
-import { createAuthMiddleware } from "better-auth/api";
-import { deleteSessionCookie } from "better-auth/cookies";
-import { betterAuth } from "better-auth/minimal";
+import { createClient, type GenericCtx } from "@convex-dev/better-auth"
+import { convex, crossDomain } from "@convex-dev/better-auth/plugins"
+import { expo } from "@better-auth/expo"
+import { passkey } from "@better-auth/passkey"
+import { createAuthMiddleware } from "better-auth/api"
+import { deleteSessionCookie } from "better-auth/cookies"
+import { betterAuth } from "better-auth/minimal"
+import type { Auth } from "better-auth"
 import {
   emailOTP,
   haveIBeenPwned,
@@ -12,7 +13,7 @@ import {
   oneTimeToken,
   oidcProvider,
   twoFactor,
-} from "better-auth/plugins";
+} from "better-auth/plugins"
 
 // ─────────────────────────────────────────────────────────────────────────
 // Polyfill : `URL.canParse` (Node 19.9+ / Bun) — le V8 runtime Convex ne
@@ -36,17 +37,18 @@ if (typeof (URL as { canParse?: unknown }).canParse !== "function") {
   }
 }
 
-import { components, internal } from "./_generated/api";
-import type { DataModel } from "./_generated/dataModel";
-import { query } from "./_generated/server";
-import authConfig from "./auth.config";
-import { pinSignIn } from "./lib/pinSignInPlugin";
+import { components, internal } from "./_generated/api"
+import type { DataModel } from "./_generated/dataModel"
+import { query } from "./_generated/server"
+import authConfig from "./auth.config"
+import { pinSignIn } from "./lib/pinSignInPlugin"
+import { userinfoClaimsForScopes, type UserinfoProfile } from "./lib/userinfoClaims"
 import {
   handleSignInTwoFactorGate,
   requiresTwoFactorChallenge,
-} from "./lib/twoFactorGate";
+} from "./lib/twoFactorGate"
 
-const isDev = process.env.NODE_ENV !== "production";
+const isDev = process.env.NODE_ENV !== "production"
 
 /**
  * Trusted origins lus depuis la variable d'env Convex `TRUSTED_ORIGINS`
@@ -60,7 +62,7 @@ function parseTrustedOrigins(): string[] {
   return (process.env.TRUSTED_ORIGINS ?? "")
     .split(",")
     .map((o) => o.trim())
-    .filter(Boolean);
+    .filter(Boolean)
 }
 
 /**
@@ -73,12 +75,12 @@ function parseTrustedOrigins(): string[] {
 function resolveSiteUrl(origin?: string | null): string {
   if (origin) {
     try {
-      return new URL(origin).origin;
+      return new URL(origin).origin
     } catch {
       /* invalid origin, use fallback */
     }
   }
-  return process.env.SITE_URL ?? "http://localhost:3000";
+  return process.env.SITE_URL ?? "http://localhost:3000"
 }
 
 /**
@@ -87,7 +89,7 @@ function resolveSiteUrl(origin?: string | null): string {
  * account, session, oauthApplication, oauthConsent, jwks, etc.) dans
  * son namespace isolé.
  */
-export const authComponent = createClient<DataModel>(components.betterAuth);
+export const authComponent = createClient<DataModel>(components.betterAuth)
 
 /**
  * Configuration Better Auth — appelée à chaque requête HTTP via http.ts.
@@ -101,7 +103,7 @@ export const authComponent = createClient<DataModel>(components.betterAuth);
 export const createAuth = (
   ctx: GenericCtx<DataModel>,
   requestOrigin?: string | null,
-) => {
+): Auth => {
   return betterAuth({
     appName: "IDN",
     // baseURL = CONVEX_SITE_URL pour que le JWT `iss` corresponde à ce
@@ -112,23 +114,23 @@ export const createAuth = (
     database: authComponent.adapter(ctx),
     trustedOrigins: isDev
       ? (request) => {
-          const origins = parseTrustedOrigins();
-          const reqOrigin = request?.headers?.get("origin");
+          const origins = parseTrustedOrigins()
+          const reqOrigin = request?.headers?.get("origin")
           if (reqOrigin) {
             try {
-              const url = new URL(reqOrigin);
+              const url = new URL(reqOrigin)
               if (
                 url.hostname === "localhost" ||
                 url.hostname === "127.0.0.1" ||
                 url.hostname.endsWith(".local")
               ) {
-                origins.push(reqOrigin);
+                origins.push(reqOrigin)
               }
             } catch {
               /* ignore */
             }
           }
-          return origins;
+          return origins
         }
       : parseTrustedOrigins(),
     emailAndPassword: {
@@ -160,19 +162,21 @@ export const createAuth = (
             userAgent?: string | null
           }) => {
             try {
-              await (ctx as unknown as {
-                runMutation: (
-                  ref: typeof internal.audit.recordAudit,
-                  args: {
-                    actorId?: string
-                    action: "login_success"
-                    targetType: "session"
-                    targetId: string
-                    ip?: string
-                    userAgent?: string
-                  },
-                ) => Promise<unknown>
-              }).runMutation(internal.audit.recordAudit, {
+              await (
+                ctx as unknown as {
+                  runMutation: (
+                    ref: typeof internal.audit.recordAudit,
+                    args: {
+                      actorId?: string
+                      action: "login_success"
+                      targetType: "session"
+                      targetId: string
+                      ip?: string
+                      userAgent?: string
+                    },
+                  ) => Promise<unknown>
+                }
+              ).runMutation(internal.audit.recordAudit, {
                 actorId: session.userId ?? undefined,
                 action: "login_success",
                 targetType: "session",
@@ -266,18 +270,21 @@ export const createAuth = (
     },
     plugins: [
       // Réécrit les redirects OAuth/OIDC vers l'origin de l'app appelante
-      // (web, admin, developer, controller, connect). Permet aussi au
+      // (web, admin, developer, controller). Permet aussi au
       // crossDomainClient côté navigateur d'enregistrer la session via
       // localStorage (cookies cross-domain non garantis).
       crossDomain({
         siteUrl: resolveSiteUrl(requestOrigin),
       }),
 
-      // Transfert explicite d'une session existante entre deux surfaces IDN
-      // (ex. connect.identite.ga -> identite.ga avant un step-up KYC). Le
-      // jeton est à usage unique et expire après 3 minutes. Le plugin
-      // crossDomain sait déjà le consommer côté destination ; il manquait
-      // seulement l'endpoint de génération pour une session déjà ouverte.
+      // Reprise d'une session ouverte depuis une autre origine. Sert à
+      // `/auth-continue` : une app partenaire qui fait inscrire un citoyen
+      // depuis SON domaine obtient un jeton bearer, pas un cookie identite.ga —
+      // or /oauth2/authorize ne lit que le cookie. Le jeton est à usage unique
+      // et expire après 3 minutes.
+      //
+      // NB : ne sert plus aux transferts entre surfaces IDN — depuis la fusion
+      // de connect.identite.ga dans identite.ga, il n'y a plus qu'un domaine.
       oneTimeToken(),
 
       // Sign-in par PIN à 6 chiffres — endpoint /api/auth/sign-in/pin.
@@ -285,15 +292,17 @@ export const createAuth = (
       // vérifie le pinHash côté Convex (PBKDF2-SHA256, §6.1) puis crée
       // la session standard via internalAdapter.createSession.
       pinSignIn(async (userId, pin) => {
-        return await (ctx as unknown as {
-          runQuery: (
-            ref: typeof internal.onboarding.verifyPinForUserId,
-            args: { userId: string; pin: string },
-          ) => Promise<boolean>
-        }).runQuery(internal.onboarding.verifyPinForUserId, {
+        return await (
+          ctx as unknown as {
+            runQuery: (
+              ref: typeof internal.onboarding.verifyPinForUserId,
+              args: { userId: string; pin: string },
+            ) => Promise<"valid" | "invalid" | "setup_required">
+          }
+        ).runQuery(internal.onboarding.verifyPinForUserId, {
           userId,
           pin,
-        });
+        })
       }),
 
       // Support Expo (beta) — gère le retour de session via deep link
@@ -310,10 +319,13 @@ export const createAuth = (
         rpID: process.env.PASSKEY_RP_ID ?? "localhost",
         rpName: "Identité Numérique",
         origin: (() => {
-          const csv = process.env.PASSKEY_RP_ORIGINS ?? "";
-          const fromEnv = csv.split(",").map((o) => o.trim()).filter(Boolean);
+          const csv = process.env.PASSKEY_RP_ORIGINS ?? ""
+          const fromEnv = csv
+            .split(",")
+            .map((o) => o.trim())
+            .filter(Boolean)
           // Toujours autoriser le scheme expo mobile (idn://) en plus.
-          return fromEnv.length > 0 ? [...fromEnv, "idn://"] : ["idn://"];
+          return fromEnv.length > 0 ? [...fromEnv, "idn://"] : ["idn://"]
         })(),
       }),
 
@@ -329,7 +341,7 @@ export const createAuth = (
             0,
             internal.email.dispatch.sendOtp,
             { to: email, code: otp, type },
-          );
+          )
         },
       }),
 
@@ -349,8 +361,11 @@ export const createAuth = (
       // 0.12.2 — voir l'ancien projet /Users/berny/Developer/idn/apps/portal
       // qui utilise déjà ce pattern).
       //
-      // `loginPage` / `consentPage` sont des URLs complètes vers apps/connect
-      // (point d'authentification fédéré) — Convex ne sert pas de HTML.
+      // `loginPage` / `consentPage` sont des URLs complètes vers apps/web
+      // (identite.ga) — Convex ne sert pas de HTML. Elles DOIVENT rester sur le
+      // même domaine que `authorization_endpoint` (cf. la réécriture dans
+      // http.ts) : c'est ce domaine qui porte le cookie de session, donc le seul
+      // où un retour vers /oauth2/authorize après login voit cette session.
       // `useJWTPlugin: true` → ID tokens signés en RS256 via le plugin jwt
       // ci-dessous (§6.1) plutôt qu'en HS256 avec BETTER_AUTH_SECRET.
       oidcProvider({
@@ -362,12 +377,18 @@ export const createAuth = (
         // sans cette option, tout scope custom (ex. idn:civil_status) est
         // rejeté avec `invalid_scope`. À garder en phase avec AVAILABLE_SCOPES
         // (apps/developer/.../applications/new) et claimsForScopes
-        // (apps/connect/.../consent-form.tsx).
-        scopes: ["idn:civil_status"],
+        // (apps/web/app/oauth/authorize/_components/consent-form.tsx).
+        scopes: [
+          "idn:civil_status",
+          "idn:iboite.read",
+          "idn:iboite.manage",
+          "idn:iboite.send",
+        ],
         loginPage:
-          process.env.IDN_LOGIN_PAGE ?? "http://localhost:3004/sign-in",
+          process.env.IDN_LOGIN_PAGE ?? "http://localhost:3000/sign-in",
         consentPage:
-          process.env.IDN_CONSENT_PAGE ?? "http://localhost:3004/oauth/authorize",
+          process.env.IDN_CONSENT_PAGE ??
+          "http://localhost:3000/oauth/authorize",
         requirePKCE: true,
         useJWTPlugin: true,
         allowPlainCodeChallengeMethod: false,
@@ -383,7 +404,7 @@ export const createAuth = (
         // réponse /oauth2/userinfo. Sert aussi de filet défensif : si un
         // utilisateur non whitelisté contourne l'UI consent en sandbox, on
         // throw — Better Auth refuse alors l'émission du token.
-        getAdditionalUserInfoClaim: (user, _scopes, client) => {
+        getAdditionalUserInfoClaim: async (user, scopes, client) => {
           const meta = (client.metadata ?? {}) as Record<string, unknown>
           const env = meta.env === "production" ? "production" : "sandbox"
           if (env === "sandbox") {
@@ -397,9 +418,7 @@ export const createAuth = (
             ).toLowerCase()
             const ownerId =
               typeof meta.createdBy === "string" ? meta.createdBy : null
-            const userId = String(
-              (user as { id?: unknown }).id ?? "",
-            )
+            const userId = String((user as { id?: unknown }).id ?? "")
             if (
               email.length > 0 &&
               !list.includes(email) &&
@@ -408,7 +427,11 @@ export const createAuth = (
               throw new Error("sandbox_access_denied")
             }
           }
-          return { env }
+          // Scopes fournis par le jeton validé, jamais par une query utilisateur.
+          const profile: UserinfoProfile | null = scopes.some((scope) =>
+            scope === "profile" || scope === "idn:civil_status",
+          ) ? await ctx.runQuery(internal.profile.getForUserinfo, { userId: user.id }) : null
+          return { env, ...userinfoClaimsForScopes(scopes, profile) }
         },
       }),
 
@@ -423,8 +446,8 @@ export const createAuth = (
       // qui fonctionnait avec @convex-dev/better-auth 0.12.x.
       convex({ authConfig }),
     ],
-  });
-};
+  }) as unknown as Auth
+}
 
 /**
  * Renvoie le user Better Auth courant (côté Convex query/mutation).
@@ -434,6 +457,6 @@ export const createAuth = (
 export const getCurrentUser = query({
   args: {},
   handler: async (ctx) => {
-    return await authComponent.getAuthUser(ctx);
+    return await authComponent.getAuthUser(ctx)
   },
-});
+})

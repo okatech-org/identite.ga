@@ -6,6 +6,7 @@ import {
   Building2Icon,
   MessageCircleIcon,
   PaperclipIcon,
+  SearchIcon,
   StarIcon,
   UserIcon,
 } from "lucide-react"
@@ -19,6 +20,7 @@ import { formatRelativeTime } from "../_lib/format"
 const FOLDER_TITLE: Record<EmailFolder, string> = {
   inbox: iboite.emails.folders.inbox,
   starred: iboite.emails.folders.starred,
+  archive: iboite.emails.folders.archive,
   sent: iboite.emails.folders.sent,
   trash: iboite.emails.folders.trash,
 }
@@ -40,6 +42,16 @@ export function EmailList({
   const emails = result.results
   const loading = result.status === "LoadingFirstPage"
   const toggleStar = useMutation(api.iboite.messages.toggleStar)
+  const [search, setSearch] = React.useState("")
+  const normalizedSearch = search.trim().toLocaleLowerCase("fr")
+  const visibleEmails = normalizedSearch
+    ? emails.filter((email) =>
+        [email.senderName, email.senderEmail, email.subject, email.preview]
+          .join(" ")
+          .toLocaleLowerCase("fr")
+          .includes(normalizedSearch),
+      )
+    : emails
 
   async function onToggleStar(id: Id<"iboiteMessage">) {
     try {
@@ -56,13 +68,24 @@ export function EmailList({
       aria-labelledby="tab-emails"
       className="flex flex-1 flex-col"
     >
-      <header className="flex items-center justify-between border-b border-border px-5 py-3">
+      <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-base font-semibold">{FOLDER_TITLE[folder]}</h2>
           <p className="text-xs text-muted-foreground">
             {iboite.emails.countLabel(emails.length)}
           </p>
         </div>
+        <label className="flex h-10 w-full items-center gap-2 rounded-full bg-secondary px-4 text-muted-foreground sm:max-w-sm">
+          <SearchIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <span className="sr-only">{iboite.emails.search}</span>
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder={iboite.emails.search}
+            className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+          />
+        </label>
       </header>
 
       <div className="flex-1 overflow-auto">
@@ -75,7 +98,7 @@ export function EmailList({
               />
             ))}
           </ul>
-        ) : emails.length === 0 ? (
+        ) : visibleEmails.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center opacity-60">
             <MessageCircleIcon
               className="h-10 w-10 text-muted-foreground"
@@ -87,7 +110,7 @@ export function EmailList({
           </div>
         ) : (
           <ul className="divide-y divide-border">
-            {emails.map((e) => {
+            {visibleEmails.map((e) => {
               const isAdmin = e.senderKind === "admin"
               return (
                 <li key={e._id}>
@@ -95,7 +118,7 @@ export function EmailList({
                     type="button"
                     onClick={() => onOpen(e._id as Id<"iboiteMessage">)}
                     className={cn(
-                      "flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-secondary/40",
+                      "flex w-full items-start gap-3 px-3 py-2.5 text-left transition-colors hover:bg-secondary/55 sm:px-4",
                       !e.isRead && "bg-idn-green-soft/40 dark:bg-[#0F2A18]/40",
                     )}
                   >
@@ -133,7 +156,7 @@ export function EmailList({
 
                     <div
                       className={cn(
-                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white",
+                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white sm:h-8 sm:w-8",
                         isAdmin
                           ? "bg-gradient-to-br from-blue-500 to-indigo-600"
                           : "bg-gradient-to-br from-emerald-500 to-teal-600",
@@ -164,7 +187,7 @@ export function EmailList({
                       </div>
                       <p
                         className={cn(
-                          "mt-0.5 truncate text-xs",
+                          "mt-0.5 truncate text-sm sm:inline",
                           e.isRead
                             ? "font-medium text-muted-foreground"
                             : "font-semibold text-foreground",
@@ -172,7 +195,7 @@ export function EmailList({
                       >
                         {e.subject}
                       </p>
-                      <div className="mt-0.5 flex items-center gap-2">
+                      <div className="mt-0.5 flex items-center gap-2 sm:mt-0">
                         <p className="flex-1 truncate text-[11px] text-muted-foreground">
                           {e.preview}
                         </p>

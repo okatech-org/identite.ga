@@ -18,12 +18,7 @@ export function SettingsSection({
   className?: string
 }) {
   return (
-    <section
-      className={cn(
-        "rounded-xl border border-border bg-card p-5 sm:p-6",
-        className,
-      )}
-    >
+    <section className={cn("portal-panel p-5 sm:p-6", className)}>
       <h2 className="text-base font-semibold text-foreground">{title}</h2>
       {sub ? (
         <p className="mt-1 text-sm leading-relaxed text-muted-foreground">

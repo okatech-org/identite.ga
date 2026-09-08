@@ -74,7 +74,7 @@ export default function ICarteCardDetail() {
         <NSheetHeader t={t} title="Carte introuvable" onBack={() => router.back()} />
         <View style={{ flex: 1, padding: 22, justifyContent: 'center', alignItems: 'center', gap: 12 }}>
           <Icon name="wallet" size={40} color={t.mutedSoft} />
-          <Text style={{ color: t.muted, fontSize: 13 }}>Cette carte n'existe plus.</Text>
+          <Text style={{ color: t.muted, fontSize: 13 }}>Cette carte n’existe plus.</Text>
         </View>
       </View>
     );

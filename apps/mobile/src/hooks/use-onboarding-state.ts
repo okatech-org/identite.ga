@@ -4,15 +4,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  * État local du tunnel d'inscription mobile, mémoire courte (AsyncStorage).
  * On persiste profileType et pivot entre les étapes pour pouvoir survivre à
  * un changement de route ou une mise en arrière-plan rapide. Le compte
- * Better Auth n'est créé qu'à l'étape `idn` (réservation du handle) — avant
+ * Better Auth et le profil ne sont créés qu'après confirmation du PIN — avant
  * ça, rien n'existe côté backend.
  *
  * Effacé à la fin du tunnel (étape `done`).
  */
 
 const KEY_PROFILE = 'idn.onboarding.profile';
-const KEY_PIVOT   = 'idn.onboarding.pivot';
-const KEY_HANDLE  = 'idn.onboarding.handle';
+const KEY_PIVOT = 'idn.onboarding.pivot';
+const KEY_HANDLE = 'idn.onboarding.handle';
 
 export type OnboardingProfile = 'citizen' | 'resident' | 'visitor' | 'developer';
 
@@ -70,9 +70,5 @@ export async function getOnboardingHandle(): Promise<string | null> {
 }
 
 export async function clearOnboarding(): Promise<void> {
-  await Promise.all([
-    AsyncStorage.removeItem(KEY_PROFILE),
-    AsyncStorage.removeItem(KEY_PIVOT),
-    AsyncStorage.removeItem(KEY_HANDLE),
-  ]);
+  await Promise.all([AsyncStorage.removeItem(KEY_PROFILE), AsyncStorage.removeItem(KEY_PIVOT), AsyncStorage.removeItem(KEY_HANDLE)]);
 }

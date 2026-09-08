@@ -3,8 +3,15 @@
 import { GoogleAuth, type IdTokenClient } from "google-auth-library"
 import { v } from "convex/values"
 
+import type { GenericActionCtx } from "convex/server"
+
 import { internal } from "../_generated/api"
+import type { DataModel, Id } from "../_generated/dataModel"
 import { internalAction } from "../_generated/server"
+import { galleryKey } from "./mutations"
+
+/** Dimension du pack ArcFace `buffalo_l`, figée dans le `vectorIndex`. */
+const FACE_EMBEDDING_DIMENSIONS = 512
 
 /**
  * Actions KYC — appellent NOTRE microservice d'inférence biométrique
@@ -31,7 +38,26 @@ import { internalAction } from "../_generated/server"
  *   • `POST {KYC_INFERENCE_URL}/v1/biometric`
  *       body     : { selfieUrl, docFaceUrl }
  *       réponse  : { faceMatch: 0..1, liveness: "real"|"spoof"|"uncertain",
- *                    livenessScore: number }
+ *                    livenessScore: number,
+ *                    embedding?: number[512], embeddingModel?: string }
+ *
+ *     `embedding` (ArcFace, L2-normalisé) alimente la déduplication 1:N :
+ *     un même visage ne doit pas obtenir deux identités vérifiées. Absent si
+ *     le service est antérieur à cette fonctionnalité ou son moteur dégradé —
+ *     la déduplication est alors déclarée indisponible, ce qui force la revue
+ *     manuelle plutôt que de laisser croire à une absence de doublon.
+ *
+ *     ATTENTION AUX ÉCHELLES : `faceMatch` est un cosinus remappé sur [0, 1] ;
+ *     la similarité entre deux `embedding` est un cosinus brut dans [-1, 1].
+ *     D'où deux seuils distincts (`KYC_MATCH_THRESHOLD` et
+ *     `KYC_FACE_DEDUPE_THRESHOLD`), à ne jamais interchanger.
+ *
+ * VARIABLES D'ENVIRONNEMENT SUPPLÉMENTAIRES
+ *   • `IDENTITY_HASH_PEPPER`      — poivre du hachage des numéros de pièce.
+ *     Sans lui, le rapprochement par document est désactivé (un SHA-256 nu sur
+ *     un numéro de CNI se casse hors ligne).
+ *   • `KYC_FACE_DEDUPE_THRESHOLD` — seuil de rapprochement biométrique,
+ *     en cosinus brut. Défaut 0.5, à calibrer sur données réelles.
  *
  * Erreur réseau / timeout / réponse non-OK → throw : le workflow
  * (`kyc/workflow.ts`) retry déjà ces actions (backoff exponentiel), pas de
@@ -200,6 +226,13 @@ export const runOcr = internalAction({
   returns: v.object({
     confidence: v.number(),
     extractedFields: v.optional(v.record(v.string(), v.string())),
+    /**
+     * `optional` par nécessité, pas par confort : au replay d'un workflow
+     * journalisé avant ce déploiement, la valeur mémorisée ne portera pas ce
+     * champ. `undefined` doit alors se lire « information indisponible », donc
+     * revue manuelle — jamais « aucune réutilisation ».
+     */
+    documentReuse: v.optional(v.boolean()),
   }),
   handler: async (
     ctx,
@@ -207,6 +240,7 @@ export const runOcr = internalAction({
   ): Promise<{
     confidence: number
     extractedFields: Record<string, string> | undefined
+    documentReuse?: boolean
   }> => {
     const kyc = await ctx.runQuery(internal.kyc.mutations._getForInference, {
       kycRequestId: args.kycRequestId,
@@ -250,17 +284,67 @@ export const runOcr = internalAction({
         console.warn(
           "[kyc/actions] /v1/ocr indisponible (503) — dégradation vers revue manuelle",
         )
-        return { confidence: 0, extractedFields: {} }
+        return { confidence: 0, extractedFields: {}, documentReuse: false }
       }
       throw err
+    }
+
+    // Empreinte de la pièce présentée — bloque sa réutilisation sous une autre
+    // identité. Le numéro lui-même n'est jamais stocké : il n'a aucun usage
+    // produit, seulement une valeur de rapprochement.
+    let documentReuse: boolean | undefined
+    const documentNumberHash = await fingerprintDocument(
+      kyc.documentType,
+      result.fields?.documentNumber,
+    )
+    if (documentNumberHash) {
+      documentReuse = await ctx.runMutation(
+        internal.kyc.mutations.recordDocumentFingerprint,
+        { kycRequestId: args.kycRequestId, documentNumberHash },
+      )
+    } else {
+      // Pièce sans numéro lisible : rien à rapprocher, mais ce n'est pas une
+      // absence de réutilisation — c'est une absence de signal.
+      documentReuse = undefined
     }
 
     return {
       confidence: result.confidence,
       extractedFields: result.fields,
+      documentReuse,
     }
   },
 })
+
+/**
+ * Empreinte non réversible d'un numéro de pièce, poivrée.
+ *
+ * Le poivre (`IDENTITY_HASH_PEPPER`) n'est pas décoratif : un numéro de CNI a
+ * une entropie faible et un format contraint, si bien qu'un SHA-256 nu se
+ * casserait par force brute hors ligne en quelques minutes. Le type de
+ * document entre dans l'empreinte pour éviter qu'un même numéro porté par un
+ * passeport et une carte ne se rapproche à tort.
+ *
+ * Renvoie `null` quand l'OCR n'a pas lu de numéro exploitable, ou quand le
+ * poivre n'est pas configuré — mieux vaut ne pas rapprocher que rapprocher sur
+ * une empreinte devinable.
+ */
+async function fingerprintDocument(
+  documentType: string,
+  rawNumber: string | undefined,
+): Promise<string | null> {
+  const normalized = rawNumber?.replace(/[\s-]+/g, "").toUpperCase()
+  if (!normalized || normalized.length < 4) return null
+
+  const pepper = process.env.IDENTITY_HASH_PEPPER?.trim()
+  if (!pepper) {
+    console.warn(
+      "[kyc/actions] IDENTITY_HASH_PEPPER absent — rapprochement par numéro de pièce désactivé",
+    )
+    return null
+  }
+  return await hmacSha256Hex(pepper, `${documentType}|${normalized}`)
+}
 
 export const runBiometric = internalAction({
   args: {
@@ -273,6 +357,14 @@ export const runBiometric = internalAction({
       v.literal("spoof"),
       v.literal("uncertain"),
     ),
+    /**
+     * Résultat de la déduplication 1:N. `optional` par nécessité : au replay
+     * d'un workflow journalisé avant ce déploiement, ces champs seront
+     * `undefined`, et `undefined` doit se lire « information indisponible »
+     * — donc revue manuelle — jamais « aucun doublon ».
+     */
+    faceDuplicate: v.optional(v.boolean()),
+    dedupAvailable: v.optional(v.boolean()),
   }),
   handler: async (
     ctx,
@@ -280,6 +372,8 @@ export const runBiometric = internalAction({
   ): Promise<{
     faceMatch: number
     liveness: "real" | "spoof" | "uncertain"
+    faceDuplicate?: boolean
+    dedupAvailable?: boolean
   }> => {
     const kyc = await ctx.runQuery(internal.kyc.mutations._getForInference, {
       kycRequestId: args.kycRequestId,
@@ -302,11 +396,120 @@ export const runBiometric = internalAction({
       faceMatch: number
       liveness: "real" | "spoof" | "uncertain"
       livenessScore: number
+      embedding?: number[]
+      embeddingModel?: string
     }>("/v1/biometric", { selfieUrl, docFaceUrl })
+
+    // Déduplication 1:N — logée DANS ce step et non dans un step distinct.
+    // `@convex-dev/workflow` échoue sur une violation de déterminisme dès
+    // qu'un step est ajouté, retiré ou déplacé : introduire ici un
+    // `runIdentityDedup` bloquerait définitivement en `submitted` tous les
+    // dossiers en cours de traitement au moment du déploiement.
+    const dedup = await searchFaceDuplicates(ctx, {
+      kycRequestId: args.kycRequestId,
+      userId: kyc.userId,
+      embedding: result.embedding,
+      modelVersion: result.embeddingModel,
+    })
 
     return {
       faceMatch: result.faceMatch,
       liveness: result.liveness,
+      faceDuplicate: dedup.duplicateFound,
+      dedupAvailable: dedup.available,
     }
   },
 })
+
+/** Seuil de rapprochement biométrique — **cosinus brut**, dans [-1, 1].
+ *
+ * À NE PAS CONFONDRE avec `KYC_MATCH_THRESHOLD`, qui s'applique au `faceMatch`
+ * déjà remappé sur [0, 1] par le service (`_normalize_cosine`). Réutiliser 0.6
+ * ici reviendrait à un cosinus de 0.2 — assez laxiste pour rapprocher deux
+ * inconnus.
+ *
+ * 0.5 est un point de départ prudent pour ArcFace, à calibrer sur la
+ * population réelle. L'asymétrie des coûts invite à ne pas serrer trop vite :
+ * un faux positif ne coûte qu'une revue manuelle, un faux négatif laisse
+ * passer un doublon.
+ */
+const KYC_FACE_DEDUPE_THRESHOLD = Number(
+  process.env.KYC_FACE_DEDUPE_THRESHOLD ?? 0.5,
+)
+
+/**
+ * Cherche le visage dans la galerie des identités déjà vérifiées, puis dépose
+ * l'empreinte du dossier courant.
+ *
+ * L'ORDRE COMPTE : déposer avant de chercher ferait se trouver soi-même, avec
+ * une similarité de 1.0, et mettrait chaque dossier en revue.
+ *
+ * Ne lève jamais : la déduplication est un signal supplémentaire, pas une
+ * dépendance du KYC. En cas d'échec, on rend `available: false`, ce que le
+ * workflow interprète en revue manuelle plutôt qu'en absence de doublon.
+ */
+async function searchFaceDuplicates(
+  ctx: GenericActionCtx<DataModel>,
+  args: {
+    kycRequestId: Id<"kycRequest">
+    userId: string
+    embedding: number[] | undefined
+    modelVersion: string | undefined
+  },
+): Promise<{ duplicateFound: boolean; available: boolean }> {
+  // Service antérieur à l'exposition des empreintes, ou moteur dégradé.
+  if (!args.embedding || !args.modelVersion) {
+    return { duplicateFound: false, available: false }
+  }
+  if (args.embedding.length !== FACE_EMBEDDING_DIMENSIONS) {
+    console.error(
+      `[kyc/actions] empreinte de dimension ${args.embedding.length}, ${FACE_EMBEDDING_DIMENSIONS} attendues — déduplication ignorée`,
+    )
+    return { duplicateFound: false, available: false }
+  }
+
+  try {
+    const hits = await ctx.vectorSearch("faceTemplate", "by_embedding", {
+      vector: args.embedding,
+      limit: 10,
+      // Le filtre ne sait pas exprimer « userId ≠ le mien » (`eq`/`or`
+      // seulement), d'où l'exclusion a posteriori ci-dessous.
+      filter: (q) => q.eq("gallery", galleryKey(args.modelVersion!, true)),
+    })
+
+    const above = hits.filter((h) => h._score >= KYC_FACE_DEDUPE_THRESHOLD)
+    const resolved = above.length
+      ? await ctx.runQuery(internal.kyc.mutations._resolveTemplates, {
+          ids: above.map((h) => h._id),
+        })
+      : []
+    const scoreById = new Map(above.map((h) => [h._id, h._score]))
+
+    let duplicateFound = false
+    for (const r of resolved) {
+      // Un dossier ultérieur du même citoyen n'est pas un doublon.
+      if (r.userId === args.userId) continue
+      duplicateFound = true
+      await ctx.runMutation(internal.duplicates.mutations.raiseFlag, {
+        userId: args.userId,
+        matchedUserId: r.userId,
+        signal: "face",
+        groupKey: "",
+        score: scoreById.get(r.id),
+        sourceKycRequestId: args.kycRequestId,
+      })
+    }
+
+    await ctx.runMutation(internal.kyc.mutations.upsertFaceTemplate, {
+      kycRequestId: args.kycRequestId,
+      userId: args.userId,
+      embedding: args.embedding,
+      modelVersion: args.modelVersion,
+    })
+
+    return { duplicateFound, available: true }
+  } catch (err) {
+    console.error("[kyc/actions] déduplication biométrique indisponible", err)
+    return { duplicateFound: false, available: false }
+  }
+}

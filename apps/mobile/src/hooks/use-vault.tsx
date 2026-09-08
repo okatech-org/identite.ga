@@ -100,7 +100,7 @@ export function useDecryptedItems<
     metaIv: string;
     encryptedMetadata: string;
   },
->(items: T[] | undefined): Array<T & { metadata: Record<string, unknown> | null }> | undefined {
+>(items: T[] | undefined): (T & { metadata: Record<string, unknown> | null })[] | undefined {
   const { status } = useVault();
   const [decoded, setDecoded] = useState<Record<string, Record<string, unknown>>>({});
 

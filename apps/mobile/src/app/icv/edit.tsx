@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { useMutation, useQuery } from 'convex/react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -12,7 +12,7 @@ import { idnTokens } from '@/design/tokens';
 import { useIdnTheme } from '@/design/theme';
 import { NLargeHeader } from '@/components/chrome/large-header';
 import { IdnButton } from '@/design/components/idn-button';
-import { ICV_ACCENT, icvStrings, LANG_LEVELS, SKILL_LEVELS } from '@/data/cv';
+import { icvStrings, LANG_LEVELS, SKILL_LEVELS } from '@/data/cv';
 import { AiResultCard } from '@/components/cv/ai-result-card';
 
 type SectionKind = 'info' | 'experience' | 'education' | 'skill' | 'language' | 'hobby';
@@ -28,11 +28,11 @@ const VALID_SECTIONS: SectionKind[] = [
 type CvFull = NonNullable<FunctionReturnType<typeof api.cv.profile.get>>;
 
 export default function ICVEdit() {
+  const t = useIdnTheme();
   const params = useLocalSearchParams<{ section?: string; cv?: string; id?: string }>();
   const section = params.section as SectionKind | undefined;
   const cvParam = params.cv as Id<'citizenCv'> | undefined;
   const idParam = params.id ?? null;
-  const t = useIdnTheme();
   const router = useRouter();
 
   if (!section || !VALID_SECTIONS.includes(section) || !cvParam) {
@@ -188,7 +188,6 @@ function SectionList({
   cv: CvFull;
   cvId: Id<'citizenCv'>;
 }) {
-  const t = useIdnTheme();
   const router = useRouter();
   const removeExperience = useMutation(api.cv.experiences.remove);
   const removeEducation = useMutation(api.cv.education.remove);
@@ -370,7 +369,6 @@ function findEntry<T extends { id: string }>(arr: T[], id: string | null): T | n
 // ─────────────────────────────────────────────────────────────────────────
 
 function InfoForm({ cv, onDone }: { cv: CvFull; onDone: () => void }) {
-  const t = useIdnTheme();
   const upsert = useMutation(api.cv.profile.upsert);
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({

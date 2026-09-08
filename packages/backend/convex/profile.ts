@@ -2,6 +2,9 @@ import { ConvexError, v } from "convex/values"
 
 import { internalQuery, mutation, query } from "./_generated/server"
 import { getCurrentAuthUser, requireAuth, requireVerifiedAuth } from "./lib/auth"
+import { assessIdentityCollision } from "./lib/duplicateGuard"
+import { raiseDuplicateFlags } from "./lib/duplicateFlags"
+import { derivePivotKeys, normalizeNipKey } from "./lib/identity"
 import { internal } from "./_generated/api"
 
 /**
@@ -84,6 +87,7 @@ export const getCurrentUser = query({
           photoStorageRef: v.optional(v.id("_storage")),
           photoUrl: v.union(v.string(), v.null()),
           pinConfigured: v.boolean(),
+          phoneVerifiedAt: v.union(v.number(), v.null()),
           verifiedAt: v.union(v.number(), v.null()),
           verifiedDocumentTypes: v.array(v.string()),
         }),
@@ -144,6 +148,7 @@ export const getCurrentUser = query({
         photoStorageRef: profile.photoStorageRef,
         photoUrl,
         pinConfigured: Boolean(profile.pinHash),
+        phoneVerifiedAt: profile.phoneVerifiedAt ?? null,
         verifiedAt,
         verifiedDocumentTypes,
       },
@@ -183,6 +188,32 @@ export const updatePivot = mutation({
     // Préserve les champs non touchés par updatePivot (phone, nip).
     const existingPhone = profile.pivot?.phone
     const existingNip = profile.pivot?.nip
+
+    // Même garde qu'à l'inscription. Sans elle, le contrôle du signup se
+    // contourne en deux temps : s'inscrire sous une identité quelconque, puis
+    // la réécrire ici vers l'identité visée.
+    //
+    // `excludeUserId` est ce qui préserve le parcours légitime : corriger une
+    // faute de frappe dans son propre nom ne doit pas se heurter à sa propre
+    // identité.
+    const { pivotKey, nipKey } = derivePivotKeys({
+      firstName: args.firstName,
+      lastName: args.lastName,
+      dateOfBirth: args.dateOfBirth,
+      nip: existingNip,
+    })
+    const collision = await assessIdentityCollision(ctx, {
+      pivotKey,
+      excludeUserId: user.userId,
+    })
+    if (collision.verdict === "refuse") {
+      throw new ConvexError({
+        code: "IDENTITY_ALREADY_VERIFIED",
+        message:
+          "Une identité vérifiée correspond déjà à ces informations. Si vous pensez qu'il s'agit d'une erreur, contactez le support.",
+      })
+    }
+
     await ctx.db.patch(profile._id, {
       pivot: {
         firstName: args.firstName.trim(),
@@ -194,8 +225,14 @@ export const updatePivot = mutation({
         ...(existingPhone ? { phone: existingPhone } : {}),
         ...(existingNip ? { nip: existingNip } : {}),
       },
+      pivotKey,
+      nipKey,
       updatedAt: Date.now(),
     })
+
+    if (collision.matches.length > 0) {
+      await raiseDuplicateFlags(ctx, user.userId, collision.matches)
+    }
 
     await ctx.runMutation(internal.audit.recordAudit, {
       actorId: user.userId,
@@ -240,10 +277,28 @@ export const updateNip = mutation({
       })
     }
 
+    const nipKey = normalizeNipKey(nip)
+    const collision = await assessIdentityCollision(ctx, {
+      nipKey,
+      excludeUserId: user.userId,
+    })
+    if (collision.verdict === "refuse") {
+      throw new ConvexError({
+        code: "NIP_ALREADY_VERIFIED",
+        message:
+          "Ce NIP est déjà rattaché à une identité vérifiée. Si vous pensez qu'il s'agit d'une erreur, contactez le support.",
+      })
+    }
+
     await ctx.db.patch(profile._id, {
       pivot: { ...profile.pivot, nip },
+      nipKey,
       updatedAt: Date.now(),
     })
+
+    if (collision.matches.length > 0) {
+      await raiseDuplicateFlags(ctx, user.userId, collision.matches)
+    }
 
     await ctx.runMutation(internal.audit.recordAudit, {
       actorId: user.userId,

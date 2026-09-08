@@ -201,7 +201,7 @@ export default function Notifications() {
           <>
             {todayItems.length > 0 ? (
               <View>
-                <Text style={{ fontSize: 10, color: t.muted, letterSpacing: 1.2, fontWeight: '700', paddingHorizontal: 4, paddingTop: 10, paddingBottom: 6 }}>AUJOURD'HUI</Text>
+                <Text style={{ fontSize: 10, color: t.muted, letterSpacing: 1.2, fontWeight: '700', paddingHorizontal: 4, paddingTop: 10, paddingBottom: 6 }}>AUJOURD’HUI</Text>
                 <View style={{ gap: 8 }}>
                   {todayItems.map(n => <NotifItem key={n._id} n={toItem(n)} t={t} />)}
                 </View>

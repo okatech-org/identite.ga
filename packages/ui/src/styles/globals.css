@@ -140,10 +140,12 @@
 
 @theme inline {
   /* Polices — variables injectées par next/font dans apps/* */
-  --font-sans: var(--font-plex-sans), "IBM Plex Sans", -apple-system,
-    BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  --font-mono: var(--font-plex-mono), "IBM Plex Mono", ui-monospace, "SF Mono",
-    Menlo, monospace;
+  --font-sans:
+    var(--font-plex-sans), "IBM Plex Sans", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", system-ui, sans-serif;
+  --font-mono:
+    var(--font-plex-mono), "IBM Plex Mono", ui-monospace, "SF Mono", Menlo,
+    monospace;
 
   /* Radius (cahier : sm 6 / md 10 / lg 14 / xl 20) */
   --radius-sm: 6px;
@@ -251,4 +253,146 @@
   ::-webkit-scrollbar-corner {
     background: transparent;
   }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Portails authentifiés — surface de travail uniquement.
+
+   Ces classes sont ajoutées explicitement dans les groupes de routes privés
+   des apps admin et developer. Les pages publiques et les sidebars ne les
+   utilisent pas.
+   ───────────────────────────────────────────────────────────── */
+
+@layer components {
+  .portal-canvas {
+    --portal-accent: var(--idn-green);
+    --portal-accent-soft: var(--idn-green-soft);
+    position: relative;
+    min-width: 0;
+    background:
+      radial-gradient(
+        circle at 96% -12%,
+        color-mix(in srgb, var(--portal-accent) 9%, transparent),
+        transparent 28rem
+      ),
+      var(--idn-bg);
+    padding: 28px 32px 40px;
+  }
+
+  .portal-canvas::before {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      var(--portal-accent),
+      var(--idn-yellow) 48%,
+      var(--idn-blue)
+    );
+    content: "";
+    opacity: 0.58;
+  }
+
+  .portal-limit {
+    width: 100%;
+    max-width: 1240px;
+    margin-inline: auto;
+  }
+
+  .portal-limit-narrow {
+    width: 100%;
+    max-width: 820px;
+    margin-inline: auto;
+  }
+
+  .portal-panel {
+    border: 1px solid var(--idn-border);
+    border-radius: 14px;
+    background: var(--idn-surface);
+    box-shadow:
+      0 1px 2px rgba(15, 35, 23, 0.03),
+      0 12px 34px rgba(15, 35, 23, 0.045);
+  }
+
+  .portal-panel-interactive {
+    transition:
+      border-color 160ms ease,
+      box-shadow 160ms ease,
+      transform 160ms ease;
+  }
+
+  .portal-panel-interactive:hover {
+    border-color: color-mix(
+      in srgb,
+      var(--portal-accent) 34%,
+      var(--idn-border)
+    );
+    box-shadow:
+      0 2px 4px rgba(15, 35, 23, 0.035),
+      0 18px 42px rgba(15, 35, 23, 0.075);
+    transform: translateY(-2px);
+  }
+
+  .portal-table {
+    overflow: hidden;
+    border: 1px solid var(--idn-border);
+    border-radius: 14px;
+    background: var(--idn-surface);
+    box-shadow:
+      0 1px 2px rgba(15, 35, 23, 0.025),
+      0 10px 28px rgba(15, 35, 23, 0.04);
+  }
+
+  .portal-form {
+    border: 1px solid var(--idn-border);
+    border-radius: 16px;
+    background: var(--idn-surface);
+    box-shadow:
+      0 1px 2px rgba(15, 35, 23, 0.03),
+      0 18px 44px rgba(15, 35, 23, 0.055);
+  }
+
+  .portal-note {
+    border: 1px solid
+      color-mix(in srgb, var(--portal-accent) 18%, var(--idn-border));
+    border-radius: 10px;
+    background: color-mix(
+      in srgb,
+      var(--portal-accent-soft) 58%,
+      var(--idn-surface)
+    );
+  }
+
+  .portal-section-kicker {
+    color: var(--portal-accent);
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  @media (max-width: 900px) {
+    .portal-canvas {
+      padding: 24px 22px 32px;
+    }
+  }
+}
+
+.dark .portal-canvas {
+  background:
+    radial-gradient(
+      circle at 96% -12%,
+      color-mix(in srgb, var(--portal-accent) 14%, transparent),
+      transparent 28rem
+    ),
+    var(--idn-bg);
+}
+
+.dark .portal-panel,
+.dark .portal-table,
+.dark .portal-form {
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.14);
 }

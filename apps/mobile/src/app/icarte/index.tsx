@@ -15,6 +15,7 @@ import { Icon } from '@/design/icons';
 import { CARD_GRADIENTS, CARD_TEMPLATES } from '@/data/cards';
 import { api } from '@/lib/api';
 import { walletCardToUi } from '@/lib/wallet-adapter';
+import { moveItem } from '@/lib/wallet-order';
 
 function confirm(title: string, message: string, onConfirm: () => void) {
   if (Platform.OS === 'web') {
@@ -36,6 +37,7 @@ export default function ICarteHome() {
   const { isAuthenticated } = useConvexAuth();
   const wallet = useQuery(api.wallet.listMine, isAuthenticated ? {} : 'skip');
   const setFeatured = useMutation(api.wallet.setFeatured);
+  const reorderFeatured = useMutation(api.wallet.reorderFeatured);
   const removeCard = useMutation(api.wallet.remove);
 
   const cards = wallet?.cards.map(walletCardToUi) ?? [];
@@ -64,6 +66,15 @@ export default function ICarteHome() {
     });
   }
 
+  async function moveFeatured(index: number, direction: -1 | 1) {
+    const ordered = moveItem(featured.map((card) => card.id), index, direction);
+    try {
+      await reorderFeatured({ orderedIds: ordered as never });
+    } catch (err) {
+      Alert.alert('Ordre non enregistré', err instanceof Error ? err.message : 'Veuillez réessayer.');
+    }
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top }}>
       <NLargeHeader
@@ -80,7 +91,7 @@ export default function ICarteHome() {
       <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingBottom: insets.bottom + 24 }} showsVerticalScrollIndicator={false}>
         <NSectionLabel
           t={t}
-          right={<Text style={{ fontSize: 10, color: t.muted }}>Maintenez pour réordonner</Text>}
+          right={<Text style={{ fontSize: 10, color: t.muted }}>Flèches pour réordonner</Text>}
         >
           <Text style={{ color: idnTokens.green }}>● </Text>CARTES DANS LE PROFIL
         </NSectionLabel>
@@ -96,15 +107,20 @@ export default function ICarteHome() {
           </View>
         ) : (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            {featured.map((c) => (
-              <Pressable
-                key={c.id}
-                onPress={() => router.push(`/icarte/${c.id}` as never)}
-                onLongPress={() => toggleFeatured(c.id, false)}
-                style={{ width: '48.5%' }}
-              >
-                <MiniCard card={c} t={t} dragMode onRemove={() => toggleFeatured(c.id, false)} />
-              </Pressable>
+            {featured.map((c, index) => (
+              <View key={c.id} style={{ width: '48.5%' }}>
+                <Pressable onPress={() => router.push(`/icarte/${c.id}` as never)} onLongPress={() => toggleFeatured(c.id, false)} style={{ width: '100%' }}>
+                  <MiniCard card={c} t={t} dragMode onRemove={() => toggleFeatured(c.id, false)} />
+                </Pressable>
+                <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 4 }}>
+                  <Pressable accessibilityLabel={`Monter ${c.name}`} disabled={index === 0} onPress={() => void moveFeatured(index, -1)} style={{ paddingHorizontal: 12, paddingVertical: 5, opacity: index === 0 ? 0.3 : 1 }}>
+                    <Text style={{ color: t.muted, fontSize: 13 }}>←</Text>
+                  </Pressable>
+                  <Pressable accessibilityLabel={`Descendre ${c.name}`} disabled={index === featured.length - 1} onPress={() => void moveFeatured(index, 1)} style={{ paddingHorizontal: 12, paddingVertical: 5, opacity: index === featured.length - 1 ? 0.3 : 1 }}>
+                    <Text style={{ color: t.muted, fontSize: 13 }}>→</Text>
+                  </Pressable>
+                </View>
+              </View>
             ))}
           </View>
         )}

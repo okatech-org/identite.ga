@@ -132,8 +132,8 @@ export default function IdCard() {
           <Pressable onPress={share} style={{ flex: 1, paddingVertical: 14, backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 12, alignItems: 'center' }}>
             <Text style={{ color: '#fff', fontSize: 13, fontWeight: '500' }}>Partager</Text>
           </Pressable>
-          <Pressable style={{ flex: 1, paddingVertical: 14, backgroundColor: '#fff', borderRadius: 12, alignItems: 'center' }}>
-            <Text style={{ color: '#0E110D', fontSize: 13, fontWeight: '600' }}>Signer un document</Text>
+          <Pressable onPress={() => router.push('/consents' as never)} style={{ flex: 1, paddingVertical: 14, backgroundColor: '#fff', borderRadius: 12, alignItems: 'center' }}>
+            <Text style={{ color: '#0E110D', fontSize: 13, fontWeight: '600' }}>Gérer les accès</Text>
           </Pressable>
         </View>
       </View>

@@ -49,6 +49,12 @@ const items: NavItem[] = [
     match: (p) => p.startsWith("/queue"),
   },
   {
+    href: "/agenda",
+    label: nav.agenda,
+    icon: "calendar",
+    match: (p) => p.startsWith("/agenda"),
+  },
+  {
     href: "/scan",
     label: nav.scan,
     icon: "qr",

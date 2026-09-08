@@ -69,7 +69,7 @@ export default function DocPreview() {
   });
   const sizeKb = Math.max(1, Math.round(item.fileSize / 1024));
 
-  const details: Array<{ l: string; v: string; mono?: boolean; accent?: boolean }> = [
+  const details: { l: string; v: string; mono?: boolean; accent?: boolean }[] = [
     { l: 'Dossier', v: folder.label },
     { l: 'Type', v: item.fileType.toUpperCase() },
     { l: 'Ajouté le', v: createdLabel },

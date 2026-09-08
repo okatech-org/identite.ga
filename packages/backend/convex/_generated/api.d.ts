@@ -8,14 +8,18 @@
  * @module
  */
 
+import type * as _dev_backfillPivotKey from "../_dev/backfillPivotKey.js";
 import type * as _dev_listLatestLogs from "../_dev/listLatestLogs.js";
 import type * as _dev_listRoles from "../_dev/listRoles.js";
 import type * as _dev_rebuildAggregates from "../_dev/rebuildAggregates.js";
+import type * as _dev_repairEmbeddedSignupOrphans from "../_dev/repairEmbeddedSignupOrphans.js";
 import type * as _dev_resetIboiteAddresses from "../_dev/resetIboiteAddresses.js";
 import type * as account from "../account.js";
 import type * as activity from "../activity.js";
+import type * as admin_accounts from "../admin/accounts.js";
 import type * as admin_auditLogs from "../admin/auditLogs.js";
 import type * as admin_dashboard from "../admin/dashboard.js";
+import type * as admin_duplicates from "../admin/duplicates.js";
 import type * as admin_oauthApps from "../admin/oauthApps.js";
 import type * as admin_operators from "../admin/operators.js";
 import type * as admin_providers from "../admin/providers.js";
@@ -53,6 +57,8 @@ import type * as dev from "../dev.js";
 import type * as developer_apiKeys from "../developer/apiKeys.js";
 import type * as developer_apps from "../developer/apps.js";
 import type * as documents from "../documents.js";
+import type * as duplicates_mutations from "../duplicates/mutations.js";
+import type * as duplicates_queries from "../duplicates/queries.js";
 import type * as email_dispatch from "../email/dispatch.js";
 import type * as email_provider from "../email/provider.js";
 import type * as email_templates_genericEmail from "../email/templates/genericEmail.js";
@@ -60,6 +66,7 @@ import type * as email_templates_kycEmail from "../email/templates/kycEmail.js";
 import type * as email_templates_otpEmail from "../email/templates/otpEmail.js";
 import type * as functions from "../functions.js";
 import type * as http from "../http.js";
+import type * as iboite_accountSync from "../iboite/accountSync.js";
 import type * as iboite_accounts from "../iboite/accounts.js";
 import type * as iboite_admin from "../iboite/admin.js";
 import type * as iboite_letters from "../iboite/letters.js";
@@ -67,6 +74,7 @@ import type * as iboite_mailActions from "../iboite/mailActions.js";
 import type * as iboite_mailHttp from "../iboite/mailHttp.js";
 import type * as iboite_mailInternal from "../iboite/mailInternal.js";
 import type * as iboite_messages from "../iboite/messages.js";
+import type * as iboite_oauthApi from "../iboite/oauthApi.js";
 import type * as iboite_packages from "../iboite/packages.js";
 import type * as idoc from "../idoc.js";
 import type * as kyc from "../kyc.js";
@@ -90,14 +98,24 @@ import type * as lib_ai_providers_vllm from "../lib/ai/providers/vllm.js";
 import type * as lib_ai_registry from "../lib/ai/registry.js";
 import type * as lib_ai_types from "../lib/ai/types.js";
 import type * as lib_auth from "../lib/auth.js";
+import type * as lib_birdVerify from "../lib/birdVerify.js";
 import type * as lib_claimCode from "../lib/claimCode.js";
+import type * as lib_consentGrant from "../lib/consentGrant.js";
 import type * as lib_documentSigning from "../lib/documentSigning.js";
+import type * as lib_duplicateFlags from "../lib/duplicateFlags.js";
+import type * as lib_duplicateGuard from "../lib/duplicateGuard.js";
 import type * as lib_iboiteId from "../lib/iboiteId.js";
+import type * as lib_identity from "../lib/identity.js";
 import type * as lib_idnId from "../lib/idnId.js";
+import type * as lib_partnerOrigins from "../lib/partnerOrigins.js";
 import type * as lib_password from "../lib/password.js";
+import type * as lib_phone from "../lib/phone.js";
+import type * as lib_pin from "../lib/pin.js";
+import type * as lib_pinRecoveryEligibility from "../lib/pinRecoveryEligibility.js";
 import type * as lib_pinSignInPlugin from "../lib/pinSignInPlugin.js";
 import type * as lib_secureToken from "../lib/secureToken.js";
 import type * as lib_twoFactorGate from "../lib/twoFactorGate.js";
+import type * as nativePushSubscriptions from "../nativePushSubscriptions.js";
 import type * as notifications from "../notifications.js";
 import type * as oauthAuthorize from "../oauthAuthorize.js";
 import type * as oauthConsents from "../oauthConsents.js";
@@ -109,6 +127,9 @@ import type * as partner_verificationRequest from "../partner/verificationReques
 import type * as partner_verificationWebhook from "../partner/verificationWebhook.js";
 import type * as partner_verifications from "../partner/verifications.js";
 import type * as partner_webhookSignature from "../partner/webhookSignature.js";
+import type * as partnerOrigins from "../partnerOrigins.js";
+import type * as phoneChange from "../phoneChange.js";
+import type * as pinRecovery from "../pinRecovery.js";
 import type * as preferences from "../preferences.js";
 import type * as presentation from "../presentation.js";
 import type * as privacy from "../privacy.js";
@@ -131,6 +152,16 @@ import type * as verification from "../verification.js";
 import type * as verification_requestFlow from "../verification/requestFlow.js";
 import type * as verification_requestPolicy from "../verification/requestPolicy.js";
 import type * as wallet from "../wallet.js";
+import type * as webhooks_authorization from "../webhooks/authorization.js";
+import type * as webhooks_catalog from "../webhooks/catalog.js";
+import type * as webhooks_crypto from "../webhooks/crypto.js";
+import type * as webhooks_delivery from "../webhooks/delivery.js";
+import type * as webhooks_deliveryState from "../webhooks/deliveryState.js";
+import type * as webhooks_dispatch from "../webhooks/dispatch.js";
+import type * as webhooks_emission from "../webhooks/emission.js";
+import type * as webhooks_endpoints from "../webhooks/endpoints.js";
+import type * as webhooks_policy from "../webhooks/policy.js";
+import type * as webhooks_urlSafety from "../webhooks/urlSafety.js";
 
 import type {
   ApiFromModules,
@@ -139,14 +170,18 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "_dev/backfillPivotKey": typeof _dev_backfillPivotKey;
   "_dev/listLatestLogs": typeof _dev_listLatestLogs;
   "_dev/listRoles": typeof _dev_listRoles;
   "_dev/rebuildAggregates": typeof _dev_rebuildAggregates;
+  "_dev/repairEmbeddedSignupOrphans": typeof _dev_repairEmbeddedSignupOrphans;
   "_dev/resetIboiteAddresses": typeof _dev_resetIboiteAddresses;
   account: typeof account;
   activity: typeof activity;
+  "admin/accounts": typeof admin_accounts;
   "admin/auditLogs": typeof admin_auditLogs;
   "admin/dashboard": typeof admin_dashboard;
+  "admin/duplicates": typeof admin_duplicates;
   "admin/oauthApps": typeof admin_oauthApps;
   "admin/operators": typeof admin_operators;
   "admin/providers": typeof admin_providers;
@@ -184,6 +219,8 @@ declare const fullApi: ApiFromModules<{
   "developer/apiKeys": typeof developer_apiKeys;
   "developer/apps": typeof developer_apps;
   documents: typeof documents;
+  "duplicates/mutations": typeof duplicates_mutations;
+  "duplicates/queries": typeof duplicates_queries;
   "email/dispatch": typeof email_dispatch;
   "email/provider": typeof email_provider;
   "email/templates/genericEmail": typeof email_templates_genericEmail;
@@ -191,6 +228,7 @@ declare const fullApi: ApiFromModules<{
   "email/templates/otpEmail": typeof email_templates_otpEmail;
   functions: typeof functions;
   http: typeof http;
+  "iboite/accountSync": typeof iboite_accountSync;
   "iboite/accounts": typeof iboite_accounts;
   "iboite/admin": typeof iboite_admin;
   "iboite/letters": typeof iboite_letters;
@@ -198,6 +236,7 @@ declare const fullApi: ApiFromModules<{
   "iboite/mailHttp": typeof iboite_mailHttp;
   "iboite/mailInternal": typeof iboite_mailInternal;
   "iboite/messages": typeof iboite_messages;
+  "iboite/oauthApi": typeof iboite_oauthApi;
   "iboite/packages": typeof iboite_packages;
   idoc: typeof idoc;
   kyc: typeof kyc;
@@ -221,14 +260,24 @@ declare const fullApi: ApiFromModules<{
   "lib/ai/registry": typeof lib_ai_registry;
   "lib/ai/types": typeof lib_ai_types;
   "lib/auth": typeof lib_auth;
+  "lib/birdVerify": typeof lib_birdVerify;
   "lib/claimCode": typeof lib_claimCode;
+  "lib/consentGrant": typeof lib_consentGrant;
   "lib/documentSigning": typeof lib_documentSigning;
+  "lib/duplicateFlags": typeof lib_duplicateFlags;
+  "lib/duplicateGuard": typeof lib_duplicateGuard;
   "lib/iboiteId": typeof lib_iboiteId;
+  "lib/identity": typeof lib_identity;
   "lib/idnId": typeof lib_idnId;
+  "lib/partnerOrigins": typeof lib_partnerOrigins;
   "lib/password": typeof lib_password;
+  "lib/phone": typeof lib_phone;
+  "lib/pin": typeof lib_pin;
+  "lib/pinRecoveryEligibility": typeof lib_pinRecoveryEligibility;
   "lib/pinSignInPlugin": typeof lib_pinSignInPlugin;
   "lib/secureToken": typeof lib_secureToken;
   "lib/twoFactorGate": typeof lib_twoFactorGate;
+  nativePushSubscriptions: typeof nativePushSubscriptions;
   notifications: typeof notifications;
   oauthAuthorize: typeof oauthAuthorize;
   oauthConsents: typeof oauthConsents;
@@ -240,6 +289,9 @@ declare const fullApi: ApiFromModules<{
   "partner/verificationWebhook": typeof partner_verificationWebhook;
   "partner/verifications": typeof partner_verifications;
   "partner/webhookSignature": typeof partner_webhookSignature;
+  partnerOrigins: typeof partnerOrigins;
+  phoneChange: typeof phoneChange;
+  pinRecovery: typeof pinRecovery;
   preferences: typeof preferences;
   presentation: typeof presentation;
   privacy: typeof privacy;
@@ -262,6 +314,16 @@ declare const fullApi: ApiFromModules<{
   "verification/requestFlow": typeof verification_requestFlow;
   "verification/requestPolicy": typeof verification_requestPolicy;
   wallet: typeof wallet;
+  "webhooks/authorization": typeof webhooks_authorization;
+  "webhooks/catalog": typeof webhooks_catalog;
+  "webhooks/crypto": typeof webhooks_crypto;
+  "webhooks/delivery": typeof webhooks_delivery;
+  "webhooks/deliveryState": typeof webhooks_deliveryState;
+  "webhooks/dispatch": typeof webhooks_dispatch;
+  "webhooks/emission": typeof webhooks_emission;
+  "webhooks/endpoints": typeof webhooks_endpoints;
+  "webhooks/policy": typeof webhooks_policy;
+  "webhooks/urlSafety": typeof webhooks_urlSafety;
 }>;
 
 /**

@@ -15,7 +15,11 @@ export const onboardingHeader = {
 } as const
 
 export const profile = {
-  meta: { title: "Choisir mon profil", description: "Sélectionnez votre profil pour démarrer la création de votre compte IDN." },
+  meta: {
+    title: "Choisir mon profil",
+    description:
+      "Sélectionnez votre profil pour démarrer la création de votre compte IDN.",
+  },
   step: 1,
   title: "Quel est votre profil ?",
   sub: "Votre profil détermine les pièces demandées et les services accessibles.",
@@ -44,7 +48,10 @@ export const profile = {
 } as const
 
 export const identity = {
-  meta: { title: "Mon identité", description: "Saisissez votre identité pivot." },
+  meta: {
+    title: "Mon identité",
+    description: "Saisissez votre identité pivot.",
+  },
   step: 2,
   title: "Vos informations",
   sub: "Identité pivot — telles qu'elles figurent sur vos documents officiels.",
@@ -97,12 +104,16 @@ export const identity = {
     required: "Champ requis.",
     dateInvalid: "Date invalide.",
     dateFuture: "La date de naissance doit être dans le passé.",
-    nipInvalid: "Le NIP doit contenir exactement 14 caractères (chiffres ou lettres).",
+    nipInvalid:
+      "Le NIP doit contenir exactement 14 caractères (chiffres ou lettres).",
   },
 } as const
 
 export const idnSignup = {
-  meta: { title: "Votre adresse IDN", description: "Choisissez votre adresse @idn.ga." },
+  meta: {
+    title: "Votre adresse IDN",
+    description: "Choisissez votre adresse @idn.ga.",
+  },
   step: 3,
   title: "Votre adresse IDN",
   sub: "Choisissez l'adresse qui vous identifiera auprès de l'administration.",
@@ -114,12 +125,23 @@ export const idnSignup = {
   statusChecking: "Vérification…",
   statusAvailable: "Disponible — vous pouvez la réserver",
   statusTaken: "Cette adresse est déjà attribuée à un autre citoyen",
-  statusInvalid: "Caractères autorisés : lettres minuscules, chiffres, points, tirets.",
+  statusInvalid:
+    "Caractères autorisés : lettres minuscules, chiffres, points, tirets.",
   info: "L'adresse @idn.ga est hébergée sur le sol gabonais. Elle est définitive et reste valide à vie.",
   primary: "Réserver cette adresse",
   primarySubmitting: "Réservation…",
   errorTaken: "Cette adresse est déjà attribuée à un autre citoyen.",
   errorGeneric: "Impossible de créer le compte. Réessayez.",
+  // Refus anti-doublon. Le texte ne révèle rien du compte existant — ni son
+  // adresse, ni son identifiant : le refus ne doit pas transformer
+  // l'inscription en annuaire interrogeable. Il indique en revanche une voie
+  // de recours, parce qu'un homonyme réel doit pouvoir se faire ouvrir un
+  // compte par un agent.
+  errorIdentityVerified:
+    "Une identité vérifiée correspond déjà à ces informations. Vérifiez votre saisie ; s'il s'agit bien de vos informations, contactez le support pour faire ouvrir votre compte.",
+  errorNipVerified:
+    "Ce NIP est déjà rattaché à une identité vérifiée. Vérifiez votre saisie ; s'il s'agit bien de votre numéro, contactez le support.",
+  backToIdentity: "Corriger mes informations",
   termsPrefix: "J'accepte les ",
   termsLink: "conditions d'utilisation et la politique de confidentialité",
   validation: {
@@ -128,10 +150,15 @@ export const idnSignup = {
 } as const
 
 export const pin = {
-  meta: { title: "Créer mon PIN", description: "Créez votre PIN à 6 chiffres pour l'accès rapide à votre compte IDN." },
+  meta: {
+    title: "Créer mon PIN",
+    description:
+      "Créez votre PIN à 6 chiffres pour l'accès rapide à votre compte IDN.",
+  },
   step: 4,
   enterTitle: "Créer votre PIN",
-  enterSub: "Un code à 6 chiffres pour les actions sensibles : signature, validation, accès rapide.",
+  enterSub:
+    "Un code à 6 chiffres pour les actions sensibles : signature, validation, accès rapide.",
   confirmTitle: "Confirmer votre PIN",
   confirmSub: "Saisissez à nouveau le même code pour confirmer.",
   primary: "Confirmer",
@@ -153,7 +180,10 @@ export const pin = {
 } as const
 
 export const signIn = {
-  meta: { title: "Connexion", description: "Connectez-vous à votre compte IDN." },
+  meta: {
+    title: "Connexion",
+    description: "Connectez-vous à votre compte IDN.",
+  },
   title: "Connectez-vous",
   sub: "à votre compte Identité Numérique",
   handleLabel: "Identifiant IDN",
@@ -169,7 +199,8 @@ export const signIn = {
   qrCta: "Scanner le QR depuis l'app mobile",
   qrTooltip: "Affichez un QR à scanner depuis votre téléphone",
   qrModalTitle: "Connexion par téléphone",
-  qrModalSub: "Ouvrez l'app IDN sur votre téléphone, touchez « Scanner un QR » depuis le hub de connexion, puis pointez la caméra ici.",
+  qrModalSub:
+    "Ouvrez l'app IDN sur votre téléphone, touchez « Scanner un QR » depuis le hub de connexion, puis pointez la caméra ici.",
   qrLoading: "Génération du code…",
   qrExpired: "Ce QR a expiré.",
   qrRefresh: "Régénérer le QR",
@@ -178,7 +209,8 @@ export const signIn = {
   qrApprovedSub: "Saisissez votre PIN pour terminer la connexion.",
   qrError: "Impossible d'établir une session. Réessayez.",
   twoFactorLabel: "Code à 6 chiffres",
-  twoFactorHint: "Entrez le code généré par votre application d'authentification.",
+  twoFactorHint:
+    "Entrez le code généré par votre application d'authentification.",
   twoFactorPrimary: "Vérifier",
   signUpPrefix: "Pas encore de compte ? ",
   signUpLink: "Créer un compte IDN",
@@ -191,10 +223,14 @@ export const signIn = {
   // Étape PIN (sign-in)
   pinTitle: "Entrez votre PIN",
   pinSub: "Saisissez votre code à 6 chiffres pour vous connecter.",
+  pinForgot: "PIN oublié ?",
+  pinSetupRequired:
+    "Ce compte n'a pas encore de PIN. Vérifiez votre numéro mobile pour en créer un.",
+  pinSetupAction: "Configurer mon PIN",
   pinBack: "Modifier l'identifiant",
   pinPrimary: "Se connecter",
   pinUsePassword: "Utiliser mon mot de passe à la place",
-  pinErrorInvalid: "PIN incorrect. Réessayez.",
+  pinErrorInvalid: "Identifiant ou PIN incorrect. Réessayez.",
   pinErrorTooMany: "Trop de tentatives. Réessayez dans une minute.",
   emailStepTitle: "Connectez-vous",
   emailStepSub: "Saisissez votre identifiant IDN pour vous connecter.",
@@ -207,8 +243,45 @@ export const signIn = {
     `PIN saisi : ${filled} chiffre${filled > 1 ? "s" : ""} sur ${total}`,
 } as const
 
+export const forgotPin = {
+  title: "Récupérer votre PIN",
+  requestSub:
+    "Saisissez votre identifiant IDN. Si un numéro mobile compatible est associé au compte, un code sera envoyé par SMS.",
+  identifierLabel: "Identifiant IDN",
+  identifierHint: "Avec ou sans @idn.ga",
+  requestPrimary: "Recevoir un code",
+  sending: "Envoi en cours…",
+  codeTitle: "Code reçu par SMS",
+  codeSub:
+    "Saisissez le code à 6 chiffres. L'envoi peut prendre quelques instants.",
+  codeHelp:
+    "Rien reçu ? Le compte peut demander une vérification supplémentaire.",
+  supportLink: "Contacter le support",
+  codeLabel: "Code SMS",
+  verifyPrimary: "Vérifier le code",
+  verifying: "Vérification…",
+  codeError: "Code incorrect ou expiré. Recommencez si nécessaire.",
+  newTitle: "Choisissez un nouveau PIN",
+  newSub: "Le nouveau PIN doit contenir exactement 6 chiffres.",
+  newLabel: "Nouveau PIN",
+  confirmLabel: "Confirmer le nouveau PIN",
+  mismatch: "Les deux PIN ne correspondent pas.",
+  resetPrimary: "Enregistrer le nouveau PIN",
+  resetting: "Enregistrement…",
+  successTitle: "Votre PIN a été modifié",
+  successSub:
+    "Toutes les anciennes sessions ont été fermées. Vous pouvez maintenant vous reconnecter.",
+  backToSignIn: "Retour à la connexion",
+  restart: "Recommencer",
+  genericError: "Impossible de poursuivre pour le moment. Réessayez.",
+} as const
+
 export const forgotPassword = {
-  meta: { title: "Mot de passe oublié", description: "Recevez un code par email pour réinitialiser votre mot de passe." },
+  meta: {
+    title: "Mot de passe oublié",
+    description:
+      "Recevez un code par email pour réinitialiser votre mot de passe.",
+  },
   title: "Réinitialiser votre mot de passe",
   sub: "Saisissez l'adresse email associée à votre compte. Vous recevrez un code à 6 chiffres pour choisir un nouveau mot de passe.",
   emailLabel: "Adresse email",
@@ -220,7 +293,10 @@ export const forgotPassword = {
 } as const
 
 export const resetPassword = {
-  meta: { title: "Nouveau mot de passe", description: "Choisissez un nouveau mot de passe pour votre compte IDN." },
+  meta: {
+    title: "Nouveau mot de passe",
+    description: "Choisissez un nouveau mot de passe pour votre compte IDN.",
+  },
   title: "Nouveau mot de passe",
   sub: "Saisissez le code reçu par email et choisissez un nouveau mot de passe.",
   otpLabel: "Code à 6 chiffres",
@@ -239,7 +315,8 @@ export const CLAIM_STEP_TOTAL = 3
 export const claim = {
   meta: {
     title: "Récupérer mon identité numérique",
-    description: "Récupérez l'accès à votre identité numérique créée par un organisme.",
+    description:
+      "Récupérez l'accès à votre identité numérique créée par un organisme.",
   },
   search: {
     step: 1,
@@ -285,8 +362,8 @@ export const claim = {
     errorMismatch: "Les deux mots de passe ne correspondent pas.",
     errorWeakPin: "Ce PIN est trop simple. Choisissez-en un autre.",
     errorGeneric: "Impossible d'activer le compte. Réessayez.",
-    successToast: "Votre identité numérique est activée ! Connectez-vous pour continuer.",
+    successToast:
+      "Votre identité numérique est activée ! Connectez-vous pour continuer.",
     backLabel: "Retour à la confirmation",
   },
 } as const
-

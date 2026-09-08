@@ -8,7 +8,6 @@ import { useIdnTheme } from '@/design/theme';
 import { idnTokens } from '@/design/tokens';
 import { NLargeHeader } from '@/components/chrome/large-header';
 import { SetMobileRow } from '@/components/rows/setting-row';
-import { Toggle } from '@/design/components/toggle';
 import { IdnButton } from '@/design/components/idn-button';
 import { IdnInput } from '@/design/components/idn-input';
 import { api } from '@/lib/api';
@@ -59,7 +58,7 @@ function DeleteAccountModal({ visible, onClose, currentEmail }: { visible: boole
           }}>
             <Text style={{ fontSize: 13, fontWeight: '600', color: '#B83A3A' }}>Action irréversible</Text>
             <Text style={{ fontSize: 12, color: t.muted, marginTop: 6, lineHeight: 18 }}>
-              Toutes vos données seront supprimées sous 30 jours. Les logs d'audit sont conservés 5 ans (obligation légale).
+              Toutes vos données seront supprimées sous 30 jours. Les logs d’audit sont conservés 5 ans (obligation légale).
             </Text>
           </View>
           <IdnInput
@@ -98,8 +97,6 @@ export default function SettingsPrivacy() {
   const deletionStatus = useQuery(api.privacy.getDeletionStatus, isAuthenticated ? {} : 'skip');
   const requestExport = useMutation(api.privacy.requestDataExport);
   const cancelDeletion = useMutation(api.privacy.cancelAccountDeletion);
-  const [stats, setStats] = useState(true);
-  const [ux, setUx] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -131,17 +128,6 @@ export default function SettingsPrivacy() {
     }
   }
 
-  function deactivate() {
-    Alert.alert(
-      'Désactiver temporairement ?',
-      'Votre compte sera mis en pause. Vous pourrez le réactiver en vous reconnectant.',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        { text: 'Désactiver', onPress: () => Alert.alert('Bientôt', 'La désactivation temporaire sera disponible dans une prochaine version.') },
-      ],
-    );
-  }
-
   return (
     <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top }}>
       <NLargeHeader t={t} title="Confidentialité" sub="Visualisez, exportez ou supprimez vos données." onBack={() => router.back()} />
@@ -154,13 +140,7 @@ export default function SettingsPrivacy() {
             value="Archive ZIP · disponible sous 24h"
             onPress={exporting ? undefined : handleExport}
           />
-          <SetMobileRow t={t} label="Liste des partages actifs" value="Voir les applications autorisées" onPress={() => router.push('/(tabs)/profile')} />
-        </View>
-
-        <Text style={{ fontSize: 10, color: t.muted, letterSpacing: 1.2, fontWeight: '600', paddingHorizontal: 4, paddingTop: 14, paddingBottom: 6 }}>RÉUTILISATION</Text>
-        <View style={{ backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 14, overflow: 'hidden' }}>
-          <SetMobileRow t={t} label="Statistiques anonymisées" value="Aide les administrations à planifier" right={<Toggle on={stats} onChange={setStats} t={t} />} />
-          <SetMobileRow t={t} label="Programme d'amélioration UX" value="Anonyme · révocable" right={<Toggle on={ux} onChange={setUx} t={t} />} />
+          <SetMobileRow t={t} label="Liste des partages actifs" value="Voir les applications autorisées" onPress={() => router.push('/consents' as never)} />
         </View>
 
         {error ? (
@@ -178,7 +158,7 @@ export default function SettingsPrivacy() {
           }}>
             <Text style={{ fontSize: 13, fontWeight: '600', color: '#B83A3A' }}>Suppression programmée</Text>
             <Text style={{ fontSize: 11, color: t.muted, marginTop: 4, lineHeight: 17 }}>
-              Votre compte sera supprimé dans {deletionStatus.daysRemaining} jour{deletionStatus.daysRemaining > 1 ? 's' : ''}. Annulez maintenant si vous changez d'avis.
+              Votre compte sera supprimé dans {deletionStatus.daysRemaining} jour{deletionStatus.daysRemaining > 1 ? 's' : ''}. Annulez maintenant si vous changez d’avis.
             </Text>
             <View style={{ marginTop: 14 }}>
               <IdnButton t={t} variant="primary" size="md" full onPress={handleCancelDeletion} disabled={cancelling}>
@@ -195,10 +175,9 @@ export default function SettingsPrivacy() {
           }}>
             <Text style={{ fontSize: 13, fontWeight: '600', color: '#B83A3A' }}>Zone sensible</Text>
             <Text style={{ fontSize: 11, color: t.muted, marginTop: 4, lineHeight: 17 }}>
-              Suspendre ou supprimer définitivement votre compte IDN. Les logs d'audit sont conservés 5 ans (obligation légale).
+              Supprimer définitivement votre compte IDN. Les logs d’audit sont conservés 5 ans (obligation légale).
             </Text>
             <View style={{ gap: 8, marginTop: 14 }}>
-              <IdnButton t={t} variant="ghost" size="md" full onPress={deactivate}>Désactiver temporairement</IdnButton>
               <IdnButton t={t} variant="danger" size="md" full onPress={() => setDeleteOpen(true)}>Supprimer mon compte</IdnButton>
             </View>
           </View>

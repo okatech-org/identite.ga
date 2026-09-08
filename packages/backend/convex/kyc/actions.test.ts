@@ -186,7 +186,14 @@ describe("runOcr / runBiometric", () => {
     // `decideKycOutcome` ne peut jamais auto-approuver sur cette base : la
     // demande part en revue manuelle (cf. kyc/workflow.test.ts), pas un
     // échec de workflow après 3 retries.
-    expect(result).toEqual({ confidence: 0, extractedFields: {} })
+    // `documentReuse: false` et non `undefined` : l'OCR n'ayant rien lu, il
+    // n'y a pas de pièce à rapprocher — ce n'est pas une recherche qui aurait
+    // échoué. La distinction compte : `undefined` force la revue manuelle.
+    expect(result).toEqual({
+      confidence: 0,
+      extractedFields: {},
+      documentReuse: false,
+    })
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
@@ -220,7 +227,18 @@ describe("runOcr / runBiometric", () => {
 
     // Mapping { faceMatch, liveness, livenessScore } → { faceMatch, liveness }
     // — `livenessScore` n'est pas répercuté (contrat interne actuel).
-    expect(result).toEqual({ faceMatch: 0.82, liveness: "real" })
+    //
+    // Le service simulé ici ne renvoie PAS d'empreinte : c'est le cas d'un
+    // service antérieur au déploiement de la déduplication. On doit alors
+    // rendre `dedupAvailable: false`, que le workflow traduit en revue
+    // manuelle. Rendre `true` avec `faceDuplicate: false` laisserait
+    // auto-approuver des dossiers jamais confrontés à la galerie.
+    expect(result).toEqual({
+      faceMatch: 0.82,
+      liveness: "real",
+      faceDuplicate: false,
+      dedupAvailable: false,
+    })
   })
 
   test("runBiometric : verdict spoof répercuté tel quel", async () => {
@@ -240,7 +258,12 @@ describe("runOcr / runBiometric", () => {
     const result = await t.action(internal.kyc.actions.runBiometric, {
       kycRequestId,
     })
-    expect(result).toEqual({ faceMatch: 0.1, liveness: "spoof" })
+    expect(result).toEqual({
+      faceMatch: 0.1,
+      liveness: "spoof",
+      faceDuplicate: false,
+      dedupAvailable: false,
+    })
   })
 
   test("runBiometric : /v1/biometric renvoie 503 → throw quand même (inchangé, retry workflow)", async () => {
@@ -355,5 +378,211 @@ describe("runOcr / runBiometric", () => {
       expect(headers.Authorization).toBeUndefined()
       expect(getIdTokenClientMock).not.toHaveBeenCalled()
     })
+  })
+})
+
+/**
+ * CE QUI EST EN JEU : la déduplication biométrique est la seule couche qui
+ * résiste au changement de nom, de date de naissance ET de document. C'est
+ * elle qui attrape le cas décrit — quelqu'un qui se réinscrit avec d'autres
+ * informations et une autre adresse.
+ *
+ * Deux erreurs la rendraient inutile sans jamais lever d'exception. Se trouver
+ * soi-même mettrait chaque dossier en revue et noierait le signal. Ne pas
+ * exclure ses propres dossiers antérieurs signalerait comme doublon tout
+ * citoyen qui resoumet après un rejet.
+ */
+describe("déduplication biométrique 1:N", () => {
+  const originalEnv = { ...process.env }
+
+  beforeEach(() => {
+    process.env.KYC_INFERENCE_URL = INFERENCE_URL
+    process.env.KYC_INFERENCE_SECRET = INFERENCE_SECRET
+    delete process.env.KYC_INVOKER_SA_KEY
+  })
+
+  afterEach(() => {
+    process.env = { ...originalEnv }
+    vi.unstubAllGlobals()
+  })
+
+  /** Vecteur unitaire de dimension 512 dont le cosinus avec `unit(0)` est
+   *  exactement `cos(theta)` — ce qui rend le seuil testable sans modèle. */
+  function unitVector(theta: number): number[] {
+    const v = new Array(512).fill(0)
+    v[0] = Math.cos(theta)
+    v[1] = Math.sin(theta)
+    return v
+  }
+
+  async function seedGalleryTemplate(
+    t: ReturnType<typeof convexTest>,
+    opts: { userId: string; embedding: number[]; active?: boolean },
+  ) {
+    await t.run(async (ctx) => {
+      const kycId = await ctx.db.insert("kycRequest", {
+        userId: opts.userId,
+        documentType: "cni_gabon",
+        documentImages: {},
+        status: "approved",
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      })
+      const active = opts.active ?? true
+      await ctx.db.insert("faceTemplate", {
+        userId: opts.userId,
+        kycRequestId: kycId,
+        embedding: opts.embedding,
+        modelVersion: "buffalo_l",
+        gallery: `buffalo_l|${active ? "active" : "pending"}`,
+        active,
+        createdAt: Date.now(),
+      })
+    })
+  }
+
+  function mockBiometric(embedding: number[]) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              faceMatch: 0.9,
+              liveness: "real",
+              livenessScore: 0.9,
+              embedding,
+              embeddingModel: "buffalo_l",
+            }),
+            { status: 200 },
+          ),
+      ),
+    )
+  }
+
+  test("un visage déjà en galerie sous un AUTRE compte est signalé", async () => {
+    const t = convexTest(schema, modules)
+    const kycRequestId = await seedKyc(t)
+    // Cosinus ≈ 0.966, au-dessus du seuil par défaut (0.5).
+    await seedGalleryTemplate(t, {
+      userId: "autre_citoyen",
+      embedding: unitVector(0),
+    })
+    mockBiometric(unitVector(Math.PI / 12))
+
+    const result = await t.action(internal.kyc.actions.runBiometric, {
+      kycRequestId,
+    })
+    expect(result.dedupAvailable).toBe(true)
+    expect(result.faceDuplicate).toBe(true)
+
+    const flags = await t.run(async (ctx) =>
+      ctx.db
+        .query("duplicateSignal")
+        .withIndex("by_userId", (q) => q.eq("userId", "user_1"))
+        .collect(),
+    )
+    expect(flags).toHaveLength(1)
+    expect(flags[0]!.signal).toBe("face")
+    expect(flags[0]!.matchedUserId).toBe("autre_citoyen")
+    expect(flags[0]!.score).toBeGreaterThan(0.9)
+  })
+
+  test("un visage éloigné ne déclenche rien", async () => {
+    const t = convexTest(schema, modules)
+    const kycRequestId = await seedKyc(t)
+    await seedGalleryTemplate(t, {
+      userId: "autre_citoyen",
+      embedding: unitVector(0),
+    })
+    // Orthogonal : cosinus 0, très en dessous du seuil.
+    mockBiometric(unitVector(Math.PI / 2))
+
+    const result = await t.action(internal.kyc.actions.runBiometric, {
+      kycRequestId,
+    })
+    expect(result.faceDuplicate).toBe(false)
+  })
+
+  test("on ne se signale pas soi-même", async () => {
+    // POURQUOI : un citoyen qui resoumet un dossier après un rejet présente le
+    // même visage. Le compter comme doublon condamnerait toute reprise.
+    const t = convexTest(schema, modules)
+    const kycRequestId = await seedKyc(t)
+    await seedGalleryTemplate(t, {
+      userId: "user_1", // le propriétaire du dossier courant
+      embedding: unitVector(0),
+    })
+    mockBiometric(unitVector(0))
+
+    const result = await t.action(internal.kyc.actions.runBiometric, {
+      kycRequestId,
+    })
+    expect(result.faceDuplicate).toBe(false)
+  })
+
+  test("une empreinte hors galerie ne sert pas de référence", async () => {
+    // POURQUOI : tant qu'un dossier n'est pas approuvé, rien ne dit que ce
+    // visage corresponde à une identité réelle.
+    const t = convexTest(schema, modules)
+    const kycRequestId = await seedKyc(t)
+    await seedGalleryTemplate(t, {
+      userId: "autre_citoyen",
+      embedding: unitVector(0),
+      active: false,
+    })
+    mockBiometric(unitVector(0))
+
+    const result = await t.action(internal.kyc.actions.runBiometric, {
+      kycRequestId,
+    })
+    expect(result.faceDuplicate).toBe(false)
+  })
+
+  test("l'empreinte du dossier est déposée hors galerie, une seule fois", async () => {
+    // POURQUOI : déposer AVANT de chercher ferait se trouver soi-même à 1.0 ;
+    // déposer en galerie ferait référence à un dossier non approuvé ; déposer
+    // deux fois au rejeu d'un step empilerait les empreintes.
+    const t = convexTest(schema, modules)
+    const kycRequestId = await seedKyc(t)
+    mockBiometric(unitVector(0))
+
+    await t.action(internal.kyc.actions.runBiometric, { kycRequestId })
+    await t.action(internal.kyc.actions.runBiometric, { kycRequestId })
+
+    const templates = await t.run(async (ctx) =>
+      ctx.db
+        .query("faceTemplate")
+        .withIndex("by_userId", (q) => q.eq("userId", "user_1"))
+        .collect(),
+    )
+    expect(templates).toHaveLength(1)
+    expect(templates[0]!.active).toBe(false)
+  })
+
+  test("un service sans empreinte rend la déduplication indisponible", async () => {
+    // POURQUOI : le service peut être antérieur au déploiement. On doit alors
+    // dire « je n'ai pas cherché », pas « je n'ai rien trouvé ».
+    const t = convexTest(schema, modules)
+    const kycRequestId = await seedKyc(t)
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              faceMatch: 0.9,
+              liveness: "real",
+              livenessScore: 0.9,
+            }),
+            { status: 200 },
+          ),
+      ),
+    )
+
+    const result = await t.action(internal.kyc.actions.runBiometric, {
+      kycRequestId,
+    })
+    expect(result.dedupAvailable).toBe(false)
   })
 })

@@ -66,14 +66,10 @@ function Section({
   activeId: string | null
 }) {
   return (
-    <section className="mb-3.5 rounded-xl border border-idn-border bg-idn-surface p-5">
+    <section className="portal-panel mb-4 p-5">
       <h2 className="mb-3.5 text-[13px] font-semibold text-idn-ink">{title}</h2>
       {providers.map((p) => (
-        <ProviderRow
-          key={p.id}
-          provider={p}
-          active={p.id === activeId}
-        />
+        <ProviderRow key={p.id} provider={p} active={p.id === activeId} />
       ))}
     </section>
   )
@@ -91,11 +87,12 @@ export default function ProvidersPage() {
           </span>
         }
       />
-      <div className="flex-1 overflow-auto p-7">
-        <div className="max-w-[820px]">
-          <p className="mb-4 rounded-lg border border-idn-border-soft bg-idn-surface-2 px-3.5 py-2.5 text-xs text-idn-ink-2">
-            Le basculement des providers se fait actuellement via les
-            variables d&apos;environnement Convex (<code className="font-mono text-[11px]">RESEND_API_KEY</code>,
+      <div className="portal-canvas flex-1 overflow-auto">
+        <div className="portal-limit-narrow">
+          <p className="portal-note mb-4 px-4 py-3 text-xs leading-relaxed text-idn-ink-2">
+            Le basculement des providers se fait actuellement via les variables
+            d&apos;environnement Convex (
+            <code className="font-mono text-[11px]">RESEND_API_KEY</code>,
             etc.). La gestion depuis cette page sera activée en Phase 2.
           </p>
           <Section

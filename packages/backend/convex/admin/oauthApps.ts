@@ -75,7 +75,8 @@ function parseRedirects(raw: string | null | undefined): string {
 
 function scopesToList(scopes: AppMeta["scopes"]): string[] {
   if (!scopes) return []
-  if (Array.isArray(scopes)) return scopes.map((s) => String(s).trim()).filter(Boolean)
+  if (Array.isArray(scopes))
+    return scopes.map((s) => String(s).trim()).filter(Boolean)
   return scopes
     .split(",")
     .map((s) => s.trim())
@@ -97,7 +98,9 @@ function appView(doc: RawApp) {
   const scopesArr = scopesToList(meta.scopes)
   const envStatus: "production" | "pending" | "sandbox" =
     meta.status ??
-    (meta.env === "production" || meta.env === "pending" || meta.env === "sandbox"
+    (meta.env === "production" ||
+    meta.env === "pending" ||
+    meta.env === "sandbox"
       ? (meta.env as "production" | "pending" | "sandbox")
       : "sandbox")
   // Une jumelle prod en attente est marquée `disabled=true` jusqu'à approbation
@@ -105,9 +108,17 @@ function appView(doc: RawApp) {
   // demandes, sinon `disabled` masquerait l'état.
   const status: "production" | "pending" | "sandbox" | "disabled" =
     doc.disabled === true && envStatus !== "pending" ? "disabled" : envStatus
+  const environment: "production" | "sandbox" =
+    meta.env === "production" ||
+    (meta.env !== "sandbox" && envStatus === "production")
+      ? "production"
+      : "sandbox"
+  const clientId = doc.clientId ?? ""
+  const linkedClientId =
+    typeof meta.linkedClientId === "string" ? meta.linkedClientId : null
   return {
     id: String(doc._id ?? ""),
-    clientId: doc.clientId ?? "",
+    clientId,
     name: doc.name ?? "",
     redirectUrls: parseRedirects(doc.redirectUrls),
     scopes: scopesArr.join(", "),
@@ -116,7 +127,11 @@ function appView(doc: RawApp) {
     status,
     disabled: doc.disabled === true,
     createdAt: doc.createdAt ?? 0,
-    linkedClientId: typeof meta.linkedClientId === "string" ? meta.linkedClientId : null,
+    environment,
+    sandboxClientId: environment === "sandbox" ? clientId : linkedClientId,
+    productionClientId:
+      environment === "production" ? clientId : linkedClientId,
+    linkedClientId,
     productionStatus:
       meta.productionStatus === "pending" ||
       meta.productionStatus === "approved" ||
@@ -134,6 +149,67 @@ function appView(doc: RawApp) {
   }
 }
 
+type AppView = ReturnType<typeof appView>
+
+function logicalAppView(
+  sandbox: AppView | null,
+  production: AppView | null,
+): AppView {
+  const primary = sandbox ?? production
+  if (!primary) throw new Error("Application logique vide")
+
+  const productionStatus = sandbox?.productionStatus ?? primary.productionStatus
+  const productionActive =
+    production !== null &&
+    !production.disabled &&
+    production.status === "production"
+  const sandboxActive = sandbox !== null && !sandbox.disabled
+  const directPending =
+    production === null && primary.status === "pending" && !primary.disabled
+
+  const status: AppView["status"] =
+    productionStatus === "pending" && production !== null
+      ? "pending"
+      : productionActive
+        ? "production"
+        : directPending
+          ? "pending"
+          : sandboxActive
+            ? "sandbox"
+            : "disabled"
+
+  return {
+    ...primary,
+    status,
+    disabled: !productionActive && !sandboxActive && !directPending,
+    sandboxClientId: sandbox?.clientId ?? null,
+    productionClientId: production?.clientId ?? null,
+    productionStatus,
+  }
+}
+
+function groupAppViews(apps: AppView[]): AppView[] {
+  const groups = new Map<
+    string,
+    { sandbox: AppView | null; production: AppView | null }
+  >()
+
+  for (const app of apps) {
+    const groupId = app.sandboxClientId ?? app.clientId
+    const group = groups.get(groupId) ?? {
+      sandbox: null,
+      production: null,
+    }
+    if (app.environment === "sandbox") group.sandbox = app
+    else group.production = app
+    groups.set(groupId, group)
+  }
+
+  return [...groups.values()].map(({ sandbox, production }) =>
+    logicalAppView(sandbox, production),
+  )
+}
+
 const APP_RETURN = v.object({
   id: v.string(),
   clientId: v.string(),
@@ -145,6 +221,9 @@ const APP_RETURN = v.object({
   status: STATUS,
   disabled: v.boolean(),
   createdAt: v.number(),
+  environment: v.union(v.literal("sandbox"), v.literal("production")),
+  sandboxClientId: v.union(v.string(), v.null()),
+  productionClientId: v.union(v.string(), v.null()),
   linkedClientId: v.union(v.string(), v.null()),
   productionStatus: v.union(
     v.literal("none"),
@@ -168,15 +247,17 @@ export const listApps = query({
   handler: async (ctx, args) => {
     await requireAdmin(ctx)
     const limit = Math.min(args.limit ?? 100, 500)
-    const page = (await ctx.runQuery(
-      components.betterAuth.adapter.findMany,
-      {
-        model: "oauthApplication",
-        paginationOpts: { cursor: null, numItems: limit },
-        sortBy: { field: "createdAt", direction: "desc" },
-      },
-    )) as { page: RawApp[] }
-    return (page.page ?? []).map((d) => appView(d))
+    const page = (await ctx.runQuery(components.betterAuth.adapter.findMany, {
+      model: "oauthApplication",
+      // Deux enregistrements techniques peuvent former une application.
+      // On lit jusqu'à 500 lignes puis on applique la limite après regroupement.
+      paginationOpts: { cursor: null, numItems: 500 },
+      sortBy: { field: "createdAt", direction: "desc" },
+    })) as { page: RawApp[] }
+    return groupAppViews((page.page ?? []).map((d) => appView(d))).slice(
+      0,
+      limit,
+    )
   },
 })
 
@@ -185,15 +266,43 @@ export const getApp = query({
   returns: v.union(APP_RETURN, v.null()),
   handler: async (ctx, args) => {
     await requireAdmin(ctx)
-    const doc = (await ctx.runQuery(
+    const doc = (await ctx.runQuery(components.betterAuth.adapter.findOne, {
+      model: "oauthApplication",
+      where: [{ field: "clientId", value: args.clientId }],
+    })) as RawApp | null
+    if (!doc) return null
+    const current = appView(doc)
+    if (!current.linkedClientId) return current
+
+    const linkedDoc = (await ctx.runQuery(
       components.betterAuth.adapter.findOne,
       {
         model: "oauthApplication",
-        where: [{ field: "clientId", value: args.clientId }],
+        where: [{ field: "clientId", value: current.linkedClientId }],
       },
     )) as RawApp | null
-    if (!doc) return null
-    return appView(doc)
+    if (!linkedDoc) return current
+
+    const linked = appView(linkedDoc)
+    const sandbox =
+      current.environment === "sandbox"
+        ? current
+        : linked.environment === "sandbox"
+          ? linked
+          : null
+    const production =
+      current.environment === "production"
+        ? current
+        : linked.environment === "production"
+          ? linked
+          : null
+    const logical = logicalAppView(sandbox, production)
+    return {
+      ...current,
+      sandboxClientId: logical.sandboxClientId,
+      productionClientId: logical.productionClientId,
+      productionStatus: logical.productionStatus,
+    }
   },
 })
 
@@ -368,8 +477,7 @@ export const approveProductionRequest = mutation({
     if (typeof prodClientId !== "string" || prodClientId.length === 0) {
       throw new ConvexError({
         code: "MISSING_TWIN",
-        message:
-          "La jumelle production de cette application est introuvable.",
+        message: "La jumelle production de cette application est introuvable.",
       })
     }
     const prod = await findByClientId(ctx, prodClientId)
@@ -571,9 +679,7 @@ export const listDelegatedIdentities = query({
     const limit = Math.min(args.limit ?? 50, 200)
     const delegations = await ctx.db
       .query("delegatedIdentity")
-      .withIndex("by_appClientId", (q) =>
-        q.eq("appClientId", args.clientId),
-      )
+      .withIndex("by_appClientId", (q) => q.eq("appClientId", args.clientId))
       .order("desc")
       .take(limit)
 

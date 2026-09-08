@@ -1,5 +1,6 @@
 import {
   BellIcon,
+  CalendarDaysIcon,
   CheckIcon,
   FileTextIcon,
   HomeIcon,
@@ -14,11 +15,12 @@ import {
  * `home` pour le tableau de bord ajouté par la décision d'arrivée.
  */
 export const NavIcons: Record<
-  "home" | "shield" | "qr" | "check" | "doc",
+  "home" | "shield" | "calendar" | "qr" | "check" | "doc",
   LucideIcon
 > = {
   home: HomeIcon,
   shield: ShieldIcon,
+  calendar: CalendarDaysIcon,
   qr: QrCodeIcon,
   check: CheckIcon,
   doc: FileTextIcon,

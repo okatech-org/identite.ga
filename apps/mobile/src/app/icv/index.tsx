@@ -188,7 +188,7 @@ export default function ICVHome() {
             </View>
           ) : (
             <Text style={{ fontSize: 12, color: t.muted, fontStyle: 'italic' }}>
-              Excellent ! Aucune suggestion pour l'instant.
+              Excellent ! Aucune suggestion pour l’instant.
             </Text>
           )}
         </View>

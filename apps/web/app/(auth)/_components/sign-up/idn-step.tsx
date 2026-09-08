@@ -3,20 +3,18 @@
 import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useConvex, useMutation } from "convex/react"
+import { useConvex } from "convex/react"
 import { ShieldIcon } from "lucide-react"
-import { toast } from "sonner"
 
 import { api } from "@repo/backend/convex/_generated/api"
 import { Button } from "@repo/ui/components/button"
 import { Label } from "@repo/ui/components/label"
 import { cn } from "@repo/ui/lib/utils"
 
-import { authClient } from "@/lib/auth-client"
-
 import { idnSignup, onboardingHeader, STEP_TOTAL } from "../../_content/fr"
 import { WizardShell } from "../wizard-shell"
 import {
+  getOnboardingHandle,
   getOnboardingPivot,
   getOnboardingProfile,
   setOnboardingHandle,
@@ -28,18 +26,6 @@ const HANDLE_REGEX = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/
 const HANDLE_MIN = 3
 const HANDLE_MAX = 32
 
-function generateInternalPassword(): string {
-  const alphabet =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-="
-  const buf = new Uint32Array(32)
-  crypto.getRandomValues(buf)
-  let s = ""
-  for (let i = 0; i < buf.length; i++) {
-    s += alphabet[buf[i]! % alphabet.length]
-  }
-  return s
-}
-
 function isHandleValid(handle: string): boolean {
   return (
     handle.length >= HANDLE_MIN &&
@@ -48,54 +34,34 @@ function isHandleValid(handle: string): boolean {
   )
 }
 
-/**
- * Attend que le JWT Better Auth → Convex soit propagé après sign-up.
- *
- * `authClient.signUp.email()` pose le cookie immédiatement, mais
- * `ConvexBetterAuthProvider` doit ensuite récupérer le JWT et le
- * transmettre au client Convex avant que les mutations authentifiées
- * passent. Sans cette attente on récolte un `UNAUTHENTICATED` direct.
- */
-async function waitForConvexAuth(
-  fetchMe: () => Promise<unknown>,
-  timeoutMs = 5000,
-): Promise<void> {
-  const start = Date.now()
-  while (Date.now() - start < timeoutMs) {
-    const me = await fetchMe()
-    if (me) return
-    await new Promise((r) => setTimeout(r, 120))
-  }
-  throw new Error("Session non synchronisée. Réessayez.")
-}
-
 type Suggestion = { handle: string; format: string; available: boolean }
 
 export function IdnStep() {
   const router = useRouter()
   const convex = useConvex()
-  const completeSignup = useMutation(api.onboarding.completeSignup)
 
   const [profile, setProfile] = React.useState<OnboardingProfile | null>(null)
   const [pivot, setPivot] = React.useState<OnboardingPivot | null>(null)
   const [handle, setHandle] = React.useState("")
   const [suggestions, setSuggestions] = React.useState<Suggestion[]>([])
-  const [availability, setAvailability] = React.useState<
-    { handle: string; available: boolean } | null
-  >(null)
+  const [availability, setAvailability] = React.useState<{
+    handle: string
+    available: boolean
+  } | null>(null)
   const [acceptTerms, setAcceptTerms] = React.useState(false)
-  const [submitting, setSubmitting] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     const p = getOnboardingProfile()
     const pv = getOnboardingPivot()
+    const savedHandle = getOnboardingHandle()
     if (!p || !pv) {
       router.replace("/sign-up?step=profile")
       return
     }
     setProfile(p)
     setPivot(pv)
+    if (savedHandle) setHandle(savedHandle)
   }, [router])
 
   React.useEffect(() => {
@@ -161,40 +127,15 @@ export function IdnStep() {
           ? { tone: "ok" as const, label: idnSignup.statusAvailable }
           : { tone: "error" as const, label: idnSignup.statusTaken }
 
-  const reserve = async () => {
-    if (!profile || !pivot || !isAvailable || submitting) return
+  const reserve = () => {
+    if (!profile || !pivot || !isAvailable) return
     if (!acceptTerms) {
       setError(idnSignup.validation.termsRequired)
       return
     }
-    setSubmitting(true)
     setError(null)
-    try {
-      const result = await authClient.signUp.email({
-        email: `${handleNormalized}@idn.ga`,
-        password: generateInternalPassword(),
-        name: handleNormalized,
-      })
-      if (result?.error) {
-        const code = result.error.code as string | undefined
-        setError(
-          code === "USER_ALREADY_EXISTS"
-            ? idnSignup.errorTaken
-            : (result.error.message ?? idnSignup.errorGeneric),
-        )
-        setSubmitting(false)
-        return
-      }
-      await waitForConvexAuth(() =>
-        convex.query(api.profile.getCurrentUser, {}),
-      )
-      await completeSignup({ profileType: profile, pivot })
-      setOnboardingHandle(handleNormalized)
-      router.push("/sign-up?step=pin")
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : idnSignup.errorGeneric)
-      setSubmitting(false)
-    }
+    setOnboardingHandle(handleNormalized)
+    router.push("/sign-up?step=pin")
   }
 
   const visibleSuggestions = suggestions.slice(0, 4)
@@ -211,11 +152,11 @@ export function IdnStep() {
         <Button
           type="button"
           size="lg"
-          disabled={!isAvailable || !acceptTerms || submitting}
-          onClick={() => void reserve()}
+          disabled={!isAvailable || !acceptTerms}
+          onClick={reserve}
           className="h-14 w-full text-base"
         >
-          {submitting ? idnSignup.primarySubmitting : idnSignup.primary}
+          {idnSignup.primary}
         </Button>
       }
     >

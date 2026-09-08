@@ -5,7 +5,7 @@
  * Câblé sur `admin.oauthApps.getApp` (clientId) + audit récent filtré sur l'app.
  */
 import { useState } from "react"
-import { notFound, useParams } from "next/navigation"
+import { notFound, useParams, useRouter } from "next/navigation"
 import { useMutation, useQuery } from "convex/react"
 
 import { api } from "@repo/backend/convex/_generated/api"
@@ -27,6 +27,9 @@ type AppDetail = {
   status: "production" | "pending" | "sandbox" | "disabled"
   disabled: boolean
   createdAt: number
+  environment: "sandbox" | "production"
+  sandboxClientId: string | null
+  productionClientId: string | null
   linkedClientId: string | null
   productionStatus: "none" | "pending" | "approved" | "rejected"
   delegation: {
@@ -138,7 +141,7 @@ function DelegationSection({
   }
 
   return (
-    <section className="rounded-xl border border-idn-border bg-idn-surface p-5">
+    <section className="portal-panel p-5">
       <div className="mb-3.5 flex items-center justify-between">
         <h2 className="text-[13px] font-semibold text-idn-ink">{t.title}</h2>
         <span
@@ -247,6 +250,7 @@ function DelegationSection({
 export default function AppDetailPage() {
   const params = useParams<{ id: string }>()
   const id = params.id
+  const router = useRouter()
 
   const app = useQuery(
     api.admin.oauthApps.getApp,
@@ -263,9 +267,22 @@ export default function AppDetailPage() {
     notFound()
   }
 
+  const appClientIds = new Set(
+    [app.sandboxClientId, app.productionClientId, app.clientId].filter(
+      (clientId): clientId is string => Boolean(clientId),
+    ),
+  )
   const appEvents = (events ?? [])
-    .filter((e) => e.targetType === "app" && e.targetId === id)
+    .filter((e) => e.targetType === "app" && appClientIds.has(e.targetId))
     .slice(0, 10)
+
+  const switchEnvironment = (environment: string) => {
+    const target =
+      environment === "production"
+        ? app.productionClientId
+        : app.sandboxClientId
+    if (target && target !== app.clientId) router.push(`/apps/${target}`)
+  }
 
   return (
     <>
@@ -273,37 +290,52 @@ export default function AppDetailPage() {
         sub={`${app.name.toUpperCase()} · CLIENT_ID ${app.clientId} · ${STATUS_LABEL[app.status]}`}
         title={fr.appDetail.titleHead}
         right={
-          <AppActions
-            clientId={app.clientId}
-            status={app.status}
-            disabled={app.disabled}
-            linkedClientId={app.linkedClientId}
-          />
+          <>
+            <label className="flex items-center gap-2 text-xs text-idn-muted">
+              Environnement
+              <select
+                value={app.environment}
+                onChange={(event) => switchEnvironment(event.target.value)}
+                className="h-8 rounded-lg border border-idn-border bg-idn-surface px-2.5 text-[13px] font-medium text-idn-ink outline-none focus-visible:ring-2 focus-visible:ring-idn-green"
+                aria-label="Environnement de l'application"
+              >
+                <option value="sandbox" disabled={!app.sandboxClientId}>
+                  Sandbox
+                </option>
+                <option value="production" disabled={!app.productionClientId}>
+                  Production
+                </option>
+              </select>
+            </label>
+            <AppActions
+              clientId={app.clientId}
+              status={app.status}
+              disabled={app.disabled}
+              sandboxClientId={app.sandboxClientId}
+              productionStatus={app.productionStatus}
+            />
+          </>
         }
       />
-      <div className="grid flex-1 grid-cols-[1.4fr_1fr] gap-3.5 overflow-auto p-7">
+      <div className="portal-canvas grid flex-1 grid-cols-1 gap-4 overflow-auto xl:grid-cols-[1.4fr_1fr]">
         <div className="flex flex-col gap-3.5">
-          {app.status === "pending" && app.linkedClientId ? (
+          {app.productionStatus === "pending" && app.productionClientId ? (
             <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm dark:border-amber-700 dark:bg-amber-950/30">
               <div className="font-semibold text-idn-ink">
                 Demande de passage en production
               </div>
               <p className="mt-1 text-xs text-idn-muted">
-                Cette application est la jumelle production d&apos;une sandbox.
-                Approuver l&apos;active sur l&apos;émetteur OIDC. Sandbox
-                liée :{" "}
-                <span className="font-mono">{app.linkedClientId}</span>
+                L&apos;environnement Production attend votre validation. Il
+                reste désactivé sur l&apos;émetteur OIDC jusqu&apos;à son
+                approbation.
               </p>
             </div>
           ) : null}
-          <section className="rounded-xl border border-idn-border bg-idn-surface p-5">
+          <section className="portal-panel p-5">
             <h2 className="mb-3.5 text-[13px] font-semibold text-idn-ink">
               {fr.appDetail.oauthConfig}
             </h2>
-            <CredRow
-              label={fr.appDetail.cred.clientId}
-              value={app.clientId}
-            />
+            <CredRow label={fr.appDetail.cred.clientId} value={app.clientId} />
             <CredRow
               label={fr.appDetail.cred.redirectUris}
               value={app.redirectUrls || "—"}
@@ -325,10 +357,13 @@ export default function AppDetailPage() {
               }
             />
           </section>
-          <DelegationSection clientId={app.clientId} delegation={app.delegation} />
+          <DelegationSection
+            clientId={app.clientId}
+            delegation={app.delegation}
+          />
         </div>
 
-        <aside className="rounded-xl border border-idn-border bg-idn-surface p-5">
+        <aside className="portal-panel p-5">
           <h2 className="mb-3.5 text-[13px] font-semibold text-idn-ink">
             {fr.appDetail.eventHistory}
           </h2>

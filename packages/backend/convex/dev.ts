@@ -19,6 +19,7 @@ import { internalMutation } from "./_generated/server"
 import { internalMutation as triggeredInternalMutation } from "./functions"
 import { generateApiToken } from "./lib/secureToken"
 import { VALID_M2M_SCOPES } from "./developer/apiKeys"
+import { derivePivotKeys } from "./lib/identity"
 
 /**
  * Réinitialise TOUS les rate-limits (toutes les définitions, tous les
@@ -159,6 +160,11 @@ export const seedVerificationDemo = triggeredInternalMutation({
         birthPlace: "Libreville",
         nationality: "GA",
       },
+      ...derivePivotKeys({
+        firstName: args.firstName,
+        lastName: args.lastName,
+        dateOfBirth: "1990-01-01",
+      }),
       createdAt: now,
       updatedAt: now,
     })

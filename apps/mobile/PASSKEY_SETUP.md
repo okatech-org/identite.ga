@@ -13,19 +13,17 @@ recevoir une erreur `NotAllowedError`.
 "ios": {
   "bundleIdentifier": "ga.idn.mobile",
   "associatedDomains": [
-    "webcredentials:identite.ga",
-    "webcredentials:connect.identite.ga"
+    "webcredentials:identite.ga"
   ]
 }
 ```
 
 Pour que iOS valide le lien app ↔ domaine, **servir** un fichier
 `apple-app-site-association` (sans extension, content-type
-`application/json`) sur chaque domaine listé :
+`application/json`) sur ce domaine :
 
 ```
 https://identite.ga/.well-known/apple-app-site-association
-https://connect.identite.ga/.well-known/apple-app-site-association
 ```
 
 Contenu :
@@ -88,7 +86,7 @@ Sur device : Android 9+ (API 28) + Google Play Services 23.30+.
 
 ```bash
 bunx convex env set PASSKEY_RP_ID identite.ga
-bunx convex env set PASSKEY_RP_ORIGINS "https://identite.ga,https://connect.identite.ga,android:apk-key-hash:<BASE64_SHA256>"
+bunx convex env set PASSKEY_RP_ORIGINS "https://identite.ga,android:apk-key-hash:<BASE64_SHA256>"
 ```
 
 - `PASSKEY_RP_ID` : hostname (sans schéma ni port). Doit matcher la

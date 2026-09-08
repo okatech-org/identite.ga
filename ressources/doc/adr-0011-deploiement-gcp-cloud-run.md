@@ -31,7 +31,7 @@ Le backend **Convex Cloud reste inchangé** : Convex n'est pas un service GCP, c
 | Output Next | `output: "standalone"` + `outputFileTracingRoot` pointant la racine du monorepo |
 | Runtime | Image finale `node:22-alpine` (image standalone, sans Bun) |
 | Authentification GitHub → GCP | **Workload Identity Federation** (pas de clé JSON) |
-| Mapping domaines | Cloud Run Domain Mapping : `identite.ga`, `admin.identite.ga`, `controllers.identite.ga`, `developers.identite.ga`, `connect.identite.ga` (cf. [ADR-0010](./adr-0010-multi-apps-auth-cross-domain.md)). Le service biométrique `kyc-inference` utilise un Application Load Balancer global + serverless NEG + certificat Certificate Manager validé par DNS sur `kyc.identite.ga`, car son hostname Cloud Run renvoyait un 404 Google Frontend avant le conteneur. |
+| Mapping domaines | Cloud Run Domain Mapping : `identite.ga`, `admin.identite.ga`, `controllers.identite.ga`, `developers.identite.ga` (cf. [ADR-0010](./adr-0010-multi-apps-auth-cross-domain.md), [ADR-0012](./adr-0012-fusion-connect-identite-ga.md)). Le service biométrique `kyc-inference` utilise un Application Load Balancer global + serverless NEG + certificat Certificate Manager validé par DNS sur `kyc.identite.ga`, car son hostname Cloud Run renvoyait un 404 Google Frontend avant le conteneur. |
 
 ### 2. Pipelines GitHub Actions
 
@@ -44,7 +44,6 @@ Un workflow **par app** + un workflow **Convex**, déclenchés par `push` sur `m
 | [`deploy-admin.yml`](../../.github/workflows/deploy-admin.yml) | `apps/admin/**`, `packages/ui/**`, dépendances racine |
 | [`deploy-controller.yml`](../../.github/workflows/deploy-controller.yml) | `apps/controller/**`, `packages/ui/**`, dépendances racine |
 | [`deploy-developer.yml`](../../.github/workflows/deploy-developer.yml) | `apps/developer/**`, `packages/ui/**`, `packages/sdk/**`, dépendances racine |
-| [`deploy-connect.yml`](../../.github/workflows/deploy-connect.yml) | `apps/connect/**`, `packages/ui/**`, dépendances racine |
 | [`deploy-kyc-inference.yml`](../../.github/workflows/deploy-kyc-inference.yml) | `services/kyc-inference/**`, workflow KYC |
 | [`ci.yml`](../../.github/workflows/ci.yml) | Toute PR ou push sur `main` (lint + types + build) |
 

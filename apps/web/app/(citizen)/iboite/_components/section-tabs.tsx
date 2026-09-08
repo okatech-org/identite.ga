@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { MailIcon, MessageCircleIcon, PackageIcon } from "lucide-react"
+import { InboxIcon, MailIcon, PackageIcon } from "lucide-react"
 
 import { cn } from "@repo/ui/lib/utils"
 
@@ -33,6 +33,13 @@ export function SectionTabs({
 }) {
   const tabs: Tab[] = [
     {
+      id: "emails",
+      label: iboite.sections.emails,
+      icon: InboxIcon,
+      badge: counters.unreadMessages,
+      offColor: "text-emerald-600",
+    },
+    {
       id: "courriers",
       label: iboite.sections.courriers,
       icon: MailIcon,
@@ -46,20 +53,13 @@ export function SectionTabs({
       badge: counters.availablePackages,
       offColor: "text-amber-500",
     },
-    {
-      id: "emails",
-      label: iboite.sections.emails,
-      icon: MessageCircleIcon,
-      badge: counters.unreadMessages,
-      offColor: "text-green-500",
-    },
   ]
 
   return (
     <div
       role="tablist"
       aria-label="Sections iBoîte"
-      className="flex flex-row gap-1.5 rounded-2xl border border-border bg-card p-1.5 md:flex-col md:p-2"
+      className="grid grid-cols-3 gap-1 rounded-xl border border-border bg-secondary/45 p-1"
     >
       {tabs.map((tb) => {
         const Icon = tb.icon
@@ -73,7 +73,7 @@ export function SectionTabs({
             aria-controls={`iboite-panel-${tb.id}`}
             onClick={() => onChange(tb.id)}
             className={cn(
-              "flex flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-center text-xs font-medium transition-colors md:flex-row md:gap-3 md:px-3 md:py-2.5 md:text-left md:text-sm",
+              "flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors",
               selected
                 ? "bg-idn-green-soft text-idn-green dark:bg-[#0F2A18] dark:text-idn-green-on-dark"
                 : "text-foreground/80 hover:bg-secondary hover:text-foreground",
@@ -90,7 +90,7 @@ export function SectionTabs({
               {tb.badge > 0 ? (
                 <span
                   className={cn(
-                    "absolute -right-2 -top-1.5 inline-flex h-3.5 min-w-3.5 items-center justify-center rounded-full px-1 text-[9px] font-bold leading-none md:hidden",
+                    "absolute -right-2 -top-1.5 inline-flex h-3.5 min-w-3.5 items-center justify-center rounded-full px-1 text-[9px] font-bold leading-none",
                     "bg-idn-green text-white",
                   )}
                 >
@@ -98,19 +98,7 @@ export function SectionTabs({
                 </span>
               ) : null}
             </span>
-            <span className="flex-1 truncate md:block">{tb.label}</span>
-            {tb.badge > 0 ? (
-              <span
-                className={cn(
-                  "hidden h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold md:inline-flex",
-                  selected
-                    ? "bg-idn-green text-white"
-                    : "bg-secondary text-foreground",
-                )}
-              >
-                {tb.badge}
-              </span>
-            ) : null}
+            <span className="truncate">{tb.label}</span>
           </button>
         )
       })}

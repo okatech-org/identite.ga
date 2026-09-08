@@ -17,6 +17,8 @@ import { PinPad } from "@repo/ui/components/pin-pad"
 import { cn } from "@repo/ui/lib/utils"
 
 import { authClient } from "@/lib/auth-client"
+import { syncCrossDomainCookiesForProxy } from "@/lib/auth-cookie"
+import { buildPostLoginRedirect, isFederatedSignIn } from "@/lib/oauth-flow"
 
 import { signIn } from "../_content/fr"
 import { CrossDeviceQr } from "../_components/cross-device-qr"
@@ -26,14 +28,27 @@ import { safeRedirectTo } from "../_lib/redirect"
 const HANDLE_REGEX = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/
 const IDN_DOMAIN = "@idn.ga"
 
+function buildForgotPinHref(
+  params: { toString: () => string },
+  identifier: string,
+): string {
+  const next = new URLSearchParams(params.toString())
+  next.set("identifier", identifier)
+  return `/forgot-pin?${next.toString()}`
+}
+
 /**
  * Accepte `handle` ou `handle@idn.ga` indifféremment.
  * Renvoie l'email Better Auth normalisé.
  */
-function normalizeIdnIdentifier(input: string): { handle: string; email: string } | null {
+function normalizeIdnIdentifier(
+  input: string,
+): { handle: string; email: string } | null {
   const raw = input.trim().toLowerCase()
   if (!raw) return null
-  const handle = raw.endsWith(IDN_DOMAIN) ? raw.slice(0, -IDN_DOMAIN.length) : raw
+  const handle = raw.endsWith(IDN_DOMAIN)
+    ? raw.slice(0, -IDN_DOMAIN.length)
+    : raw
   if (handle.length < 3 || handle.length > 32) return null
   if (!HANDLE_REGEX.test(handle)) return null
   return { handle, email: `${handle}${IDN_DOMAIN}` }
@@ -43,7 +58,10 @@ const handleSchema = z.object({
   identifier: z
     .string()
     .trim()
-    .refine((v) => normalizeIdnIdentifier(v) !== null, "Identifiant IDN invalide."),
+    .refine(
+      (v) => normalizeIdnIdentifier(v) !== null,
+      "Identifiant IDN invalide.",
+    ),
 })
 const passwordSchema = z.object({
   password: z.string().min(1, "Mot de passe requis."),
@@ -65,12 +83,21 @@ export default function SignInPage() {
 function SignInPageInner() {
   const router = useRouter()
   const params = useSearchParams()
-  const redirectTo = safeRedirectTo(params.get("redirect_to"), "/dashboard")
+
+  // Deux destinations possibles après authentification :
+  //  - connexion ordinaire au portail → un chemin interne validé ;
+  //  - connexion fédérée (app partenaire) → rejeu de /oauth2/authorize via le
+  //    proxy de cette origine, seul porteur du cookie de session.
+  const isOAuthFlow = isFederatedSignIn(params)
+  const redirectTo = isOAuthFlow
+    ? buildPostLoginRedirect(params)
+    : safeRedirectTo(params.get("redirect_to"), "/dashboard")
 
   const [phase, setPhase] = React.useState<Phase>("email")
   const [email, setEmail] = React.useState("")
   const [pin, setPin] = React.useState("")
   const [pinError, setPinError] = React.useState<string | null>(null)
+  const [pinSetupRequired, setPinSetupRequired] = React.useState(false)
   const [submitting, setSubmitting] = React.useState(false)
   const [qrOpen, setQrOpen] = React.useState(false)
 
@@ -89,7 +116,7 @@ function SignInPageInner() {
 
   const emailForm = useForm<HandleValues>({
     resolver: zodResolver(handleSchema),
-    defaultValues: { identifier: "" },
+    defaultValues: { identifier: params.get("identifier") ?? "" },
     mode: "onTouched",
   })
   const passwordForm = useForm<PasswordValues>({
@@ -98,14 +125,69 @@ function SignInPageInner() {
     mode: "onTouched",
   })
 
+  React.useEffect(() => {
+    const identifierFromUrl =
+      new URLSearchParams(window.location.search).get("identifier") ?? ""
+    if (identifierFromUrl && !emailForm.getValues("identifier")) {
+      emailForm.setValue("identifier", identifierFromUrl)
+    }
+  }, [emailForm])
+
   const goToPin = emailForm.handleSubmit((values) => {
     const norm = normalizeIdnIdentifier(values.identifier)
     if (!norm) return
     setEmail(norm.email)
     setPin("")
     setPinError(null)
+    setPinSetupRequired(false)
     setPhase("pin")
   })
+
+  /**
+   * Aiguillage post-authentification.
+   *
+   * En flux fédéré on ne peut pas se contenter d'un `router.push` : le plugin
+   * crossDomainClient garde la session en localStorage, pas en cookie HTTP.
+   * Il faut donc la recopier sur `document.cookie` pour que le proxy
+   * `/api/auth/*` la transmette à Convex, puis suivre nous-mêmes la redirection
+   * que renvoie `/oauth2/authorize` (consentement, ou retour direct au
+   * partenaire si le consentement est déjà enregistré).
+   */
+  const goToDestination = async () => {
+    if (!isOAuthFlow) {
+      router.push(redirectTo)
+      router.refresh()
+      return
+    }
+
+    try {
+      syncCrossDomainCookiesForProxy(authClient)
+    } catch (err) {
+      console.error("[idn:sign-in] failed to write document.cookie", err)
+    }
+
+    let nextUrl: string | null = null
+    try {
+      const r = await fetch(redirectTo, {
+        method: "GET",
+        credentials: "include",
+        headers: { Accept: "application/json" },
+      })
+      if (r.redirected) {
+        nextUrl = r.url
+      } else {
+        const body = (await r.json().catch(() => null)) as {
+          redirect?: boolean
+          url?: string
+        } | null
+        if (body?.url) nextUrl = body.url
+      }
+    } catch (err) {
+      console.error("[idn:sign-in] authorize fetch threw", err)
+    }
+
+    window.location.assign(nextUrl ?? redirectTo)
+  }
 
   const submitPin = async (entered: string) => {
     if (submitting) return
@@ -116,17 +198,28 @@ function SignInPageInner() {
         method: "POST",
         body: { email, pin: entered },
       })
-      const errorBody = (res?.error ?? null) as
-        | { code?: string; status?: number; message?: string }
-        | null
+      const errorBody = (res?.error ?? null) as {
+        code?: string
+        status?: number
+        message?: string
+      } | null
       if (errorBody) {
         const code = errorBody.code
         if (code === "EMAIL_NOT_VERIFIED") {
+          setPinSetupRequired(false)
           toast.error(signIn.errorEmailNotVerified)
+        } else if (code === "PIN_SETUP_REQUIRED") {
+          setPinSetupRequired(true)
+          setPinError(signIn.pinSetupRequired)
         } else if (errorBody.status === 429) {
+          setPinSetupRequired(false)
           setPinError(signIn.pinErrorTooMany)
-        } else {
+        } else if (code === "INVALID_PIN") {
+          setPinSetupRequired(false)
           setPinError(signIn.pinErrorInvalid)
+        } else {
+          setPinSetupRequired(false)
+          setPinError(signIn.errorGeneric)
         }
         setPin("")
         setSubmitting(false)
@@ -134,11 +227,11 @@ function SignInPageInner() {
       }
       // Force le client à recharger sa session via le cookie cross-domain
       // qu'on vient de stocker (le set-better-auth-cookie a déjà été pris
-      // par le fetch plugin). Le router push déclenchera un fetch JWT.
-      router.push(redirectTo)
-      router.refresh()
+      // par le fetch plugin).
+      await goToDestination()
     } catch {
-      setPinError(signIn.pinErrorInvalid)
+      setPinSetupRequired(false)
+      setPinError(signIn.errorGeneric)
       setPin("")
       setSubmitting(false)
     }
@@ -172,7 +265,7 @@ function SignInPageInner() {
         setSubmitting(false)
         return
       }
-      router.push(redirectTo)
+      await goToDestination()
     } catch {
       toast.error(signIn.errorGeneric)
       setSubmitting(false)
@@ -196,7 +289,7 @@ function SignInPageInner() {
         setSubmitting(false)
         return
       }
-      router.push(redirectTo)
+      await goToDestination()
     } catch {
       toast.error(signIn.errorGeneric)
       setSubmitting(false)
@@ -242,7 +335,7 @@ function SignInPageInner() {
   if (phase === "pin") {
     const pinOnChange = (v: string) => {
       setPin(v)
-      if (pinError) setPinError(null)
+      if (pinError && !pinSetupRequired) setPinError(null)
     }
 
     return (
@@ -272,7 +365,7 @@ function SignInPageInner() {
               variant="pin"
               hasError={Boolean(pinError)}
               autoFocus
-              disabled={submitting}
+              disabled={submitting || pinSetupRequired}
               ariaLabel={signIn.pinTitle}
             />
           ) : (
@@ -288,7 +381,7 @@ function SignInPageInner() {
               digitAriaLabel={signIn.pinDigitAria}
               dotsAriaLabel={signIn.pinDotsAria}
               autoFocus
-              disabled={submitting}
+              disabled={submitting || pinSetupRequired}
               resetKey={email}
             />
           )}
@@ -308,21 +401,37 @@ function SignInPageInner() {
           <Button
             type="button"
             size="lg"
-            disabled={submitting || pin.length !== 6}
+            disabled={submitting || pinSetupRequired || pin.length !== 6}
             onClick={() => void submitPin(pin)}
             className="mt-6 h-12 w-full text-base"
           >
             {submitting ? signIn.primarySubmitting : signIn.pinPrimary}
           </Button>
 
+          {pinSetupRequired ? (
+            <Button asChild size="lg" className="mt-4 h-12 w-full text-base">
+              <Link href={buildForgotPinHref(params, email)}>
+                {signIn.pinSetupAction}
+              </Link>
+            </Button>
+          ) : (
+            <Link
+              href={buildForgotPinHref(params, email)}
+              className="mt-4 text-center text-[13px] font-medium text-idn-green hover:underline dark:text-idn-green-on-dark"
+            >
+              {signIn.pinForgot}
+            </Link>
+          )}
+
           <button
             type="button"
             onClick={() => {
               setPin("")
               setPinError(null)
+              setPinSetupRequired(false)
               setPhase("email")
             }}
-            className="mt-4 text-center text-[13px] text-muted-foreground hover:underline"
+            className="mt-3 text-center text-[13px] text-muted-foreground hover:underline"
           >
             ← {signIn.pinBack}
           </button>

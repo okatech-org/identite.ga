@@ -83,3 +83,75 @@ describe("decideKycOutcome", () => {
     expect(decision).toBe("reject")
   })
 })
+
+/**
+ * CE QUI EST EN JEU : un individu ne doit pas pouvoir détenir plusieurs
+ * identités vérifiées. Une auto-approbation sur un dossier signalé comme
+ * doublon annulerait toute la chaîne de détection en amont — et le ferait
+ * silencieusement, puisque personne ne relit un dossier approuvé.
+ *
+ * Dans l'autre sens, un doublon ne doit JAMAIS déclencher un rejet
+ * automatique : la mesure biométrique rapproche les vrais jumeaux, et un faux
+ * positif se paierait ici du refus d'identité opposé à une personne réelle.
+ * La seule issue correcte est donc la revue humaine.
+ */
+describe("décision KYC — signal de doublon", () => {
+  const goodOcr = { confidence: 0.99 }
+  const goodBio = { faceMatch: 0.99, liveness: "real" as const }
+  const allAvailable = { ocrAvailable: true, biometricAvailable: true }
+
+  test("doublon détecté → review, jamais approve, malgré des scores parfaits", () => {
+    const decision = decideKycOutcome(goodOcr, goodBio, allAvailable, {
+      duplicateFound: true,
+      available: true,
+    })
+    expect(decision).toBe("review")
+  })
+
+  test("doublon détecté → jamais reject : les vrais jumeaux existent", () => {
+    const decision = decideKycOutcome(goodOcr, goodBio, allAvailable, {
+      duplicateFound: true,
+      available: true,
+    })
+    expect(decision).not.toBe("reject")
+  })
+
+  test("un spoof avéré prime sur le doublon", () => {
+    // POURQUOI : une présentation frauduleuse reste un rejet, même quand elle
+    // ressemble par ailleurs à un compte existant.
+    const decision = decideKycOutcome(
+      goodOcr,
+      { faceMatch: 0.1, liveness: "spoof" },
+      allAvailable,
+      { duplicateFound: true, available: true },
+    )
+    expect(decision).toBe("reject")
+  })
+
+  test("recherche de doublon indisponible → review, jamais approve", () => {
+    // POURQUOI : c'est le fail-safe qui protège le déploiement. Un workflow
+    // journalisé avant l'arrivée de la déduplication rejoue sans ces champs ;
+    // les lire comme « aucun doublon » auto-approuverait précisément les
+    // dossiers qu'on cherche à retenir.
+    const decision = decideKycOutcome(goodOcr, goodBio, allAvailable, {
+      duplicateFound: false,
+      available: false,
+    })
+    expect(decision).toBe("review")
+  })
+
+  test("aucun doublon et scores au-dessus des seuils → approve", () => {
+    // POURQUOI : garantit que le chemin nominal n'a pas été cassé au passage.
+    const decision = decideKycOutcome(goodOcr, goodBio, allAvailable, {
+      duplicateFound: false,
+      available: true,
+    })
+    expect(decision).toBe("approve")
+  })
+
+  test("sans argument de déduplication, le comportement antérieur est conservé", () => {
+    // POURQUOI : la valeur par défaut ne doit pas transformer les appelants
+    // existants en machine à revue manuelle.
+    expect(decideKycOutcome(goodOcr, goodBio, allAvailable)).toBe("approve")
+  })
+})

@@ -48,8 +48,11 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # Les builds iOS locaux évitent le quota EAS et utilisent un Xcode stable,
+    # exigé par App Store Connect. Android et les builds multi-plateformes
+    # continuent d'utiliser le service EAS distant depuis Linux.
+    runs-on: ${{ inputs.platform == 'ios' && 'macos-26' || 'ubuntu-latest' }}
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v5
 
@@ -101,8 +104,21 @@ jobs:
             echo "$GOOGLE_PLAY_SERVICE_ACCOUNT_KEY" | base64 -d > apps/mobile/credentials/play-service-account.json
           fi
 
-      - name: EAS Build
-        if: ${{ inputs.skip_build != true }}
+      - name: EAS Build (iOS local)
+        if: ${{ inputs.skip_build != true && inputs.platform == 'ios' }}
+        working-directory: apps/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          eas build \
+            --profile "${{ inputs.profile || 'preview' }}" \
+            --platform ios \
+            --local \
+            --output "$RUNNER_TEMP/identite-ga.ipa" \
+            --non-interactive
+
+      - name: EAS Build (remote)
+        if: ${{ inputs.skip_build != true && inputs.platform != 'ios' }}
         working-directory: apps/mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
@@ -112,8 +128,20 @@ jobs:
             --platform "${{ inputs.platform || 'all' }}" \
             --non-interactive
 
-      - name: EAS Submit
-        if: ${{ inputs.submit != false }}
+      - name: EAS Submit (iOS local)
+        if: ${{ inputs.submit != false && inputs.platform == 'ios' && inputs.skip_build != true }}
+        working-directory: apps/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          eas submit \
+            --profile "${{ inputs.profile || 'preview' }}" \
+            --platform ios \
+            --path "$RUNNER_TEMP/identite-ga.ipa" \
+            --non-interactive
+
+      - name: EAS Submit (latest remote build)
+        if: ${{ inputs.submit != false && (inputs.platform != 'ios' || inputs.skip_build == true) }}
         working-directory: apps/mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}

@@ -23,6 +23,21 @@ class NoFaceDetected(Exception):
     """Aucun visage détecté sur une des images -> 422 côté route."""
 
 
+@dataclass(frozen=True)
+class FaceMatchResult:
+    """Score de correspondance + empreinte du selfie.
+
+    `score` est normalisé dans [0, 1] (cf. `_normalize_cosine`) tandis que
+    `selfie_embedding` est le vecteur ArcFace brut, L2-normalisé. Les deux
+    n'ont pas la même échelle : un seuil calibré sur l'un ne vaut RIEN sur
+    l'autre. La similarité entre deux embeddings est un cosinus dans [-1, 1].
+    """
+
+    score: float
+    selfie_embedding: list[float]
+    model_version: str
+
+
 @dataclass
 class FaceMatchEngine:
     settings: Settings
@@ -70,6 +85,23 @@ class FaceMatchEngine:
 
     def compare(self, *, selfie_bytes: bytes, doc_face_bytes: bytes) -> float:
         """Renvoie `faceMatch` normalisé dans [0, 1]."""
+        return self.compare_with_embedding(
+            selfie_bytes=selfie_bytes, doc_face_bytes=doc_face_bytes
+        ).score
+
+    def compare_with_embedding(
+        self, *, selfie_bytes: bytes, doc_face_bytes: bytes
+    ) -> "FaceMatchResult":
+        """Comme `compare`, mais expose aussi l'empreinte du **selfie**.
+
+        L'empreinte rendue est celle du selfie, jamais celle du document : la
+        galerie de déduplication côté backend doit contenir des captures
+        vivantes, pas des photographies de photographies, dont les embeddings
+        sont dégradés par l'impression et la reprise de vue.
+
+        `compare()` reste la surface historique, inchangée — les appelants qui
+        ne veulent que le score n'ont rien à modifier.
+        """
         if not self._ready:
             raise RuntimeError(
                 "Moteur face match indisponible (pack InsightFace non chargé)."
@@ -77,7 +109,11 @@ class FaceMatchEngine:
         emb_selfie = self._largest_face_embedding(selfie_bytes)
         emb_doc = self._largest_face_embedding(doc_face_bytes)
         cosine = _cosine_similarity(emb_selfie, emb_doc)
-        return _normalize_cosine(cosine)
+        return FaceMatchResult(
+            score=_normalize_cosine(cosine),
+            selfie_embedding=[float(x) for x in emb_selfie],
+            model_version=self.settings.insightface_model_pack,
+        )
 
 
 # --------------------------------------------------------------------------- #

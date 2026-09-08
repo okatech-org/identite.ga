@@ -8,6 +8,7 @@ import { authComponent } from "../auth"
 import { requireAuth } from "../lib/auth"
 import { rateLimiter } from "../rateLimiter"
 import { loadAccountByEmailAlias, loadOwnedAccount } from "./accounts"
+import { updateAccountCounters } from "./accountSync"
 
 const IBOITE_DOMAIN = "idn.ga"
 
@@ -29,6 +30,7 @@ const MAX_ATTACHMENTS = 10
 
 const FOLDER = v.union(
   v.literal("inbox"),
+  v.literal("archive"),
   v.literal("sent"),
   v.literal("trash"),
 )
@@ -70,6 +72,7 @@ const MESSAGE_DETAIL = v.object({
   recipientEmail: v.string(),
   subject: v.string(),
   body: v.string(),
+  bodyHtml: v.optional(v.string()),
   preview: v.string(),
   isRead: v.boolean(),
   isStarred: v.boolean(),
@@ -129,6 +132,25 @@ function makePreview(body: string, max = 150): string {
   return flat.length <= max ? flat : flat.slice(0, max - 1) + "…"
 }
 
+function sanitizeEmailHtml(html?: string): string | undefined {
+  const clean = html
+    ?.replace(
+      /<(script|iframe|object|embed|form|input|button|meta|base|link)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,
+      "",
+    )
+    .replace(
+      /<(script|iframe|object|embed|form|input|button|meta|base|link)\b[^>]*\/?\s*>/gi,
+      "",
+    )
+    .replace(/\s+on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+    .replace(
+      /\s+(href|src)\s*=\s*(["'])\s*(javascript:|data:text\/html)[\s\S]*?\2/gi,
+      "",
+    )
+    .trim()
+  return clean || undefined
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // Queries
 // ─────────────────────────────────────────────────────────────────────────
@@ -167,7 +189,7 @@ export const listByFolder = query({
       }
     }
 
-    const folder: "inbox" | "sent" | "trash" = args.folder
+    const folder: "inbox" | "archive" | "sent" | "trash" = args.folder
     const page = await ctx.db
       .query("iboiteMessage")
       .withIndex("by_account_folder", (q) =>
@@ -203,6 +225,7 @@ export const get = query({
       recipientEmail: m.recipientEmail,
       subject: m.subject,
       body: m.body,
+      bodyHtml: m.bodyHtml,
       preview: m.preview,
       isRead: m.isRead,
       isStarred: m.isStarred,
@@ -261,12 +284,9 @@ export const markRead = mutation({
     if (m.folder === "inbox") {
       const account = await ctx.db.get(m.accountId)
       if (account) {
-        await ctx.db.patch(account._id, {
-          counters: {
-            ...account.counters,
-            unreadMessages: Math.max(0, account.counters.unreadMessages - 1),
-          },
-          updatedAt: Date.now(),
+        await updateAccountCounters(ctx, account, {
+          ...account.counters,
+          unreadMessages: Math.max(0, account.counters.unreadMessages - 1),
         })
       }
     }
@@ -288,7 +308,11 @@ export const toggleStar = mutation({
 export const move = mutation({
   args: {
     messageId: v.id("iboiteMessage"),
-    target: v.union(v.literal("inbox"), v.literal("trash")),
+    target: v.union(
+      v.literal("inbox"),
+      v.literal("archive"),
+      v.literal("trash"),
+    ),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -298,21 +322,15 @@ export const move = mutation({
 
     const account = await ctx.db.get(m.accountId)
     if (account && m.folder === "inbox" && !m.isRead) {
-      await ctx.db.patch(account._id, {
-        counters: {
-          ...account.counters,
-          unreadMessages: Math.max(0, account.counters.unreadMessages - 1),
-        },
-        updatedAt: Date.now(),
+      await updateAccountCounters(ctx, account, {
+        ...account.counters,
+        unreadMessages: Math.max(0, account.counters.unreadMessages - 1),
       })
     }
     if (account && args.target === "inbox" && !m.isRead) {
-      await ctx.db.patch(account._id, {
-        counters: {
-          ...account.counters,
-          unreadMessages: account.counters.unreadMessages + 1,
-        },
-        updatedAt: Date.now(),
+      await updateAccountCounters(ctx, account, {
+        ...account.counters,
+        unreadMessages: account.counters.unreadMessages + 1,
       })
     }
 
@@ -347,6 +365,7 @@ export const send = mutation({
     recipientEmail: v.string(),
     subject: v.string(),
     body: v.string(),
+    bodyHtml: v.optional(v.string()),
     inReplyTo: v.optional(v.id("iboiteMessage")),
     attachments: v.optional(
       v.array(
@@ -373,6 +392,12 @@ export const send = mutation({
     }
     if (args.body.trim().length < 1) {
       throw new ConvexError({ code: "INVALID", message: "Message vide." })
+    }
+    if ((args.bodyHtml?.length ?? 0) > 500_000) {
+      throw new ConvexError({
+        code: "MESSAGE_TOO_LARGE",
+        message: "Le contenu mis en forme est trop volumineux.",
+      })
     }
     if ((args.attachments?.length ?? 0) > MAX_ATTACHMENTS) {
       throw new ConvexError({
@@ -439,6 +464,7 @@ export const send = mutation({
     const now = Date.now()
     const subject = args.subject.trim()
     const preview = makePreview(args.body)
+    const bodyHtml = sanitizeEmailHtml(args.bodyHtml)
     // `hasAttachment` est dérivé côté serveur du contenu réel de
     // `args.attachments` — jamais accepté tel quel depuis le client (sinon
     // un client malveillant pourrait afficher un trombone sans PJ réelle).
@@ -459,6 +485,7 @@ export const send = mutation({
       subject,
       preview,
       body: args.body,
+      bodyHtml,
       folder: "sent",
       isRead: true,
       isStarred: false,
@@ -506,6 +533,7 @@ export const send = mutation({
       subject,
       preview,
       body: args.body,
+      bodyHtml,
       folder: "inbox",
       isRead: false,
       isStarred: false,
@@ -541,13 +569,15 @@ export const send = mutation({
     }
 
     // 3) Compteur unread + notification in-app côté destinataire.
-    await ctx.db.patch(recipientAccount._id, {
-      counters: {
+    await updateAccountCounters(
+      ctx,
+      recipientAccount,
+      {
         ...recipientAccount.counters,
         unreadMessages: recipientAccount.counters.unreadMessages + 1,
       },
-      updatedAt: now,
-    })
+      now,
+    )
 
     await ctx.runMutation(internal.notifications.dispatch, {
       userId: recipientAccount.userId,
@@ -559,6 +589,7 @@ export const send = mutation({
         kind: "message",
         messageId: inboxId,
       },
+      pushUrl: `/iboite?section=emails&id=${inboxId}`,
     })
 
     return sentId

@@ -18,10 +18,7 @@ import {
 import { CourrierDetail } from "./_components/courrier-detail"
 import { CourrierFolderList } from "./_components/courrier-folder-list"
 import { CourrierList } from "./_components/courrier-list"
-import {
-  EmailActionsBar,
-  EmailActionsPanel,
-} from "./_components/email-actions"
+import { EmailActionsBar, EmailActionsPanel } from "./_components/email-actions"
 import { EmailDetail } from "./_components/email-detail"
 import { EmailFolderList } from "./_components/email-folder-list"
 import { EmailList } from "./_components/email-list"
@@ -73,8 +70,11 @@ export default function IBoitePage() {
 
   // Ouvre le compose en mode réponse au message courant. `selectedId`
   // est garanti non-null par les conditions d'affichage des actions.
-  const replyToCurrent = () => {
-    if (state.selectedId) state.openCompose(state.selectedId)
+  const replyToCurrent = (mode: "reply" | "replyAll" = "reply") => {
+    if (state.selectedId) state.openCompose(state.selectedId, mode)
+  }
+  const forwardCurrent = () => {
+    if (state.selectedId) state.openCompose(state.selectedId, "forward")
   }
 
   return (
@@ -135,8 +135,9 @@ export default function IBoitePage() {
                 <EmailActionsPanel
                   messageId={state.selectedId as Id<"iboiteMessage">}
                   onBack={() => state.selectItem(null)}
-                  onCompose={() => state.openCompose()}
-                  onReply={replyToCurrent}
+                  onReply={() => replyToCurrent()}
+                  onReplyAll={() => replyToCurrent("replyAll")}
+                  onForward={forwardCurrent}
                 />
               ) : null}
             </>
@@ -199,7 +200,7 @@ export default function IBoitePage() {
               {state.selectedId ? (
                 <EmailDetail
                   messageId={state.selectedId as Id<"iboiteMessage">}
-                  onReply={replyToCurrent}
+                  onReply={() => replyToCurrent()}
                 />
               ) : (
                 <EmailList
@@ -212,8 +213,9 @@ export default function IBoitePage() {
                 <EmailActionsBar
                   messageId={state.selectedId as Id<"iboiteMessage">}
                   onBack={() => state.selectItem(null)}
-                  onCompose={() => state.openCompose()}
-                  onReply={replyToCurrent}
+                  onReply={() => replyToCurrent()}
+                  onReplyAll={() => replyToCurrent("replyAll")}
+                  onForward={forwardCurrent}
                 />
               ) : null}
             </>
@@ -225,7 +227,7 @@ export default function IBoitePage() {
               type="button"
               onClick={() => state.openCompose()}
               aria-label={iboite.emails.newMessage}
-              className="absolute bottom-4 right-4 inline-flex h-13 w-13 items-center justify-center rounded-full bg-idn-green text-white shadow-lg shadow-idn-green/40 hover:bg-idn-green/90 md:hidden"
+              className="absolute bottom-4 right-4 inline-flex h-13 w-13 items-center justify-center rounded-full bg-idn-green text-white hover:bg-idn-green/90 md:hidden"
               style={{ height: 52, width: 52 }}
             >
               <SendIcon className="h-5 w-5" aria-hidden="true" />
@@ -237,7 +239,7 @@ export default function IBoitePage() {
               type="button"
               onClick={() => state.openCompose()}
               aria-label={iboite.courriers.newLetter}
-              className="absolute bottom-4 right-4 inline-flex items-center justify-center rounded-full bg-idn-green text-white shadow-lg shadow-idn-green/40 hover:bg-idn-green/90 md:hidden"
+              className="absolute bottom-4 right-4 inline-flex items-center justify-center rounded-full bg-idn-green text-white hover:bg-idn-green/90 md:hidden"
               style={{ height: 52, width: 52 }}
             >
               <PlusIcon className="h-5 w-5" aria-hidden="true" />
@@ -249,12 +251,14 @@ export default function IBoitePage() {
       {state.composeOpen && state.section === "emails" ? (
         <ComposeModal
           accountId={account._id}
+          fromEmail={account.emailAlias}
           onClose={state.closeCompose}
           replyToId={
             state.replyToId
               ? (state.replyToId as Id<"iboiteMessage">)
               : undefined
           }
+          mode={state.composeMode}
         />
       ) : null}
 

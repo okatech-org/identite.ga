@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
+import { getBrowserRedirectUrl } from "@/lib/auth-proxy"
+
 const CONVEX_SITE_URL =
   process.env.CONVEX_SITE_URL ?? process.env.NEXT_PUBLIC_CONVEX_SITE_URL
 
@@ -14,6 +16,12 @@ const HOP_BY_HOP = new Set([
   "connection",
   "keep-alive",
   "upgrade",
+  // Node's fetch décompresse automatiquement la réponse upstream. Si on
+  // forward `content-encoding: gzip|br|...` au browser alors que le body
+  // est déjà en clair, le browser plante avec ERR_CONTENT_DECODING_FAILED.
+  // Idem `content-length` qui ne correspond plus à la taille décompressée.
+  "content-encoding",
+  "content-length",
 ])
 
 async function proxyToConvex(req: NextRequest): Promise<NextResponse> {
@@ -33,9 +41,47 @@ async function proxyToConvex(req: NextRequest): Promise<NextResponse> {
       proxyHeaders[key] = value
     }
   })
-  proxyHeaders["accept-encoding"] = "application/json"
+  // NB : ne PAS forcer `accept-encoding: application/json` (faute initiale —
+  // c'est une valeur Accept, pas Accept-Encoding). Ça confondait Better Auth
+  // qui retournait `{ redirect: true, url }` JSON au lieu d'un 302 sur les
+  // redirects du flow OAuth (/oauth2/authorize, /oauth2/consent). On laisse
+  // l'`Accept` du browser passer tel quel — Better Auth voit alors
+  // `text/html` et renvoie un vrai 302.
   proxyHeaders["host"] = new URL(CONVEX_SITE_URL).host
 
+  // Le plugin crossDomainClient stocke la session dans localStorage (pas dans
+  // des cookies HTTP). Le client la recopie vers document.cookie pour qu'elle
+  // voyage avec la requête vers le proxy, en strippant TOUJOURS le préfixe
+  // `__Secure-` (le browser le refuse sur http://localhost, et le bridge
+  // crossDomain le strip sans condition — cf. sign-in finishSignIn).
+  // Convex, lui, tourne en baseURL https et pose/attend des cookies `__Secure-`
+  // quel que soit l'env. On remet donc le préfixe à l'aller — en dev ET en
+  // prod —, sinon le middleware session côté Convex ne retrouve pas le cookie
+  // qu'il a posé et renvoie l'utilisateur vers /sign-in (la boucle de login
+  // observée en production sur le flow /oauth2/authorize).
+  // NB : le regex ne matche que `better-auth.*`, jamais `__Secure-better-auth.*`
+  // déjà préfixé — pas de double préfixe sur les cookies natifs.
+  if (proxyHeaders["cookie"]) {
+    proxyHeaders["cookie"] = proxyHeaders["cookie"]
+      .split(/;\s*/)
+      .map((kv) => {
+        const eq = kv.indexOf("=")
+        if (eq < 0) return kv
+        const name = kv.slice(0, eq)
+        if (/^better-auth\./.test(name)) {
+          return `__Secure-${kv}`
+        }
+        return kv
+      })
+      .join("; ")
+  }
+
+  if (isDev) {
+     
+    console.log("[auth-proxy]", req.method, url.pathname, {
+      cookie: proxyHeaders["cookie"] ?? "(none)",
+    })
+  }
   try {
     const body =
       req.method !== "GET" && req.method !== "HEAD"
@@ -74,6 +120,23 @@ async function proxyToConvex(req: NextRequest): Promise<NextResponse> {
       for (const cookie of rewritten) {
         headers.append("set-cookie", cookie)
       }
+    }
+
+    // Le fetch serveur vers Convex est vu comme `cors` par Better Auth, même
+    // quand la requête entrante était une navigation browser. oidcProvider
+    // renvoie alors `{ redirect: true, url }` au lieu d'un 302. Restaurer ici
+    // la sémantique de navigation évite d'afficher ce JSON à l'utilisateur.
+    const browserRedirectUrl = getBrowserRedirectUrl({
+      requestMode: req.headers.get("sec-fetch-mode"),
+      requestAccept: req.headers.get("accept"),
+      responseStatus: upstream.status,
+      responseContentType: upstream.headers.get("content-type"),
+      responseBody,
+    })
+    if (browserRedirectUrl) {
+      headers.set("location", browserRedirectUrl)
+      headers.delete("content-type")
+      return new NextResponse(null, { status: 302, headers })
     }
 
     return new NextResponse(responseBody, {

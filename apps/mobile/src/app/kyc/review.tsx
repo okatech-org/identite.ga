@@ -1,5 +1,6 @@
 import React from 'react';
-import { Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
+import { Image } from 'expo-image';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { useRouter } from 'expo-router';
 import { useConvexAuth, useQuery } from 'convex/react';
@@ -52,9 +53,18 @@ export default function KycReview() {
       ? active.rejectionReason ?? 'La revue a refusé cette vérification.'
       : 'Notre système croise vos données. Vous serez notifié·e dès qu\'une décision sera prise.';
 
+  const timelineLabels: Record<string, string> = {
+    kyc_submitted: 'Demande envoyée',
+    kyc_under_review: 'Revue démarrée',
+    kyc_complement_requested: 'Complément demandé',
+    kyc_complement_provided: 'Complément transmis',
+    kyc_approved: 'Identité vérifiée',
+    kyc_rejected: 'Demande refusée',
+  };
+
   return (
-    <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top + 40, paddingHorizontal: 26, paddingBottom: Math.max(insets.bottom, 26) }}>
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 22 }}>
+    <ScrollView style={{ flex: 1, backgroundColor: t.bg }} contentContainerStyle={{ paddingTop: insets.top + 40, paddingHorizontal: 26, paddingBottom: Math.max(insets.bottom, 26), gap: 22 }}>
+      <View style={{ alignItems: 'center', gap: 22 }}>
         <View style={{ width: 96, height: 96 }}>
           <Svg viewBox="0 0 100 100" width={96} height={96}>
             <Circle cx={50} cy={50} r={44} stroke={t.border} strokeWidth={5} fill="none" />
@@ -78,6 +88,32 @@ export default function KycReview() {
             {sub}
           </Text>
         </View>
+        {active?.status === 'complement_required' && active.complementRequest ? (
+          <View style={{ width: '100%', padding: 16, borderRadius: 14, backgroundColor: t.dark ? '#1F2316' : idnTokens.yellowSoft, borderWidth: 1, borderColor: t.dark ? '#3A3F1F' : '#E8D67E' }}>
+            <Text style={{ color: t.ink, fontSize: 14, fontWeight: '700' }}>Un complément est nécessaire</Text>
+            <Text style={{ color: t.muted, fontSize: 11, marginTop: 4 }}>Demandé le {new Date(active.complementRequest.requestedAt).toLocaleString('fr-FR')}</Text>
+            <Text style={{ color: t.ink2, fontSize: 13, lineHeight: 19, marginTop: 10 }}>{active.complementRequest.message}</Text>
+          </View>
+        ) : null}
+        {active ? (
+          <View style={{ width: '100%' }}>
+            <Text style={{ color: t.ink, fontSize: 14, fontWeight: '700', marginBottom: 10 }}>Pièces transmises</Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {[
+                { label: 'Recto', uri: active.docFrontUrl },
+                { label: 'Verso', uri: active.docBackUrl },
+                { label: 'Selfie', uri: active.selfieUrl },
+              ].map((document) => (
+                <View key={document.label} style={{ flex: 1, gap: 5 }}>
+                  <View style={{ height: 86, borderRadius: 10, overflow: 'hidden', backgroundColor: t.surface2, alignItems: 'center', justifyContent: 'center' }}>
+                    {document.uri ? <Image source={{ uri: document.uri }} style={{ width: '100%', height: '100%' }} contentFit="cover" /> : <Text style={{ color: t.muted, fontSize: 10 }}>Absent</Text>}
+                  </View>
+                  <Text style={{ color: t.muted, fontSize: 10, textAlign: 'center' }}>{document.label}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : null}
         <View style={{ width: '100%', backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 14, padding: 16 }}>
           {steps.map((r, i) => (
             <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 }}>
@@ -97,8 +133,25 @@ export default function KycReview() {
             </View>
           ))}
         </View>
+        {active && active.timeline.length > 0 ? (
+          <View style={{ width: '100%' }}>
+            <Text style={{ color: t.ink, fontSize: 14, fontWeight: '700', marginBottom: 10 }}>Historique</Text>
+            <View style={{ borderLeftWidth: 1, borderLeftColor: t.border, marginLeft: 5, paddingLeft: 16, gap: 14 }}>
+              {active.timeline.map((event, index) => (
+                <View key={`${event.action}-${index}`}>
+                  <View style={{ position: 'absolute', left: -21, top: 4, width: 9, height: 9, borderRadius: 5, backgroundColor: idnTokens.green }} />
+                  <Text style={{ color: t.ink, fontSize: 12, fontWeight: '600' }}>{timelineLabels[event.action] ?? event.action}</Text>
+                  <Text style={{ color: t.muted, fontSize: 10, marginTop: 2 }}>{new Date(event.createdAt).toLocaleString('fr-FR')}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : null}
       </View>
-      <IdnButton t={t} variant="ghost" size="lg" full onPress={() => router.replace('/(tabs)/home')}>Retour à l'accueil</IdnButton>
-    </View>
+      {active?.status === 'complement_required' ? <IdnButton t={t} size="lg" full onPress={() => router.push('/kyc/doc?target=2' as never)}>Fournir le complément</IdnButton> : null}
+      {active?.status === 'rejected' ? <IdnButton t={t} size="lg" full onPress={() => router.replace('/kyc/intro?target=2' as never)}>Démarrer une nouvelle demande</IdnButton> : null}
+      <IdnButton t={t} variant="ghost" size="lg" full onPress={() => router.replace('/(tabs)/home')}>Retour à l’accueil</IdnButton>
+      {active ? <Text style={{ textAlign: 'center', color: t.mutedSoft, fontSize: 9, fontFamily: idnTokens.mono }}>RÉF. {active._id}</Text> : null}
+    </ScrollView>
   );
 }

@@ -144,11 +144,11 @@ export function AiResultCard({
 
   // ── suggest_skills
   if (feature === 'suggest_skills') {
-    const suggestions = (job.result.suggestions as Array<{
+    const suggestions = (job.result.suggestions as {
       name: string;
       level: (typeof SKILL_LEVELS)[number];
       rationale: string;
-    }> | undefined) ?? [];
+    }[] | undefined) ?? [];
     async function add(name: string, level: (typeof SKILL_LEVELS)[number]) {
       if (busy) return;
       setBusy(true);

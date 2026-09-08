@@ -3,16 +3,12 @@
 import * as React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 
-import type {
-  CourrierFolder,
-  EmailFolder,
-  SectionKey,
-} from "../_content/fr"
+import type { CourrierFolder, EmailFolder, SectionKey } from "../_content/fr"
 
 const VALID_SECTIONS: readonly SectionKey[] = [
+  "emails",
   "courriers",
   "colis",
-  "emails",
 ] as const
 const VALID_COURRIER_FOLDERS: readonly CourrierFolder[] = [
   "inbox",
@@ -23,6 +19,7 @@ const VALID_COURRIER_FOLDERS: readonly CourrierFolder[] = [
 const VALID_EMAIL_FOLDERS: readonly EmailFolder[] = [
   "inbox",
   "starred",
+  "archive",
   "sent",
   "trash",
 ] as const
@@ -35,12 +32,21 @@ export type IBoiteState = {
   composeOpen: boolean
   /** Si renseigné, le compose s'ouvre en mode réponse au message d'id donné. */
   replyToId: string | null
+  composeMode: "new" | "reply" | "replyAll" | "forward"
+}
+
+function readComposeMode(
+  value: string | null,
+): "new" | "reply" | "replyAll" | "forward" {
+  return value === "reply" || value === "replyAll" || value === "forward"
+    ? value
+    : "new"
 }
 
 function readSection(value: string | null): SectionKey {
   return VALID_SECTIONS.includes(value as SectionKey)
     ? (value as SectionKey)
-    : "courriers"
+    : "emails"
 }
 function readCourrierFolder(value: string | null): CourrierFolder {
   return VALID_COURRIER_FOLDERS.includes(value as CourrierFolder)
@@ -76,6 +82,7 @@ export function useIBoiteState() {
     selectedId: searchParams.get("id"),
     composeOpen: searchParams.get("compose") === "1",
     replyToId: searchParams.get("reply"),
+    composeMode: readComposeMode(searchParams.get("cmode")),
   }
 
   const replace = React.useCallback(
@@ -83,7 +90,7 @@ export function useIBoiteState() {
       const params = new URLSearchParams(searchParams.toString())
       const next = { ...state, ...patch }
       // Synchronise les paramètres URL avec l'état souhaité.
-      if (next.section === "courriers") params.delete("section")
+      if (next.section === "emails") params.delete("section")
       else params.set("section", next.section)
       if (next.courrierFolder === "inbox") params.delete("mfolder")
       else params.set("mfolder", next.courrierFolder)
@@ -95,17 +102,28 @@ export function useIBoiteState() {
       else params.delete("compose")
       if (next.replyToId) params.set("reply", next.replyToId)
       else params.delete("reply")
+      if (next.composeMode === "new") params.delete("cmode")
+      else params.set("cmode", next.composeMode)
       const qs = params.toString()
       router.replace(qs ? `/iboite?${qs}` : "/iboite", { scroll: false })
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [searchParams, router, state.section, state.courrierFolder, state.emailFolder, state.selectedId, state.composeOpen, state.replyToId],
+    [
+      searchParams,
+      router,
+      state.section,
+      state.courrierFolder,
+      state.emailFolder,
+      state.selectedId,
+      state.composeOpen,
+      state.replyToId,
+      state.composeMode,
+    ],
   )
 
   return {
     ...state,
-    setSection: (section: SectionKey) =>
-      replace({ section, selectedId: null }),
+    setSection: (section: SectionKey) => replace({ section, selectedId: null }),
     setCourrierFolder: (folder: CourrierFolder) =>
       replace({ courrierFolder: folder, selectedId: null }),
     setEmailFolder: (folder: EmailFolder) =>
@@ -115,9 +133,13 @@ export function useIBoiteState() {
      * Ouvre le compose. Si `replyToId` est fourni, le ComposeModal pré-remplit
      * destinataire + sujet en lisant le message original via Convex.
      */
-    openCompose: (replyToId?: string) =>
-      replace({ composeOpen: true, replyToId: replyToId ?? null }),
+    openCompose: (
+      replyToId?: string,
+      composeMode: "new" | "reply" | "replyAll" | "forward" = replyToId
+        ? "reply"
+        : "new",
+    ) => replace({ composeOpen: true, replyToId: replyToId ?? null, composeMode }),
     closeCompose: () =>
-      replace({ composeOpen: false, replyToId: null }),
+      replace({ composeOpen: false, replyToId: null, composeMode: "new" }),
   }
 }

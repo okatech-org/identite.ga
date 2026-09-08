@@ -1,6 +1,6 @@
 import { httpRouter } from "convex/server"
 
-import { internal } from "./_generated/api"
+import { components, internal } from "./_generated/api"
 import { httpAction } from "./_generated/server"
 import { authenticateApiKey } from "./developer/apiKeys"
 import { createAuth } from "./auth"
@@ -30,10 +30,87 @@ const AUTH_PATH = "/api/auth"
 // le discovery sous `/api/auth/.well-known/openid-configuration`. Pas
 // besoin de monter des handlers custom — tout est servi par
 // `auth.handler(request)`.
+/**
+ * Origines autorisées à appeler les routes Better Auth depuis un NAVIGATEUR.
+ *
+ * Réutilise `TRUSTED_ORIGINS`, déjà la source de vérité anti-CSRF de Better
+ * Auth : une origine de confiance pour le CSRF l'est aussi pour le CORS, et
+ * maintenir deux listes les ferait diverger.
+ *
+ * On répond avec l'origine EXACTE, jamais `*` : ces routes portent des cookies
+ * de session (`credentials: "include"`), et la spec CORS interdit le joker dès
+ * qu'il y a des credentials — le navigateur rejetterait la réponse.
+ */
+function authCorsHeaders(origin: string | null): Record<string, string> {
+  if (!origin) return {}
+  const allowed = (process.env.TRUSTED_ORIGINS ?? "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean)
+  let isLocalDevOrigin = false
+  if (process.env.NODE_ENV !== "production") {
+    try {
+      const url = new URL(origin)
+      isLocalDevOrigin =
+        url.hostname === "localhost" ||
+        url.hostname === "127.0.0.1" ||
+        url.hostname.endsWith(".local")
+    } catch {
+      isLocalDevOrigin = false
+    }
+  }
+  if (!allowed.includes(origin) && !isLocalDevOrigin) return {}
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Credentials": "true",
+    Vary: "Origin",
+  }
+}
+
 const authRequestHandler = httpAction(async (ctx, request) => {
   const origin = request.headers.get("origin")
   const auth = createAuth(ctx, origin)
-  return await auth.handler(request)
+  const response = await auth.handler(request)
+
+  // Les applications partenaires (consulat.ga) exécutent le parcours
+  // d'inscription IDN depuis leur propre origine : sans ces en-têtes, le
+  // navigateur bloque la réponse et l'appel échoue en « Failed to fetch »,
+  // sans qu'aucune erreur ne remonte côté serveur.
+  const cors = authCorsHeaders(origin)
+  if (Object.keys(cors).length === 0) return response
+
+  const headers = new Headers(response.headers)
+  for (const [k, v] of Object.entries(cors)) headers.set(k, v)
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
+})
+
+/**
+ * Préflight CORS des routes Better Auth.
+ *
+ * Sans route OPTIONS, Convex répond 404 au préflight et le navigateur n'envoie
+ * JAMAIS la vraie requête — le symptôme est un « Failed to fetch » opaque côté
+ * client, alors que le serveur n'a rien vu passer.
+ */
+const authPreflightHandler = httpAction(async (_ctx, request) => {
+  const origin = request.headers.get("origin")
+  const cors = authCorsHeaders(origin)
+  if (Object.keys(cors).length === 0) return new Response(null, { status: 403 })
+
+  return new Response(null, {
+    status: 204,
+    headers: {
+      ...cors,
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers":
+        request.headers.get("access-control-request-headers") ??
+        "Content-Type, Authorization",
+      "Access-Control-Max-Age": "86400",
+    },
+  })
 })
 
 // Override du discovery OIDC : @convex-dev/better-auth instancie en interne
@@ -42,7 +119,7 @@ const authRequestHandler = httpAction(async (ctx, request) => {
 // annonce HS256 alors qu'on signe en RS256 via le plugin jwt. On intercepte
 // la route exacte (prioritaire sur le pathPrefix) et on appelle l'instance
 // oidcProvider qu'on configure dans auth.ts.
-// Claims étendus IDN exposés sous scope "profile" en plus des claims
+// Claims IDN exposés selon les scopes profile / idn:civil_status, en plus des claims
 // standards Better Auth. Maintenus en un seul endroit (utilisés à la fois
 // par le handler /userinfo pour les valeurs et par le discovery pour la
 // liste `claims_supported`).
@@ -104,6 +181,57 @@ const validateBearerSub = async (
     }
   }
   return { sub: claims.sub }
+}
+
+type OAuthBearerPrincipal = {
+  sub: string
+  clientId: string
+  scopes: string[]
+}
+
+/** Valide le token et récupère les scopes réellement portés par celui-ci. */
+const validateBearerPrincipal = async (
+  ctx: Parameters<Parameters<typeof httpAction>[0]>[0],
+  auth: ReturnType<typeof createAuth>,
+  request: Request,
+): Promise<{ principal: OAuthBearerPrincipal } | { error: Response }> => {
+  const validated = await validateBearerSub(auth, request)
+  if ("error" in validated) return validated
+  const match = /^Bearer\s+(\S+)$/i.exec(
+    request.headers.get("authorization")?.trim() ?? "",
+  )
+  if (!match) return { error: jsonResponse({ error: "invalid_token" }, 401) }
+  const rows = (await ctx.runQuery(components.betterAuth.adapter.findMany, {
+    model: "oauthAccessToken",
+    where: [{ field: "accessToken", value: match[1]!, operator: "eq" }],
+    paginationOpts: { numItems: 1, cursor: null },
+  })) as {
+    page: Array<{
+      userId?: string | null
+      clientId?: string | null
+      scopes?: string | null
+      accessTokenExpiresAt?: Date | number | null
+    }>
+  }
+  const token = rows.page[0]
+  const expiresAt =
+    token?.accessTokenExpiresAt instanceof Date
+      ? token.accessTokenExpiresAt.getTime()
+      : token?.accessTokenExpiresAt
+  if (
+    !token?.clientId ||
+    token.userId !== validated.sub ||
+    (typeof expiresAt === "number" && expiresAt < Date.now())
+  ) {
+    return { error: jsonResponse({ error: "invalid_token" }, 401) }
+  }
+  return {
+    principal: {
+      sub: validated.sub,
+      clientId: token.clientId,
+      scopes: (token.scopes ?? "").split(/\s+/).filter(Boolean),
+    },
+  }
 }
 
 // GET /api/auth/oauth2/verification — statut de vérification d'identité,
@@ -169,6 +297,15 @@ const oidcDiscoveryHandler = httpAction(async (ctx, request) => {
       new Set([...baseClaims, ...IDN_EXTENDED_CLAIMS]),
     ),
     acr_values_supported: ["eidas1", "eidas2", "eidas3"],
+    // Le navigateur doit atterrir sur le domaine qui porte le cookie de session
+    // (identite.ga), pas sur l'origine Convex. Sans ça, /oauth2/authorize ne voit
+    // jamais la session d'un usager déjà connecté et le renvoie vers /sign-in.
+    //
+    // Seul cet endpoint est réécrit : il est le seul traversé par un navigateur
+    // porteur de cookie. `issuer` (claim `iss` des tokens émis), `token_endpoint`,
+    // `jwks_uri` et `userinfo_endpoint` sont back-channel et restent sur Convex —
+    // les réécrire casserait la validation chez tous les partenaires intégrés.
+    authorization_endpoint: `${siteUrl()}/api/auth/oauth2/authorize`,
   }
   return new Response(JSON.stringify(patched), {
     status: 200,
@@ -179,13 +316,8 @@ const oidcDiscoveryHandler = httpAction(async (ctx, request) => {
   })
 })
 
-// Enrichissement de /oauth2/userinfo : Better Auth n'expose que les champs
-// de la table user de son composant (sub, email, name, picture, email_verified
-// + un given_name/family_name fait via `name.split(" ")`, souvent faux pour
-// les noms composés). Le NIP et l'identité pivot IDN sont dans la table
-// `userProfile` côté Convex. On délègue la validation du token à Better Auth
-// (call de l'endpoint original) puis on lookup `userProfile` par sub et on
-// merge les claims étendus.
+// Better Auth valide le jeton puis enrichit les claims dans auth.ts avec ses
+// scopes validés. Ne jamais réajouter ici le pivot indépendamment des scopes.
 const userinfoHandler = httpAction(async (ctx, request) => {
   const origin = request.headers.get("origin")
   const auth = createAuth(ctx, origin)
@@ -212,57 +344,10 @@ const userinfoHandler = httpAction(async (ctx, request) => {
     throw err
   }
 
-  if (!baseRes.ok) return baseRes
-
-  const baseClaims = (await baseRes.json()) as Record<string, unknown> & {
-    sub?: string
-  }
-  const sub = typeof baseClaims.sub === "string" ? baseClaims.sub : null
-  if (!sub) {
-    return new Response(JSON.stringify(baseClaims), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    })
-  }
-
-  const profile = await ctx.runQuery(internal.profile.getForUserinfo, {
-    userId: sub,
-  })
-
-  if (!profile) {
-    return new Response(JSON.stringify(baseClaims), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    })
-  }
-
-  const pivot = profile.pivot
-  const enriched: Record<string, unknown> = {
-    ...baseClaims,
-    profile_type: profile.profileType,
-    loa: profile.loa,
-    acr: loaToAcr(profile.loa),
-    ...(pivot
-      ? {
-          name: [pivot.firstName, pivot.lastName].filter(Boolean).join(" "),
-          given_name: pivot.firstName,
-          family_name: pivot.lastName,
-          birthdate: pivot.dateOfBirth,
-          birth_place: pivot.birthPlace,
-          gender: pivot.gender,
-          nationality: pivot.nationality,
-          ...(pivot.nip ? { nip: pivot.nip } : {}),
-        }
-      : {}),
-  }
-
-  return new Response(JSON.stringify(enriched), {
-    status: 200,
-    headers: {
-      "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": "*",
-    },
-  })
+  const headers = new Headers(baseRes.headers)
+  headers.set("Cache-Control", "no-store")
+  headers.set("Access-Control-Allow-Origin", "*")
+  return new Response(baseRes.body, { status: baseRes.status, headers })
 })
 
 http.route({
@@ -547,6 +632,7 @@ const delegateCreateHandler = httpAction(async (ctx, request) => {
   // peut pas réclamer son identité, et il faut réémettre l'identité.
   return new Response(
     JSON.stringify({
+      sub: result.userId,
       idnId: result.idnId,
       delegatedIdentityId: result.delegatedIdentityId,
       assignedLoa,
@@ -803,11 +889,303 @@ http.route({
   method: "POST",
   handler: authRequestHandler,
 })
+http.route({
+  pathPrefix: `${AUTH_PATH}/`,
+  method: "OPTIONS",
+  handler: authPreflightHandler,
+})
 
 http.route({
   path: "/mail/inbound",
   method: "POST",
   handler: inboundMailHandler,
+})
+
+// ---------------------------------------------------------------------------
+// Façade OAuth iBoîte v1. Les tokens restent côté serveur de l'application :
+// aucune route ne dépend des cookies du navigateur partenaire.
+// ---------------------------------------------------------------------------
+
+const IBOITE_API_PREFIX = "/api/oauth/iboite/v1/"
+
+function requireOAuthScope(
+  principal: OAuthBearerPrincipal,
+  scope: string,
+): Response | null {
+  return principal.scopes.includes(scope)
+    ? null
+    : jsonResponse(
+        { error: "insufficient_scope", message: `Scope requis : ${scope}.` },
+        403,
+      )
+}
+
+const iboiteReadHandler = httpAction(async (ctx, request) => {
+  const auth = createAuth(ctx, request.headers.get("origin"))
+  const validated = await validateBearerPrincipal(ctx, auth, request)
+  if ("error" in validated) return validated.error
+  const denied = requireOAuthScope(validated.principal, "idn:iboite.read")
+  if (denied) return denied
+  const url = new URL(request.url)
+  const parts = url.pathname
+    .slice(IBOITE_API_PREFIX.length)
+    .split("/")
+    .filter(Boolean)
+  const resource = parts[0]
+  if (
+    !resource ||
+    !["account", "letters", "packages", "messages"].includes(resource)
+  ) {
+    return jsonResponse({ error: "not_found" }, 404)
+  }
+  const folderRaw = url.searchParams.get("folder") ?? undefined
+  const folder =
+    folderRaw && ["inbox", "sent", "pending", "trash"].includes(folderRaw)
+      ? (folderRaw as "inbox" | "sent" | "pending" | "trash")
+      : undefined
+  try {
+    const raw = await ctx.runQuery(internal.iboite.oauthApi.readResource, {
+      userId: validated.principal.sub,
+      resource: resource as "account" | "letters" | "packages" | "messages",
+      folder,
+      itemId: parts[1],
+    })
+    return new Response(raw, { status: 200, headers: JSON_HEADERS })
+  } catch (error) {
+    return businessError(error)
+  }
+})
+
+const iboitePatchHandler = httpAction(async (ctx, request) => {
+  const auth = createAuth(ctx, request.headers.get("origin"))
+  const validated = await validateBearerPrincipal(ctx, auth, request)
+  if ("error" in validated) return validated.error
+  const denied = requireOAuthScope(validated.principal, "idn:iboite.manage")
+  if (denied) return denied
+  const parts = new URL(request.url).pathname
+    .slice(IBOITE_API_PREFIX.length)
+    .split("/")
+    .filter(Boolean)
+  const resource =
+    parts[0] === "letters"
+      ? "letter"
+      : parts[0] === "messages"
+        ? "message"
+        : parts[0] === "packages"
+          ? "package"
+          : null
+  if (!resource || !parts[1]) return jsonResponse({ error: "not_found" }, 404)
+  const json = await readJson(request)
+  if (!json.ok) return json.response
+  const body = (json.body ?? {}) as Record<string, unknown>
+  const action =
+    typeof body.action === "string" &&
+    ["mark_read", "move", "star", "picked_up"].includes(body.action)
+      ? (body.action as "mark_read" | "move" | "star" | "picked_up")
+      : null
+  if (!action) return jsonResponse({ error: "invalid_action" }, 400)
+  const folder =
+    typeof body.folder === "string" &&
+    ["inbox", "sent", "pending", "trash"].includes(body.folder)
+      ? (body.folder as "inbox" | "sent" | "pending" | "trash")
+      : undefined
+  try {
+    const raw = await ctx.runMutation(internal.iboite.oauthApi.manageResource, {
+      userId: validated.principal.sub,
+      resource,
+      itemId: parts[1],
+      action,
+      folder,
+      starred: typeof body.starred === "boolean" ? body.starred : undefined,
+    })
+    return new Response(raw, { status: 200, headers: JSON_HEADERS })
+  } catch (error) {
+    return businessError(error)
+  }
+})
+
+const iboiteWriteHandler = httpAction(async (ctx, request) => {
+  const auth = createAuth(ctx, request.headers.get("origin"))
+  const validated = await validateBearerPrincipal(ctx, auth, request)
+  if ("error" in validated) return validated.error
+  const denied = requireOAuthScope(validated.principal, "idn:iboite.send")
+  if (denied) return denied
+  const resource = new URL(request.url).pathname.slice(IBOITE_API_PREFIX.length)
+  if (resource === "uploads") {
+    const uploadUrl = await ctx.runMutation(
+      internal.iboite.oauthApi.generateUploadUrl,
+      { userId: validated.principal.sub },
+    )
+    return jsonResponse({ uploadUrl }, 200)
+  }
+  if (resource !== "messages") return jsonResponse({ error: "not_found" }, 404)
+  const json = await readJson(request)
+  if (!json.ok) return json.response
+  const body = (json.body ?? {}) as Record<string, unknown>
+  const string = (value: unknown): string =>
+    typeof value === "string" ? value : ""
+  const attachments = Array.isArray(body.attachments)
+    ? body.attachments
+        .map((value) => {
+          if (!value || typeof value !== "object") return null
+          const item = value as Record<string, unknown>
+          if (
+            typeof item.name !== "string" ||
+            typeof item.size !== "number" ||
+            typeof item.storageRef !== "string" ||
+            typeof item.mimeType !== "string"
+          )
+            return null
+          return {
+            name: item.name,
+            size: item.size,
+            storageRef: item.storageRef as never,
+            mimeType: item.mimeType,
+          }
+        })
+        .filter((value): value is NonNullable<typeof value> => value !== null)
+    : undefined
+  try {
+    const messageId = await ctx.runMutation(
+      internal.iboite.oauthApi.sendMessage,
+      {
+        userId: validated.principal.sub,
+        recipientName: string(body.recipientName),
+        recipientEmail: string(body.recipientEmail),
+        subject: string(body.subject),
+        body: string(body.body),
+        inReplyTo:
+          typeof body.inReplyTo === "string"
+            ? (body.inReplyTo as never)
+            : undefined,
+        attachments,
+      },
+    )
+    return jsonResponse({ messageId }, 201)
+  } catch (error) {
+    return businessError(error)
+  }
+})
+
+http.route({
+  pathPrefix: IBOITE_API_PREFIX,
+  method: "GET",
+  handler: iboiteReadHandler,
+})
+http.route({
+  pathPrefix: IBOITE_API_PREFIX,
+  method: "PATCH",
+  handler: iboitePatchHandler,
+})
+http.route({
+  pathPrefix: IBOITE_API_PREFIX,
+  method: "POST",
+  handler: iboiteWriteHandler,
+})
+
+// Dépôt d'un accusé ou courrier officiel par une application M2M liée.
+http.route({
+  path: "/api/partner/iboite/letters",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const principal = await authenticateApiKey(ctx, request)
+    if (!principal) return jsonResponse({ error: "unauthorized" }, 401)
+    if (!principal.scopes.includes("idn:iboite:letters:create")) {
+      return jsonResponse({ error: "insufficient_scope" }, 403)
+    }
+    if (!principal.appClientId) {
+      return jsonResponse({ error: "api_key_not_linked_to_app" }, 403)
+    }
+    const applications = (await ctx.runQuery(
+      components.betterAuth.adapter.findMany,
+      {
+        model: "oauthApplication",
+        where: [
+          {
+            field: "clientId",
+            value: principal.appClientId,
+            operator: "eq",
+          },
+        ],
+        paginationOpts: { numItems: 1, cursor: null },
+      },
+    )) as {
+      page: Array<{
+        disabled?: boolean | null
+        metadata?: string | null
+      }>
+    }
+    const application = applications.page[0]
+    let appMetadata: Record<string, unknown> = {}
+    try {
+      appMetadata = JSON.parse(application?.metadata ?? "{}") as Record<
+        string,
+        unknown
+      >
+    } catch {
+      return jsonResponse({ error: "app_metadata_invalid" }, 403)
+    }
+    const production = appMetadata.env === "production"
+    if (
+      !application ||
+      application.disabled ||
+      (production && appMetadata.status !== "production")
+    ) {
+      return jsonResponse({ error: "app_inactive" }, 403)
+    }
+    const idempotencyKey = request.headers.get("idempotency-key")?.trim()
+    if (!idempotencyKey || idempotencyKey.length > 120) {
+      return jsonResponse({ error: "idempotency_key_required" }, 400)
+    }
+    const json = await readJson(request)
+    if (!json.ok) return json.response
+    const body = (json.body ?? {}) as Record<string, unknown>
+    const value = (key: string) =>
+      typeof body[key] === "string" ? body[key].trim() : ""
+    if (
+      !["recipientSub", "senderName", "senderAddress", "subject", "body"].every(
+        (key) => value(key),
+      )
+    ) {
+      return jsonResponse({ error: "missing_fields" }, 400)
+    }
+    if (!production) {
+      const users = (await ctx.runQuery(
+        components.betterAuth.adapter.findMany,
+        {
+          model: "user",
+          where: [
+            { field: "_id", value: value("recipientSub"), operator: "eq" },
+          ],
+          paginationOpts: { numItems: 1, cursor: null },
+        },
+      )) as { page: Array<{ email?: string | null }> }
+      const testUsers = Array.isArray(appMetadata.testUsers)
+        ? appMetadata.testUsers.map(String).map((email) => email.toLowerCase())
+        : []
+      const recipientEmail = users.page[0]?.email?.toLowerCase()
+      if (!recipientEmail || !testUsers.includes(recipientEmail)) {
+        return jsonResponse({ error: "sandbox_recipient_forbidden" }, 403)
+      }
+    }
+    try {
+      const letterId = await ctx.runMutation(
+        internal.iboite.oauthApi.depositOfficialLetter,
+        {
+          appClientId: principal.appClientId,
+          recipientSub: value("recipientSub"),
+          idempotencyKey,
+          senderName: value("senderName"),
+          senderAddress: value("senderAddress"),
+          subject: value("subject"),
+          body: value("body"),
+        },
+      )
+      return jsonResponse({ letterId }, 201)
+    } catch (error) {
+      return businessError(error)
+    }
+  }),
 })
 
 // ---------------------------------------------------------------------------
@@ -831,7 +1209,10 @@ http.route({
 const JSON_HEADERS = { "Content-Type": "application/json" }
 
 function jsonResponse(payload: unknown, status: number): Response {
-  return new Response(JSON.stringify(payload), { status, headers: JSON_HEADERS })
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: JSON_HEADERS,
+  })
 }
 
 /** Authentifie la clé M2M et exige le scope demandé. */
@@ -842,7 +1223,10 @@ async function requireVerificationScope(
 ) {
   const principal = await authenticateApiKey(ctx, request)
   if (!principal) {
-    return { ok: false as const, response: jsonResponse({ error: "unauthorized" }, 401) }
+    return {
+      ok: false as const,
+      response: jsonResponse({ error: "unauthorized" }, 401),
+    }
   }
   if (!principal.scopes.includes(scope)) {
     return {
@@ -861,7 +1245,10 @@ async function readJson(request: Request) {
   try {
     return { ok: true as const, body: (await request.json()) as unknown }
   } catch {
-    return { ok: false as const, response: jsonResponse({ error: "invalid_json" }, 400) }
+    return {
+      ok: false as const,
+      response: jsonResponse({ error: "invalid_json" }, 400),
+    }
   }
 }
 
@@ -896,14 +1283,21 @@ http.route({
   path: "/api/partner/verifications",
   method: "GET",
   handler: httpAction(async (ctx, request) => {
-    const auth = await requireVerificationScope(ctx, request, "idn:verification:list")
+    const auth = await requireVerificationScope(
+      ctx,
+      request,
+      "idn:verification:list",
+    )
     if (!auth.ok) return auth.response
 
     const parsed = parseQueueQuery(new URL(request.url).searchParams)
     if (!parsed.ok) {
       return jsonResponse({ error: parsed.error, message: parsed.message }, 400)
     }
-    const result = await ctx.runQuery(internal.partner.verifications.listQueue, parsed.value)
+    const result = await ctx.runQuery(
+      internal.partner.verifications.listQueue,
+      parsed.value,
+    )
     return jsonResponse(result, 200)
   }),
 })
@@ -915,22 +1309,36 @@ http.route({
   path: "/api/partner/verifications/detail",
   method: "GET",
   handler: httpAction(async (ctx, request) => {
-    const auth = await requireVerificationScope(ctx, request, "idn:verification:list")
+    const auth = await requireVerificationScope(
+      ctx,
+      request,
+      "idn:verification:list",
+    )
     if (!auth.ok) return auth.response
 
-    const verificationId = new URL(request.url).searchParams.get("verificationId")?.trim()
+    const verificationId = new URL(request.url).searchParams
+      .get("verificationId")
+      ?.trim()
     if (!verificationId) {
       return jsonResponse(
-        { error: "missing_verification_id", message: "verificationId est requis." },
+        {
+          error: "missing_verification_id",
+          message: "verificationId est requis.",
+        },
         400,
       )
     }
-    const includeMedia = auth.principal.scopes.includes("idn:verification:media")
+    const includeMedia = auth.principal.scopes.includes(
+      "idn:verification:media",
+    )
     try {
-      const detail = await ctx.runQuery(internal.partner.verifications.getDetail, {
-        verificationId: verificationId as never,
-        includeMedia,
-      })
+      const detail = await ctx.runQuery(
+        internal.partner.verifications.getDetail,
+        {
+          verificationId: verificationId as never,
+          includeMedia,
+        },
+      )
       if (!detail) return jsonResponse({ error: "NOT_FOUND" }, 404)
       return jsonResponse({ ...detail, mediaIncluded: includeMedia }, 200)
     } catch (error) {
@@ -944,7 +1352,11 @@ http.route({
   path: "/api/partner/verifications/claim",
   method: "POST",
   handler: httpAction(async (ctx, request) => {
-    const auth = await requireVerificationScope(ctx, request, "idn:verification:claim")
+    const auth = await requireVerificationScope(
+      ctx,
+      request,
+      "idn:verification:claim",
+    )
     if (!auth.ok) return auth.response
     const json = await readJson(request)
     if (!json.ok) return json.response
@@ -972,7 +1384,11 @@ http.route({
   path: "/api/partner/verifications/begin-interview",
   method: "POST",
   handler: httpAction(async (ctx, request) => {
-    const auth = await requireVerificationScope(ctx, request, "idn:verification:claim")
+    const auth = await requireVerificationScope(
+      ctx,
+      request,
+      "idn:verification:claim",
+    )
     if (!auth.ok) return auth.response
     const json = await readJson(request)
     if (!json.ok) return json.response
@@ -998,7 +1414,11 @@ http.route({
   path: "/api/partner/verifications/decision",
   method: "POST",
   handler: httpAction(async (ctx, request) => {
-    const auth = await requireVerificationScope(ctx, request, "idn:verification:decide")
+    const auth = await requireVerificationScope(
+      ctx,
+      request,
+      "idn:verification:decide",
+    )
     if (!auth.ok) return auth.response
     const json = await readJson(request)
     if (!json.ok) return json.response
@@ -1028,13 +1448,20 @@ http.route({
   path: "/api/partner/verifications/slots",
   method: "GET",
   handler: httpAction(async (ctx, request) => {
-    const auth = await requireVerificationScope(ctx, request, "idn:verification:list")
+    const auth = await requireVerificationScope(
+      ctx,
+      request,
+      "idn:verification:list",
+    )
     if (!auth.ok) return auth.response
 
     const params = new URL(request.url).searchParams
     const agentSub = params.get("agentSub")?.trim()
     if (!agentSub) {
-      return jsonResponse({ error: "missing_agent", message: "agentSub est requis." }, 400)
+      return jsonResponse(
+        { error: "missing_agent", message: "agentSub est requis." },
+        400,
+      )
     }
     const slots = await ctx.runQuery(internal.partner.verifications.listSlots, {
       agentSub,
@@ -1049,7 +1476,11 @@ http.route({
   path: "/api/partner/verifications/slots",
   method: "POST",
   handler: httpAction(async (ctx, request) => {
-    const auth = await requireVerificationScope(ctx, request, "idn:verification:claim")
+    const auth = await requireVerificationScope(
+      ctx,
+      request,
+      "idn:verification:claim",
+    )
     if (!auth.ok) return auth.response
     const json = await readJson(request)
     if (!json.ok) return json.response
@@ -1077,7 +1508,11 @@ http.route({
   path: "/api/partner/verifications/join",
   method: "POST",
   handler: httpAction(async (ctx, request) => {
-    const auth = await requireVerificationScope(ctx, request, "idn:verification:join")
+    const auth = await requireVerificationScope(
+      ctx,
+      request,
+      "idn:verification:join",
+    )
     if (!auth.ok) return auth.response
     const json = await readJson(request)
     if (!json.ok) return json.response

@@ -200,72 +200,74 @@ export default function DashboardPage() {
           </button>
         }
       />
-      <div className="flex-1 overflow-auto p-7">
-        <div className="grid grid-cols-4 gap-3.5">
-          <StatCard
-            label={fr.dashboard.stats.accounts.label}
-            value={accounts.toLocaleString("fr-FR")}
-            hint={accountsHint}
-          />
-          <StatCard
-            label={fr.dashboard.stats.logins.label}
-            value={todayLogins.toLocaleString("fr-FR")}
-            hint={peakLabel}
-          />
-          <StatCard
-            label={fr.dashboard.stats.apps.label}
-            value={String(activeApps)}
-            hint={
-              pendingApps > 0
-                ? `${pendingApps} en attente de revue`
-                : "Aucune app en attente"
-            }
-          />
-          <StatCard
-            label={fr.dashboard.stats.otpFail.label}
-            value="—"
-            hint={fr.dashboard.stats.otpFail.hint}
-          />
-        </div>
-
-        <div className="mt-3.5 grid grid-cols-[2fr_1fr] gap-3.5">
-          <div className="rounded-xl border border-idn-border bg-idn-surface p-[18px]">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-[13px] font-semibold text-idn-ink">
-                  {fr.dashboard.chart.title}
-                </div>
-                <div className="mt-0.5 text-[11px] text-idn-muted">
-                  {fr.dashboard.chart.subtitle}
-                </div>
-              </div>
-              <div className="flex gap-3 text-[11px] text-idn-muted">
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-[2px] bg-idn-green" />
-                  {fr.dashboard.chart.legendSuccess}
-                </span>
-              </div>
-            </div>
-            <SparklineBars values={sparkline} className="mt-[18px] h-40" />
-            <div className="mt-2 flex justify-between font-mono text-[10px] text-idn-muted">
-              <span>{axis.left}</span>
-              <span>{axis.mid}</span>
-              <span>{axis.right}</span>
-            </div>
+      <div className="portal-canvas flex-1 overflow-auto">
+        <div className="portal-limit">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <StatCard
+              label={fr.dashboard.stats.accounts.label}
+              value={accounts.toLocaleString("fr-FR")}
+              hint={accountsHint}
+            />
+            <StatCard
+              label={fr.dashboard.stats.logins.label}
+              value={todayLogins.toLocaleString("fr-FR")}
+              hint={peakLabel}
+            />
+            <StatCard
+              label={fr.dashboard.stats.apps.label}
+              value={String(activeApps)}
+              hint={
+                pendingApps > 0
+                  ? `${pendingApps} en attente de revue`
+                  : "Aucune app en attente"
+              }
+            />
+            <StatCard
+              label={fr.dashboard.stats.otpFail.label}
+              value="—"
+              hint={fr.dashboard.stats.otpFail.hint}
+            />
           </div>
 
-          <div className="rounded-xl border border-idn-border bg-idn-surface p-[18px]">
-            <div className="text-[13px] font-semibold text-idn-ink">
-              {fr.dashboard.pie.title}
-            </div>
-            <div className="mt-0.5 text-[11px] text-idn-muted">
-              {fr.dashboard.pie.subtitle}
-            </div>
-            <LoaPie slices={loaSlices(kpis)} />
-          </div>
-        </div>
+          <div className="mt-4 grid gap-4 xl:grid-cols-[2fr_1fr]">
+            <section className="portal-panel p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-[13px] font-semibold text-idn-ink">
+                    {fr.dashboard.chart.title}
+                  </div>
+                  <div className="mt-0.5 text-[11px] text-idn-muted">
+                    {fr.dashboard.chart.subtitle}
+                  </div>
+                </div>
+                <div className="flex gap-3 text-[11px] text-idn-muted">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-[2px] bg-idn-green" />
+                    {fr.dashboard.chart.legendSuccess}
+                  </span>
+                </div>
+              </div>
+              <SparklineBars values={sparkline} className="mt-[18px] h-40" />
+              <div className="mt-2 flex justify-between font-mono text-[10px] text-idn-muted">
+                <span>{axis.left}</span>
+                <span>{axis.mid}</span>
+                <span>{axis.right}</span>
+              </div>
+            </section>
 
-        <ActivityFeed rows={(recent ?? []).map(activityRow)} />
+            <section className="portal-panel p-5">
+              <div className="text-[13px] font-semibold text-idn-ink">
+                {fr.dashboard.pie.title}
+              </div>
+              <div className="mt-0.5 text-[11px] text-idn-muted">
+                {fr.dashboard.pie.subtitle}
+              </div>
+              <LoaPie slices={loaSlices(kpis)} />
+            </section>
+          </div>
+
+          <ActivityFeed rows={(recent ?? []).map(activityRow)} />
+        </div>
       </div>
     </>
   )

@@ -50,7 +50,7 @@ export default function ICVAts() {
               Aucune analyse disponible.
             </Text>
             <Text style={{ fontSize: 12, color: t.muted, textAlign: 'center' }}>
-              Lancez l'outil « Score ATS » depuis le panneau iCV.
+              Lancez l’outil « Score ATS » depuis le panneau iCV.
             </Text>
           </View>
         ) : (

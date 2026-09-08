@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 
-import { getBrowserRedirectUrl } from "../apps/connect/lib/auth-proxy"
+import { getBrowserRedirectUrl } from "../apps/web/lib/auth-proxy"
 
 const body = (value: unknown): ArrayBuffer =>
   new TextEncoder().encode(JSON.stringify(value)).buffer as ArrayBuffer
@@ -15,11 +15,11 @@ describe("auth proxy browser redirects", () => {
         responseContentType: "application/json; charset=utf-8",
         responseBody: body({
           redirect: true,
-          url: "https://connect.identite.ga/oauth/authorize?consent_code=abc",
+          url: "https://identite.ga/oauth/authorize?consent_code=abc",
         }),
       }),
     ).toBe(
-      "https://connect.identite.ga/oauth/authorize?consent_code=abc",
+      "https://identite.ga/oauth/authorize?consent_code=abc",
     )
   })
 
@@ -32,7 +32,7 @@ describe("auth proxy browser redirects", () => {
         responseContentType: "application/json",
         responseBody: body({
           redirect: true,
-          url: "https://connect.identite.ga/oauth/authorize",
+          url: "https://identite.ga/oauth/authorize",
         }),
       }),
     ).toBeNull()

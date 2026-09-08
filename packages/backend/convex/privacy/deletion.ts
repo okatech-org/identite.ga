@@ -114,8 +114,15 @@ async function anonymizeProfile(ctx: MutationCtx, profileId: any) {
 
   await ctx.db.patch(profileId, {
     pivot: undefined,
+    // Clés de rapprochement anti-doublon. Les effacer n'est pas cosmétique :
+    // tant qu'elles subsistent, l'identité d'un citoyen ayant exercé son droit
+    // à l'effacement continuerait de bloquer une réinscription — la sienne, en
+    // premier lieu.
+    pivotKey: undefined,
+    nipKey: undefined,
     photoStorageRef: undefined,
     pinHash: undefined,
+    phoneVerifiedAt: undefined,
     idnId: undefined,
     deletionRequestedAt: undefined,
     deletionScheduledAt: undefined,
@@ -142,6 +149,40 @@ async function purgeUserData(ctx: MutationCtx, userId: string) {
       } catch {}
     }
     await ctx.db.delete(r._id);
+  }
+
+  /* ---- Biométrie (galerie de déduplication) ---- */
+  // Même ordre de sensibilité que le KYC ci-dessus, donc traité juste après.
+  const templates = await ctx.db
+    .query("faceTemplate")
+    .withIndex("by_userId", (q) => q.eq("userId", userId))
+    .collect();
+  for (const t of templates) await ctx.db.delete(t._id);
+
+  /* ---- Signaux de doublon ---- */
+  // Deux directions, deux traitements distincts.
+  // 1. Les signaux PORTANT SUR ce compte disparaissent avec lui.
+  const ownFlags = await ctx.db
+    .query("duplicateSignal")
+    .withIndex("by_userId", (q) => q.eq("userId", userId))
+    .collect();
+  for (const f of ownFlags) await ctx.db.delete(f._id);
+
+  // 2. Les signaux POINTANT VERS ce compte depuis un autre sont conservés mais
+  //    dépointés. Les supprimer laisserait le compte survivant signalé sans
+  //    qu'on sache plus pourquoi ; les laisser en l'état conserverait la
+  //    référence à une personne effacée, c'est-à-dire une donnée personnelle
+  //    résiduelle d'un tiers.
+  const inboundFlags = await ctx.db
+    .query("duplicateSignal")
+    .withIndex("by_matchedUserId", (q) => q.eq("matchedUserId", userId))
+    .collect();
+  for (const f of inboundFlags) {
+    await ctx.db.patch(f._id, {
+      matchedUserId: undefined,
+      status: "superseded",
+      resolvedAt: Date.now(),
+    });
   }
 
   /* ---- userDocument (storageRef) ---- */
@@ -292,6 +333,12 @@ async function purgeUserData(ctx: MutationCtx, userId: string) {
     .filter((q) => q.eq(q.field("userId"), userId))
     .collect();
   for (const s of cdSessions) await ctx.db.delete(s._id);
+
+  const phoneChanges = await ctx.db
+    .query("phoneChangeChallenge")
+    .withIndex("by_userId", (q) => q.eq("userId", userId))
+    .collect();
+  for (const challenge of phoneChanges) await ctx.db.delete(challenge._id);
 
   const roles = await ctx.db
     .query("userRole")

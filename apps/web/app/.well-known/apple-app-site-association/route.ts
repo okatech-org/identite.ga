@@ -6,9 +6,9 @@ import { NextResponse } from "next/server"
  * Servi sans extension, content-type `application/json`. Utilisé par
  * iOS pour valider :
  *   • le lien webcredentials app ↔ domaine (passkey natif, AutoFill
- *     credentials) — `app.json` déclare `webcredentials:identite.ga`
- *     et `webcredentials:connect.identite.ga` (l'AASA de
- *     `connect.identite.ga` est servi par `apps/connect/`) ;
+ *     credentials) — `app.json` déclare `webcredentials:identite.ga`,
+ *     seul domaine d'authentification depuis la fusion de
+ *     connect.identite.ga dans identite.ga ;
  *   • les universal links (`applinks` — vide pour l'instant, on
  *     activera quand l'app gérera des deep links vers le web).
  *

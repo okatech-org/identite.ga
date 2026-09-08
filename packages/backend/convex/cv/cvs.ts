@@ -352,7 +352,7 @@ export const restore = mutation({
 })
 
 // ─────────────────────────────────────────────────────────────────────────
-// Internal — seed depuis onboarding.selectProfile
+// Internal — seed depuis onboarding.completeSignup
 // ─────────────────────────────────────────────────────────────────────────
 
 export const ensureDefaultForUser = rawInternalMutation({

@@ -16,21 +16,15 @@ import { AUDIT_ACTION_LABELS, formatRelativeDate } from '@/lib/activity-format';
 
 const LOA_LABEL = ['', '· Faible', '· Substantiel', '· Élevé'];
 
-type QuickAction = { l: string; icon: IconName | 'sign' | 'help'; route?: string };
+type QuickAction = { l: string; icon: IconName | 'help'; route: string };
 const QUICK: QuickAction[] = [
   { l: 'Scanner',  icon: 'qr',   route: '/scanner' },
   { l: 'Partager', icon: 'link', route: '/id-card' },
-  { l: 'Signer',   icon: 'sign', route: '/id-card' },
-  { l: 'Aide',     icon: 'help' },
+  { l: 'Accès',    icon: 'shield', route: '/consents' },
+  { l: 'Aide',     icon: 'help', route: '/settings/support' },
 ];
 
 function QuickIcon({ icon, color }: { icon: QuickAction['icon']; color: string }) {
-  if (icon === 'sign') return (
-    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-      <Path d="M3 21c5-1 8-3 13-8l3-3-4-4-3 3c-5 5-7 8-8 13z" stroke={color} strokeWidth={1.6} strokeLinecap="round" />
-      <Path d="M14 6l4 4" stroke={color} strokeWidth={1.6} strokeLinecap="round" />
-    </Svg>
-  );
   if (icon === 'help') return (
     <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
       <Circle cx={12} cy={12} r={9} stroke={color} strokeWidth={1.6} />
@@ -121,7 +115,7 @@ export default function Home() {
           {QUICK.map((q, i) => (
             <Pressable
               key={i}
-              onPress={() => q.route && router.push(q.route as any)}
+              onPress={() => router.push(q.route as any)}
               style={{ flex: 1, paddingVertical: 16, paddingHorizontal: 4, backgroundColor: t.surface, borderWidth: 1, borderColor: t.border, borderRadius: 14, alignItems: 'center', gap: 8 }}
             >
               <QuickIcon icon={q.icon} color={idnTokens.green} />
@@ -133,7 +127,7 @@ export default function Home() {
         {/* LoA upsell */}
         {loa < 3 ? (
           <Pressable
-            onPress={() => router.push('/kyc/intro')}
+            onPress={() => router.push(`/kyc/intro?target=${loa + 1}` as never)}
             style={{
               marginTop: 18,
               backgroundColor: t.dark ? '#1F2316' : idnTokens.yellowSoft,
@@ -151,7 +145,7 @@ export default function Home() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: idnTokens.text.callout, fontWeight: '700', color: t.ink }}>Passez au Niveau {loa + 1}</Text>
-              <Text style={{ fontSize: idnTokens.text.footnote, color: t.muted, marginTop: 4 }}>5 min · débloquez plus de services</Text>
+              <Text style={{ fontSize: idnTokens.text.footnote, color: t.muted, marginTop: 4 }}>{loa === 1 ? '5 min · pièce et selfie' : 'Entretien vidéo sur rendez-vous'}</Text>
             </View>
             <Icon name="arrow" size={16} color={t.ink2} />
           </Pressable>

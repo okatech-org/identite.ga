@@ -50,6 +50,7 @@ export default function ProfilePage() {
   const idnId = userProfile?.idnId ?? dashboard.idnIdEmpty
   const photoUrl = userProfile?.photoUrl ?? null
   const pinConfigured = userProfile?.pinConfigured ?? false
+  const phoneVerifiedAt = userProfile?.phoneVerifiedAt ?? null
   const verifiedAt = userProfile?.verifiedAt ?? null
   const verifiedDocs = userProfile?.verifiedDocumentTypes ?? []
 
@@ -117,6 +118,18 @@ export default function ProfilePage() {
               <InfoRow
                 label={profile.pivot.rows.nationality}
                 value={pivot?.nationality ?? "—"}
+              />
+              <InfoRow
+                label={profile.pivot.rows.phone}
+                value={
+                  pivot?.phone
+                    ? `${pivot.phone} · ${
+                        phoneVerifiedAt
+                          ? profile.pivot.rows.phoneVerified
+                          : profile.pivot.rows.phoneUnverified
+                      }`
+                    : profile.pivot.rows.phoneEmpty
+                }
               />
               <InfoRow
                 label={profile.pivot.rows.idnId}
@@ -239,6 +252,18 @@ export default function ProfilePage() {
             <InfoRow
               label={profile.pivot.rows.nationality}
               value={pivot?.nationality ?? "—"}
+            />
+            <InfoRow
+              label={profile.pivot.rows.phone}
+              value={
+                pivot?.phone
+                  ? `${pivot.phone} · ${
+                      phoneVerifiedAt
+                        ? profile.pivot.rows.phoneVerified
+                        : profile.pivot.rows.phoneUnverified
+                    }`
+                  : profile.pivot.rows.phoneEmpty
+              }
             />
             <InfoRow
               label={profile.pivot.rows.idnId}

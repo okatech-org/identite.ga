@@ -57,7 +57,7 @@ export default function ServiceDetail() {
         <View style={{ flex: 1, padding: 22, justifyContent: 'center', alignItems: 'center', gap: 10 }}>
           <Icon name="sparkles" size={36} color={t.mutedSoft} />
           <Text style={{ color: t.muted, fontSize: 13, textAlign: 'center' }}>
-            Ce service n'est plus disponible ou vous n'y avez pas accès.
+            Ce service n’est plus disponible ou vous n’y avez pas accès.
           </Text>
         </View>
       </View>
@@ -91,7 +91,7 @@ export default function ServiceDetail() {
         <View style={{ marginTop: 18, padding: 14, backgroundColor: t.dark ? '#10243A' : idnTokens.blueSoft, borderRadius: 12, flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
           <Icon name="shield" size={16} color={idnTokens.blue} />
           <Text style={{ flex: 1, fontSize: 11, color: t.ink2, lineHeight: 17 }}>
-            En cliquant ci-dessous, vous accédez au site du fournisseur du service. Votre identité IDN n'est pas transmise automatiquement — l'application demande votre consentement à chaque connexion.
+            En cliquant ci-dessous, vous accédez au site du fournisseur du service. Votre identité IDN n’est pas transmise automatiquement — l’application demande votre consentement à chaque connexion.
           </Text>
         </View>
       </ScrollView>

@@ -79,7 +79,7 @@ export function CourrierList({
                   type="button"
                   onClick={() => onOpen(l._id as Id<"iboiteLetter">)}
                   className={cn(
-                    "group relative flex w-full flex-col overflow-hidden rounded-2xl border bg-[#fffdf7] p-4 text-left text-[#1a1a1a] shadow-sm transition-transform hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 dark:bg-[#1f1d18] dark:text-foreground",
+                    "group relative flex w-full flex-col overflow-hidden rounded-2xl border bg-[#fffdf7] p-4 text-left text-[#1a1a1a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 dark:bg-[#1f1d18] dark:text-foreground",
                     !l.isRead
                       ? "border-idn-green ring-2 ring-idn-green/30"
                       : "border-border",

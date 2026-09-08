@@ -88,7 +88,7 @@ async function deriveKek(
     if (i < iterations) {
       // Vrai macrotask — laisse Hermes rendre l'UI / traiter les
       // touches. `Promise.resolve()` ne marcherait pas ici.
-      // eslint-disable-next-line no-await-in-loop
+
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
     }
   }

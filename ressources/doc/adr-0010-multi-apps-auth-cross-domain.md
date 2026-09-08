@@ -1,6 +1,6 @@
 # ADR-0010 — Auth multi-apps : `crossDomain` + checks 100 % client
 
-- **Statut** : Accepté
+- **Statut** : Remplacé par ADR-0012
 - **Date** : 2026-05-11
 - **Décideurs** : équipe IDN
 

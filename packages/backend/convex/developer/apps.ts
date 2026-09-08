@@ -3,6 +3,7 @@ import { ConvexError, v } from "convex/values"
 import { components } from "../_generated/api"
 import { internalMutation, mutation, query } from "../_generated/server"
 import { getCurrentAuthUser, requireAuth, requireDeveloper } from "../lib/auth"
+import { GRANTABLE_SCOPES } from "../lib/consentGrant"
 
 /**
  * Portail développeur — apps OAuth (§3.11).
@@ -384,26 +385,29 @@ export const create = mutation({
       productionStatus: "none",
     }
 
-    const created = (await ctx.runMutation(components.betterAuth.adapter.create, {
-      input: {
-        model: MODEL,
-        data: {
-          clientId,
-          clientSecret: clientSecretHash,
-          name: args.name.trim(),
-          userId: user.userId,
-          // Better Auth oidc-provider stocke et lit en CSV (.split(",") dans
-          // getClient). Stocker en JSON casse la validation redirect_uri du
-          // flow /oauth2/authorize.
-          redirectUrls: args.redirectUris.join(","),
-          disabled: false,
-          type: "web",
-          metadata: JSON.stringify(metadata),
-          createdAt: now,
-          updatedAt: now,
+    const created = (await ctx.runMutation(
+      components.betterAuth.adapter.create,
+      {
+        input: {
+          model: MODEL,
+          data: {
+            clientId,
+            clientSecret: clientSecretHash,
+            name: args.name.trim(),
+            userId: user.userId,
+            // Better Auth oidc-provider stocke et lit en CSV (.split(",") dans
+            // getClient). Stocker en JSON casse la validation redirect_uri du
+            // flow /oauth2/authorize.
+            redirectUrls: args.redirectUris.join(","),
+            disabled: false,
+            type: "web",
+            metadata: JSON.stringify(metadata),
+            createdAt: now,
+            updatedAt: now,
+          },
         },
       },
-    })) as { _id: string }
+    )) as { _id: string }
 
     return {
       id: created._id,
@@ -448,6 +452,49 @@ export const rotateSecret = mutation({
     })
 
     return { clientSecret: newSecretPlain }
+  },
+})
+
+/** Met à jour les scopes OAuth déclarés par l'application. */
+export const setScopes = mutation({
+  args: { clientId: v.string(), scopes: v.array(v.string()) },
+  returns: v.object({ scopes: v.array(v.string()) }),
+  handler: async (ctx, args) => {
+    const user = await requireDeveloper(ctx)
+    const scopes = [
+      ...new Set(args.scopes.map((scope) => scope.trim()).filter(Boolean)),
+    ]
+    const unknown = scopes.find((scope) => !GRANTABLE_SCOPES.includes(scope))
+    if (unknown) {
+      throw new ConvexError({
+        code: "UNKNOWN_SCOPE",
+        message: `Scope inconnu : ${unknown}.`,
+      })
+    }
+    const raw = (await ctx.runQuery(components.betterAuth.adapter.findMany, {
+      model: MODEL,
+      where: [{ field: "clientId", value: args.clientId, operator: "eq" }],
+      paginationOpts: { numItems: 1, cursor: null },
+    })) as { page: OAuthAppDoc[] }
+    const doc = raw.page[0]
+    if (!doc || doc.userId !== user.userId) {
+      throw new ConvexError({
+        code: "FORBIDDEN",
+        message: "Application non autorisée.",
+      })
+    }
+    const meta = parseMetadata(doc.metadata)
+    await ctx.runMutation(components.betterAuth.adapter.updateOne, {
+      input: {
+        model: MODEL,
+        where: [{ field: "_id", value: doc._id, operator: "eq" }],
+        update: {
+          metadata: JSON.stringify({ ...meta, scopes }),
+          updatedAt: Date.now(),
+        },
+      },
+    })
+    return { scopes }
   },
 })
 
@@ -548,7 +595,11 @@ export const remove = mutation({
       })
     }
     const meta = parseMetadata(doc.metadata)
-    // Nettoie la référence côté jumeau survivant si la paire existe.
+    const appsToDelete = [doc]
+
+    // Sandbox et production forment une seule application dans le portail.
+    // Supprimer l'une supprime donc aussi sa jumelle, après avoir vérifié que
+    // les deux enregistrements appartiennent bien au même développeur.
     if (meta.linkedClientId) {
       const twinRaw = (await ctx.runQuery(
         components.betterAuth.adapter.findMany,
@@ -562,32 +613,96 @@ export const remove = mutation({
       )) as { page: OAuthAppDoc[] }
       const twin = twinRaw.page[0]
       if (twin) {
-        const twinMeta = parseMetadata(twin.metadata)
-        const nextTwinMeta: AppMetadata = {
-          ...twinMeta,
-          linkedClientId: undefined,
-          // Si on supprime la jumelle prod, la sandbox repasse en "none".
-          productionStatus:
-            twinMeta.env === "sandbox" ? "none" : twinMeta.productionStatus,
+        if (twin.userId !== user.userId) {
+          throw new ConvexError({
+            code: "INVALID_LINKED_APP",
+            message: "La liaison entre les environnements est invalide.",
+          })
         }
-        await ctx.runMutation(components.betterAuth.adapter.updateOne, {
-          input: {
-            model: MODEL,
-            where: [{ field: "_id", value: twin._id, operator: "eq" }],
-            update: {
-              metadata: JSON.stringify(nextTwinMeta),
-              updatedAt: Date.now(),
-            },
-          },
-        })
+        appsToDelete.push(twin)
       }
     }
-    await ctx.runMutation(components.betterAuth.adapter.deleteOne, {
-      input: {
-        model: MODEL,
-        where: [{ field: "_id", value: doc._id, operator: "eq" }],
-      },
-    })
+
+    const now = Date.now()
+    for (const app of appsToDelete) {
+      const appClientId = app.clientId
+      if (appClientId) {
+        // Révoque les sessions OAuth déjà émises et retire les consentements
+        // associés. Sans cela, un jeton existant pourrait rester valable
+        // jusqu'à son expiration malgré la disparition du client.
+        for (const model of ["oauthAccessToken", "oauthConsent"] as const) {
+          await ctx.runMutation(components.betterAuth.adapter.deleteMany, {
+            input: {
+              model,
+              where: [
+                { field: "clientId", value: appClientId, operator: "eq" },
+              ],
+            },
+            paginationOpts: { numItems: 200, cursor: null },
+          })
+        }
+
+        // Une clé liée à une application supprimée ne doit plus pouvoir
+        // authentifier d'appel serveur-à-serveur.
+        const apiKeys = await ctx.db
+          .query("developerApiKey")
+          .withIndex("by_appClientId_and_createdAt", (q) =>
+            q.eq("appClientId", appClientId),
+          )
+          .take(100)
+        for (const key of apiKeys) {
+          if (key.userId === user.userId && key.revokedAt === undefined) {
+            await ctx.db.patch(key._id, { revokedAt: now })
+          }
+        }
+
+        // Les livraisons historiques restent dans l'audit, mais les endpoints
+        // et leurs secrets sont neutralisés comme lors d'une suppression
+        // manuelle depuis la page Webhooks.
+        const endpoints = await ctx.db
+          .query("webhookEndpoints")
+          .withIndex("by_appClientId_and_createdAt", (q) =>
+            q.eq("appClientId", appClientId),
+          )
+          .take(20)
+        for (const endpoint of endpoints) {
+          if (
+            endpoint.developerUserId !== user.userId ||
+            endpoint.deletedAt !== undefined
+          ) {
+            continue
+          }
+          await ctx.db.patch(endpoint._id, {
+            status: "disabled",
+            url: "https://deleted.invalid/",
+            secretCiphertext: "",
+            secretIv: "",
+            previousSecretCiphertext: undefined,
+            previousSecretIv: undefined,
+            previousSecretValidUntil: undefined,
+            challengeId: undefined,
+            deletedAt: now,
+            updatedAt: now,
+          })
+          const subscriptions = await ctx.db
+            .query("webhookSubscriptions")
+            .withIndex("by_endpointId_and_eventType", (q) =>
+              q.eq("endpointId", endpoint._id),
+            )
+            .take(20)
+          for (const subscription of subscriptions) {
+            await ctx.db.delete(subscription._id)
+          }
+        }
+      }
+
+      await ctx.runMutation(components.betterAuth.adapter.deleteOne, {
+        input: {
+          model: MODEL,
+          where: [{ field: "_id", value: app._id, operator: "eq" }],
+        },
+      })
+    }
     return null
   },
 })
@@ -755,8 +870,7 @@ export const requestProduction = mutation({
     if (meta.env !== "sandbox") {
       throw new ConvexError({
         code: "NOT_SANDBOX",
-        message:
-          "La demande de production ne s'applique qu'à une app sandbox.",
+        message: "La demande de production ne s'applique qu'à une app sandbox.",
       })
     }
     if (
@@ -808,25 +922,28 @@ export const requestProduction = mutation({
       status: "pending",
     }
 
-    const created = (await ctx.runMutation(components.betterAuth.adapter.create, {
-      input: {
-        model: MODEL,
-        data: {
-          clientId: prodClientId,
-          clientSecret: prodSecretHash,
-          name: baseName,
-          userId: user.userId,
-          // Voir la note sur create() : Better Auth attend du CSV.
-          redirectUrls: redirectUris.join(","),
-          // Désactivée jusqu'à approbation admin.
-          disabled: true,
-          type: "web",
-          metadata: JSON.stringify(prodMeta),
-          createdAt: now,
-          updatedAt: now,
+    const created = (await ctx.runMutation(
+      components.betterAuth.adapter.create,
+      {
+        input: {
+          model: MODEL,
+          data: {
+            clientId: prodClientId,
+            clientSecret: prodSecretHash,
+            name: baseName,
+            userId: user.userId,
+            // Voir la note sur create() : Better Auth attend du CSV.
+            redirectUrls: redirectUris.join(","),
+            // Désactivée jusqu'à approbation admin.
+            disabled: true,
+            type: "web",
+            metadata: JSON.stringify(prodMeta),
+            createdAt: now,
+            updatedAt: now,
+          },
         },
       },
-    })) as { _id: string }
+    )) as { _id: string }
 
     const nextSandboxMeta: AppMetadata = {
       ...meta,
@@ -1026,7 +1143,10 @@ export const setRedirectUrisByClientId = internalMutation({
     clientId: v.string(),
     redirectUris: v.array(v.string()),
   },
-  returns: v.object({ updated: v.boolean(), redirectUris: v.array(v.string()) }),
+  returns: v.object({
+    updated: v.boolean(),
+    redirectUris: v.array(v.string()),
+  }),
   handler: async (ctx, args) => {
     if (args.redirectUris.length === 0) {
       throw new ConvexError({
@@ -1096,10 +1216,17 @@ export const migrateRedirectUrlsToCsv = internalMutation({
     // ne fait pas l'hypothèse d'un seul lot.
     // eslint-disable-next-line no-constant-condition
     while (true) {
-      const batch = (await ctx.runQuery(components.betterAuth.adapter.findMany, {
-        model: MODEL,
-        paginationOpts: { numItems: 200, cursor },
-      })) as { page: OAuthAppDoc[]; isDone?: boolean; continueCursor?: string | null }
+      const batch = (await ctx.runQuery(
+        components.betterAuth.adapter.findMany,
+        {
+          model: MODEL,
+          paginationOpts: { numItems: 200, cursor },
+        },
+      )) as {
+        page: OAuthAppDoc[]
+        isDone?: boolean
+        continueCursor?: string | null
+      }
       for (const doc of batch.page) {
         inspected++
         const raw = doc.redirectUrls ?? ""
@@ -1111,7 +1238,11 @@ export const migrateRedirectUrlsToCsv = internalMutation({
           continue
         }
         if (!Array.isArray(parsed)) continue
-        const csv = parsed.map(String).map((s) => s.trim()).filter(Boolean).join(",")
+        const csv = parsed
+          .map(String)
+          .map((s) => s.trim())
+          .filter(Boolean)
+          .join(",")
         await ctx.runMutation(components.betterAuth.adapter.updateOne, {
           input: {
             model: MODEL,
@@ -1125,5 +1256,133 @@ export const migrateRedirectUrlsToCsv = internalMutation({
       cursor = batch.continueCursor
     }
     return { inspected, updated }
+  },
+})
+
+/**
+ * Amorçage d'un client OAuth de confiance, hors portail développeur.
+ *
+ * Les applications de l'État — NDJOBI, par exemple — ne suivent pas le parcours
+ * sandbox du portail : elles sont provisionnées directement en production par un
+ * opérateur disposant de la clé d'administration Convex.
+ *
+ *   bunx convex run --prod developer/apps:bootstrapTrustedClient '{"name":"…", …}'
+ *
+ * Le secret n'est retourné qu'ici, une seule fois, et stocké haché comme pour
+ * tout client du portail. Pour le renouveler ensuite : `rotateSecret`.
+ */
+export const bootstrapTrustedClient = internalMutation({
+  args: {
+    name: v.string(),
+    description: v.optional(v.string()),
+    redirectUris: v.array(v.string()),
+    scopes: v.array(v.string()),
+    loa: v.union(v.literal(1), v.literal(2), v.literal(3)),
+    /** Développeur propriétaire, si l'app doit rester gérable au portail. */
+    ownerUserId: v.optional(v.string()),
+  },
+  returns: v.object({
+    id: v.string(),
+    clientId: v.string(),
+    clientSecret: v.string(), // ⚠️ retourné UNE SEULE FOIS
+  }),
+  handler: async (ctx, args) => {
+    const name = args.name.trim()
+    if (!name || name.length > 120) {
+      throw new ConvexError({ code: "INVALID_INPUT", message: "Nom requis (120 caractères maximum)." })
+    }
+    if (args.redirectUris.length === 0 || args.redirectUris.length > 10) {
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message: "Entre une et dix redirect URI sont requises.",
+      })
+    }
+    // Client de production : https obligatoire et pas de fragment. Une URI de
+    // redirection laxiste sur un fournisseur d'identité national ouvre la porte
+    // au vol de code d'autorisation.
+    for (const uri of args.redirectUris) {
+      let parsed: URL
+      try {
+        parsed = new URL(uri)
+      } catch {
+        throw new ConvexError({
+          code: "INVALID_INPUT",
+          message: `Redirect URI invalide : ${uri}`,
+        })
+      }
+      if (parsed.protocol !== "https:") {
+        throw new ConvexError({
+          code: "INVALID_INPUT",
+          message: `Redirect URI non https : ${uri}`,
+        })
+      }
+      if (parsed.hash || parsed.username || parsed.password || /[\s,#]/.test(uri) || uri.length > 2048) {
+        throw new ConvexError({
+          code: "INVALID_INPUT",
+          message: "Redirect URI avec fragment, identifiants ou séparateur interdit.",
+        })
+      }
+    }
+
+    const allowedScopes = new Set(["openid", "profile", "email", "offline_access", "idn:civil_status"])
+    if (!args.scopes.includes("openid") || args.scopes.some((scope) => !allowedScopes.has(scope))) {
+      throw new ConvexError({ code: "INVALID_INPUT", message: "Scope openid requis ; scopes inconnus interdits." })
+    }
+
+    // Idempotence : deux applications homonymes seraient indiscernables sur
+    // l'écran de consentement — exactement ce qu'un hameçonnage recherche.
+    const existing = (await ctx.runQuery(components.betterAuth.adapter.findMany, {
+      model: MODEL,
+      where: [{ field: "name", value: name, operator: "eq" }],
+      paginationOpts: { numItems: 1, cursor: null },
+    })) as { page: OAuthAppDoc[] }
+    if (existing.page[0]) {
+      throw new ConvexError({
+        code: "ALREADY_EXISTS",
+        message:
+          `Une application « ${name} » existe déjà (${existing.page[0].clientId ?? "?"}). ` +
+          `Utiliser rotateSecret pour renouveler son secret.`,
+      })
+    }
+
+    const { clientId, clientSecret: clientSecretPlain } = credentialsForEnv(
+      slugify(name),
+      "production",
+    )
+    const clientSecretHash = await hashClientSecret(clientSecretPlain)
+    const now = Date.now()
+
+    const metadata: AppMetadata = {
+      env: "production",
+      loa: args.loa,
+      description: args.description ?? "",
+      scopes: [...new Set(args.scopes)],
+      createdBy: args.ownerUserId ?? "",
+      services: [],
+      testUsers: [],
+      productionStatus: "approved",
+      status: "production",
+    }
+
+    const created = (await ctx.runMutation(components.betterAuth.adapter.create, {
+      input: {
+        model: MODEL,
+        data: {
+          clientId,
+          clientSecret: clientSecretHash,
+          name,
+          userId: args.ownerUserId ?? "",
+          // CSV, et non JSON : `getClient` de better-auth fait un .split(",").
+          redirectUrls: [...new Set(args.redirectUris)].join(","),
+          disabled: false,
+          type: "web",
+          metadata: JSON.stringify(metadata),
+          createdAt: now,
+          updatedAt: now,
+        },
+      },
+    })) as { _id: string }
+
+    return { id: created._id, clientId, clientSecret: clientSecretPlain }
   },
 })

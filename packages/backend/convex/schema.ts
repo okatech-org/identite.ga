@@ -1,6 +1,8 @@
 import { defineSchema, defineTable } from "convex/server"
 import { v } from "convex/values"
 
+import { WEBHOOK_EVENT_TYPES } from "./webhooks/catalog"
+
 /**
  * Schéma applicatif IDN (Identité Numérique du Gabon).
  *
@@ -43,6 +45,30 @@ export const KYC_STATUSES = [
   "approved",
   "rejected",
   "expired",
+] as const
+
+/**
+ * Sources d'un rapprochement de comptes, par force de preuve décroissante.
+ *
+ * `nip` et `document` désignent un identifiant censé être unique : une
+ * collision y est quasi certainement un doublon. `face` est une mesure de
+ * distance, jamais une égalité — les vrais jumeaux la déclenchent. `pivot`
+ * (nom + prénom + date de naissance) est le plus faible : ce triplet n'est pas
+ * un identifiant, d'autant qu'une date de naissance déclarée au 1ᵉʳ janvier
+ * faute d'acte d'état civil est fréquente.
+ */
+export const DUPLICATE_SIGNALS = ["pivot", "nip", "face", "document"] as const
+
+/**
+ * `superseded` : le compte en regard a été supprimé définitivement. Le signal
+ * n'est plus arbitrable mais reste au dossier — le motif d'une suppression de
+ * compte doit survivre à cette suppression (conservation 5 ans).
+ */
+export const DUPLICATE_SIGNAL_STATUSES = [
+  "open",
+  "confirmed",
+  "dismissed",
+  "superseded",
 ] as const
 
 /** États du parcours Niveau 3 : entretien vidéo + décision humaine. */
@@ -171,6 +197,12 @@ export const AUDIT_ACTIONS = [
   "delegated_claim_code_failed",
   "delegation_enabled",
   "delegation_disabled",
+  // Anti-doublon : un signal de rapprochement a été levé, ou arbitré par un
+  // administrateur. `signup_blocked_duplicate` trace les refus — une série sur
+  // la même identité signale soit une fraude, soit un faux positif à corriger.
+  "duplicate_flagged",
+  "duplicate_flag_resolved",
+  "signup_blocked_duplicate",
 ] as const
 
 export const AUDIT_TARGET_TYPES = [
@@ -252,7 +284,7 @@ export default defineSchema({
 
     /**
      * Identifiant public stable de l'utilisateur (format `GA-XXXX-XXXX`).
-     * Généré au signup (`onboarding.selectProfile`), unique global.
+     * Généré au signup (`onboarding.completeSignup`), unique global.
      * Optional pour les users créés avant l'introduction du champ.
      */
     idnId: v.optional(v.string()),
@@ -271,8 +303,9 @@ export default defineSchema({
         ),
         birthPlace: v.string(),
         nationality: v.string(), // ISO 3166-1 alpha-2
-        // Numéro de téléphone du citoyen — informatif (pas de vérification SMS
-        // en V1). Stocké sous forme libre, format conseillé +241XXXXXXXX.
+        // Numéro de téléphone du citoyen. Les nouvelles écritures sont
+        // normalisées en E.164 et ne sont persistées qu'après validation SMS.
+        // Les profils historiques peuvent encore contenir un format libre.
         phone: v.optional(v.string()),
         // Numéro d'Identification Personnel (NIP) — 14 chiffres, attribué
         // par le RBPP (Registre Biométrique des Personnes Physiques).
@@ -283,8 +316,40 @@ export default defineSchema({
       }),
     ),
 
+    /**
+     * Clé de rapprochement d'identité — `normalizeIdentityKey(pivot)`, soit
+     * `nom|prénom|AAAA-MM-JJ` normalisé (cf. `lib/identity.ts`). Dérivée du
+     * pivot, jamais saisie : toute écriture du pivot doit la recalculer
+     * (`onboarding.completeSignup`, `profile.updatePivot`).
+     *
+     * Indexée parce que le contrôle anti-doublon s'exécute sur le chemin
+     * d'inscription : sans index, chaque signup scannerait la table. L'index
+     * sert aussi l'inventaire admin (`admin/duplicates.ts`), où les membres
+     * d'un même groupe sont adjacents.
+     *
+     * Absente sur les profils sans pivot (LoA 1 jamais complété) et effacée
+     * à l'anonymisation RGPD — ce qui suffit à retirer un compte supprimé
+     * des rapprochements, sans filtre supplémentaire.
+     */
+    pivotKey: v.optional(v.string()),
+
+    /**
+     * NIP normalisé (majuscules, sans espaces) — cf. `normalizeNipKey`.
+     * L'index `by_nip` porte sur `pivot.nip` **brut** et sert la résolution
+     * annuaire partenaire, où le NIP est fourni tel qu'imprimé. Il ne peut pas
+     * servir au contrôle d'unicité : le NIP admet des lettres
+     * (`/^[A-Za-z0-9]{14}$/`), donc `abc…` et `ABC…` y sont deux entrées
+     * distinctes alors qu'ils désignent le même numéro.
+     *
+     * Effacé à l'anonymisation RGPD, comme `pivotKey`.
+     */
+    nipKey: v.optional(v.string()),
+
     photoStorageRef: v.optional(v.id("_storage")),
     pinHash: v.optional(v.string()), // PBKDF2-SHA256, 600k itérations
+    // Renseigné uniquement après validation d'un code envoyé au numéro. Les
+    // numéros historiques restent donc distinguables des numéros vérifiés.
+    phoneVerifiedAt: v.optional(v.number()),
 
     /**
      * Suppression de compte RGPD (§3.4 + Apple Guideline 5.1.1(v)).
@@ -311,7 +376,9 @@ export default defineSchema({
     .index("by_profileType", ["profileType"])
     .index("by_deletedAt", ["deletedAt"])
     .index("by_deletionScheduledAt", ["deletionScheduledAt"])
-    .index("by_pivot_dob", ["pivot.dateOfBirth"]),
+    .index("by_pivot_dob", ["pivot.dateOfBirth"])
+    .index("by_pivotKey", ["pivotKey"])
+    .index("by_nipKey", ["nipKey"]),
 
   /**
    * Demande KYC (L2 / L3).
@@ -360,6 +427,24 @@ export default defineSchema({
       }),
     ),
 
+    /**
+     * Empreinte du numéro de pièce lu par l'OCR — HMAC-SHA256 poivré de
+     * `type|numéro normalisé` (cf. `kyc/actions.ts`). Sert uniquement à
+     * rapprocher deux dossiers présentant la même pièce.
+     *
+     * Jamais le numéro en clair : il n'a aucun usage produit, et un numéro de
+     * CNI est de faible entropie — un hash nu serait énumérable hors ligne,
+     * d'où le poivre serveur (`IDENTITY_HASH_PEPPER`).
+     */
+    documentNumberHash: v.optional(v.string()),
+
+    /**
+     * Un signal de doublon (visage ou pièce) a été levé sur ce dossier.
+     * Remonté au contrôleur : mettre une demande en revue à cause d'un doublon
+     * sans le lui dire reviendrait à lui faire approuver le doublon à la main.
+     */
+    duplicateFlagged: v.optional(v.boolean()),
+
     submittedAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -367,7 +452,8 @@ export default defineSchema({
     .index("by_userId", ["userId"])
     .index("by_status", ["status"])
     .index("by_reviewer", ["reviewerId"])
-    .index("by_userId_status", ["userId", "status"]),
+    .index("by_userId_status", ["userId", "status"])
+    .index("by_documentNumberHash", ["documentNumberHash"]),
 
   /**
    * Trail des décisions KYC du contrôleur (un par décision).
@@ -382,6 +468,108 @@ export default defineSchema({
   })
     .index("by_kycRequest", ["kycRequestId"])
     .index("by_reviewer", ["reviewerId"]),
+
+  /**
+   * Signal de rapprochement entre deux comptes — « ces deux comptes sont
+   * peut-être la même personne ». Alimente la file d'arbitrage admin.
+   *
+   * POURQUOI UNE TABLE ET PAS UN BOOLÉEN SUR `userProfile` : un doublon est une
+   * propriété de *paire*, pas de compte. Un drapeau `estUnDoublon: true` ne dit
+   * ni avec qui, ni pourquoi, ni depuis quand — or l'administrateur qui doit
+   * choisir lequel des deux comptes conserver a besoin des trois. Un même
+   * compte peut par ailleurs porter plusieurs signaux de sources différentes
+   * (un homonyme à écarter *et* un vrai doublon biométrique à fusionner) :
+   * clore l'un ne doit pas clore l'autre.
+   *
+   * La partie *détection* (`userId`, `matchedUserId`, `signal`, `groupKey`,
+   * `score`, `detectedAt`) est un fait horodaté, jamais réécrit. Seule la
+   * partie *résolution* (`status` et les champs `resolved*`) est mutable —
+   * même contrat que `kycReview`, avec la clôture en plus parce qu'une file de
+   * revue a besoin d'être bornée.
+   *
+   * Ce signal ne décide rien et ne rétrograde aucun compte : il ouvre un
+   * dossier, l'humain tranche.
+   */
+  duplicateSignal: defineTable({
+    userId: v.string(), // compte signalé (le nouvel arrivant, en général)
+    /**
+     * Compte en regard. Optionnel : lorsque celui-ci est supprimé
+     * définitivement, la référence est effacée (donnée personnelle d'un tiers)
+     * et le signal passe en `superseded` — le fait survit, le pointeur non.
+     */
+    matchedUserId: v.optional(v.string()),
+    signal: v.union(...DUPLICATE_SIGNALS.map((x) => v.literal(x))),
+    /**
+     * Valeur ayant provoqué le rapprochement : `pivotKey`, `nipKey` ou
+     * `documentNumberHash`. Vide pour le signal biométrique, qui ne rapproche
+     * pas sur une égalité mais sur une distance.
+     */
+    groupKey: v.string(),
+    /** Similarité cosinus **brute** (−1→1) — signal `face` uniquement. */
+    score: v.optional(v.number()),
+    sourceKycRequestId: v.optional(v.id("kycRequest")),
+    status: v.union(...DUPLICATE_SIGNAL_STATUSES.map((x) => v.literal(x))),
+    detectedAt: v.number(),
+    resolvedAt: v.optional(v.number()),
+    resolvedBy: v.optional(v.string()),
+    notes: v.optional(v.string()),
+  })
+    // File de revue : les plus anciens d'abord.
+    .index("by_status", ["status", "detectedAt"])
+    .index("by_userId", ["userId"])
+    .index("by_userId_status", ["userId", "status"])
+    // Purge RGPD : retrouver les signaux qui *pointent* vers un compte détruit.
+    .index("by_matchedUserId", ["matchedUserId"])
+    // Écriture idempotente : un même couple ne doit pas re-signaler à chaque
+    // re-soumission KYC, sinon la file devient inexploitable.
+    .index("by_pair", ["userId", "matchedUserId", "signal", "status"]),
+
+  /**
+   * Empreinte faciale d'une identité vérifiée — galerie de déduplication 1:N.
+   *
+   * Table séparée de `userProfile` pour trois raisons : la purge RGPD doit
+   * pouvoir viser la biométrie seule ; un vecteur de 512 flottants alourdirait
+   * chaque lecture de profil, faite sur presque toutes les requêtes du
+   * produit ; et un résultat de recherche doit pouvoir remonter à la demande
+   * KYC d'origine.
+   *
+   * ⚠️ DONNÉE BIOMÉTRIQUE (art. 9 RGPD, loi 001/2011). Convex exige le vecteur
+   * en clair pour l'indexer : aucun chiffrement applicatif n'est possible sur
+   * ce champ. Finalité unique — empêcher qu'un même individu détienne
+   * plusieurs identités vérifiées. Un embedding ArcFace ne permet pas de
+   * reconstruire le visage, mais reste identifiant : à traiter comme tel.
+   *
+   * N'est peuplée qu'à l'**approbation** d'un KYC : la galerie protège les
+   * identités vérifiées, elle ne se remplit pas de dossiers rejetés.
+   */
+  faceTemplate: defineTable({
+    userId: v.string(),
+    kycRequestId: v.id("kycRequest"),
+    /** ArcFace 512-d, L2-normalisé (`normed_embedding` du pack InsightFace). */
+    embedding: v.array(v.float64()),
+    /**
+     * Clé de galerie composite `"<modèle>|active"` / `"<modèle>|inactive"`.
+     *
+     * Composite par contrainte : `VectorFilterBuilder` n'expose que `eq` et
+     * `or` — pas de `and` (cf. `convex/server/vector_search.d.ts`). Or il faut
+     * filtrer sur deux dimensions à la fois : l'activité (un compte anonymisé
+     * sort de la galerie) et la version du modèle (comparer des embeddings
+     * issus de deux packs différents produirait des scores dénués de sens —
+     * panne silencieuse, jamais une erreur).
+     */
+    gallery: v.string(),
+    modelVersion: v.string(), // ex. "buffalo_l"
+    active: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    // Idempotence : un rejeu de step ne doit pas créer un second template.
+    .index("by_kycRequestId", ["kycRequestId"])
+    .vectorIndex("by_embedding", {
+      vectorField: "embedding",
+      dimensions: 512,
+      filterFields: ["gallery"],
+    }),
 
   /**
    * Vérification Niveau 3.
@@ -583,6 +771,18 @@ export default defineSchema({
     .index("by_userId", ["userId"])
     .index("by_endpoint", ["endpoint"]),
 
+  /** Jetons Expo Push des applications iOS et Android. */
+  nativePushSubscription: defineTable({
+    userId: v.string(),
+    token: v.string(),
+    platform: v.union(v.literal("ios"), v.literal("android")),
+    deviceName: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_token", ["token"]),
+
   /**
    * Préférences UI : langue, thème, accessibilité.
    */
@@ -651,6 +851,8 @@ export default defineSchema({
    */
   developerApiKey: defineTable({
     userId: v.string(),
+    /** Application OAuth propriétaire. Optionnel pendant la reprise des clés historiques. */
+    appClientId: v.optional(v.string()),
     name: v.string(),
     tokenHash: v.string(),
     tokenPrefix: v.string(),
@@ -661,7 +863,100 @@ export default defineSchema({
     revokedAt: v.optional(v.number()),
   })
     .index("by_userId", ["userId", "createdAt"])
+    .index("by_appClientId_and_createdAt", ["appClientId", "createdAt"])
     .index("by_tokenHash", ["tokenHash"]),
+
+  /** Endpoints de webhook déclarés par les applications OAuth. */
+  webhookEndpoints: defineTable({
+    appClientId: v.string(),
+    developerUserId: v.string(),
+    environment: v.union(v.literal("sandbox"), v.literal("production")),
+    name: v.string(),
+    url: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("active"),
+      v.literal("paused"),
+      v.literal("disabled"),
+    ),
+    secretCiphertext: v.string(),
+    secretIv: v.string(),
+    previousSecretCiphertext: v.optional(v.string()),
+    previousSecretIv: v.optional(v.string()),
+    previousSecretValidUntil: v.optional(v.number()),
+    /** Lie une réponse de challenge à la version exacte demandée. */
+    challengeId: v.optional(v.string()),
+    verifiedAt: v.optional(v.number()),
+    consecutiveFailures: v.number(),
+    lastSuccessAt: v.optional(v.number()),
+    lastFailureAt: v.optional(v.number()),
+    pausedReason: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    deletedAt: v.optional(v.number()),
+  })
+    .index("by_appClientId_and_createdAt", ["appClientId", "createdAt"])
+    .index("by_appClientId_and_status", ["appClientId", "status"])
+    .index("by_status_and_updatedAt", ["status", "updatedAt"]),
+
+  /** Abonnement exact d'un endpoint à un événement du catalogue. */
+  webhookSubscriptions: defineTable({
+    endpointId: v.id("webhookEndpoints"),
+    appClientId: v.string(),
+    eventType: v.union(...WEBHOOK_EVENT_TYPES.map((t) => v.literal(t))),
+    createdAt: v.number(),
+  })
+    .index("by_endpointId_and_eventType", ["endpointId", "eventType"])
+    .index("by_eventType_and_endpointId", ["eventType", "endpointId"]),
+
+  /** Événement immuable. La charge utile JSON provient du catalogue typé. */
+  webhookEvents: defineTable({
+    eventId: v.string(),
+    type: v.union(...WEBHOOK_EVENT_TYPES.map((t) => v.literal(t))),
+    apiVersion: v.literal("1"),
+    authorization: v.union(v.literal("oauth_user"), v.literal("m2m")),
+    subject: v.optional(v.string()),
+    /** Sujet interne de l'autorisation sandbox, non présent dans payloadJson. */
+    authorizationSubject: v.optional(v.string()),
+    requiredScope: v.string(),
+    payloadJson: v.string(),
+    fanoutStatus: v.union(v.literal("pending"), v.literal("completed")),
+    createdAt: v.number(),
+    fanoutCompletedAt: v.optional(v.number()),
+    expiresAt: v.number(),
+  })
+    .index("by_eventId", ["eventId"])
+    .index("by_fanoutStatus_and_createdAt", ["fanoutStatus", "createdAt"])
+    .index("by_expiresAt", ["expiresAt"]),
+
+  /** Tentative de livraison d'un événement vers un endpoint. */
+  webhookDeliveries: defineTable({
+    eventId: v.id("webhookEvents"),
+    endpointId: v.id("webhookEndpoints"),
+    appClientId: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("delivering"),
+      v.literal("retrying"),
+      v.literal("succeeded"),
+      v.literal("failed"),
+      v.literal("canceled"),
+    ),
+    attempts: v.number(),
+    /** Départ de la politique de retry, réinitialisé lors d'un rejeu manuel. */
+    attemptCycleStartedAt: v.optional(v.number()),
+    nextAttemptAt: v.number(),
+    leaseExpiresAt: v.optional(v.number()),
+    lastHttpStatus: v.optional(v.number()),
+    lastErrorCode: v.optional(v.string()),
+    lastAttemptAt: v.optional(v.number()),
+    deliveredAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_eventId_and_endpointId", ["eventId", "endpointId"])
+    .index("by_endpointId_and_createdAt", ["endpointId", "createdAt"])
+    .index("by_status_and_nextAttemptAt", ["status", "nextAttemptAt"]),
 
   /**
    * Clé/valeur pour la configuration système modifiable par le super-admin
@@ -751,6 +1046,8 @@ export default defineSchema({
       availablePackages: v.number(),
       unreadMessages: v.number(),
     }),
+    /** Version monotone utilisée par les webhooks et la réconciliation. */
+    syncVersion: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -787,11 +1084,14 @@ export default defineSchema({
     isRead: v.boolean(),
     dueAt: v.optional(v.number()),
     originOperator: v.optional(v.string()), // userId de l'admin qui a déposé
+    /** Idempotence des courriers officiels déposés par une app M2M. */
+    partnerDeliveryKey: v.optional(v.string()),
     createdAt: v.number(),
   })
     .index("by_user_folder", ["userId", "folder", "createdAt"])
     .index("by_account_folder", ["accountId", "folder", "createdAt"])
-    .index("by_user_unread", ["userId", "folder", "isRead"]),
+    .index("by_user_unread", ["userId", "folder", "isRead"])
+    .index("by_partnerDeliveryKey", ["partnerDeliveryKey"]),
 
   iboiteLetterAttachment: defineTable({
     letterId: v.id("iboiteLetter"),
@@ -834,7 +1134,13 @@ export default defineSchema({
     subject: v.string(),
     preview: v.string(),
     body: v.string(),
-    folder: v.union(v.literal("inbox"), v.literal("sent"), v.literal("trash")),
+    bodyHtml: v.optional(v.string()),
+    folder: v.union(
+      v.literal("inbox"),
+      v.literal("archive"),
+      v.literal("sent"),
+      v.literal("trash"),
+    ),
     isRead: v.boolean(),
     isStarred: v.boolean(),
     hasAttachment: v.boolean(),
@@ -1039,6 +1345,50 @@ export default defineSchema({
     approvedAt: v.optional(v.number()),
   })
     .index("by_sessionCode", ["sessionCode"])
+    .index("by_expiresAt", ["expiresAt"]),
+
+  /**
+   * État serveur, court et opaque, d'une récupération de PIN par SMS.
+   * Bird conserve le code : cette table ne stocke que le destinataire résolu
+   * côté serveur puis l'empreinte d'un jeton de réinitialisation à usage unique.
+   */
+  pinRecoveryChallenge: defineTable({
+    requestId: v.string(),
+    userId: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("sent"),
+      v.literal("verified"),
+    ),
+    attempts: v.number(),
+    resetTokenHash: v.optional(v.string()),
+    resetTokenExpiresAt: v.optional(v.number()),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_requestId", ["requestId"])
+    .index("by_userId", ["userId"])
+    .index("by_expiresAt", ["expiresAt"]),
+
+  /**
+   * Changement de numéro initié par un utilisateur connecté. Le nouveau
+   * numéro reste ici jusqu'à la confirmation Bird ; il n'est copié dans le
+   * profil qu'après validation du code.
+   */
+  phoneChangeChallenge: defineTable({
+    requestId: v.string(),
+    userId: v.string(),
+    phone: v.string(),
+    status: v.union(v.literal("pending"), v.literal("sent")),
+    attempts: v.number(),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_requestId", ["requestId"])
+    .index("by_userId", ["userId"])
     .index("by_expiresAt", ["expiresAt"]),
 
   // ─────────────────────────────────────────────────────────────────────

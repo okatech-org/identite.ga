@@ -19,7 +19,7 @@ export interface PreviewCv {
   portfolioUrl?: string;
   linkedinUrl?: string;
   activeTheme?: string;
-  experiences: Array<{
+  experiences: {
     id: string;
     title: string;
     company: string;
@@ -27,16 +27,16 @@ export interface PreviewCv {
     endDate?: string;
     current: boolean;
     description: string;
-  }>;
-  education: Array<{
+  }[];
+  education: {
     id: string;
     degree: string;
     school: string;
     year: string;
     description?: string;
-  }>;
-  skills: Array<{ id: string; name: string; level: string }>;
-  languages: Array<{ id: string; name: string; level: string }>;
+  }[];
+  skills: { id: string; name: string; level: string }[];
+  languages: { id: string; name: string; level: string }[];
   hobbies: string[];
 }
 
