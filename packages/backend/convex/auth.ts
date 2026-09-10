@@ -142,6 +142,36 @@ export const createAuth = (
       requireEmailVerification: false,
       minPasswordLength: 12,
       maxPasswordLength: 256,
+      // Une récupération de compte invalide les sessions potentiellement
+      // ouvertes avec l'ancien mot de passe.
+      revokeSessionsOnPasswordReset: true,
+      onPasswordReset: async ({ user }) => {
+        try {
+          await (
+            ctx as unknown as {
+              runMutation: (
+                ref: typeof internal.audit.recordAudit,
+                args: {
+                  action: "password_changed"
+                  targetType: "user"
+                  targetId: string
+                  metadata: { method: string }
+                },
+              ) => Promise<unknown>
+            }
+          ).runMutation(internal.audit.recordAudit, {
+            action: "password_changed",
+            targetType: "user",
+            targetId: user.id,
+            metadata: { method: "password_reset_otp" },
+          })
+        } catch (error) {
+          // Le mot de passe est déjà remplacé à ce stade dans Better Auth :
+          // un incident d'audit ne doit pas transformer le succès en erreur
+          // côté citoyen. Il reste observable dans les logs serveur.
+          console.error("[auth] password reset audit failed", error)
+        }
+      },
     },
     session: {
       expiresIn: 60 * 60 * 24 * 14, // 14 jours (§6.3)
@@ -335,6 +365,10 @@ export const createAuth = (
       emailOTP({
         otpLength: 6,
         expiresIn: 60 * 15, // 15 min (§3.2)
+        // Les codes de récupération sont des secrets d'authentification.
+        // L'admin ne voit le code provisoire qu'une fois ; seule son
+        // empreinte reste ensuite dans le composant Better Auth.
+        storeOTP: "hashed",
         sendVerificationOnSignUp: false,
         sendVerificationOTP: async ({ email, otp, type }) => {
           await (ctx as any).scheduler.runAfter(
