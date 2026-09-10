@@ -320,3 +320,144 @@ describe("suppression d'un compte par l'admin", () => {
     expect(listed.rows.map((r) => r.userId)).not.toContain(citizen.userId)
   })
 })
+
+describe("code provisoire de réinitialisation", () => {
+  test("génère un code à six chiffres compatible avec Better Auth sans le stocker en clair", async () => {
+    const t = makeTestClient()
+    const citizen = await seedCitizen(t, {
+      handle: "recuperation",
+      idnId: "GA-0010-0010",
+    })
+    const before = Date.now()
+
+    const issued = await t
+      .withIdentity({ subject: ADMIN })
+      .action(api.admin.accounts.generatePasswordResetCode, {
+        userId: citizen.userId,
+        confirmIdentifier: citizen.idnId,
+      })
+
+    expect(issued.code).toMatch(/^\d{6}$/)
+    expect(issued.expiresAt).toBeGreaterThanOrEqual(before + 15 * 60 * 1000)
+    expect(issued.expiresAt).toBeLessThanOrEqual(Date.now() + 15 * 60 * 1000)
+
+    const records = await t.run((ctx) =>
+      ctx.runQuery(components.betterAuth.adapter.findMany, {
+        model: "verification",
+        where: [
+          {
+            field: "identifier",
+            value: `forget-password-otp-${citizen.email}`,
+            operator: "eq",
+          },
+        ],
+        paginationOpts: { numItems: 10, cursor: null },
+      }),
+    )
+    expect(records.page).toHaveLength(1)
+    expect(records.page[0]?.value).toMatch(/^[A-Za-z0-9_-]{43}:0$/)
+    expect(records.page[0]?.value).not.toContain(issued.code)
+
+    const audit = await t.run((ctx) =>
+      ctx.db
+        .query("auditLog")
+        .withIndex("by_target", (q) =>
+          q.eq("targetType", "user").eq("targetId", citizen.userId),
+        )
+        .order("desc")
+        .first(),
+    )
+    expect(audit).toMatchObject({
+      actorId: ADMIN,
+      action: "admin_action",
+      metadata: {
+        kind: "password_reset_code_issued",
+        channel: "admin_manual",
+      },
+    })
+    expect(audit?.metadata).not.toHaveProperty("code")
+  })
+
+  test("une nouvelle génération invalide le code précédent", async () => {
+    const t = makeTestClient()
+    const citizen = await seedCitizen(t, {
+      handle: "rotation",
+      idnId: "GA-0011-0011",
+    })
+    const asAdmin = t.withIdentity({ subject: ADMIN })
+    const args = {
+      userId: citizen.userId,
+      confirmIdentifier: citizen.idnId,
+    }
+
+    await asAdmin.action(api.admin.accounts.generatePasswordResetCode, args)
+    await asAdmin.action(api.admin.accounts.generatePasswordResetCode, args)
+
+    const records = await t.run((ctx) =>
+      ctx.runQuery(components.betterAuth.adapter.findMany, {
+        model: "verification",
+        where: [
+          {
+            field: "identifier",
+            value: `forget-password-otp-${citizen.email}`,
+            operator: "eq",
+          },
+        ],
+        paginationOpts: { numItems: 10, cursor: null },
+      }),
+    )
+    expect(records.page).toHaveLength(1)
+  })
+
+  test("bloque un mauvais identifiant de confirmation et les non-admins", async () => {
+    const t = makeTestClient()
+    const citizen = await seedCitizen(t, {
+      handle: "protege-reset",
+      idnId: "GA-0012-0012",
+    })
+    const args = {
+      userId: citizen.userId,
+      confirmIdentifier: "GA-9999-9999",
+    }
+
+    await expect(
+      t
+        .withIdentity({ subject: ADMIN })
+        .action(api.admin.accounts.generatePasswordResetCode, args),
+    ).rejects.toThrow(/correspond pas/)
+
+    await expect(
+      t
+        .withIdentity({ subject: "citizen_1" })
+        .action(api.admin.accounts.generatePasswordResetCode, {
+          ...args,
+          confirmIdentifier: citizen.idnId,
+        }),
+    ).rejects.toThrow(/refusé/)
+  })
+
+  test("refuse de délivrer un code pour un autre administrateur", async () => {
+    const t = makeTestClient()
+    const peer = await seedCitizen(t, {
+      handle: "admin-reset",
+      idnId: "GA-0013-0013",
+    })
+    await t.run((ctx) =>
+      ctx.db.insert("userRole", {
+        userId: peer.userId,
+        role: "admin",
+        assignedBy: ADMIN,
+        assignedAt: Date.now(),
+      }),
+    )
+
+    await expect(
+      t
+        .withIdentity({ subject: ADMIN })
+        .action(api.admin.accounts.generatePasswordResetCode, {
+          userId: peer.userId,
+          confirmIdentifier: peer.idnId,
+        }),
+    ).rejects.toThrow(/procédure renforcée/)
+  })
+})

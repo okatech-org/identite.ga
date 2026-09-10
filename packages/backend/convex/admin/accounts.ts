@@ -2,12 +2,12 @@ import { ConvexError, v } from "convex/values"
 
 import { components, internal } from "../_generated/api"
 import type { Id } from "../_generated/dataModel"
-import type { MutationCtx } from "../_generated/server"
+import { action, internalQuery, type MutationCtx } from "../_generated/server"
 import { mutation } from "../functions"
 import { requireAdmin } from "../lib/auth"
 
 /**
- * Actions destructrices de l'admin sur un compte IDN.
+ * Actions sensibles de l'admin sur un compte IDN.
  *
  * Séparé de `admin/users.ts` (lecture seule) pour que la frontière entre
  * consultation et destruction soit lisible d'un coup d'œil.
@@ -33,6 +33,196 @@ import { requireAdmin } from "../lib/auth"
  * `usersByLoa` / `usersByProfile` à jour lors du `ctx.db.delete()`. Sans
  * cela le tableau de bord admin dériverait en silence.
  */
+
+const PASSWORD_RESET_CODE_TTL_MS = 15 * 60 * 1000
+
+/**
+ * Identifiant interne utilisé par emailOTP@1.6.x pour le parcours
+ * `forget-password`. Il faut retirer l'ancien enregistrement avant d'en
+ * créer un nouveau : sinon deux codes pourraient coexister et l'adapter ne
+ * garantirait pas lequel sera vérifié.
+ */
+function passwordResetOtpIdentifier(email: string) {
+  return `forget-password-otp-${email.toLowerCase()}`
+}
+
+/** Même empreinte SHA-256/base64url que `emailOTP({ storeOTP: "hashed" })`. */
+async function hashPasswordResetCode(code: string) {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(code),
+  )
+  let binary = ""
+  for (const byte of new Uint8Array(digest)) {
+    binary += String.fromCharCode(byte)
+  }
+  return btoa(binary)
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replace(/=+$/, "")
+}
+
+/** Tirage uniforme sur 000000–999999 avec l'aléa cryptographique du runtime. */
+function generateSixDigitCode() {
+  const range = 1_000_000
+  const uint32Size = 0x1_0000_0000
+  const unbiasedLimit = uint32Size - (uint32Size % range)
+  const random = new Uint32Array(1)
+  do {
+    crypto.getRandomValues(random)
+  } while (random[0]! >= unbiasedLimit)
+  return String(random[0]! % range).padStart(6, "0")
+}
+
+/**
+ * Garde serveur appelée depuis l'action de génération.
+ *
+ * Une action Convex n'a pas accès à `ctx.db`; cette query interne réalise
+ * donc l'autorisation RBAC et résout la cible sans faire confiance aux
+ * informations affichées par le navigateur.
+ */
+export const preparePasswordResetCode = internalQuery({
+  args: {
+    userId: v.string(),
+    confirmIdentifier: v.string(),
+  },
+  returns: v.object({
+    adminId: v.string(),
+    email: v.string(),
+  }),
+  handler: async (ctx, args) => {
+    const admin = await requireAdmin(ctx)
+
+    if (args.userId === admin.userId) {
+      throw new ConvexError({
+        code: "FORBIDDEN_SELF_RECOVERY",
+        message:
+          "Vous ne pouvez pas générer un code de récupération pour votre propre compte administrateur.",
+      })
+    }
+
+    const profile = await ctx.db
+      .query("userProfile")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .unique()
+    if (!profile) {
+      throw new ConvexError({
+        code: "NOT_FOUND",
+        message: "Compte introuvable.",
+      })
+    }
+    if (profile.deletedAt !== undefined) {
+      throw new ConvexError({
+        code: "ALREADY_ANONYMIZED",
+        message: "Un compte anonymisé ne peut pas être récupéré.",
+      })
+    }
+
+    const roles = await ctx.db
+      .query("userRole")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .take(20)
+    if (roles.some((row) => row.role === "admin" && !row.revokedAt)) {
+      throw new ConvexError({
+        code: "FORBIDDEN_ADMIN_TARGET",
+        message:
+          "La récupération d'un compte administrateur suit une procédure renforcée.",
+      })
+    }
+
+    const user = (await ctx.runQuery(components.betterAuth.adapter.findOne, {
+      model: "user",
+      where: [{ field: "_id", value: args.userId }],
+    })) as { email?: string } | null
+    const email = user?.email?.trim().toLowerCase() ?? ""
+    if (!email) {
+      throw new ConvexError({
+        code: "AUTH_ACCOUNT_NOT_FOUND",
+        message: "Le compte d'authentification est absent.",
+      })
+    }
+
+    const expected = profile.idnId ?? email
+    if (
+      args.confirmIdentifier.trim().toUpperCase() !== expected.toUpperCase()
+    ) {
+      throw new ConvexError({
+        code: "CONFIRMATION_MISMATCH",
+        message: "L'identifiant saisi ne correspond pas à ce compte.",
+      })
+    }
+
+    return { adminId: admin.userId, email }
+  },
+})
+
+/**
+ * Génère un code provisoire à six chiffres sans déclencher d'email ni de
+ * SMS. Le code emprunte exactement le stockage et la vérification du plugin
+ * Better Auth emailOTP : il fonctionne donc dans `/reset-password`, expire
+ * après 15 minutes, tolère au plus trois essais et disparaît au premier usage
+ * réussi.
+ *
+ * Le code en clair n'est ni journalisé ni relisible. La réponse de cette
+ * action est le seul endroit où l'opérateur peut le copier.
+ */
+export const generatePasswordResetCode = action({
+  args: {
+    userId: v.string(),
+    confirmIdentifier: v.string(),
+  },
+  returns: v.object({
+    code: v.string(),
+    expiresAt: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    const target: { adminId: string; email: string } = await ctx.runQuery(
+      internal.admin.accounts.preparePasswordResetCode,
+      args,
+    )
+    const identifier = passwordResetOtpIdentifier(target.email)
+
+    // Une nouvelle émission invalide immédiatement tout code précédent.
+    await ctx.runMutation(components.betterAuth.adapter.deleteMany, {
+      input: {
+        model: "verification",
+        where: [{ field: "identifier", value: identifier, operator: "eq" }],
+      },
+      paginationOpts: { numItems: 20, cursor: null },
+    })
+
+    const code = generateSixDigitCode()
+    const now = Date.now()
+    const expiresAt = now + PASSWORD_RESET_CODE_TTL_MS
+    const codeHash = await hashPasswordResetCode(code)
+    await ctx.runMutation(components.betterAuth.adapter.create, {
+      input: {
+        model: "verification",
+        data: {
+          identifier,
+          value: `${codeHash}:0`,
+          expiresAt,
+          createdAt: now,
+          updatedAt: now,
+        },
+      },
+    })
+
+    await ctx.runMutation(internal.audit.recordAudit, {
+      actorId: target.adminId,
+      action: "admin_action",
+      targetType: "user",
+      targetId: args.userId,
+      metadata: {
+        kind: "password_reset_code_issued",
+        channel: "admin_manual",
+        expiresAt,
+      },
+    })
+
+    return { code, expiresAt }
+  },
+})
 
 /** Profil résolu + garde-fous passés. */
 async function loadTarget(

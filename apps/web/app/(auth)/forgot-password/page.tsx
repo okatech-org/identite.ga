@@ -54,6 +54,14 @@ export default function ForgotPasswordPage() {
     }
   })
 
+  // Voie de secours : l'opérateur a déjà remis un code au titulaire.
+  // On conserve uniquement l'email en session locale et on évite l'appel
+  // d'envoi, qui remplacerait le code provisoire tout juste généré.
+  const onUseExistingCode = handleSubmit((values) => {
+    setOnboardingEmail(values.email)
+    router.push("/reset-password")
+  })
+
   return (
     <div className="mx-auto flex w-full max-w-[420px] flex-1 flex-col justify-center px-6 py-10">
       <Card className="p-7">
@@ -88,9 +96,40 @@ export default function ForgotPasswordPage() {
             )}
           </div>
 
-          <Button type="submit" size="lg" disabled={isSubmitting} className="w-full">
-            {isSubmitting ? forgotPassword.primarySubmitting : forgotPassword.primary}
+          <Button
+            type="submit"
+            size="lg"
+            disabled={isSubmitting}
+            className="w-full"
+          >
+            {isSubmitting
+              ? forgotPassword.primarySubmitting
+              : forgotPassword.primary}
           </Button>
+
+          <div className="flex items-center gap-3" aria-hidden>
+            <span className="h-px flex-1 bg-border" />
+            <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              ou
+            </span>
+            <span className="h-px flex-1 bg-border" />
+          </div>
+
+          <div className="space-y-1.5">
+            <Button
+              type="button"
+              size="lg"
+              variant="outline"
+              disabled={isSubmitting}
+              onClick={() => void onUseExistingCode()}
+              className="w-full"
+            >
+              {forgotPassword.existingCode}
+            </Button>
+            <p className="text-center text-xs leading-relaxed text-muted-foreground">
+              {forgotPassword.existingCodeHint}
+            </p>
+          </div>
 
           <Link
             href="/sign-in"
